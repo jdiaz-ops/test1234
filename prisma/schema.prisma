@@ -1,0 +1,656 @@
+// ============================================================================
+// MARCOLINI — esquema de base de datos
+//
+// Este archivo es la traducción directa, entidad por entidad, de todas las
+// reglas de negocio definidas durante el diseño de la plataforma: portales de
+// Creador y Marca, Panel Admin, motores de Atribución / Comisiones / Pagos,
+// Retos y Campañas, y Mensajería.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// AUTENTICACIÓN (compatible con Auth.js / NextAuth — login compartido que
+// enruta automáticamente al portal correcto según el rol de la cuenta)
+// ----------------------------------------------------------------------------
+
+enum UserRole {
+  CREATOR
+  BRAND
+  ADMIN
+}
+
+/// Roles internos del Panel Admin — permisos limitados por rol (Fase 2, pero
+/// el modelo ya queda listo desde ahora para no rediseñar después).
+enum AdminRole {
+  OWNER // Propietario: acceso total
+  SUPPORT // Ve y resuelve disputas/reclamos
+  FINANCE // Ve panel de finanzas, cobros, pagos, reportes
+  BRAND_APPROVER // Revisa y aprueba/rechaza marcas nuevas
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String? // null si el usuario solo usa login con Google
+  image         String?
+  role          UserRole
+
+  // Solo aplica si role = ADMIN
+  adminRole        AdminRole?
+  twoFactorEnabled Boolean    @default(false)
+  twoFactorSecret  String?
+
+  creatorProfile CreatorProfile?
+  brandProfile   BrandProfile?
+
+  notifications Notification[]
+
+  accounts Account[]
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Modelos requeridos por el adaptador de Prisma de Auth.js (login con Google,
+// y en el futuro Instagram, para creadores).
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Usado tanto para verificación de email como para recuperación de contraseña.
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ----------------------------------------------------------------------------
+// VERTICALES Y CATEGORÍAS
+// Estructurado en dos niveles desde el día 1 para soportar la expansión
+// planeada (Uñas -> Belleza y cuidado personal -> Moda y ropa) sin tener que
+// rediseñar nada — hoy solo existirá el vertical "Uñas" poblado.
+// ----------------------------------------------------------------------------
+
+model Vertical {
+  id         String     @id @default(cuid())
+  name       String     @unique // ej. "Uñas", "Belleza y cuidado personal", "Moda y ropa"
+  slug       String     @unique
+  categories Category[]
+
+  brandProfiles   BrandProfile[]
+  creatorProfiles CreatorProfile[]
+}
+
+model Category {
+  id         String   @id @default(cuid())
+  name       String // ej. "Esmaltes", "Herramientas", "Extensiones"
+  slug       String
+  verticalId String
+  vertical   Vertical @relation(fields: [verticalId], references: [id])
+
+  offers Offer[]
+
+  @@unique([verticalId, slug])
+}
+
+// ----------------------------------------------------------------------------
+// PERFIL DE CREADOR
+// ----------------------------------------------------------------------------
+
+model CreatorProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  displayName String
+  bio         String?
+  photoUrl    String?
+  city        String?
+  country     String  @default("Colombia")
+
+  verticalId String?
+  vertical   Vertical? @relation(fields: [verticalId], references: [id])
+
+  /// El código personal único del creador (ej. "LAURA30") — se reutiliza en
+  /// TODAS las marcas a las que se une, para que nunca tenga que manejar un
+  /// código distinto por marca.
+  baseCode String @unique
+
+  /// "Modo Descubrible" (Fase 2 — Marcolini Discover): apagado por defecto.
+  /// Mientras esté en false, ninguna marca puede encontrar este perfil en un
+  /// directorio de búsqueda — solo aparece en "Creadores vinculados" de las
+  /// marcas a las que él mismo decidió unirse.
+  discoverable Boolean @default(false)
+
+  /// Slug de su página pública "Mi Storefront" (ej. marcolini.co/@lauragomez)
+  storefrontSlug String @unique
+
+  // Datos de pago para el desembolso del día 15 (ePayco Pagos Divididos)
+  bankName          String?
+  bankAccountType   String?
+  bankAccountNumber String?
+  paymentHolderName String?
+
+  socialLinks           CreatorSocialLink[]
+  enrollments           CreatorOfferEnrollment[]
+  transactions          Transaction[]
+  commissions           Commission[]
+  payouts               Payout[]
+  instantPayoutRequests InstantPayoutRequest[]
+  conversations         Conversation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CreatorSocialLink {
+  id               String         @id @default(cuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+
+  platform        String // Instagram, TikTok, Facebook...
+  handle          String
+  approxFollowers Int?
+}
+
+// ----------------------------------------------------------------------------
+// PERFIL DE MARCA
+// ----------------------------------------------------------------------------
+
+enum BrandStatus {
+  PENDING // esperando aprobación del admin
+  APPROVED
+  REJECTED
+  PAUSED
+}
+
+enum StoreType {
+  SHOPIFY
+  WOOCOMMERCE
+  OTHER // método de código con reporte manual, sin webhook automático
+}
+
+enum StoreConnectionStatus {
+  NOT_CONNECTED
+  CONNECTED
+  ERROR
+}
+
+/// Modalidad de vinculación de creadores a una oferta (se explica con texto
+/// claro en el Portal Marca al elegir).
+enum JoinMode {
+  OPEN // "Cualquier creador puede unirse automáticamente"
+  APPROVAL // "Tú revisas el perfil de cada creador antes de aceptarlo"
+}
+
+model BrandProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyName String
+  legalName   String? // razón social
+  taxId       String? // NIT
+  logoUrl     String?
+  description String?
+  city        String?
+  country     String  @default("Colombia")
+
+  verticalId String?
+  vertical   Vertical? @relation(fields: [verticalId], references: [id])
+
+  status       BrandStatus @default(PENDING)
+  approvedAt   DateTime?
+  approvedById String? // referencia al User admin que aprobó
+
+  termsAcceptedAt DateTime?
+
+  storeType             StoreType             @default(OTHER)
+  storeUrl              String?
+  storeConnectionStatus StoreConnectionStatus @default(NOT_CONNECTED)
+  storeLastSyncedAt     DateTime?
+  // Credenciales de integración (en producción: cifradas / en un vault, no en texto plano)
+  shopifyAccessToken    String?
+  wooConsumerKey        String?
+  wooConsumerSecret     String?
+
+  /// Tarifa de plataforma para ESTA marca. Si es null, aplica el valor por
+  /// defecto de PlatformConfig (5%) — el admin puede sobrescribirla por
+  /// negociación, y la marca lo ve reflejado automáticamente en su portal.
+  platformFeePercentOverride Decimal? @db.Decimal(5, 2)
+
+  /// Referencia tokenizada de la tarjeta guardada en ePayco para el cobro
+  /// automático del día 1 — nunca se guarda el número de tarjeta aquí.
+  cardTokenRef String?
+
+  offers  Offer[]
+  charges BrandCharge[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ----------------------------------------------------------------------------
+// OFERTA (el programa de afiliación de una marca)
+// ----------------------------------------------------------------------------
+
+enum OfferStatus {
+  ACTIVE
+  PAUSED
+}
+
+model Offer {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  status OfferStatus @default(ACTIVE)
+
+  /// % que gana el creador — el 100% de este valor es del creador (modelo
+  /// Awin: la marca lo paga aparte de la tarifa de Marcolini, nunca se
+  /// descuenta del creador).
+  defaultCommissionPercent Decimal @db.Decimal(5, 2)
+
+  /// % de descuento que ve el comprador final al usar el código — campo
+  /// independiente de la comisión, configurable también por creador.
+  defaultDiscountPercent Decimal @db.Decimal(5, 2)
+
+  joinMode JoinMode @default(OPEN)
+
+  startDate DateTime?
+  endDate   DateTime?
+
+  enrollments  CreatorOfferEnrollment[]
+  challenges   Challenge[]
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ----------------------------------------------------------------------------
+// VINCULACIÓN CREADOR <-> OFERTA ("Creadores vinculados")
+// ----------------------------------------------------------------------------
+
+enum EnrollmentStatus {
+  PENDING_APPROVAL // solo aplica si la oferta es JoinMode.APPROVAL
+  ACTIVE
+  REJECTED
+  REMOVED
+}
+
+model CreatorOfferEnrollment {
+  id String @id @default(cuid())
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  status EnrollmentStatus @default(ACTIVE)
+
+  /// Comisión/descuento negociados específicamente para este creador en esta
+  /// oferta — si son null, aplica el valor general de la Offer.
+  commissionPercentOverride Decimal? @db.Decimal(5, 2)
+  discountPercentOverride   Decimal? @db.Decimal(5, 2)
+
+  /// El código real creado en la tienda de la marca (normalmente idéntico al
+  /// baseCode del creador — solo difiere si hubo colisión con un código ya
+  /// existente en esa tienda puntual).
+  discountCode String
+
+  // Referencia al objeto creado vía API en la tienda de la marca
+  shopifyPriceRuleId String?
+  wooCouponId        String?
+
+  transactions  Transaction[]
+  conversations Conversation[]
+
+  joinedAt DateTime @default(now())
+
+  @@unique([offerId, creatorId])
+}
+
+// ----------------------------------------------------------------------------
+// RETOS Y CAMPAÑAS
+// ----------------------------------------------------------------------------
+
+enum ChallengeType {
+  GOAL_BONUS // Bono por meta de ventas
+  TEMP_COMMISSION_BOOST // Comisión temporal elevada
+  LEADERBOARD // Leaderboard con premio al Top N
+  WELCOME_BONUS // Bono de bienvenida (primeros N cupos)
+  CONTENT_CHALLENGE // Reto de contenido (verificación manual)
+}
+
+enum ChallengeStatus {
+  ACTIVE
+  ENDED
+}
+
+model Challenge {
+  id      String @id @default(cuid())
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  type   ChallengeType
+  name   String
+  status ChallengeStatus @default(ACTIVE)
+
+  startDate DateTime
+  endDate   DateTime
+
+  /// Configuración flexible según el tipo de reto:
+  /// GOAL_BONUS            -> { goalAmount, bonusAmount }
+  /// TEMP_COMMISSION_BOOST  -> { newCommissionPercent }
+  /// LEADERBOARD            -> { winnersCount, prizes: [amount, ...] }
+  /// WELCOME_BONUS          -> { slotsCount, bonusPerSlot }
+  /// CONTENT_CHALLENGE      -> { instructions, bonusAmount }
+  config Json
+
+  createdAt DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// MOTOR DE ATRIBUCIÓN — Transacciones detectadas vía Shopify/WooCommerce
+// ----------------------------------------------------------------------------
+
+enum TransactionSource {
+  SHOPIFY
+  WOOCOMMERCE
+  MANUAL // reporte manual para marcas sin integración (StoreType.OTHER)
+}
+
+enum TransactionStatus {
+  COMPLETED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model Transaction {
+  id String @id @default(cuid())
+
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id])
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id])
+
+  enrollmentId String
+  enrollment   CreatorOfferEnrollment @relation(fields: [enrollmentId], references: [id])
+
+  source          TransactionSource
+  externalOrderId String // id de la orden en Shopify/WooCommerce
+
+  grossAmount    Decimal @db.Decimal(12, 2) // precio de lista
+  discountAmount Decimal @db.Decimal(12, 2) // lo que no pagó el cliente
+  netAmount      Decimal @db.Decimal(12, 2) // lo que realmente pagó el cliente (base de la comisión)
+
+  status TransactionStatus @default(COMPLETED)
+
+  occurredAt DateTime
+  refundedAt DateTime?
+
+  commission Commission?
+
+  createdAt DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// MOTOR DE COMISIONES
+// ----------------------------------------------------------------------------
+
+enum CommissionStatus {
+  PENDING // dentro de la ventana de 15 días de espera por reembolsos
+  APPROVED // ya se puede incluir en el próximo pago del día 15
+  PAID
+  REVERSED // hubo reembolso/contracargo, se anula
+}
+
+model Commission {
+  id String @id @default(cuid())
+
+  transactionId String      @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+
+  /// 100% para el creador — la marca lo factura/paga completo, sin descuento
+  /// de la tarifa de plataforma (modelo Awin).
+  creatorCommissionAmount Decimal @db.Decimal(12, 2)
+
+  /// Tarifa de Marcolini, cobrada aparte a la marca.
+  platformFeeAmount    Decimal @db.Decimal(12, 2)
+  platformFeeVatAmount Decimal @db.Decimal(12, 2) // IVA sobre la tarifa (pendiente de confirmación contable)
+
+  status CommissionStatus @default(PENDING)
+
+  /// Fecha en la que se levanta la espera de 15 días por reembolsos.
+  holdUntil DateTime
+
+  approvedAt DateTime?
+  reversedAt DateTime?
+
+  payoutId String?
+  payout   Payout? @relation(fields: [payoutId], references: [id])
+
+  instantPayoutRequestId String?
+  instantPayoutRequest   InstantPayoutRequest? @relation(fields: [instantPayoutRequestId], references: [id])
+
+  createdAt        DateTime        @default(now())
+  creatorProfile   CreatorProfile? @relation(fields: [creatorProfileId], references: [id])
+  creatorProfileId String?
+}
+
+// ----------------------------------------------------------------------------
+// MOTOR DE PAGOS (ePayco — Pagos Divididos)
+// ----------------------------------------------------------------------------
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
+/// Desembolso del día 15 a un creador — agrupa todas sus comisiones
+/// aprobadas del período.
+model Payout {
+  id String @id @default(cuid())
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id])
+
+  periodStart DateTime
+  periodEnd   DateTime
+
+  totalAmount Decimal      @db.Decimal(12, 2)
+  status      PayoutStatus @default(PENDING)
+
+  epaycoTransactionRef String?
+  paidAt               DateTime?
+
+  commissions Commission[]
+
+  createdAt DateTime @default(now())
+}
+
+enum BrandChargeStatus {
+  PENDING
+  CHARGED
+  FAILED
+}
+
+/// Cobro del día 1 a la tarjeta de una marca — cubre comisiones + tarifa de
+/// plataforma + IVA del período. Da el colchón de 15 días antes de pagarle a
+/// los creadores.
+model BrandCharge {
+  id String @id @default(cuid())
+
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id])
+
+  periodStart DateTime
+  periodEnd   DateTime
+
+  totalAmount Decimal           @db.Decimal(12, 2)
+  status      BrandChargeStatus @default(PENDING)
+
+  epaycoTransactionRef String?
+  chargedAt            DateTime?
+  failureReason        String?
+
+  createdAt DateTime @default(now())
+}
+
+enum InstantPayoutStatus {
+  REQUESTED
+  PROCESSED
+  FAILED
+}
+
+/// Cobro anticipado: el creador adelanta una comisión ya aprobada antes del
+/// día 15, pagando un fee del 5% — ese 5% es ingreso de Marcolini.
+model InstantPayoutRequest {
+  id String @id @default(cuid())
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id])
+
+  amountRequested Decimal @db.Decimal(12, 2)
+  feeAmount       Decimal @db.Decimal(12, 2) // 5% — ingreso de Marcolini
+
+  status      InstantPayoutStatus @default(REQUESTED)
+  processedAt DateTime?
+
+  commissions Commission[]
+
+  createdAt DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// CONFIGURACIÓN GLOBAL DE LA PLATAFORMA (Panel Admin)
+// ----------------------------------------------------------------------------
+
+/// Tabla de una sola fila — los números que el admin puede ajustar sin tocar
+/// código: tarifa por defecto, días de cobro/pago, ventana de reembolsos.
+model PlatformConfig {
+  id                        String  @id @default("singleton")
+  defaultPlatformFeePercent Decimal @default(5.0) @db.Decimal(5, 2)
+  vatPercent                Decimal @default(19.0) @db.Decimal(5, 2)
+  chargeDayOfMonth          Int     @default(1)
+  payoutDayOfMonth          Int     @default(15)
+  refundHoldDays            Int     @default(15)
+  instantPayoutFeePercent   Decimal @default(5.0) @db.Decimal(5, 2)
+
+  updatedAt DateTime @updatedAt
+}
+
+// ----------------------------------------------------------------------------
+// NOTIFICACIONES
+// ----------------------------------------------------------------------------
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    String // ej. "brand_approved", "sale_generated", "payout_processed", "fee_changed"
+  message String
+  read    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// COLA DE ANTIFRAUDE (Fase 1 — reglas básicas del Panel Admin)
+// ----------------------------------------------------------------------------
+
+enum FraudFlagStatus {
+  PENDING_REVIEW
+  CLEARED
+  CONFIRMED_FRAUD
+}
+
+model FraudFlag {
+  id            String @id @default(cuid())
+  transactionId String
+  reason        String // ej. "email comprador = email creador", "pico anormal de órdenes con este código"
+
+  status FraudFlagStatus @default(PENDING_REVIEW)
+
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+}
+
+// ----------------------------------------------------------------------------
+// MENSAJERÍA (solo entre una marca y sus creadores YA vinculados — nunca un
+// directorio abierto de búsqueda de creadores para las marcas)
+// ----------------------------------------------------------------------------
+
+model Conversation {
+  id String @id @default(cuid())
+
+  enrollmentId String
+  enrollment   CreatorOfferEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id])
+
+  messages Message[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([enrollmentId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  senderUserId String
+  body         String
+
+  createdAt DateTime @default(now())
+}
