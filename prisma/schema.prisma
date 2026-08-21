@@ -53,6 +53,7 @@ model User {
   brandProfile   BrandProfile?
 
   notifications Notification[]
+  deviceTokens  DeviceToken[]
 
   accounts Account[]
   sessions Session[]
@@ -589,6 +590,20 @@ model PlatformConfig {
 // ----------------------------------------------------------------------------
 // NOTIFICACIONES
 // ----------------------------------------------------------------------------
+
+/// Token de dispositivo para notificaciones push (APNs / FCM). No se usa
+/// todavía — existe desde ahora para que, cuando se construya la app móvil
+/// (iOS/Android), no haga falta una migración nueva solo para esto.
+model DeviceToken {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform String // "ios" | "android"
+  token    String @unique
+
+  createdAt DateTime @default(now())
+}
 
 model Notification {
   id     String @id @default(cuid())
