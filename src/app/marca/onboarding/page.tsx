@@ -42,7 +42,7 @@ export default async function OnboardingPage() {
         </p>
       </div>
 
-      <div className="max-w-2xl">
+      <div className="max-w-3xl">
         <OnboardingWizard
           steps={steps}
           profile={{
@@ -55,9 +55,6 @@ export default async function OnboardingPage() {
               websiteUrl: profile.websiteUrl ?? "",
               phone: profile.phone ?? "",
               fiscalAddress: profile.fiscalAddress ?? "",
-              taxRegime: profile.taxRegime ?? "",
-              legalRepName: profile.legalRepName ?? "",
-              legalRepId: profile.legalRepId ?? "",
               instagramHandle: profile.instagramHandle ?? "",
               tiktokHandle: profile.tiktokHandle ?? "",
             },

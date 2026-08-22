@@ -86,36 +86,51 @@ export function OfferForm({
           className="input min-h-16"
         />
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm text-brand-ink mb-1">% Comisión al creador</label>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            step={0.5}
-            required
-            value={form.defaultCommissionPercent}
-            onChange={(e) => setForm({ ...form, defaultCommissionPercent: Number(e.target.value) })}
-            className="input font-mono"
-          />
-          <p className="text-xs text-brand-ink-soft mt-1">100% es del creador — se factura aparte de tu tarifa.</p>
+      <div>
+        <p className="text-sm text-brand-ink font-medium mb-2">Los dos números que definen tu oferta</p>
+        <div className="grid grid-cols-2 gap-px bg-brand-line rounded-2xl overflow-hidden border border-brand-line mb-4">
+          <div className="bg-brand-accent-soft p-4">
+            <p className="text-xs text-brand-ink-soft mb-1">Comisión para el creador</p>
+            <p className="font-mono text-2xl font-semibold text-brand-accent">{form.defaultCommissionPercent || 0}%</p>
+            <p className="text-xs text-brand-ink-soft mt-1">Lo que tú le pagas al creador por cada venta.</p>
+          </div>
+          <div className="bg-brand-surface p-4">
+            <p className="text-xs text-brand-ink-soft mb-1">Descuento para tus compradores</p>
+            <p className="font-mono text-2xl font-semibold text-brand-ink">{form.defaultDiscountPercent || 0}%</p>
+            <p className="text-xs text-brand-ink-soft mt-1">Lo que el código le descuenta al cliente final.</p>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm text-brand-ink mb-1">% Descuento del código</label>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            step={0.5}
-            required
-            value={form.defaultDiscountPercent}
-            onChange={(e) => setForm({ ...form, defaultDiscountPercent: Number(e.target.value) })}
-            className="input font-mono"
-          />
-          <p className="text-xs text-brand-ink-soft mt-1">
-            El descuento que se aplicaría en la compra para el consumidor final.
-          </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">% Comisión al creador</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              required
+              value={form.defaultCommissionPercent}
+              onChange={(e) => setForm({ ...form, defaultCommissionPercent: Number(e.target.value) })}
+              className="input font-mono"
+            />
+            <p className="text-xs text-brand-ink-soft mt-1">100% es del creador — se factura aparte de tu tarifa.</p>
+          </div>
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">% Descuento del código</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              required
+              value={form.defaultDiscountPercent}
+              onChange={(e) => setForm({ ...form, defaultDiscountPercent: Number(e.target.value) })}
+              className="input font-mono"
+            />
+            <p className="text-xs text-brand-ink-soft mt-1">
+              El descuento que se aplicaría en la compra para el consumidor final.
+            </p>
+          </div>
         </div>
       </div>
 

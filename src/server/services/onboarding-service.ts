@@ -39,7 +39,7 @@ export async function getBrandOnboardingStatus(profile: BrandProfile) {
     },
     {
       key: "oferta",
-      label: "Tu primera oferta",
+      label: "Configura tu programa de afiliados",
       description: "Define la comisión para el creador y el descuento para tu cliente.",
       done: offerCount > 0,
     },

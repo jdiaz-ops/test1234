@@ -14,9 +14,6 @@ type Values = {
   websiteUrl: string;
   phone: string;
   fiscalAddress: string;
-  taxRegime: string;
-  legalRepName: string;
-  legalRepId: string;
   instagramHandle: string;
   tiktokHandle: string;
 };
@@ -142,26 +139,29 @@ export function BrandProfileForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Ciudad" value={form.city} onChange={(v) => set("city", v)} />
-          <Field label="Teléfono / WhatsApp" value={form.phone} onChange={(v) => set("phone", v)} />
-        </div>
+        <Field label="Teléfono / WhatsApp" value={form.phone} onChange={(v) => set("phone", v)} />
         <div className="grid grid-cols-2 gap-4">
           <Field label="Instagram" value={form.instagramHandle} onChange={(v) => set("instagramHandle", v)} placeholder="@marca" />
           <Field label="TikTok" value={form.tiktokHandle} onChange={(v) => set("tiktokHandle", v)} placeholder="@marca" />
         </div>
 
-        <h2 className="font-display font-semibold text-brand-ink pt-4 -mb-1">Datos legales y tributarios</h2>
-        <p className="text-xs text-brand-ink-soft -mt-3">Los usamos para la facturación electrónica.</p>
+        <div className="pt-4">
+          <h2 className="font-display font-semibold text-brand-ink">Datos legales y tributarios</h2>
+          <p className="text-xs text-brand-ink-soft mt-1">Los usamos para la facturación electrónica.</p>
+        </div>
         <Field label="Razón social" value={form.legalName} onChange={(v) => set("legalName", v)} />
         <div className="grid grid-cols-2 gap-4">
           <Field label="NIT" value={form.taxId} onChange={(v) => set("taxId", v)} />
-          <Field label="Régimen tributario" value={form.taxRegime} onChange={(v) => set("taxRegime", v)} placeholder="Responsable de IVA" />
+          <Field label="Ciudad" value={form.city} onChange={(v) => set("city", v)} />
         </div>
         <Field label="Dirección fiscal" value={form.fiscalAddress} onChange={(v) => set("fiscalAddress", v)} />
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Representante legal" value={form.legalRepName} onChange={(v) => set("legalRepName", v)} />
-          <Field label="Cédula del representante" value={form.legalRepId} onChange={(v) => set("legalRepId", v)} />
+
+        <div className="pt-4">
+          <h2 className="font-display font-semibold text-brand-ink mb-3">Documentos</h2>
+          <div className="space-y-4">
+            <FileUploadField kind="rut" label="RUT" currentUrl={files.rutDocumentUrl} />
+            <FileUploadField kind="camara" label="Cámara de Comercio" currentUrl={files.camaraComercioUrl} />
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -175,14 +175,6 @@ export function BrandProfileForm({
           {saving ? "Guardando..." : "Guardar cambios"}
         </button>
       </form>
-
-      <div>
-        <h2 className="font-display font-semibold text-brand-ink mb-3">Documentos</h2>
-        <div className="space-y-4">
-          <FileUploadField kind="rut" label="RUT" currentUrl={files.rutDocumentUrl} />
-          <FileUploadField kind="camara" label="Cámara de Comercio" currentUrl={files.camaraComercioUrl} />
-        </div>
-      </div>
     </div>
   );
 }

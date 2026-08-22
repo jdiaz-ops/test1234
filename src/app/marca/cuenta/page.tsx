@@ -53,9 +53,6 @@ export default async function MarcaCuentaPage() {
         websiteUrl: profile.websiteUrl ?? "",
         phone: profile.phone ?? "",
         fiscalAddress: profile.fiscalAddress ?? "",
-        taxRegime: profile.taxRegime ?? "",
-        legalRepName: profile.legalRepName ?? "",
-        legalRepId: profile.legalRepId ?? "",
         instagramHandle: profile.instagramHandle ?? "",
         tiktokHandle: profile.tiktokHandle ?? "",
       }}

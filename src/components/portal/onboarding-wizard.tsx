@@ -6,6 +6,7 @@ import { BrandProfileForm } from "@/components/portal/brand-profile-form";
 import { StoreConnectionForm } from "@/components/portal/store-connection-form";
 import { CardForm } from "@/components/portal/card-form";
 import { OfferForm } from "@/components/portal/offer-form";
+import { AffiliateExplainer } from "@/components/portal/affiliate-explainer";
 
 type ProfileValues = React.ComponentProps<typeof BrandProfileForm>["initial"];
 type ProfileFiles = React.ComponentProps<typeof BrandProfileForm>["files"];
@@ -85,7 +86,12 @@ export function OnboardingWizard({
                     />
                   )}
                   {step.key === "pago" && <CardForm hasCard={hasCard} onSaved={() => goToNext("pago")} />}
-                  {step.key === "oferta" && <OfferForm onDone={() => goToNext("oferta")} />}
+                  {step.key === "oferta" && (
+                    <div className="grid md:grid-cols-[1.4fr_1fr] gap-6 items-start">
+                      <OfferForm onDone={() => goToNext("oferta")} />
+                      <AffiliateExplainer />
+                    </div>
+                  )}
                 </div>
 
                 {!step.done && (
