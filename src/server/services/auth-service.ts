@@ -19,14 +19,17 @@ export async function registerCreator(input: {
   email: string;
   password: string;
   displayName: string;
-  desiredCode: string;
   city?: string;
 }) {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) throw new AuthServiceError("Ya existe una cuenta con este correo.");
 
   const passwordHash = await bcrypt.hash(input.password, 10);
-  const baseCode = await generateUniqueBaseCode(input.desiredCode);
+  // El código nace solo, a partir del nombre (ej. "Laura Gómez" -> "LAURAGOMEZ")
+  // — ya no se le pide al creador que lo invente en el registro, para que el
+  // paso sea más rápido. Si más adelante hace falta poder personalizarlo,
+  // se agrega esa opción en Perfil, no aquí.
+  const baseCode = await generateUniqueBaseCode(input.displayName);
   const storefrontSlug = await generateUniqueStorefrontSlug(input.displayName);
 
   const user = await prisma.user.create({

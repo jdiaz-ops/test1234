@@ -10,7 +10,6 @@ export default function RegistroCreadorPage() {
     displayName: "",
     email: "",
     password: "",
-    desiredCode: "",
     city: "",
   });
   const [error, setError] = useState<string | null>(null);
@@ -86,16 +85,6 @@ export default function RegistroCreadorPage() {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             className="input"
-          />
-        </Field>
-        <Field label="Tu código personal" hint="El mismo código lo usarás en todas las marcas — ej. LAURA20">
-          <input
-            required
-            value={form.desiredCode}
-            onChange={(e) =>
-              setForm({ ...form, desiredCode: e.target.value.toUpperCase() })
-            }
-            className="input uppercase font-mono"
           />
         </Field>
         <Field label="Ciudad (opcional)">

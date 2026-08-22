@@ -8,10 +8,6 @@ export const registerCreatorSchema = z.object({
   email: z.string().email("Correo inválido"),
   password: passwordSchema,
   displayName: z.string().min(2, "Ingresa tu nombre"),
-  desiredCode: z
-    .string()
-    .min(3, "El código debe tener al menos 3 caracteres")
-    .max(20, "El código es demasiado largo"),
   city: z.string().optional(),
 });
 
