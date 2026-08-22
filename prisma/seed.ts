@@ -3,6 +3,7 @@
 // lanzamiento "Uñas" con sus categorías iniciales).
 
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -118,7 +119,33 @@ async function main() {
     },
   });
 
-  console.log("Seed completado: configuración global + vertical Uñas + 2 marcas demo con oferta.");
+  // Cuenta de administrador (Propietario) — no hay registro público para
+  // admin, así que la primera cuenta se siembra directamente. Cambia esta
+  // contraseña apenas entres la primera vez.
+  const adminPasswordHash = await bcrypt.hash("marcolini-admin-2026", 10);
+  await prisma.user.upsert({
+    where: { email: "admin@marcolini.co" },
+    update: {},
+    create: {
+      email: "admin@marcolini.co",
+      role: "ADMIN",
+      adminRole: "OWNER",
+      emailVerified: new Date(),
+      passwordHash: adminPasswordHash,
+    },
+  });
+
+  await prisma.legalContent.upsert({
+    where: { key: "terms" },
+    update: {},
+    create: {
+      key: "terms",
+      title: "Términos y Condiciones",
+      body: "Contenido pendiente — edítalo desde el Panel Admin (Configuración > Contenido legal).",
+    },
+  });
+
+  console.log("Seed completado: configuración global + vertical Uñas + 2 marcas demo con oferta + admin.");
 }
 
 main()

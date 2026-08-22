@@ -158,6 +158,10 @@ model CreatorProfile {
   /// marcas a las que él mismo decidió unirse.
   discoverable Boolean @default(false)
 
+  /// El admin puede suspender una cuenta (ej. fraude detectado, código
+  /// compartido/vendido) sin necesidad de eliminarla.
+  suspended Boolean @default(false)
+
   /// Slug de su página pública "Mi Storefront" (ej. marcolini.co/@lauragomez)
   storefrontSlug String @unique
 
@@ -583,6 +587,32 @@ model PlatformConfig {
   payoutDayOfMonth          Int     @default(15)
   refundHoldDays            Int     @default(15)
   instantPayoutFeePercent   Decimal @default(5.0) @db.Decimal(5, 2)
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Costos operativos que el admin ingresa manualmente cada mes (hosting,
+/// herramientas, equipo...) — el ingreso (tarifa de plataforma) ya se
+/// calcula solo; el costo no puede saberlo el sistema por su cuenta, así
+/// que alimenta el Panel de Rentabilidad del Dashboard Global.
+model MonthlyOperatingCost {
+  id     String   @id @default(cuid())
+  month  DateTime // se guarda como el día 1 del mes correspondiente
+  amount Decimal  @db.Decimal(12, 2)
+  note   String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([month])
+}
+
+/// Contenido legal editable desde el Panel Admin (ej. Términos y
+/// Condiciones) sin depender de un desarrollador para cambiar una palabra.
+model LegalContent {
+  id    String @id @default(cuid())
+  key   String @unique // ej. "terms"
+  title String
+  body  String @db.Text
 
   updatedAt DateTime @updatedAt
 }
