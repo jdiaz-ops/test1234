@@ -1,10 +1,12 @@
 import {
   listBrandCharges,
   listPayouts,
+  listInstantPayoutRequests,
   listStoreHealth,
   getCommissionsSummary,
 } from "@/server/services/admin-finance-service";
 import { ApproveCommissionsButton } from "@/components/portal/approve-commissions-button";
+import { RunPaymentsButtons } from "@/components/portal/run-payments-buttons";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
@@ -18,10 +20,30 @@ const healthLabel: Record<string, string> = {
   ERROR: "🟠 Error",
 };
 
+const chargeStatusLabel: Record<string, string> = {
+  PENDING: "Pendiente",
+  CHARGED: "Cobrado",
+  FAILED: "Falló",
+};
+
+const payoutStatusLabel: Record<string, string> = {
+  PENDING: "Pendiente",
+  PROCESSING: "Procesando",
+  PAID: "Pagado",
+  FAILED: "Falló",
+};
+
+const instantPayoutStatusLabel: Record<string, string> = {
+  REQUESTED: "Solicitado",
+  PROCESSED: "Procesado",
+  FAILED: "Falló",
+};
+
 export default async function AdminFinanzasPage() {
-  const [charges, payouts, health, commissions] = await Promise.all([
+  const [charges, payouts, instantPayouts, health, commissions] = await Promise.all([
     listBrandCharges(),
     listPayouts(),
+    listInstantPayoutRequests(),
     listStoreHealth(),
     getCommissionsSummary(),
   ]);
@@ -62,11 +84,17 @@ export default async function AdminFinanzasPage() {
         <ApproveCommissionsButton eligibleNow={commissions.eligibleNow} />
       </div>
 
+      <h2 className="font-display font-semibold text-brand-ink mb-3">Motor de Pagos (ePayco)</h2>
+      <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mb-8">
+        <p className="text-sm text-brand-ink-soft mb-4">
+          En producción esto corre solo cada día vía cron. Mientras tanto, corrida manual:
+        </p>
+        <RunPaymentsButtons />
+      </div>
+
       <h2 className="font-display font-semibold text-brand-ink mb-3">Cobros a marcas (día 1)</h2>
       {charges.length === 0 ? (
-        <p className="text-sm text-brand-ink-soft mb-8">
-          Aún no se ha procesado ningún cobro — se activa cuando esté listo el Motor de Pagos.
-        </p>
+        <p className="text-sm text-brand-ink-soft mb-8">Aún no se ha procesado ningún cobro.</p>
       ) : (
         <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden mb-8">
           <table className="w-full text-sm">
@@ -75,7 +103,7 @@ export default async function AdminFinanzasPage() {
                 <tr key={c.id}>
                   <td className="px-5 py-3 text-brand-ink">{c.brand.companyName}</td>
                   <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(c.totalAmount))}</td>
-                  <td className="px-5 py-3 text-brand-ink-soft">{c.status}</td>
+                  <td className="px-5 py-3 text-brand-ink-soft">{chargeStatusLabel[c.status]}</td>
                 </tr>
               ))}
             </tbody>
@@ -94,7 +122,35 @@ export default async function AdminFinanzasPage() {
                 <tr key={p.id}>
                   <td className="px-5 py-3 text-brand-ink">{p.creator.displayName}</td>
                   <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(p.totalAmount))}</td>
-                  <td className="px-5 py-3 text-brand-ink-soft">{p.status}</td>
+                  <td className="px-5 py-3 text-brand-ink-soft">{payoutStatusLabel[p.status]}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <h2 className="font-display font-semibold text-brand-ink mb-3">Pagos anticipados</h2>
+      {instantPayouts.length === 0 ? (
+        <p className="text-sm text-brand-ink-soft mb-8">Nadie ha pedido un pago anticipado todavía.</p>
+      ) : (
+        <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden mb-8">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
+                <th className="px-5 py-3 font-normal">Creador</th>
+                <th className="px-5 py-3 font-normal">Solicitado</th>
+                <th className="px-5 py-3 font-normal">Fee</th>
+                <th className="px-5 py-3 font-normal">Estado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-brand-line">
+              {instantPayouts.map((p) => (
+                <tr key={p.id}>
+                  <td className="px-5 py-3 text-brand-ink">{p.creator.displayName}</td>
+                  <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(p.amountRequested))}</td>
+                  <td className="px-5 py-3 font-mono text-brand-ink-soft">{formatCOP(Number(p.feeAmount))}</td>
+                  <td className="px-5 py-3 text-brand-ink-soft">{instantPayoutStatusLabel[p.status]}</td>
                 </tr>
               ))}
             </tbody>

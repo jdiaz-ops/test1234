@@ -48,6 +48,14 @@ export async function listPayouts() {
   });
 }
 
+export async function listInstantPayoutRequests() {
+  return prisma.instantPayoutRequest.findMany({
+    include: { creator: true },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+}
+
 export async function listStoreHealth() {
   return prisma.brandProfile.findMany({
     where: { status: "APPROVED" },

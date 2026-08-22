@@ -494,6 +494,12 @@ model Commission {
   instantPayoutRequestId String?
   instantPayoutRequest   InstantPayoutRequest? @relation(fields: [instantPayoutRequestId], references: [id])
 
+  /// A qué cobro del día 1 quedó asociada — se pone al cobrarle a la marca;
+  /// una comisión sin marca cobrada todavía no se le puede pagar al
+  /// creador (primero hay que haber recibido la plata).
+  brandChargeId String?
+  brandCharge   BrandCharge? @relation(fields: [brandChargeId], references: [id])
+
   createdAt        DateTime        @default(now())
   creatorProfile   CreatorProfile? @relation(fields: [creatorProfileId], references: [id])
   creatorProfileId String?
@@ -556,6 +562,8 @@ model BrandCharge {
   epaycoTransactionRef String?
   chargedAt            DateTime?
   failureReason        String?
+
+  commissions Commission[]
 
   createdAt DateTime @default(now())
 }

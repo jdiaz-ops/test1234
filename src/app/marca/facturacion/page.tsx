@@ -1,6 +1,19 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getBrandDashboardSummary } from "@/server/services/brand-finance-service";
+import { CardForm } from "@/components/portal/card-form";
+
+function formatCOP(amount: number) {
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
+    amount
+  );
+}
+
+const chargeStatusLabel: Record<string, string> = {
+  PENDING: "Pendiente",
+  CHARGED: "Cobrado",
+  FAILED: "Falló",
+};
 
 export default async function FacturacionPage() {
   const session = await auth();
@@ -29,11 +42,12 @@ export default async function FacturacionPage() {
 
       <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 mb-6">
         <h2 className="font-display font-semibold text-brand-ink mb-2">Método de cobro</h2>
-        <p className="text-sm text-brand-ink-soft">
+        <p className="text-sm text-brand-ink-soft mb-4">
           {profile.cardTokenRef
             ? "Tienes una tarjeta registrada para el cobro automático."
-            : "Todavía no tienes una tarjeta registrada — el cobro automático estará disponible próximamente."}
+            : "Registra tu tarjeta para que el cobro del día 1 se haga solo, sin que tengas que hacer nada cada mes."}
         </p>
+        <CardForm hasCard={!!profile.cardTokenRef} />
       </div>
 
       <h2 className="font-display font-semibold text-brand-ink mb-4">Historial de cobros</h2>
@@ -55,8 +69,8 @@ export default async function FacturacionPage() {
                   <td className="px-5 py-3 text-brand-ink-soft font-mono">
                     {c.periodStart.toLocaleDateString("es-CO")}
                   </td>
-                  <td className="px-5 py-3 font-mono text-brand-ink">{Number(c.totalAmount)}</td>
-                  <td className="px-5 py-3 text-brand-ink-soft">{c.status}</td>
+                  <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(c.totalAmount))}</td>
+                  <td className="px-5 py-3 text-brand-ink-soft">{chargeStatusLabel[c.status]}</td>
                 </tr>
               ))}
             </tbody>
