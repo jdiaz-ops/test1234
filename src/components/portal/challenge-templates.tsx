@@ -10,30 +10,6 @@ function toISO(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-/// Próxima fecha con ese mes/día — si ya pasó este año, salta al siguiente.
-/// Para las plantillas de temporada con fecha fija (ej. San Valentín).
-function nextFixedDate(month: number, day: number, from = new Date()): Date {
-  const year = from.getFullYear();
-  let d = new Date(year, month - 1, day);
-  if (d < from) d = new Date(year + 1, month - 1, day);
-  return d;
-}
-
-/// El n-ésimo día de la semana (0=domingo...6=sábado) de un mes — ej. el
-/// "4to jueves de noviembre" (Thanksgiving/Black Friday) o el "2do domingo
-/// de mayo" (Día de la Madre en Colombia).
-function nthWeekdayOfMonth(year: number, month: number, weekday: number, n: number): Date {
-  const first = new Date(year, month - 1, 1);
-  const offset = (weekday - first.getDay() + 7) % 7;
-  return new Date(year, month - 1, 1 + offset + (n - 1) * 7);
-}
-
-function nextNthWeekdayOfMonth(month: number, weekday: number, n: number, from = new Date()): Date {
-  let d = nthWeekdayOfMonth(from.getFullYear(), month, weekday, n);
-  if (d < from) d = nthWeekdayOfMonth(from.getFullYear() + 1, month, weekday, n);
-  return d;
-}
-
 function addDays(d: Date, days: number) {
   return new Date(d.getTime() + days * 24 * 60 * 60 * 1000);
 }
@@ -41,20 +17,14 @@ function addDays(d: Date, days: number) {
 /// Plantillas listas para usar — pensadas para que una marca sin experiencia
 /// previa en este tipo de campañas vea de una qué se puede hacer con lo que
 /// ya está permitido (Bono por ventas / Comisión temporal elevada), en vez
-/// de enfrentarse a un formulario en blanco. Las de temporada traen la fecha
-/// REAL del próximo evento (no "hoy + N días") — Black Friday, por ejemplo,
-/// siempre cae el viernes después del 4to jueves de noviembre, sea cual sea
-/// el año en que se use la plantilla.
+/// de enfrentarse a un formulario en blanco. Los montos de comisión se
+/// calculan sobre la comisión real de la oferta, para que la sugerencia sea
+/// suya, no un número genérico. Las fechas son solo un punto de partida
+/// (hoy + N días) — la marca las ajusta a la fecha real que tenga en mente.
 export function buildChallengeTemplates(defaultCommissionPercent: number, now = new Date()): ChallengeTemplate[] {
   const boosted = Math.min(100, Math.round(defaultCommissionPercent * 2));
   const boostedSmall = Math.min(100, Math.round(defaultCommissionPercent + 5));
   const boostedFlash = Math.min(100, Math.round(defaultCommissionPercent * 2.5));
-
-  const blackFridayThu = nextNthWeekdayOfMonth(11, 4, 4, now); // 4to jueves de noviembre
-  const madre = nextNthWeekdayOfMonth(5, 0, 2, now); // 2do domingo de mayo
-  const sanValentin = nextFixedDate(2, 14, now);
-  const navidadInicio = nextFixedDate(12, 15, now);
-  const navidadFin = new Date(navidadInicio.getFullYear(), 11, 31);
 
   return [
     {
@@ -78,43 +48,13 @@ export function buildChallengeTemplates(defaultCommissionPercent: number, now = 
       bonusAmount: 300000,
     },
     {
-      key: "black-friday",
-      title: "Black Friday",
-      description: "El fin de semana de más demanda del año — captura más de esas ventas.",
-      name: "Black Friday",
+      key: "fecha-especial",
+      title: "Fecha especial",
+      description:
+        "Sube la comisión durante una fecha fuerte para tu negocio — úsala para Black Friday, Día de la Madre, San Valentín, Navidad y Fin de Año, o cualquier otra que tengas en mente. Ajusta las fechas a la que quieras aprovechar.",
+      name: "Comisión elevada — fecha especial",
       type: "TEMP_COMMISSION_BOOST",
-      startDate: toISO(blackFridayThu),
-      endDate: toISO(addDays(blackFridayThu, 4)), // jueves a lunes (Cyber Monday)
-      newCommissionPercent: boosted,
-    },
-    {
-      key: "dia-de-la-madre",
-      title: "Día de la Madre",
-      description: "La semana previa, cuando más se compran regalos.",
-      name: "Día de la Madre",
-      type: "TEMP_COMMISSION_BOOST",
-      startDate: toISO(addDays(madre, -6)),
-      endDate: toISO(madre),
-      newCommissionPercent: boostedSmall,
-    },
-    {
-      key: "san-valentin",
-      title: "San Valentín",
-      description: "Los días alrededor del 14 de febrero.",
-      name: "San Valentín",
-      type: "TEMP_COMMISSION_BOOST",
-      startDate: toISO(addDays(sanValentin, -2)),
-      endDate: toISO(sanValentin),
-      newCommissionPercent: boosted,
-    },
-    {
-      key: "navidad",
-      title: "Navidad y Fin de Año",
-      description: "La segunda quincena de diciembre, la temporada más fuerte de compras.",
-      name: "Navidad y Fin de Año",
-      type: "TEMP_COMMISSION_BOOST",
-      startDate: toISO(navidadInicio),
-      endDate: toISO(navidadFin),
+      durationDays: 7,
       newCommissionPercent: boostedSmall,
     },
     {
@@ -186,7 +126,7 @@ export function ChallengeTemplates({
                   </span>
                 )}
                 <span>·</span>
-                <span>{formatDateRange(startISO, endISO)}</span>
+                <span>{formatDateRange(startISO, endISO)} (sugerido)</span>
               </div>
 
               <p className="text-xs text-brand-ink-soft bg-brand-bg rounded-lg p-3 mb-4 flex-1">
