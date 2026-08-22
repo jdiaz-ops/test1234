@@ -41,6 +41,10 @@ export function StoreConnectionForm({
   const [webhookUrl, setWebhookUrl] = useState(initialWebhookUrl);
   const [webhookSecret, setWebhookSecret] = useState(initialWebhookSecret);
   const [shopDomain, setShopDomain] = useState("");
+  // Si ya está conectada, el formulario para conectar (de nuevo) empieza
+  // escondido — si no, lo que se ve es "aquí está tu tienda conectada" y,
+  // justo debajo, un formulario pidiendo conectarla otra vez, que confunde.
+  const [showConnectForm, setShowConnectForm] = useState(!shopifyConnected);
 
   // Resultado de la conexión automática con Shopify — Shopify nos regresa
   // aquí después de que la marca autorizó (o canceló/falló) el acceso.
@@ -127,14 +131,19 @@ export function StoreConnectionForm({
 
           {shopifyConnected ? (
             <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+              <p className="text-xs font-medium text-green-700 bg-green-50 inline-block rounded-full px-2.5 py-1 mb-2">
+                ✓ Conectada
+              </p>
               <p className="text-sm text-brand-ink-soft mb-1">Tienda conectada</p>
               <p className="font-mono text-sm text-brand-ink break-all">{initial.storeUrl}</p>
-              <button
-                onClick={() => document.getElementById("shopify-reconnect")?.scrollIntoView({ behavior: "smooth" })}
-                className="text-xs text-brand-accent hover:underline mt-3"
-              >
-                Conectar otra tienda / reconectar
-              </button>
+              {!showConnectForm && (
+                <button
+                  onClick={() => setShowConnectForm(true)}
+                  className="text-xs text-brand-accent hover:underline mt-3"
+                >
+                  Conectar otra tienda / reconectar
+                </button>
+              )}
             </div>
           ) : (
             <p className="text-sm text-brand-ink-soft">
@@ -143,28 +152,33 @@ export function StoreConnectionForm({
             </p>
           )}
 
-          <div id="shopify-reconnect">
-            <label className="block text-sm text-brand-ink mb-1">Dominio de tu tienda</label>
-            <input
-              value={shopDomain}
-              onChange={(e) => setShopDomain(e.target.value)}
-              placeholder="tu-tienda.myshopify.com"
-              className="input"
-            />
-            <p className="text-xs text-brand-ink-soft mt-1">
-              Lo encuentras en tu panel de Shopify, en la barra de direcciones, o en Configuración → Dominios.
-            </p>
-          </div>
+          {showConnectForm && (
+            <>
+              <div>
+                <label className="block text-sm text-brand-ink mb-1">Dominio de tu tienda</label>
+                <input
+                  value={shopDomain}
+                  onChange={(e) => setShopDomain(e.target.value)}
+                  placeholder="tu-tienda.myshopify.com"
+                  className="input"
+                />
+                <p className="text-xs text-brand-ink-soft mt-1">
+                  Lo encuentras en tu panel de Shopify, en la barra de direcciones, o en Configuración →
+                  Dominios.
+                </p>
+              </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="text-sm text-red-600">{error}</p>}
 
-          <button
-            type="button"
-            onClick={connectShopify}
-            className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90"
-          >
-            Conectar con Shopify
-          </button>
+              <button
+                type="button"
+                onClick={connectShopify}
+                className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90"
+              >
+                Conectar con Shopify
+              </button>
+            </>
+          )}
         </div>
       )}
 

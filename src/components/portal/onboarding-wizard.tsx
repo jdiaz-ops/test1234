@@ -65,7 +65,14 @@ export function OnboardingWizard({
                 {step.done ? "✓" : i + 1}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-display font-semibold text-brand-ink">{step.label}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-display font-semibold text-brand-ink">{step.label}</p>
+                  {step.key === "tienda" && tiendaDone && (
+                    <span className="text-[10px] font-medium text-green-700 bg-green-50 rounded-full px-2 py-0.5">
+                      ✓ Conectada
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-brand-ink-soft mt-0.5">{step.description}</p>
               </div>
               <span className={`shrink-0 text-brand-ink-soft transition-transform ${isOpen ? "rotate-180" : ""}`}>
