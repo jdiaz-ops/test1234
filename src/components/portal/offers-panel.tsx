@@ -94,13 +94,13 @@ export function OffersPanel({
                       Editar oferta
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 mb-4 max-w-xs">
+                  <div className="grid grid-cols-2 gap-4 mb-4 max-w-sm">
                     <div>
-                      <p className="text-xs text-brand-ink-soft mb-0.5">Comisión para el creador</p>
+                      <p className="text-xs text-brand-ink-soft mb-0.5">Comisión para el creador de contenido</p>
                       <p className="font-mono text-brand-accent text-lg">{Number(offer.defaultCommissionPercent)}%</p>
                     </div>
                     <div>
-                      <p className="text-xs text-brand-ink-soft mb-0.5">Descuento al consumidor final</p>
+                      <p className="text-xs text-brand-ink-soft mb-0.5">Descuento en tu página web</p>
                       <p className="font-mono text-brand-ink text-lg">{Number(offer.defaultDiscountPercent)}%</p>
                     </div>
                   </div>

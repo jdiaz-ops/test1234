@@ -1,19 +1,19 @@
 const steps = [
   {
     title: "Tú creas el descuento",
-    text: "Defines qué % de descuento recibe quien compre en tu web con el código de un creador de contenido.",
+    text: "Defines qué % de descuento recibe, en tu página web, quien compre con el código de un creador de contenido.",
   },
   {
-    title: "Un creador lo promueve",
+    title: "Un creador de contenido lo promueve",
     text: "Comparte tu marca con su audiencia usando su código único.",
   },
   {
     title: "Rastreamos la venta",
-    text: "Cuando alguien compra en tu web con ese código, sabemos que fue gracias a ese creador.",
+    text: "Cuando alguien compra en tu web con ese código, sabemos que fue gracias a ese creador de contenido.",
   },
   {
     title: "Se paga la comisión",
-    text: "El creador recibe automáticamente el % que tú elegiste — el resto es tu venta.",
+    text: "El creador de contenido recibe automáticamente el % que tú elegiste — el resto es tu venta.",
   },
 ];
 

@@ -54,7 +54,7 @@ export function CostCalculator({
             <span>{formatCOP(listPrice)}</span>
           </div>
           <div className="flex justify-between text-brand-ink-soft">
-            <span>Descuento al consumidor final ({discount}%)</span>
+            <span>Descuento en tu página web ({discount}%)</span>
             <span>-{formatCOP(listPrice - netAmount)}</span>
           </div>
           <div className="flex justify-between text-brand-ink-soft">
