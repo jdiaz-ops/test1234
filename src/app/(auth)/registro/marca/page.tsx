@@ -44,8 +44,8 @@ export default function RegistroMarcaPage() {
   if (done) {
     return (
       <div className="text-center">
-        <h1 className="text-lg font-semibold text-gray-900 mb-2">¡Ya casi!</h1>
-        <p className="text-sm text-gray-600">
+        <h1 className="font-display text-lg font-semibold text-brand-ink mb-2">¡Ya casi!</h1>
+        <p className="text-sm text-brand-ink-soft">
           Te enviamos un correo a <strong>{form.email}</strong> para confirmar tu cuenta.
           Una vez confirmado, tu marca queda pendiente de aprobación antes de
           aparecer activa en el marketplace.
@@ -56,10 +56,10 @@ export default function RegistroMarcaPage() {
 
   return (
     <div>
-      <h1 className="text-lg font-semibold text-gray-900 text-center mb-1">
+      <h1 className="font-display text-lg font-semibold text-brand-ink text-center mb-1">
         Regístrate como Marca
       </h1>
-      <p className="text-sm text-gray-500 text-center mb-6">
+      <p className="text-sm text-brand-ink-soft text-center mb-6">
         Solo pagas comisión cuando hay una venta real.
       </p>
 
@@ -99,7 +99,7 @@ export default function RegistroMarcaPage() {
           />
         </Field>
 
-        <label className="flex items-start gap-2 text-sm text-gray-600">
+        <label className="flex items-start gap-2 text-sm text-brand-ink-soft">
           <input
             type="checkbox"
             checked={form.termsAccepted}
@@ -120,15 +120,15 @@ export default function RegistroMarcaPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-gray-900 text-white rounded-md py-2 text-sm font-medium disabled:opacity-50"
+          className="w-full bg-brand-accent text-white rounded-md py-2 text-sm font-medium disabled:opacity-50"
         >
           {loading ? "Creando cuenta..." : "Crear mi cuenta"}
         </button>
       </form>
 
-      <p className="text-center text-sm text-gray-500 mt-6">
+      <p className="text-center text-sm text-brand-ink-soft mt-6">
         ¿Ya tienes cuenta?{" "}
-        <Link href="/login" className="text-gray-900 font-medium hover:underline">
+        <Link href="/login" className="text-brand-ink font-medium hover:underline">
           Inicia sesión
         </Link>
       </p>
@@ -139,7 +139,7 @@ export default function RegistroMarcaPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm text-brand-ink mb-1">{label}</label>
       {children}
     </div>
   );

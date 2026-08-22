@@ -38,23 +38,23 @@ function VerificarEmailContent() {
   }, [token]);
 
   if (status === "loading") {
-    return <p className="text-center text-sm text-gray-500">Verificando tu correo...</p>;
+    return <p className="text-center text-sm text-brand-ink-soft">Verificando tu correo...</p>;
   }
 
   if (status === "error") {
     return (
       <div className="text-center">
-        <h1 className="text-lg font-semibold text-gray-900 mb-2">No pudimos verificarte</h1>
-        <p className="text-sm text-gray-600">{message}</p>
+        <h1 className="font-display text-lg font-semibold text-brand-ink mb-2">No pudimos verificarte</h1>
+        <p className="text-sm text-brand-ink-soft">{message}</p>
       </div>
     );
   }
 
   return (
     <div className="text-center">
-      <h1 className="text-lg font-semibold text-gray-900 mb-2">¡Correo confirmado!</h1>
-      <p className="text-sm text-gray-600 mb-4">Ya puedes iniciar sesión en tu cuenta.</p>
-      <Link href="/login" className="text-sm font-medium text-gray-900 hover:underline">
+      <h1 className="font-display text-lg font-semibold text-brand-ink mb-2">¡Correo confirmado!</h1>
+      <p className="text-sm text-brand-ink-soft mb-4">Ya puedes iniciar sesión en tu cuenta.</p>
+      <Link href="/login" className="text-sm font-medium text-brand-ink hover:underline">
         Ir a iniciar sesión
       </Link>
     </div>

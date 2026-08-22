@@ -42,9 +42,9 @@ function RestablecerPasswordForm() {
   if (done) {
     return (
       <div className="text-center">
-        <h1 className="text-lg font-semibold text-gray-900 mb-2">¡Listo!</h1>
-        <p className="text-sm text-gray-600 mb-4">Tu contraseña fue actualizada.</p>
-        <Link href="/login" className="text-sm font-medium text-gray-900 hover:underline">
+        <h1 className="font-display text-lg font-semibold text-brand-ink mb-2">¡Listo!</h1>
+        <p className="text-sm text-brand-ink-soft mb-4">Tu contraseña fue actualizada.</p>
+        <Link href="/login" className="text-sm font-medium text-brand-ink hover:underline">
           Iniciar sesión
         </Link>
       </div>
@@ -53,7 +53,7 @@ function RestablecerPasswordForm() {
 
   return (
     <div>
-      <h1 className="text-lg font-semibold text-gray-900 text-center mb-6">
+      <h1 className="font-display text-lg font-semibold text-brand-ink text-center mb-6">
         Crea una nueva contraseña
       </h1>
 
@@ -73,7 +73,7 @@ function RestablecerPasswordForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-gray-900 text-white rounded-md py-2 text-sm font-medium disabled:opacity-50"
+          className="w-full bg-brand-accent text-white rounded-md py-2 text-sm font-medium disabled:opacity-50"
         >
           {loading ? "Guardando..." : "Guardar contraseña"}
         </button>

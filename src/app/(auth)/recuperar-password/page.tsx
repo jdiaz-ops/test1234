@@ -23,8 +23,8 @@ export default function RecuperarPasswordPage() {
   if (sent) {
     return (
       <div className="text-center">
-        <h1 className="text-lg font-semibold text-gray-900 mb-2">Revisa tu correo</h1>
-        <p className="text-sm text-gray-600">
+        <h1 className="font-display text-lg font-semibold text-brand-ink mb-2">Revisa tu correo</h1>
+        <p className="text-sm text-brand-ink-soft">
           Si <strong>{email}</strong> tiene una cuenta en Marcolini, te enviamos un link
           para restablecer tu contraseña.
         </p>
@@ -34,10 +34,10 @@ export default function RecuperarPasswordPage() {
 
   return (
     <div>
-      <h1 className="text-lg font-semibold text-gray-900 text-center mb-1">
+      <h1 className="font-display text-lg font-semibold text-brand-ink text-center mb-1">
         Recuperar contraseña
       </h1>
-      <p className="text-sm text-gray-500 text-center mb-6">
+      <p className="text-sm text-brand-ink-soft text-center mb-6">
         Te enviaremos un link a tu correo.
       </p>
 
@@ -53,14 +53,14 @@ export default function RecuperarPasswordPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-gray-900 text-white rounded-md py-2 text-sm font-medium disabled:opacity-50"
+          className="w-full bg-brand-accent text-white rounded-md py-2 text-sm font-medium disabled:opacity-50"
         >
           {loading ? "Enviando..." : "Enviar link"}
         </button>
       </form>
 
-      <p className="text-center text-sm text-gray-500 mt-6">
-        <Link href="/login" className="text-gray-900 font-medium hover:underline">
+      <p className="text-center text-sm text-brand-ink-soft mt-6">
+        <Link href="/login" className="text-brand-ink font-medium hover:underline">
           Volver a iniciar sesión
         </Link>
       </p>

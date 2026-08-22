@@ -1,42 +1,67 @@
 @import "tailwindcss";
 
+/* ============================================================================
+   IDENTIDAD DE MARCA — MARCOLINI
+   Dirección "Sistema Confiable", en tono nude/rosado (girly), elegida por el
+   fundador. Instrument Sans (titulares) + Karla (cuerpo) + IBM Plex Mono
+   (datos: comisiones, códigos, %). Ver la exploración original en el
+   artefacto "Identidad Marcolini".
+   ============================================================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fcf1ee;
+  --foreground: #2e1f22;
+
+  --brand-bg: #fcf1ee; /* nude blush — fondo general */
+  --brand-surface: #ffffff; /* tarjetas, inputs */
+  --brand-ink: #2e1f22; /* texto principal */
+  --brand-ink-soft: #8c6f74; /* texto secundario */
+  --brand-accent: #d1477b; /* rosado — botones, enlaces, firma de marca */
+  --brand-accent-soft: #f6dde7; /* fondo suave del acento (chips, hover) */
+  --brand-line: #f2dedf; /* bordes, separadores */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-brand-bg: var(--brand-bg);
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-ink-soft: var(--brand-ink-soft);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-soft: var(--brand-accent-soft);
+  --color-brand-line: var(--brand-line);
+
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono-brand);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), -apple-system, sans-serif;
 }
 
-/* Estilos provisionales de formulario — sin identidad visual definitiva
-   todavía (ver tarea de Identidad Visual). */
+/* Titulares con la tipografía de marca (Instrument Sans) */
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display), -apple-system, sans-serif;
+  }
+}
+
+/* Estilos de formulario compartidos por las páginas de autenticación */
 @layer components {
   .input {
     width: 100%;
-    border-radius: 0.375rem;
-    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    border: 1px solid var(--brand-line);
+    background: var(--brand-surface);
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
+    color: var(--brand-ink);
   }
   .input:focus {
     outline: none;
-    box-shadow: 0 0 0 2px #111827;
+    box-shadow: 0 0 0 2px var(--brand-accent);
   }
 }
