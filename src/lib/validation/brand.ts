@@ -4,7 +4,7 @@ export const updateBrandProfileSchema = z.object({
   companyName: z.string().min(2, "Ingresa el nombre de la marca"),
   legalName: z.string().optional().or(z.literal("")),
   taxId: z.string().optional().or(z.literal("")),
-  description: z.string().max(500).optional().or(z.literal("")),
+  description: z.string().max(150).optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
   websiteUrl: z.string().url("Ingresa una URL válida (https://...)").optional().or(z.literal("")),
   phone: z.string().optional().or(z.literal("")),

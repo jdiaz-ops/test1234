@@ -25,9 +25,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Escribe primero el nombre de la marca." }, { status: 400 });
   }
 
+  const rules = [
+    "Español de Colombia, tono cercano y profesional.",
+    "Máximo 150 caracteres — debe caber en 2 líneas cortas, así que sé breve y directo.",
+    "Una sola frase (o dos muy cortas), sin emojis, sin comillas, sin punto final si no hace falta.",
+    "No inventes datos que no te dieron: nada de 'líder en...', premios, años de experiencia, tamaño de la empresa ni cifras que no aparezcan en la información dada.",
+    "Nada de relleno genérico de marketing ('tecnología moderna', 'aliado perfecto', 'alto valor agregado'). Sé concreto sobre qué vende la marca.",
+    "Responde solo con el texto final, nada más.",
+  ].join("\n- ");
+
   const prompt = draft
-    ? `Mejora esta descripción de la marca "${companyName}" para el perfil que ven creadores de contenido en un marketplace de marketing de afiliados en Colombia. Hazla más clara y atractiva, mismo idioma (español), tono cercano y profesional, sin emojis, sin comillas, máximo 500 caracteres, un solo párrafo. Texto actual: "${draft}"${websiteUrl ? `\nPágina web de referencia: ${websiteUrl}` : ""}`
-    : `Escribe una descripción para el perfil de la marca "${companyName}" que ven creadores de contenido en un marketplace de marketing de afiliados en Colombia. Español, tono cercano y profesional, sin emojis, sin comillas, máximo 500 caracteres, un solo párrafo, que deje claro qué vende la marca y por qué a un creador le convendría promocionarla.${websiteUrl ? `\nPágina web de referencia: ${websiteUrl}` : ""}`;
+    ? `Mejora (no reescribas desde cero, mantén la idea) esta descripción de la marca "${companyName}" para su perfil en un marketplace de marketing de afiliados, que ven creadores de contenido.\nTexto actual: "${draft}"${websiteUrl ? `\nPágina web de referencia (úsala solo para entender qué venden, no para inventar más): ${websiteUrl}` : ""}\n\nReglas:\n- ${rules}`
+    : `Escribe una descripción corta para el perfil de la marca "${companyName}" en un marketplace de marketing de afiliados, que ven creadores de contenido en Colombia. Solo tienes el nombre de la marca${websiteUrl ? ` y su página web (${websiteUrl})` : ""} — si no es obvio a qué se dedica, escribe algo genérico y breve tipo "Marca colombiana — cuéntanos qué vendes para afinar tu descripción" en vez de inventar un rubro.\n\nReglas:\n- ${rules}`;
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -39,7 +48,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 300,
+        max_tokens: 120,
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -50,7 +59,7 @@ export async function POST(req: Request) {
     }
 
     const data = await res.json();
-    const text = (data.content?.[0]?.text ?? "").trim().slice(0, 500);
+    const text = (data.content?.[0]?.text ?? "").trim().slice(0, 150);
     if (!text) throw new Error("Respuesta vacía");
 
     return NextResponse.json({ description: text });

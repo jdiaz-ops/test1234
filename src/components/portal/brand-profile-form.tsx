@@ -89,7 +89,7 @@ export function BrandProfileForm({ initial, files }: { initial: Values; files: F
         setDraftError(body?.error ?? "No se pudo generar la descripción.");
         return;
       }
-      set("description", (body?.description ?? "").slice(0, 500));
+      set("description", (body?.description ?? "").slice(0, 150));
     } catch {
       setDraftError("No se pudo generar la descripción — revisa tu conexión e intenta de nuevo.");
     } finally {
@@ -154,14 +154,14 @@ export function BrandProfileForm({ initial, files }: { initial: Values; files: F
           </div>
           <textarea
             value={form.description}
-            onChange={(e) => set("description", e.target.value.slice(0, 500))}
-            maxLength={500}
+            onChange={(e) => set("description", e.target.value.slice(0, 150))}
+            maxLength={150}
             className="input min-h-20"
           />
           <div className="flex items-center justify-between mt-1">
             {draftError ? <p className="text-xs text-red-600">{draftError}</p> : <span />}
-            <p className={`text-xs ${form.description.length >= 500 ? "text-red-600" : "text-brand-ink-soft"}`}>
-              {form.description.length}/500 caracteres
+            <p className={`text-xs ${form.description.length >= 150 ? "text-red-600" : "text-brand-ink-soft"}`}>
+              {form.description.length}/150 caracteres
             </p>
           </div>
         </div>
