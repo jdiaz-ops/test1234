@@ -17,10 +17,12 @@ export function StoreConnectionForm({
   initial,
   initialWebhookUrl,
   initialWebhookSecret,
+  onSaved,
 }: {
   initial: FormState;
   initialWebhookUrl: string | null;
   initialWebhookSecret: string | null;
+  onSaved?: () => void;
 }) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
@@ -51,6 +53,7 @@ export function StoreConnectionForm({
     setWebhookUrl(body.webhookUrl);
     setWebhookSecret(body.webhookSecret);
     router.refresh();
+    onSaved?.();
   }
 
   return (

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 /// pasa por nuestro servidor). Mientras tanto envía los datos a nuestra API,
 /// que los tokeniza del lado del servidor contra ePayco antes de guardar
 /// nada — ver src/server/integrations/epayco-client.ts.
-export function CardForm({ hasCard }: { hasCard: boolean }) {
+export function CardForm({ hasCard, onSaved }: { hasCard: boolean; onSaved?: () => void }) {
   const router = useRouter();
   const [form, setForm] = useState({
     cardNumber: "",
@@ -43,6 +43,7 @@ export function CardForm({ hasCard }: { hasCard: boolean }) {
 
     setSaved(true);
     router.refresh();
+    onSaved?.();
   }
 
   return (

@@ -54,47 +54,23 @@ function Field({
   );
 }
 
-export function BrandProfileForm({ initial, files }: { initial: Values; files: Files }) {
+export function BrandProfileForm({
+  initial,
+  files,
+  onSaved,
+}: {
+  initial: Values;
+  files: Files;
+  onSaved?: () => void;
+}) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const [drafting, setDrafting] = useState(false);
-  const [draftError, setDraftError] = useState<string | null>(null);
 
   function set<K extends keyof Values>(key: K, value: Values[K]) {
     setForm((f) => ({ ...f, [key]: value }));
-  }
-
-  async function handleDraft() {
-    if (!form.companyName.trim()) {
-      setDraftError("Escribe primero el nombre de la marca.");
-      return;
-    }
-    setDrafting(true);
-    setDraftError(null);
-    try {
-      const res = await fetch("/api/marca/perfil/redactar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          companyName: form.companyName,
-          websiteUrl: form.websiteUrl,
-          draft: form.description,
-        }),
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        setDraftError(body?.error ?? "No se pudo generar la descripción.");
-        return;
-      }
-      set("description", (body?.description ?? "").slice(0, 150));
-    } catch {
-      setDraftError("No se pudo generar la descripción — revisa tu conexión e intenta de nuevo.");
-    } finally {
-      setDrafting(false);
-    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -118,6 +94,7 @@ export function BrandProfileForm({ initial, files }: { initial: Values; files: F
 
       setSaved(true);
       router.refresh();
+      onSaved?.();
     } catch {
       setError("No se pudo guardar — revisa tu conexión e intenta de nuevo.");
     } finally {
@@ -141,29 +118,16 @@ export function BrandProfileForm({ initial, files }: { initial: Values; files: F
         <Field label="Nombre de la marca" value={form.companyName} onChange={(v) => set("companyName", v)} />
         <Field label="Página web" value={form.websiteUrl} onChange={(v) => set("websiteUrl", v)} placeholder="https://" type="url" />
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="block text-sm text-brand-ink">Descripción</label>
-            <button
-              type="button"
-              onClick={handleDraft}
-              disabled={drafting}
-              className="text-xs font-medium text-brand-accent hover:underline disabled:opacity-50"
-            >
-              {drafting ? "Redactando..." : "✨ Mejorar con IA"}
-            </button>
-          </div>
+          <label className="block text-sm text-brand-ink mb-1">Descripción</label>
           <textarea
             value={form.description}
             onChange={(e) => set("description", e.target.value.slice(0, 150))}
             maxLength={150}
             className="input min-h-20"
           />
-          <div className="flex items-center justify-between mt-1">
-            {draftError ? <p className="text-xs text-red-600">{draftError}</p> : <span />}
-            <p className={`text-xs ${form.description.length >= 150 ? "text-red-600" : "text-brand-ink-soft"}`}>
-              {form.description.length}/150 caracteres
-            </p>
-          </div>
+          <p className={`text-xs mt-1 text-right ${form.description.length >= 150 ? "text-red-600" : "text-brand-ink-soft"}`}>
+            {form.description.length}/150 caracteres
+          </p>
         </div>
 
         <div>
