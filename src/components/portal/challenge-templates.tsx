@@ -40,7 +40,7 @@ export function buildChallengeTemplates(defaultCommissionPercent: number): Chall
     {
       key: "fin-de-semana",
       title: "Fin de semana con comisión doble",
-      description: `Sube la comisión de ${defaultCommissionPercent}% a ${boosted}% por 3 días — bueno para un lanzamiento corto o liquidar inventario.`,
+      description: "Bueno para un lanzamiento corto o liquidar inventario.",
       name: "Fin de semana comisión doble",
       type: "TEMP_COMMISSION_BOOST",
       durationDays: 3,
@@ -49,7 +49,7 @@ export function buildChallengeTemplates(defaultCommissionPercent: number): Chall
     {
       key: "temporada-alta",
       title: "Semana de temporada alta",
-      description: `Sube la comisión de ${defaultCommissionPercent}% a ${boostedSmall}% durante toda la semana — útil en fechas de alta demanda.`,
+      description: "Útil en fechas de alta demanda.",
       name: "Comisión elevada — temporada alta",
       type: "TEMP_COMMISSION_BOOST",
       durationDays: 7,
@@ -58,11 +58,24 @@ export function buildChallengeTemplates(defaultCommissionPercent: number): Chall
   ];
 }
 
+/// La explicación en palabras, con números concretos — para que quede
+/// clarísimo qué está activando la marca antes de darle a "Usar esta
+/// plantilla". Se arma a partir de los valores reales de la plantilla, así
+/// que si algún día cambian los montos, el texto sigue siendo cierto.
+function explainTemplate(t: ChallengeTemplate, defaultCommissionPercent: number): string {
+  if (t.type === "GOAL_BONUS") {
+    return `Si un creador vende ${formatCOP(t.goalAmount!)} en total con su código durante los ${t.durationDays} días del reto, gana ${formatCOP(t.bonusAmount!)} de bono — adicional a su comisión normal por esas mismas ventas. Aplica a cada creador que llegue a la meta, no solo al primero.`;
+  }
+  return `Durante los ${t.durationDays} días del reto, la comisión de TODOS tus creadores vinculados a esta oferta sube de ${defaultCommissionPercent}% a ${t.newCommissionPercent}% — sin excepción, mientras dure.`;
+}
+
 export function ChallengeTemplates({
   templates,
+  defaultCommissionPercent,
   onUseTemplate,
 }: {
   templates: ChallengeTemplate[];
+  defaultCommissionPercent: number;
   onUseTemplate: (template: ChallengeTemplate) => void;
 }) {
   return (
@@ -73,10 +86,11 @@ export function ChallengeTemplates({
       </p>
       <div className="grid sm:grid-cols-2 gap-4">
         {templates.map((t) => (
-          <div key={t.key} className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+          <div key={t.key} className="rounded-2xl border border-brand-line bg-brand-surface p-5 flex flex-col">
             <p className="font-display font-semibold text-brand-ink mb-1">{t.title}</p>
-            <p className="text-xs text-brand-ink-soft mb-4">{t.description}</p>
-            <div className="flex items-center gap-3 text-xs font-mono text-brand-ink-soft mb-4">
+            <p className="text-xs text-brand-ink-soft mb-3">{t.description}</p>
+
+            <div className="flex items-center gap-3 text-xs font-mono text-brand-ink-soft mb-3">
               {t.type === "GOAL_BONUS" ? (
                 <>
                   <span>Meta {formatCOP(t.goalAmount!)}</span>
@@ -84,14 +98,21 @@ export function ChallengeTemplates({
                   <span>Bono {formatCOP(t.bonusAmount!)}</span>
                 </>
               ) : (
-                <span>Comisión {t.newCommissionPercent}%</span>
+                <span>
+                  Comisión {defaultCommissionPercent}% → {t.newCommissionPercent}%
+                </span>
               )}
               <span>·</span>
               <span>{t.durationDays} días</span>
             </div>
+
+            <p className="text-xs text-brand-ink-soft bg-brand-bg rounded-lg p-3 mb-4 flex-1">
+              {explainTemplate(t, defaultCommissionPercent)}
+            </p>
+
             <button
               onClick={() => onUseTemplate(t)}
-              className="text-xs text-brand-accent font-medium hover:underline"
+              className="self-start bg-brand-accent text-white text-xs font-medium rounded-full px-5 py-2 hover:opacity-90"
             >
               Usar esta plantilla
             </button>

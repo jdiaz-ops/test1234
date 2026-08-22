@@ -26,8 +26,7 @@ export default async function RetosPage() {
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Motiva a tus creadores</h1>
       <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
         Lanza un bono por ventas generadas o sube la comisión de todos tus
-        creadores por un tiempo limitado — el premio se cobra junto con tus
-        comisiones normales.
+        creadores por un tiempo limitado, para motivarlos a vender más.
       </p>
 
       <ChallengesPanel

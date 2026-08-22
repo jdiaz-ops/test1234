@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { VISIBLE_CHALLENGE_TYPES, type ChallengeType, type ChallengeTemplate } from "@/lib/challenge-types";
+import { CurrencyInput } from "@/components/portal/currency-input";
 
 function toDateInput(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -18,7 +19,7 @@ const typeLabel: Record<ChallengeType, string> = {
 
 const typeHint: Record<ChallengeType, string> = {
   GOAL_BONUS:
-    "El creador gana un bono fijo si el total de lo que vende con su código, durante este período, llega a la meta que definas.",
+    "Cada creador que llegue a la meta gana el bono — no solo el primero, todos los que la alcancen. Es un pago adicional, aparte de su comisión normal por esas ventas.",
   TEMP_COMMISSION_BOOST:
     "Sube la comisión para TODOS los creadores vinculados a esta oferta durante el período, sin excepción — reemplaza la comisión normal de cada uno mientras dure, sin importar lo que tengan configurado individualmente.",
   LEADERBOARD: "Al terminar el período, los N creadores con más ventas se llevan el premio correspondiente a su puesto.",
@@ -142,12 +143,12 @@ export function ChallengeForm({
       {type === "GOAL_BONUS" && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm text-brand-ink mb-1">Meta de ventas (COP)</label>
-            <input required type="number" min="1" value={goalAmount} onChange={(e) => setGoalAmount(e.target.value)} className="input" />
+            <label className="block text-sm text-brand-ink mb-1">Meta de ventas por creador</label>
+            <CurrencyInput value={goalAmount} onChange={setGoalAmount} placeholder="2.000.000" />
           </div>
           <div>
-            <label className="block text-sm text-brand-ink mb-1">Bono (COP)</label>
-            <input required type="number" min="1" value={bonusAmount} onChange={(e) => setBonusAmount(e.target.value)} className="input" />
+            <label className="block text-sm text-brand-ink mb-1">Bono</label>
+            <CurrencyInput value={bonusAmount} onChange={setBonusAmount} placeholder="150.000" />
           </div>
         </div>
       )}
@@ -187,8 +188,8 @@ export function ChallengeForm({
             <input required type="number" min="1" value={slotsCount} onChange={(e) => setSlotsCount(e.target.value)} className="input" />
           </div>
           <div>
-            <label className="block text-sm text-brand-ink mb-1">Bono por cupo (COP)</label>
-            <input required type="number" min="1" value={bonusPerSlot} onChange={(e) => setBonusPerSlot(e.target.value)} className="input" />
+            <label className="block text-sm text-brand-ink mb-1">Bono por cupo</label>
+            <CurrencyInput value={bonusPerSlot} onChange={setBonusPerSlot} placeholder="50.000" />
           </div>
         </div>
       )}
@@ -207,8 +208,8 @@ export function ChallengeForm({
             />
           </div>
           <div>
-            <label className="block text-sm text-brand-ink mb-1">Bono (COP)</label>
-            <input required type="number" min="1" value={bonusAmount} onChange={(e) => setBonusAmount(e.target.value)} className="input" />
+            <label className="block text-sm text-brand-ink mb-1">Bono</label>
+            <CurrencyInput value={bonusAmount} onChange={setBonusAmount} placeholder="150.000" />
           </div>
         </div>
       )}

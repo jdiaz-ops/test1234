@@ -140,9 +140,9 @@ export function OffersPanel({
                   </div>
                   <button
                     onClick={() => setEditingId(offer.id)}
-                    className="text-xs text-brand-accent font-medium hover:underline shrink-0"
+                    className="text-xs bg-brand-accent-soft text-brand-accent font-medium rounded-full px-4 py-1.5 hover:bg-brand-accent hover:text-white transition-colors shrink-0"
                   >
-                    Editar
+                    Editar oferta
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mb-4 max-w-xs">

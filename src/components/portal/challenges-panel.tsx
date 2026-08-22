@@ -154,6 +154,7 @@ export function ChallengesPanel({
       {!creating && offers.length > 0 && (
         <ChallengeTemplates
           templates={buildChallengeTemplates(offers[0].defaultCommissionPercent)}
+          defaultCommissionPercent={offers[0].defaultCommissionPercent}
           onUseTemplate={useTemplate}
         />
       )}
