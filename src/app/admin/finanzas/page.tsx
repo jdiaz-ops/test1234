@@ -1,4 +1,10 @@
-import { listBrandCharges, listPayouts, listStoreHealth } from "@/server/services/admin-finance-service";
+import {
+  listBrandCharges,
+  listPayouts,
+  listStoreHealth,
+  getCommissionsSummary,
+} from "@/server/services/admin-finance-service";
+import { ApproveCommissionsButton } from "@/components/portal/approve-commissions-button";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
@@ -13,16 +19,48 @@ const healthLabel: Record<string, string> = {
 };
 
 export default async function AdminFinanzasPage() {
-  const [charges, payouts, health] = await Promise.all([
+  const [charges, payouts, health, commissions] = await Promise.all([
     listBrandCharges(),
     listPayouts(),
     listStoreHealth(),
+    getCommissionsSummary(),
   ]);
 
   return (
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">FINANZAS</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">Cobros, pagos y tiendas</h1>
+
+      <h2 className="font-display font-semibold text-brand-ink mb-3">Comisiones (Motor de Comisiones)</h2>
+      <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mb-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4 text-sm">
+          <div>
+            <p className="text-xs text-brand-ink-soft mb-1">Pendientes (en espera)</p>
+            <p className="font-mono text-brand-ink">
+              {commissions.pending.count} · {formatCOP(commissions.pending.amount)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-brand-ink-soft mb-1">Aprobadas (listas para pagar)</p>
+            <p className="font-mono text-brand-ink">
+              {commissions.approved.count} · {formatCOP(commissions.approved.amount)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-brand-ink-soft mb-1">Pagadas</p>
+            <p className="font-mono text-brand-ink">
+              {commissions.paid.count} · {formatCOP(commissions.paid.amount)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-brand-ink-soft mb-1">Revertidas (reembolsos)</p>
+            <p className="font-mono text-brand-ink">
+              {commissions.reversed.count} · {formatCOP(commissions.reversed.amount)}
+            </p>
+          </div>
+        </div>
+        <ApproveCommissionsButton eligibleNow={commissions.eligibleNow} />
+      </div>
 
       <h2 className="font-display font-semibold text-brand-ink mb-3">Cobros a marcas (día 1)</h2>
       {charges.length === 0 ? (

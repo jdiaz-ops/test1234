@@ -2,15 +2,15 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createShopifyDiscountCode, ShopifyApiError } from "@/server/integrations/shopify-client";
 import { createWooCommerceCoupon, WooCommerceApiError } from "@/server/integrations/woocommerce-client";
+import { createCommissionForTransaction, reverseCommissionForTransaction } from "@/server/services/commission-service";
 
 export class AttributionError extends Error {}
 
 /// Motor de Atribución: recibe pedidos y reembolsos ya verificados (firma de
 /// webhook comprobada por el caller) desde Shopify/WooCommerce, encuentra a
 /// qué creador pertenece el código de descuento usado, y crea/actualiza el
-/// Transaction correspondiente. El Motor de Comisiones (tarea siguiente)
-/// consume estos Transaction para calcular el reparto — aquí no se toca
-/// nada de comisiones todavía.
+/// Transaction correspondiente. Cada venta nueva y cada reembolso se pasan
+/// de inmediato al Motor de Comisiones para que calcule/revierta el reparto.
 
 interface RecordOrderParams {
   brandId: string;
@@ -151,6 +151,8 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
     },
   });
 
+  await createCommissionForTransaction(transaction.id);
+
   return { transaction, created: true as const };
 }
 
@@ -187,6 +189,8 @@ export async function recordRefundFromWebhook(params: {
     where: { id: transaction.id },
     data: { status: "REFUNDED", refundedAt: params.refundedAt },
   });
+
+  await reverseCommissionForTransaction(updated.id);
 
   return { transaction: updated, updated: true as const };
 }
