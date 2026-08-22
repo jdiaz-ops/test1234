@@ -14,7 +14,7 @@ export function NotificationsList({ notifications }: { notifications: Notificati
   const router = useRouter();
 
   async function markAllRead() {
-    await fetch("/api/creador/notificaciones", {
+    await fetch("/api/notificaciones", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
