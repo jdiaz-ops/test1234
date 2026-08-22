@@ -30,9 +30,18 @@ export default async function OnboardingPage() {
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
         Prepara tu marca para el marketplace
       </h1>
-      <p className="text-sm text-brand-ink-soft mb-6">
-        Tu marca solo se hace visible para los creadores cuando completes estos {total} pasos.
-      </p>
+      <div className="rounded-2xl border-2 border-brand-accent bg-brand-accent-soft px-5 py-4 mb-6 max-w-2xl">
+        <p className="font-display text-lg font-semibold text-brand-ink leading-snug">
+          Tu marca solo se hace visible para los creadores de contenido cuando completes estos {total} pasos
+          {profile.status !== "APPROVED" && " y sea aprobada por nuestro equipo"}.
+        </p>
+        {profile.status !== "APPROVED" && (
+          <p className="text-sm text-brand-ink-soft mt-1.5">
+            No aceptamos a todas las marcas — revisamos cada solicitud para mantener el marketplace
+            exclusivo y de calidad.
+          </p>
+        )}
+      </div>
 
       <div className="flex items-center gap-3 mb-8 max-w-lg">
         <div className="flex-1 h-2 rounded-full bg-brand-line overflow-hidden">

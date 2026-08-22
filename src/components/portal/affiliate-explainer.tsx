@@ -23,6 +23,13 @@ const steps = [
 export function AffiliateExplainer() {
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+      <div className="rounded-xl bg-brand-accent text-white px-4 py-3 mb-4">
+        <p className="font-display font-semibold leading-snug">Sin mensualidad fija</p>
+        <p className="text-xs opacity-90 mt-0.5">
+          No pagas nada por usar Marcolini si no vendes — nuestra tarifa se cobra únicamente sobre
+          ventas reales. Pagas solo cuando hay resultados.
+        </p>
+      </div>
       <p className="font-display font-semibold text-brand-ink mb-1">¿Cómo funciona la afiliación?</p>
       <p className="text-xs text-brand-ink-soft mb-4">
         Un creador de contenido promueve tu marca y gana una comisión por cada venta que genera.
