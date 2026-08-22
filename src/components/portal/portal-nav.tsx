@@ -10,6 +10,7 @@ const items = [
   { href: "/creador/storefront", label: "Mi Storefront" },
   { href: "/creador/codigos", label: "Mis Códigos y Links" },
   { href: "/creador/transacciones", label: "Transacciones" },
+  { href: "/creador/mensajes", label: "Mensajes" },
   { href: "/creador/perfil", label: "Perfil" },
   { href: "/creador/pago", label: "Configuración de pago" },
   { href: "/creador/notificaciones", label: "Notificaciones" },

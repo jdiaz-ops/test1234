@@ -90,3 +90,22 @@ export const reviewSubmissionSchema = z.object({
   rewardId: z.string().min(1),
   decision: z.enum(["APPROVE", "REJECT"]),
 });
+
+export const sendMessageSchema = z.object({
+  enrollmentId: z.string().min(1),
+  body: z.string().min(1, "Escribe algo").max(2000, "Máximo 2000 caracteres"),
+});
+
+export const sendProductSchema = z.object({
+  enrollmentId: z.string().min(1),
+  description: z.string().min(2, "Describe qué le estás enviando"),
+  shippingAddress: z.string().min(5, "Ingresa la dirección de envío"),
+  carrier: z.string().optional().or(z.literal("")),
+  trackingNumber: z.string().optional().or(z.literal("")),
+});
+
+export const markShipmentSentSchema = z.object({
+  shipmentId: z.string().min(1),
+  carrier: z.string().optional().or(z.literal("")),
+  trackingNumber: z.string().optional().or(z.literal("")),
+});

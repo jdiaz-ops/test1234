@@ -357,6 +357,7 @@ model CreatorOfferEnrollment {
 
   transactions  Transaction[]
   conversations Conversation[]
+  shipments     ProductShipment[]
 
   joinedAt DateTime @default(now())
 
@@ -771,6 +772,47 @@ model Message {
 
   senderUserId String
   body         String
+
+  createdAt DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// ENVÍO DE PRODUCTO (dentro de la misma relación marca↔creador vinculado —
+// el creador pide, o la marca ofrece, un producto físico como parte de la
+// colaboración)
+// ----------------------------------------------------------------------------
+
+enum ShipmentStatus {
+  REQUESTED // el creador lo pidió, la marca todavía no lo despacha
+  SENT
+  DELIVERED
+}
+
+enum ShipmentRequestedBy {
+  CREATOR
+  BRAND
+}
+
+model ProductShipment {
+  id String @id @default(cuid())
+
+  enrollmentId String
+  enrollment   CreatorOfferEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  requestedBy ShipmentRequestedBy
+  description String
+
+  /// Dirección de envío — se captura en el momento (no se guarda un perfil
+  /// de direcciones aparte), porque puede cambiar de un envío a otro.
+  shippingAddress String
+
+  status ShipmentStatus @default(REQUESTED)
+
+  carrier        String?
+  trackingNumber String?
+
+  sentAt      DateTime?
+  deliveredAt DateTime?
 
   createdAt DateTime @default(now())
 }

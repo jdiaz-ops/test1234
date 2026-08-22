@@ -8,6 +8,7 @@ const items = [
   { href: "/marca/ofertas", label: "Oferta y comisión" },
   { href: "/marca/retos", label: "Retos y Campañas" },
   { href: "/marca/creadores", label: "Creadores vinculados" },
+  { href: "/marca/mensajes", label: "Mensajes" },
   { href: "/marca/transacciones", label: "Transacciones" },
   { href: "/marca/perfil", label: "Perfil" },
   { href: "/marca/facturacion", label: "Facturación" },
