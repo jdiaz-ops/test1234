@@ -4,7 +4,12 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const FROM = "Marcolini <no-reply@marcolini.co>";
+// Mientras no haya un dominio propio verificado en Resend, se manda desde su
+// dirección de prueba (onboarding@resend.dev) — funciona sin configurar nada,
+// pero Resend solo entrega a la cuenta de correo con la que te registraste
+// ahí. Apenas verifiques tu dominio, pon EMAIL_FROM en Vercel (ej. "Marcolini
+// <no-reply@marcolini.co>") y desde ahí sí llega a cualquier destinatario.
+const FROM = process.env.EMAIL_FROM || "Marcolini <onboarding@resend.dev>";
 
 async function send(to: string, subject: string, html: string) {
   if (!resend) {
