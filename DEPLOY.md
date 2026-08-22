@@ -79,17 +79,28 @@ proyecto). Toma 2-3 minutos.
 
 La plataforma necesita algunos datos base para arrancar (tu configuración
 de tarifas, el vertical "Uñas" con sus categorías, y tu cuenta de admin).
-Desde tu computador, con el CLI de Vercel instalado (`npm i -g vercel`):
+
+**Forma más simple (recomendada) — un link, una sola vez:** confirma
+primero que `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `CRON_SECRET` ya estén
+puestos en las variables de entorno de Vercel (paso 5), y abre en el
+navegador:
+
+```
+https://tu-app.vercel.app/api/admin/sembrar?secret=EL_VALOR_DE_TU_CRON_SECRET
+```
+
+Si responde `{"ok":true,...}`, ya quedó. Es seguro visitarlo más de una
+vez (no duplica nada).
+
+**Alternativa con el CLI de Vercel** (si prefieres hacerlo desde tu
+computador, con Node.js instalado):
 
 ```bash
+npm i -g vercel
 vercel link          # conecta esta carpeta a tu proyecto de Vercel
 vercel env pull       # baja las variables de entorno reales a .env
 npx prisma db seed    # siembra la base de producción
 ```
-
-Confirma que `ADMIN_EMAIL`/`ADMIN_PASSWORD` ya estén puestos en Vercel
-antes de este paso — así tu cuenta de admin queda con tus datos reales
-desde el principio.
 
 ## 8. Dominio propio (opcional, cuando quieras)
 
