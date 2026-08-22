@@ -73,6 +73,16 @@ export function BrandNav({
           </span>
         )}
       </Link>
+      <Link
+        href="/marca/como-funciona"
+        className={`rounded-lg px-3 py-2 text-sm ${
+          pathname.startsWith("/marca/como-funciona")
+            ? "bg-brand-accent-soft text-brand-accent font-medium"
+            : "text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink"
+        }`}
+      >
+        Cómo funciona
+      </Link>
     </nav>
   );
 }
