@@ -26,7 +26,24 @@ export async function listActiveOffers(filters: { categorySlug?: string; search?
   return prisma.offer.findMany({
     where: {
       status: "ACTIVE",
-      brand: { status: "APPROVED" },
+      // Además de aprobada, la marca debe haber terminado su onboarding
+      // (perfil, tienda, método de pago) — ver getBrandOnboardingStatus en
+      // onboarding-service.ts, que usa exactamente estas mismas condiciones.
+      brand: {
+        status: "APPROVED",
+        // logoUrl/description/websiteUrl se guardan como "" (no null) cuando
+        // el campo está vacío — por eso se excluyen ambos valores.
+        NOT: [
+          { logoUrl: null },
+          { logoUrl: "" },
+          { description: null },
+          { description: "" },
+          { websiteUrl: null },
+          { websiteUrl: "" },
+        ],
+        storeConnectionStatus: "CONNECTED",
+        cardTokenRef: { not: null },
+      },
       ...(filters.categorySlug ? { category: { slug: filters.categorySlug } } : {}),
       ...(filters.search
         ? {

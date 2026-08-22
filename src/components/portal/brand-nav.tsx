@@ -16,11 +16,32 @@ const items = [
   { href: "/marca/cuenta", label: "Cuenta" },
 ];
 
-export function BrandNav({ unreadNotifications = 0 }: { unreadNotifications?: number }) {
+export function BrandNav({
+  unreadNotifications = 0,
+  onboarding,
+}: {
+  unreadNotifications?: number;
+  onboarding?: { completedCount: number; total: number };
+}) {
   const pathname = usePathname();
 
   return (
     <nav className="flex flex-col gap-0.5">
+      {onboarding && (
+        <Link
+          href="/marca/onboarding"
+          className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm mb-1 ${
+            pathname.startsWith("/marca/onboarding")
+              ? "bg-brand-accent-soft text-brand-accent font-medium"
+              : "text-brand-accent hover:bg-brand-accent-soft"
+          }`}
+        >
+          Empieza aquí
+          <span className="text-[10px] font-mono font-medium">
+            {onboarding.completedCount}/{onboarding.total}
+          </span>
+        </Link>
+      )}
       {items.map((item) => {
         const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
         return (

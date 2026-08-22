@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 
 export function AccountTabs({ tabs }: { tabs: { key: string; label: string; content: ReactNode }[] }) {
-  const [active, setActive] = useState(tabs[0]?.key);
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const initial = tabs.find((t) => t.key === requestedTab)?.key ?? tabs[0]?.key;
+  const [active, setActive] = useState(initial);
 
   return (
     <div>

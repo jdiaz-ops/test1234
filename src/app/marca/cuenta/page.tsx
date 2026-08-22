@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getBrandProfileByUserId, getWebhookUrl } from "@/server/services/brand-profile-service";
@@ -171,15 +172,17 @@ export default async function MarcaCuentaPage() {
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CUENTA</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">{profile.companyName}</h1>
 
-      <AccountTabs
-        tabs={[
-          { key: "perfil", label: "Perfil del negocio", content: perfilTab },
-          { key: "pago", label: "Pago", content: pagoTab },
-          { key: "facturacion", label: "Facturación", content: facturacionTab },
-          { key: "tienda", label: "Conexión de tienda", content: tiendaTab },
-          { key: "seguridad", label: "Seguridad", content: seguridadTab },
-        ]}
-      />
+      <Suspense fallback={null}>
+        <AccountTabs
+          tabs={[
+            { key: "perfil", label: "Perfil del negocio", content: perfilTab },
+            { key: "pago", label: "Pago", content: pagoTab },
+            { key: "facturacion", label: "Facturación", content: facturacionTab },
+            { key: "tienda", label: "Conexión de tienda", content: tiendaTab },
+            { key: "seguridad", label: "Seguridad", content: seguridadTab },
+          ]}
+        />
+      </Suspense>
     </div>
   );
 }
