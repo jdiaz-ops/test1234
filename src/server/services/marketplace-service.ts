@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { provisionDiscountCodeForEnrollment } from "@/server/services/attribution-service";
+import { awardWelcomeBonusIfEligible } from "@/server/services/challenge-service";
 
 export class MarketplaceError extends Error {}
 
@@ -65,6 +66,7 @@ export async function joinOffer(creatorId: string, offerId: string) {
 
   if (enrollment.status === "ACTIVE") {
     await provisionDiscountCodeForEnrollment(enrollment.id);
+    await awardWelcomeBonusIfEligible(offerId, creatorId);
   }
 
   return enrollment;

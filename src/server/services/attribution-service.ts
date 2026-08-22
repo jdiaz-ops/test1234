@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createShopifyDiscountCode, ShopifyApiError } from "@/server/integrations/shopify-client";
 import { createWooCommerceCoupon, WooCommerceApiError } from "@/server/integrations/woocommerce-client";
 import { createCommissionForTransaction, reverseCommissionForTransaction } from "@/server/services/commission-service";
+import { checkGoalBonusProgress } from "@/server/services/challenge-service";
 
 export class AttributionError extends Error {}
 
@@ -152,6 +153,7 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
   });
 
   await createCommissionForTransaction(transaction.id);
+  await checkGoalBonusProgress(enrollment.offerId, enrollment.creatorId);
 
   return { transaction, created: true as const };
 }

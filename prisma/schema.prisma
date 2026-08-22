@@ -177,6 +177,7 @@ model CreatorProfile {
   commissions           Commission[]
   payouts               Payout[]
   instantPayoutRequests InstantPayoutRequest[]
+  challengeRewards      ChallengeReward[]
   conversations         Conversation[]
 
   createdAt DateTime @default(now())
@@ -399,7 +400,58 @@ model Challenge {
   /// CONTENT_CHALLENGE      -> { instructions, bonusAmount }
   config Json
 
+  rewards ChallengeReward[]
+
   createdAt DateTime @default(now())
+}
+
+enum ChallengeRewardStatus {
+  PENDING_REVIEW // solo CONTENT_CHALLENGE: la marca todavía no revisó la evidencia
+  PENDING // ganado, en la misma ventana de espera por reembolsos que una Commission
+  APPROVED // lista para el próximo pago (día 15 o adelanto)
+  PAID
+  REJECTED // la marca no aprobó la evidencia (solo CONTENT_CHALLENGE)
+}
+
+/// Un premio ganado por un creador en un reto — se paga por el mismo Motor
+/// de Pagos que las comisiones normales (mismo hold de reembolsos, mismo
+/// Payout del día 15, mismo adelanto instantáneo), pero es dinero aparte de
+/// cualquier venta puntual.
+model ChallengeReward {
+  id          String    @id @default(cuid())
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id])
+
+  amount Decimal               @db.Decimal(12, 2)
+  status ChallengeRewardStatus @default(PENDING)
+
+  /// Solo CONTENT_CHALLENGE: lo que el creador mandó como evidencia.
+  submissionUrl  String?
+  submissionNote String?
+  reviewedAt     DateTime?
+  reviewedById   String? // userId de la marca que aprobó/rechazó
+
+  holdUntil  DateTime?
+  approvedAt DateTime?
+
+  /// El premio lo financia la MARCA (es su presupuesto de marketing, no un
+  /// costo de Marcolini) — igual que con las comisiones, no se le paga al
+  /// creador con plata que la marca todavía no puso.
+  brandChargeId String?
+  brandCharge   BrandCharge? @relation(fields: [brandChargeId], references: [id])
+
+  payoutId String?
+  payout   Payout? @relation(fields: [payoutId], references: [id])
+
+  instantPayoutRequestId String?
+  instantPayoutRequest   InstantPayoutRequest? @relation(fields: [instantPayoutRequestId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([challengeId, creatorId])
 }
 
 // ----------------------------------------------------------------------------
@@ -533,7 +585,8 @@ model Payout {
   epaycoTransactionRef String?
   paidAt               DateTime?
 
-  commissions Commission[]
+  commissions      Commission[]
+  challengeRewards ChallengeReward[]
 
   createdAt DateTime @default(now())
 }
@@ -563,7 +616,8 @@ model BrandCharge {
   chargedAt            DateTime?
   failureReason        String?
 
-  commissions Commission[]
+  commissions      Commission[]
+  challengeRewards ChallengeReward[]
 
   createdAt DateTime @default(now())
 }
@@ -588,7 +642,8 @@ model InstantPayoutRequest {
   status      InstantPayoutStatus @default(REQUESTED)
   processedAt DateTime?
 
-  commissions Commission[]
+  commissions      Commission[]
+  challengeRewards ChallengeReward[]
 
   createdAt DateTime @default(now())
 }

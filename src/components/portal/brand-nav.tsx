@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const items = [
   { href: "/marca", label: "Dashboard", exact: true },
   { href: "/marca/ofertas", label: "Oferta y comisión" },
+  { href: "/marca/retos", label: "Retos y Campañas" },
   { href: "/marca/creadores", label: "Creadores vinculados" },
   { href: "/marca/transacciones", label: "Transacciones" },
   { href: "/marca/perfil", label: "Perfil" },

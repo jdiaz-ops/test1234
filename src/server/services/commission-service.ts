@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getActiveCommissionBoost } from "@/server/services/challenge-service";
 
 export class CommissionError extends Error {}
 
@@ -45,8 +46,12 @@ export async function createCommissionForTransaction(transactionId: string) {
 
   const config = await prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } });
 
+  // Un TEMP_COMMISSION_BOOST activo en la fecha de la venta manda sobre el
+  // % normal de la oferta/inscripción (pero no sobre un override puntual
+  // del creador — eso sigue siendo lo más específico).
+  const boostPercent = await getActiveCommissionBoost(transaction.offerId, transaction.occurredAt);
   const commissionPercent = Number(
-    transaction.enrollment.commissionPercentOverride ?? transaction.offer.defaultCommissionPercent
+    transaction.enrollment.commissionPercentOverride ?? boostPercent ?? transaction.offer.defaultCommissionPercent
   );
   const platformFeePercent = transaction.brand.platformFeePercentOverride
     ? Number(transaction.brand.platformFeePercentOverride)

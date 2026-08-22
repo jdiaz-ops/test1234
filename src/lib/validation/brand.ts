@@ -50,3 +50,43 @@ export const enrollmentDecisionSchema = z.object({
   enrollmentId: z.string().min(1),
   decision: z.enum(["APPROVE", "REJECT"]),
 });
+
+const money = z.number().positive("Debe ser mayor a 0");
+
+const challengeConfigSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("GOAL_BONUS"), goalAmount: money, bonusAmount: money }),
+  z.object({ type: z.literal("TEMP_COMMISSION_BOOST"), newCommissionPercent: percent }),
+  z.object({
+    type: z.literal("LEADERBOARD"),
+    winnersCount: z.number().int().min(1).max(20),
+    prizes: z.array(money).min(1).max(20),
+  }),
+  z.object({ type: z.literal("WELCOME_BONUS"), slotsCount: z.number().int().min(1), bonusPerSlot: money }),
+  z.object({
+    type: z.literal("CONTENT_CHALLENGE"),
+    instructions: z.string().min(5, "Describe qué debe hacer el creador"),
+    bonusAmount: money,
+  }),
+]);
+
+export const challengeSchema = z
+  .object({
+    offerId: z.string().min(1),
+    name: z.string().min(2, "Ingresa un nombre para el reto"),
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+    config: challengeConfigSchema,
+  })
+  .refine((data) => data.endDate > data.startDate, {
+    message: "La fecha de fin debe ser después del inicio",
+    path: ["endDate"],
+  })
+  .refine(
+    (data) => data.config.type !== "LEADERBOARD" || data.config.prizes.length === data.config.winnersCount,
+    { message: "Debes poner un premio por cada ganador", path: ["config"] }
+  );
+
+export const reviewSubmissionSchema = z.object({
+  rewardId: z.string().min(1),
+  decision: z.enum(["APPROVE", "REJECT"]),
+});

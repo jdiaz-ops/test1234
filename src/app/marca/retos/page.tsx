@@ -1,0 +1,56 @@
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { listChallengesForBrand, listSubmissionsForBrand } from "@/server/services/challenge-service";
+import { ChallengesPanel } from "@/components/portal/challenges-panel";
+
+export default async function RetosPage() {
+  const session = await auth();
+  const profile = await prisma.brandProfile.findUniqueOrThrow({
+    where: { userId: session!.user.id },
+  });
+
+  const [offers, challenges, submissions] = await Promise.all([
+    prisma.offer.findMany({ where: { brandId: profile.id, status: "ACTIVE" }, select: { id: true, name: true } }),
+    listChallengesForBrand(profile.id),
+    listSubmissionsForBrand(profile.id),
+  ]);
+
+  return (
+    <div>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">RETOS Y CAMPAÑAS</p>
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Motiva a tus creadores</h1>
+      <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
+        Lanza bonos por meta, leaderboards, comisiones temporales elevadas,
+        bonos de bienvenida o retos de contenido — el premio se cobra junto
+        con tus comisiones normales.
+      </p>
+
+      <ChallengesPanel
+        offers={offers}
+        challenges={challenges.map((c) => ({
+          id: c.id,
+          name: c.name,
+          type: c.type,
+          status: c.status,
+          startDate: c.startDate.toISOString(),
+          endDate: c.endDate.toISOString(),
+          offer: { name: c.offer.name },
+          rewards: c.rewards.map((r) => ({
+            id: r.id,
+            amount: Number(r.amount),
+            status: r.status,
+            creator: { displayName: r.creator.displayName },
+          })),
+        }))}
+        submissions={submissions.map((s) => ({
+          id: s.id,
+          submissionUrl: s.submissionUrl,
+          submissionNote: s.submissionNote,
+          amount: Number(s.amount),
+          creator: { displayName: s.creator.displayName },
+          challenge: { name: s.challenge.name },
+        }))}
+      />
+    </div>
+  );
+}

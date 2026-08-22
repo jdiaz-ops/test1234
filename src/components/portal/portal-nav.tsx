@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const items = [
   { href: "/creador", label: "Dashboard", exact: true },
   { href: "/creador/marketplace", label: "Marketplace" },
+  { href: "/creador/retos", label: "Retos y Campañas" },
   { href: "/creador/storefront", label: "Mi Storefront" },
   { href: "/creador/codigos", label: "Mis Códigos y Links" },
   { href: "/creador/transacciones", label: "Transacciones" },

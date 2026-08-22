@@ -1,0 +1,215 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+type ChallengeType = "GOAL_BONUS" | "TEMP_COMMISSION_BOOST" | "LEADERBOARD" | "WELCOME_BONUS" | "CONTENT_CHALLENGE";
+
+const typeLabel: Record<ChallengeType, string> = {
+  GOAL_BONUS: "Bono por meta de ventas",
+  TEMP_COMMISSION_BOOST: "Comisión temporal elevada",
+  LEADERBOARD: "Leaderboard con premio al Top N",
+  WELCOME_BONUS: "Bono de bienvenida (primeros N cupos)",
+  CONTENT_CHALLENGE: "Reto de contenido (revisión manual)",
+};
+
+const typeHint: Record<ChallengeType, string> = {
+  GOAL_BONUS: "El creador gana un bono fijo si sus ventas en el período llegan a la meta.",
+  TEMP_COMMISSION_BOOST: "Durante el período, todas las ventas de esta oferta pagan este % en vez del normal.",
+  LEADERBOARD: "Al terminar el período, los N creadores con más ventas se llevan el premio correspondiente a su puesto.",
+  WELCOME_BONUS: "Los primeros N creadores que se unan a la oferta durante el período ganan el bono, sin esperar ventas.",
+  CONTENT_CHALLENGE: "El creador manda un link como evidencia; tú lo revisas y decides si aprobar el bono.",
+};
+
+export function ChallengeForm({ offers, onDone }: { offers: { id: string; name: string }[]; onDone: () => void }) {
+  const router = useRouter();
+  const [offerId, setOfferId] = useState(offers[0]?.id ?? "");
+  const [name, setName] = useState("");
+  const [type, setType] = useState<ChallengeType>("GOAL_BONUS");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [goalAmount, setGoalAmount] = useState("");
+  const [bonusAmount, setBonusAmount] = useState("");
+  const [newCommissionPercent, setNewCommissionPercent] = useState("");
+  const [winnersCount, setWinnersCount] = useState("3");
+  const [prizes, setPrizes] = useState("");
+  const [slotsCount, setSlotsCount] = useState("");
+  const [bonusPerSlot, setBonusPerSlot] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function buildConfig(): Record<string, unknown> {
+    switch (type) {
+      case "GOAL_BONUS":
+        return { type, goalAmount: Number(goalAmount), bonusAmount: Number(bonusAmount) };
+      case "TEMP_COMMISSION_BOOST":
+        return { type, newCommissionPercent: Number(newCommissionPercent) };
+      case "LEADERBOARD":
+        return {
+          type,
+          winnersCount: Number(winnersCount),
+          prizes: prizes.split(",").map((p) => Number(p.trim())).filter((n) => !Number.isNaN(n)),
+        };
+      case "WELCOME_BONUS":
+        return { type, slotsCount: Number(slotsCount), bonusPerSlot: Number(bonusPerSlot) };
+      case "CONTENT_CHALLENGE":
+        return { type, instructions, bonusAmount: Number(bonusAmount) };
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+
+    const res = await fetch("/api/marca/retos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offerId, name, startDate, endDate, config: buildConfig() }),
+    });
+
+    setSaving(false);
+
+    if (!res.ok) {
+      const body = await res.json();
+      setError(body.error ?? "No se pudo crear el reto.");
+      return;
+    }
+
+    router.refresh();
+    onDone();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm text-brand-ink mb-1">Oferta</label>
+        <select value={offerId} onChange={(e) => setOfferId(e.target.value)} className="input">
+          {offers.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm text-brand-ink mb-1">Nombre del reto</label>
+        <input required value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="Reto de verano" />
+      </div>
+
+      <div>
+        <label className="block text-sm text-brand-ink mb-1">Tipo de reto</label>
+        <select value={type} onChange={(e) => setType(e.target.value as ChallengeType)} className="input">
+          {(Object.keys(typeLabel) as ChallengeType[]).map((t) => (
+            <option key={t} value={t}>
+              {typeLabel[t]}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-brand-ink-soft mt-1">{typeHint[type]}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm text-brand-ink mb-1">Inicio</label>
+          <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input" />
+        </div>
+        <div>
+          <label className="block text-sm text-brand-ink mb-1">Fin</label>
+          <input required type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input" />
+        </div>
+      </div>
+
+      {type === "GOAL_BONUS" && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">Meta de ventas (COP)</label>
+            <input required type="number" min="1" value={goalAmount} onChange={(e) => setGoalAmount(e.target.value)} className="input" />
+          </div>
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">Bono (COP)</label>
+            <input required type="number" min="1" value={bonusAmount} onChange={(e) => setBonusAmount(e.target.value)} className="input" />
+          </div>
+        </div>
+      )}
+
+      {type === "TEMP_COMMISSION_BOOST" && (
+        <div>
+          <label className="block text-sm text-brand-ink mb-1">Nueva comisión (%)</label>
+          <input
+            required
+            type="number"
+            min="0"
+            max="100"
+            value={newCommissionPercent}
+            onChange={(e) => setNewCommissionPercent(e.target.value)}
+            className="input"
+          />
+        </div>
+      )}
+
+      {type === "LEADERBOARD" && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">N° de ganadores</label>
+            <input required type="number" min="1" max="20" value={winnersCount} onChange={(e) => setWinnersCount(e.target.value)} className="input" />
+          </div>
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">Premios (COP, separados por coma)</label>
+            <input required value={prizes} onChange={(e) => setPrizes(e.target.value)} placeholder="300000, 150000, 50000" className="input" />
+          </div>
+        </div>
+      )}
+
+      {type === "WELCOME_BONUS" && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">Cupos disponibles</label>
+            <input required type="number" min="1" value={slotsCount} onChange={(e) => setSlotsCount(e.target.value)} className="input" />
+          </div>
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">Bono por cupo (COP)</label>
+            <input required type="number" min="1" value={bonusPerSlot} onChange={(e) => setBonusPerSlot(e.target.value)} className="input" />
+          </div>
+        </div>
+      )}
+
+      {type === "CONTENT_CHALLENGE" && (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">Instrucciones para el creador</label>
+            <textarea
+              required
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              className="input"
+              rows={3}
+              placeholder="Publica un reel usando tu código y mándanos el link"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">Bono (COP)</label>
+            <input required type="number" min="1" value={bonusAmount} onChange={(e) => setBonusAmount(e.target.value)} className="input" />
+          </div>
+        </div>
+      )}
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      <div className="flex gap-3">
+        <button
+          type="submit"
+          disabled={saving || !offerId}
+          className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? "Creando..." : "Crear reto"}
+        </button>
+        <button type="button" onClick={onDone} className="text-sm text-brand-ink-soft hover:underline">
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+}

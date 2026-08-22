@@ -4,6 +4,7 @@ import {
   listInstantPayoutRequests,
   listStoreHealth,
   getCommissionsSummary,
+  getChallengeRewardsSummary,
 } from "@/server/services/admin-finance-service";
 import { ApproveCommissionsButton } from "@/components/portal/approve-commissions-button";
 import { RunPaymentsButtons } from "@/components/portal/run-payments-buttons";
@@ -40,12 +41,13 @@ const instantPayoutStatusLabel: Record<string, string> = {
 };
 
 export default async function AdminFinanzasPage() {
-  const [charges, payouts, instantPayouts, health, commissions] = await Promise.all([
+  const [charges, payouts, instantPayouts, health, commissions, rewards] = await Promise.all([
     listBrandCharges(),
     listPayouts(),
     listInstantPayoutRequests(),
     listStoreHealth(),
     getCommissionsSummary(),
+    getChallengeRewardsSummary(),
   ]);
 
   return (
@@ -82,6 +84,42 @@ export default async function AdminFinanzasPage() {
           </div>
         </div>
         <ApproveCommissionsButton eligibleNow={commissions.eligibleNow} />
+      </div>
+
+      <h2 className="font-display font-semibold text-brand-ink mb-3">Premios de retos</h2>
+      <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
+          <div>
+            <p className="text-xs text-brand-ink-soft mb-1">En revisión</p>
+            <p className="font-mono text-brand-ink">
+              {rewards.pendingReview.count} · {formatCOP(rewards.pendingReview.amount)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-brand-ink-soft mb-1">En espera</p>
+            <p className="font-mono text-brand-ink">
+              {rewards.pending.count} · {formatCOP(rewards.pending.amount)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-brand-ink-soft mb-1">Aprobados</p>
+            <p className="font-mono text-brand-ink">
+              {rewards.approved.count} · {formatCOP(rewards.approved.amount)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-brand-ink-soft mb-1">Pagados</p>
+            <p className="font-mono text-brand-ink">
+              {rewards.paid.count} · {formatCOP(rewards.paid.amount)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-brand-ink-soft mb-1">No aprobados</p>
+            <p className="font-mono text-brand-ink">
+              {rewards.rejected.count} · {formatCOP(rewards.rejected.amount)}
+            </p>
+          </div>
+        </div>
       </div>
 
       <h2 className="font-display font-semibold text-brand-ink mb-3">Motor de Pagos (ePayco)</h2>

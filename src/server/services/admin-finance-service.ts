@@ -11,16 +11,37 @@ export async function getCommissionsSummary() {
     prisma.commission.aggregate({ where: { status: "PAID" }, _count: true, _sum: { creatorCommissionAmount: true } }),
     prisma.commission.aggregate({ where: { status: "REVERSED" }, _count: true, _sum: { creatorCommissionAmount: true } }),
   ]);
-  const eligibleNow = await prisma.commission.count({
-    where: { status: "PENDING", holdUntil: { lte: new Date() } },
-  });
+  const [eligibleCommissions, eligibleRewards] = await Promise.all([
+    prisma.commission.count({ where: { status: "PENDING", holdUntil: { lte: new Date() } } }),
+    prisma.challengeReward.count({ where: { status: "PENDING", holdUntil: { lte: new Date() } } }),
+  ]);
 
   return {
     pending: { count: pending._count, amount: Number(pending._sum.creatorCommissionAmount ?? 0) },
     approved: { count: approved._count, amount: Number(approved._sum.creatorCommissionAmount ?? 0) },
     paid: { count: paid._count, amount: Number(paid._sum.creatorCommissionAmount ?? 0) },
     reversed: { count: reversed._count, amount: Number(reversed._sum.creatorCommissionAmount ?? 0) },
-    eligibleNow,
+    eligibleNow: eligibleCommissions + eligibleRewards,
+  };
+}
+
+/// Igual que getCommissionsSummary, pero para premios de retos — dinero
+/// aparte de las ventas normales.
+export async function getChallengeRewardsSummary() {
+  const [pendingReview, pending, approved, paid, rejected] = await Promise.all([
+    prisma.challengeReward.aggregate({ where: { status: "PENDING_REVIEW" }, _count: true, _sum: { amount: true } }),
+    prisma.challengeReward.aggregate({ where: { status: "PENDING" }, _count: true, _sum: { amount: true } }),
+    prisma.challengeReward.aggregate({ where: { status: "APPROVED" }, _count: true, _sum: { amount: true } }),
+    prisma.challengeReward.aggregate({ where: { status: "PAID" }, _count: true, _sum: { amount: true } }),
+    prisma.challengeReward.aggregate({ where: { status: "REJECTED" }, _count: true, _sum: { amount: true } }),
+  ]);
+
+  return {
+    pendingReview: { count: pendingReview._count, amount: Number(pendingReview._sum.amount ?? 0) },
+    pending: { count: pending._count, amount: Number(pending._sum.amount ?? 0) },
+    approved: { count: approved._count, amount: Number(approved._sum.amount ?? 0) },
+    paid: { count: paid._count, amount: Number(paid._sum.amount ?? 0) },
+    rejected: { count: rejected._count, amount: Number(rejected._sum.amount ?? 0) },
   };
 }
 

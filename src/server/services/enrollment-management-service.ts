@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { provisionDiscountCodeForEnrollment } from "@/server/services/attribution-service";
+import { awardWelcomeBonusIfEligible } from "@/server/services/challenge-service";
 
 export class EnrollmentManagementError extends Error {}
 
@@ -26,6 +27,7 @@ export async function approveEnrollment(brandId: string, enrollmentId: string) {
     data: { status: "ACTIVE" },
   });
   await provisionDiscountCodeForEnrollment(enrollment.id);
+  await awardWelcomeBonusIfEligible(enrollment.offerId, enrollment.creatorId);
   return enrollment;
 }
 

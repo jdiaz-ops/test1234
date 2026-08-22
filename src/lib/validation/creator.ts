@@ -26,3 +26,9 @@ export const updatePaymentSchema = z.object({
 export const joinOfferSchema = z.object({
   offerId: z.string().min(1),
 });
+
+export const submitContentChallengeSchema = z.object({
+  challengeId: z.string().min(1),
+  submissionUrl: z.string().url("Ingresa un link válido (https://...)"),
+  submissionNote: z.string().max(500).optional().or(z.literal("")),
+});

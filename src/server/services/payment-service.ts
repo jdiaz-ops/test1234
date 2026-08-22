@@ -32,29 +32,40 @@ export async function saveBrandCard(
 export async function chargeBrandForPeriod(brandId: string) {
   const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId } });
 
-  const pending = await prisma.commission.findMany({
-    where: {
-      brandChargeId: null,
-      status: { in: ["PENDING", "APPROVED"] },
-      transaction: { brandId },
-    },
-    include: { transaction: true },
-  });
+  const [pending, pendingRewards] = await Promise.all([
+    prisma.commission.findMany({
+      where: { brandChargeId: null, status: { in: ["PENDING", "APPROVED"] }, transaction: { brandId } },
+      include: { transaction: true },
+    }),
+    // Premios de retos de esa marca ya aprobados por ella (o automáticos) y
+    // todavía no cobrados — el bono lo financia la marca, no Marcolini.
+    prisma.challengeReward.findMany({
+      where: {
+        brandChargeId: null,
+        status: { in: ["PENDING", "APPROVED"] },
+        challenge: { offer: { brandId } },
+      },
+    }),
+  ]);
 
-  if (pending.length === 0) return null;
+  if (pending.length === 0 && pendingRewards.length === 0) return null;
 
   if (!brand.cardTokenRef) {
-    console.warn(`[pagos] La marca ${brand.companyName} tiene comisiones por cobrar pero no tiene tarjeta guardada — se omite.`);
+    console.warn(`[pagos] La marca ${brand.companyName} tiene comisiones/premios por cobrar pero no tiene tarjeta guardada — se omite.`);
     return null;
   }
 
-  const totalAmount = round2(
-    pending.reduce(
-      (sum, c) => sum + Number(c.creatorCommissionAmount) + Number(c.platformFeeAmount) + Number(c.platformFeeVatAmount),
-      0
-    )
+  const commissionsTotal = pending.reduce(
+    (sum, c) => sum + Number(c.creatorCommissionAmount) + Number(c.platformFeeAmount) + Number(c.platformFeeVatAmount),
+    0
   );
-  const occurredDates = pending.map((c) => c.transaction.occurredAt.getTime());
+  const rewardsTotal = pendingRewards.reduce((sum, r) => sum + Number(r.amount), 0);
+  const totalAmount = round2(commissionsTotal + rewardsTotal);
+
+  const occurredDates = [
+    ...pending.map((c) => c.transaction.occurredAt.getTime()),
+    ...pendingRewards.map((r) => r.createdAt.getTime()),
+  ];
   const periodStart = new Date(Math.min(...occurredDates));
   const periodEnd = new Date(Math.max(...occurredDates));
 
@@ -62,11 +73,13 @@ export async function chargeBrandForPeriod(brandId: string) {
     data: { brandId, periodStart, periodEnd, totalAmount: new Prisma.Decimal(totalAmount), status: "PENDING" },
   });
 
+  const itemCount = pending.length + pendingRewards.length;
+
   try {
     const { transactionRef } = await chargeBrandCard({
       customerId: brand.cardTokenRef,
       amount: totalAmount,
-      description: `Marcolini — comisiones y tarifa (${pending.length} venta(s))`,
+      description: `Marcolini — comisiones, tarifa y premios de retos (${itemCount} ítem(s))`,
     });
 
     await prisma.$transaction([
@@ -78,15 +91,19 @@ export async function chargeBrandForPeriod(brandId: string) {
         where: { id: { in: pending.map((c) => c.id) } },
         data: { brandChargeId: charge.id },
       }),
+      prisma.challengeReward.updateMany({
+        where: { id: { in: pendingRewards.map((r) => r.id) } },
+        data: { brandChargeId: charge.id },
+      }),
     ]);
 
     await createNotification(
       brand.userId,
       "BRAND_CHARGE",
-      `Se cobraron ${formatCOP(totalAmount)} a tu tarjeta por comisiones y tarifa de Marcolini.`
+      `Se cobraron ${formatCOP(totalAmount)} a tu tarjeta por comisiones, tarifa de Marcolini y premios de retos.`
     );
 
-    return { charge, totalAmount, commissionCount: pending.length, status: "CHARGED" as const };
+    return { charge, totalAmount, commissionCount: itemCount, status: "CHARGED" as const };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error desconocido";
     await prisma.brandCharge.update({
@@ -98,16 +115,20 @@ export async function chargeBrandForPeriod(brandId: string) {
       "BRAND_CHARGE_FAILED",
       `No se pudo cobrar ${formatCOP(totalAmount)} a tu tarjeta — revisa tu método de pago.`
     );
-    return { charge, totalAmount, commissionCount: pending.length, status: "FAILED" as const };
+    return { charge, totalAmount, commissionCount: itemCount, status: "FAILED" as const };
   }
 }
 
-/// Corre el cobro del día 1 para todas las marcas con algo pendiente.
+/// Corre el cobro del día 1 para todas las marcas con algo pendiente
+/// (comisiones de ventas o premios de retos).
 export async function runBrandCharges() {
   const brandIds = await prisma.brandProfile.findMany({
     where: {
       status: "APPROVED",
-      transactions: { some: { commission: { brandChargeId: null, status: { in: ["PENDING", "APPROVED"] } } } },
+      OR: [
+        { transactions: { some: { commission: { brandChargeId: null, status: { in: ["PENDING", "APPROVED"] } } } } },
+        { offers: { some: { challenges: { some: { rewards: { some: { brandChargeId: null, status: { in: ["PENDING", "APPROVED"] } } } } } } } },
+      ],
     },
     select: { id: true },
   });
@@ -126,28 +147,35 @@ export async function runBrandCharges() {
 export async function payoutCreator(creatorId: string) {
   const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: creatorId } });
 
-  const eligible = await prisma.commission.findMany({
-    where: {
-      status: "APPROVED",
-      brandChargeId: { not: null },
-      payoutId: null,
-      instantPayoutRequestId: null,
-      transaction: { creatorId },
-    },
-    include: { transaction: true },
-  });
+  const [eligible, eligibleRewards] = await Promise.all([
+    prisma.commission.findMany({
+      where: { status: "APPROVED", brandChargeId: { not: null }, payoutId: null, instantPayoutRequestId: null, transaction: { creatorId } },
+      include: { transaction: true },
+    }),
+    prisma.challengeReward.findMany({
+      where: { status: "APPROVED", brandChargeId: { not: null }, payoutId: null, instantPayoutRequestId: null, creatorId },
+    }),
+  ]);
 
-  if (eligible.length === 0) return null;
+  if (eligible.length === 0 && eligibleRewards.length === 0) return null;
 
   if (!creator.bankAccountNumber || !creator.bankName || !creator.bankAccountType || !creator.paymentHolderName) {
     console.warn(`[pagos] ${creator.displayName} tiene comisiones listas para pagar pero no registró cuenta bancaria — se omite.`);
     return null;
   }
 
-  const totalAmount = round2(eligible.reduce((sum, c) => sum + Number(c.creatorCommissionAmount), 0));
-  const occurredDates = eligible.map((c) => c.transaction.occurredAt.getTime());
+  const commissionsTotal = eligible.reduce((sum, c) => sum + Number(c.creatorCommissionAmount), 0);
+  const rewardsTotal = eligibleRewards.reduce((sum, r) => sum + Number(r.amount), 0);
+  const totalAmount = round2(commissionsTotal + rewardsTotal);
+
+  const occurredDates = [
+    ...eligible.map((c) => c.transaction.occurredAt.getTime()),
+    ...eligibleRewards.map((r) => r.createdAt.getTime()),
+  ];
   const periodStart = new Date(Math.min(...occurredDates));
   const periodEnd = new Date(Math.max(...occurredDates));
+
+  const itemCount = eligible.length + eligibleRewards.length;
 
   const payout = await prisma.payout.create({
     data: { creatorId, periodStart, periodEnd, totalAmount: new Prisma.Decimal(totalAmount), status: "PROCESSING" },
@@ -160,7 +188,7 @@ export async function payoutCreator(creatorId: string) {
       bankAccountNumber: creator.bankAccountNumber,
       holderName: creator.paymentHolderName,
       amount: totalAmount,
-      description: `Marcolini — comisiones (${eligible.length} venta(s))`,
+      description: `Marcolini — comisiones y premios de retos (${itemCount} ítem(s))`,
     });
 
     await prisma.$transaction([
@@ -172,23 +200,32 @@ export async function payoutCreator(creatorId: string) {
         where: { id: { in: eligible.map((c) => c.id) } },
         data: { status: "PAID", payoutId: payout.id },
       }),
+      prisma.challengeReward.updateMany({
+        where: { id: { in: eligibleRewards.map((r) => r.id) } },
+        data: { status: "PAID", payoutId: payout.id },
+      }),
     ]);
 
     await createNotification(creator.userId, "PAYOUT_PAID", `Te pagamos ${formatCOP(totalAmount)} — ya deberían verse en tu cuenta.`);
 
-    return { payout, totalAmount, commissionCount: eligible.length, status: "PAID" as const };
+    return { payout, totalAmount, commissionCount: itemCount, status: "PAID" as const };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error desconocido";
     await prisma.payout.update({ where: { id: payout.id }, data: { status: "FAILED" } });
     await createNotification(creator.userId, "PAYOUT_FAILED", `No pudimos procesar tu pago de ${formatCOP(totalAmount)} — revisa tus datos bancarios.`);
-    return { payout, totalAmount, commissionCount: eligible.length, status: "FAILED" as const, error: message };
+    return { payout, totalAmount, commissionCount: itemCount, status: "FAILED" as const, error: message };
   }
 }
 
 /// Corre el pago del día 15 para todos los creadores con algo listo.
 export async function runCreatorPayouts() {
   const creatorIds = await prisma.creatorProfile.findMany({
-    where: { commissions: { some: { status: "APPROVED", brandChargeId: { not: null }, payoutId: null, instantPayoutRequestId: null } } },
+    where: {
+      OR: [
+        { commissions: { some: { status: "APPROVED", brandChargeId: { not: null }, payoutId: null, instantPayoutRequestId: null } } },
+        { challengeRewards: { some: { status: "APPROVED", brandChargeId: { not: null }, payoutId: null, instantPayoutRequestId: null } } },
+      ],
+    },
     select: { id: true },
   });
 
@@ -210,24 +247,25 @@ export async function requestInstantPayout(creatorId: string) {
     throw new PaymentError("Registra tu cuenta bancaria antes de pedir un pago anticipado.");
   }
 
-  const eligible = await prisma.commission.findMany({
-    where: {
-      status: "APPROVED",
-      brandChargeId: { not: null },
-      payoutId: null,
-      instantPayoutRequestId: null,
-      transaction: { creatorId },
-    },
-  });
+  const [eligible, eligibleRewards] = await Promise.all([
+    prisma.commission.findMany({
+      where: { status: "APPROVED", brandChargeId: { not: null }, payoutId: null, instantPayoutRequestId: null, transaction: { creatorId } },
+    }),
+    prisma.challengeReward.findMany({
+      where: { status: "APPROVED", brandChargeId: { not: null }, payoutId: null, instantPayoutRequestId: null, creatorId },
+    }),
+  ]);
 
-  if (eligible.length === 0) {
+  if (eligible.length === 0 && eligibleRewards.length === 0) {
     throw new PaymentError("No tienes comisiones aprobadas disponibles para adelantar.");
   }
 
   const config = await prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } });
   const feePercent = Number(config.instantPayoutFeePercent);
 
-  const amountRequested = round2(eligible.reduce((sum, c) => sum + Number(c.creatorCommissionAmount), 0));
+  const commissionsTotal = eligible.reduce((sum, c) => sum + Number(c.creatorCommissionAmount), 0);
+  const rewardsTotal = eligibleRewards.reduce((sum, r) => sum + Number(r.amount), 0);
+  const amountRequested = round2(commissionsTotal + rewardsTotal);
   const feeAmount = round2(amountRequested * (feePercent / 100));
   const netAmount = round2(amountRequested - feeAmount);
 
@@ -259,6 +297,10 @@ export async function requestInstantPayout(creatorId: string) {
         where: { id: { in: eligible.map((c) => c.id) } },
         data: { status: "PAID", instantPayoutRequestId: request.id },
       }),
+      prisma.challengeReward.updateMany({
+        where: { id: { in: eligibleRewards.map((r) => r.id) } },
+        data: { status: "PAID", instantPayoutRequestId: request.id },
+      }),
     ]);
 
     await createNotification(
@@ -284,17 +326,18 @@ export async function getInstantPayoutEligibility(creatorId: string) {
   const config = await prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } });
   const feePercent = Number(config.instantPayoutFeePercent);
 
-  const eligible = await prisma.commission.findMany({
-    where: {
-      status: "APPROVED",
-      brandChargeId: { not: null },
-      payoutId: null,
-      instantPayoutRequestId: null,
-      transaction: { creatorId },
-    },
-  });
+  const [eligible, eligibleRewards] = await Promise.all([
+    prisma.commission.findMany({
+      where: { status: "APPROVED", brandChargeId: { not: null }, payoutId: null, instantPayoutRequestId: null, transaction: { creatorId } },
+    }),
+    prisma.challengeReward.findMany({
+      where: { status: "APPROVED", brandChargeId: { not: null }, payoutId: null, instantPayoutRequestId: null, creatorId },
+    }),
+  ]);
 
-  const amountAvailable = round2(eligible.reduce((sum, c) => sum + Number(c.creatorCommissionAmount), 0));
+  const commissionsTotal = eligible.reduce((sum, c) => sum + Number(c.creatorCommissionAmount), 0);
+  const rewardsTotal = eligibleRewards.reduce((sum, r) => sum + Number(r.amount), 0);
+  const amountAvailable = round2(commissionsTotal + rewardsTotal);
   const feeAmount = round2(amountAvailable * (feePercent / 100));
 
   return {
@@ -302,7 +345,7 @@ export async function getInstantPayoutEligibility(creatorId: string) {
     feePercent,
     feeAmount,
     netAmount: round2(amountAvailable - feeAmount),
-    commissionCount: eligible.length,
+    commissionCount: eligible.length + eligibleRewards.length,
   };
 }
 
