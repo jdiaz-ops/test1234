@@ -58,34 +58,55 @@ export default async function MarketplacePage({
           {offers.map((offer) => {
             const enrollment = enrollmentByOffer.get(offer.id);
             return (
-              <div key={offer.id} className="rounded-2xl border border-brand-line bg-brand-surface p-5">
-                <BrandMiniProfile
-                  companyName={offer.brand.companyName}
-                  logoUrl={offer.brand.logoUrl}
-                  description={offer.brand.description}
-                  websiteUrl={offer.brand.websiteUrl}
-                />
-                <p className="text-xs text-brand-ink-soft mt-3 mb-1">{offer.category?.name ?? "General"}</p>
-                <p className="text-sm text-brand-ink-soft mb-3">{offer.name}</p>
-                <div className="flex items-center gap-4 text-sm font-mono mb-4">
-                  <span className="text-brand-accent">{Number(offer.defaultCommissionPercent)}% comisión</span>
-                  <span className="text-brand-ink-soft">{Number(offer.defaultDiscountPercent)}% descuento</span>
-                </div>
-                {enrollment ? (
-                  <span
-                    className={`text-sm font-medium ${
-                      enrollment.status === "ACTIVE" ? "text-brand-accent" : "text-brand-ink-soft"
-                    }`}
-                  >
-                    {enrollment.status === "ACTIVE" ? "Ya estás unido ✓" : "Esperando aprobación"}
-                  </span>
-                ) : (
-                  <JoinOfferButton
-                    offerId={offer.id}
-                    joinMode={offer.joinMode}
-                    suggestedCode={profile.baseCode}
+              <div
+                key={offer.id}
+                className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden flex flex-col"
+              >
+                <div className="p-5">
+                  <BrandMiniProfile
+                    companyName={offer.brand.companyName}
+                    logoUrl={offer.brand.logoUrl}
+                    description={offer.brand.description}
+                    websiteUrl={offer.brand.websiteUrl}
                   />
-                )}
+                  <p className="text-xs text-brand-ink-soft mt-3">
+                    {offer.category?.name ?? "General"} · {offer.name}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-px bg-brand-line">
+                  <div className="bg-brand-surface p-4 text-center">
+                    <p className="text-xs text-brand-ink-soft mb-1">Descuento para tu comprador</p>
+                    <p className="font-display text-xl font-semibold text-brand-ink">
+                      {Number(offer.defaultDiscountPercent)}%
+                    </p>
+                  </div>
+                  <div className="bg-brand-accent-soft p-4 text-center">
+                    <p className="text-xs text-brand-ink-soft mb-1">Tu comisión</p>
+                    <p className="font-display text-xl font-semibold text-brand-accent">
+                      {Number(offer.defaultCommissionPercent)}%
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-5 mt-auto">
+                  {enrollment ? (
+                    <p
+                      className={`text-sm font-medium text-center ${
+                        enrollment.status === "ACTIVE" ? "text-brand-accent" : "text-brand-ink-soft"
+                      }`}
+                    >
+                      {enrollment.status === "ACTIVE" ? "Ya estás unido ✓" : "Esperando aprobación"}
+                    </p>
+                  ) : (
+                    <JoinOfferButton
+                      offerId={offer.id}
+                      joinMode={offer.joinMode}
+                      suggestedCode={profile.baseCode}
+                      fullWidth
+                    />
+                  )}
+                </div>
               </div>
             );
           })}

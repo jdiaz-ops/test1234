@@ -29,16 +29,28 @@ export function FileUploadField({
     form.append("kind", kind);
     form.append("file", file);
 
-    const res = await fetch("/api/marca/perfil/subir", { method: "POST", body: form });
-    setUploading(false);
+    try {
+      const res = await fetch("/api/marca/perfil/subir", { method: "POST", body: form });
 
-    if (!res.ok) {
-      const body = await res.json();
-      setError(body.error ?? "No se pudo subir el archivo.");
-      return;
+      if (!res.ok) {
+        // Un error real siempre viene como JSON — pero si algo se rompe
+        // antes de eso (ej. un 500 que ni siquiera llega a nuestro código),
+        // la respuesta puede no ser JSON. Nunca dejamos que eso quede en
+        // silencio.
+        const message = await res
+          .json()
+          .then((b) => b.error as string | undefined)
+          .catch(() => undefined);
+        setError(message ?? "No se pudo subir el archivo. Intenta de nuevo.");
+        return;
+      }
+
+      router.refresh();
+    } catch {
+      setError("No se pudo subir el archivo — revisa tu conexión e intenta de nuevo.");
+    } finally {
+      setUploading(false);
     }
-
-    router.refresh();
   }
 
   return (

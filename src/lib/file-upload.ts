@@ -45,10 +45,21 @@ export async function uploadFile(file: File, folder: string): Promise<string> {
     return blob.url;
   }
 
-  const bytes = Buffer.from(await file.arrayBuffer());
-  const dir = path.join(process.cwd(), "public", "uploads", folder);
-  await mkdir(dir, { recursive: true });
-  const diskName = filename.split("/").pop()!;
-  await writeFile(path.join(dir, diskName), bytes);
-  return `/uploads/${folder}/${diskName}`;
+  try {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const dir = path.join(process.cwd(), "public", "uploads", folder);
+    await mkdir(dir, { recursive: true });
+    const diskName = filename.split("/").pop()!;
+    await writeFile(path.join(dir, diskName), bytes);
+    return `/uploads/${folder}/${diskName}`;
+  } catch {
+    // En producción (Vercel) el sistema de archivos es de solo lectura, así
+    // que este intento de respaldo local siempre va a fallar ahí — es
+    // esperable, y la señal correcta de que falta configurar Vercel Blob
+    // (ver comentario arriba). Nunca debe llegar como un error genérico al
+    // usuario.
+    throw new FileUploadError(
+      "No se pudo subir el archivo — falta configurar el almacenamiento en producción (Vercel Blob). Avísale a soporte."
+    );
+  }
 }
