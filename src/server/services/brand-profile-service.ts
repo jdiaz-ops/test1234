@@ -82,3 +82,22 @@ export async function updateStoreConnection(
     },
   });
 }
+
+/// Guarda la conexión de Shopify obtenida por OAuth — a diferencia de
+/// updateStoreConnection (entrada manual), aquí ya sabemos con certeza que
+/// el token es válido porque lo acabamos de recibir de Shopify.
+export async function connectShopifyViaOAuth(
+  brandId: string,
+  data: { storeUrl: string; accessToken: string }
+) {
+  return prisma.brandProfile.update({
+    where: { id: brandId },
+    data: {
+      storeType: "SHOPIFY",
+      storeUrl: data.storeUrl,
+      shopifyAccessToken: data.accessToken,
+      storeConnectionStatus: "CONNECTED",
+      storeLastSyncedAt: new Date(),
+    },
+  });
+}

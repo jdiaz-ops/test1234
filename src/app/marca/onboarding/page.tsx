@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -56,6 +57,7 @@ export default async function OnboardingPage() {
       </div>
 
       <div className="max-w-3xl">
+        <Suspense fallback={null}>
         <OnboardingWizard
           steps={steps}
           profile={{
@@ -96,6 +98,7 @@ export default async function OnboardingPage() {
           platformFeePercent={summary.platformFeePercent}
           vatPercent={summary.vatPercent}
         />
+        </Suspense>
       </div>
     </div>
   );

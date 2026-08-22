@@ -7,7 +7,7 @@ import crypto from "crypto";
 // crítica (recibir y validar sus webhooks) sí está probada — ver
 // /api/webhooks/shopify/[brandId].
 
-const API_VERSION = "2025-01";
+export const API_VERSION = "2025-01";
 
 export class ShopifyApiError extends Error {}
 

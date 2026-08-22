@@ -29,6 +29,7 @@ export function OnboardingWizard({
   vatPercent: number;
 }) {
   const order = steps.map((s) => s.key);
+  const tiendaDone = steps.find((s) => s.key === "tienda")?.done ?? false;
   const [open, setOpen] = useState<string | null>(steps.find((s) => !s.done)?.key ?? order[0]);
 
   function goToNext(currentKey: string) {
@@ -87,6 +88,7 @@ export function OnboardingWizard({
                       initial={store.initial}
                       initialWebhookUrl={store.initialWebhookUrl}
                       initialWebhookSecret={store.initialWebhookSecret}
+                      shopifyConnected={tiendaDone && store.initial.storeType === "SHOPIFY"}
                       onSaved={() => goToNext("tienda")}
                     />
                   )}

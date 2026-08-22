@@ -147,6 +147,7 @@ export default async function MarcaCuentaPage() {
         }}
         initialWebhookUrl={webhookUrl}
         initialWebhookSecret={profile.webhookSecret ?? null}
+        shopifyConnected={profile.storeType === "SHOPIFY" && profile.storeConnectionStatus === "CONNECTED"}
       />
     </div>
   );
