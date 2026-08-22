@@ -61,6 +61,7 @@ Ve a "Settings" → "Environment Variables" del proyecto y agrega estas
 | `EPAYCO_PUBLIC_KEY` / `EPAYCO_PRIVATE_KEY` | De tu cuenta de ePayco — panel de ePayco → Integraciones. Sin esto, el Motor de Pagos queda en modo simulado (no cobra/paga de verdad, pero todo lo demás funciona igual para seguir probando). |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Tu correo real y una contraseña que elijas — será tu cuenta de administrador. **Ponlas antes del primer paso 7 (sembrar la base)** — si las dejas vacías, se crea una cuenta de pruebas insegura. |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Opcional — solo si quieres que la gente pueda entrar con "Continuar con Google". Se puede dejar vacío por ahora. |
+| `BLOB_READ_WRITE_TOKEN` | **Necesaria para que funcione subir logo, RUT, Cámara de Comercio y facturas.** En tu proyecto de Vercel: pestaña "Storage" → Create Database → Blob. Al crearlo, Vercel la agrega sola — no hay que copiar ni pegar nada. Sin esto, esas subidas no van a funcionar en producción (sí en tu computador, mientras pruebas). |
 
 No necesitas tocar `SHOPIFY_APP_API_KEY`/`SHOPIFY_APP_API_SECRET` — esas
 son solo para el futuro, si Marcolini se registra como una app oficial de
