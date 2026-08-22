@@ -1,13 +1,22 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
+const roleHome: Record<string, string> = {
+  CREATOR: "/creador",
+  BRAND: "/marca",
+  ADMIN: "/admin",
+};
+
 function LoginForm() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  // Solo respetamos un callbackUrl explícito (por ejemplo, el middleware
+  // redirigiendo desde una página protegida) — si no hay uno, enrutamos por
+  // rol, no a "/", que sería el valor por defecto de esta URL.
+  const explicitCallbackUrl = searchParams.get("callbackUrl");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,12 +32,10 @@ function LoginForm() {
       email,
       password,
       redirect: false,
-      callbackUrl,
     });
 
-    setLoading(false);
-
     if (result?.error) {
+      setLoading(false);
       setError(
         result.error === "EMAIL_NOT_VERIFIED"
           ? "Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada."
@@ -37,7 +44,13 @@ function LoginForm() {
       return;
     }
 
-    window.location.href = result?.url ?? callbackUrl;
+    if (explicitCallbackUrl) {
+      window.location.href = explicitCallbackUrl;
+      return;
+    }
+
+    const session = await getSession();
+    window.location.href = (session && roleHome[session.user.role]) || "/";
   }
 
   return (
@@ -91,7 +104,7 @@ function LoginForm() {
       </div>
 
       <button
-        onClick={() => signIn("google", { callbackUrl })}
+        onClick={() => signIn("google", { callbackUrl: explicitCallbackUrl ?? "/creador" })}
         className="w-full border border-brand-line rounded-md py-2 text-sm font-medium hover:bg-brand-accent-soft"
       >
         Continuar con Google

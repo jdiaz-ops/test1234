@@ -43,7 +43,82 @@ async function main() {
     });
   }
 
-  console.log("Seed completado: configuración global + vertical Uñas con categorías.");
+  const semipermanentes = await prisma.category.findFirstOrThrow({
+    where: { verticalId: unas.id, slug: "semipermanentes" },
+  });
+  const herramientas = await prisma.category.findFirstOrThrow({
+    where: { verticalId: unas.id, slug: "herramientas" },
+  });
+
+  // Marcas de ejemplo (APROBADAS) con una oferta activa cada una — para poder
+  // construir y probar el marketplace del Portal Creador con datos reales en
+  // vez de un estado vacío. Nombres reales de la industria, investigados
+  // durante el diseño (ninguna integración real con sus tiendas todavía).
+  await prisma.user.upsert({
+    where: { email: "demo-brand-latinnails@marcolini.co" },
+    update: {},
+    create: {
+      email: "demo-brand-latinnails@marcolini.co",
+      role: "BRAND",
+      emailVerified: new Date(),
+      brandProfile: {
+        create: {
+          companyName: "Latin Nails",
+          city: "Medellín",
+          status: "APPROVED",
+          approvedAt: new Date(),
+          termsAcceptedAt: new Date(),
+          verticalId: unas.id,
+          storeType: "SHOPIFY",
+          storeUrl: "https://latinnailsofficial.com",
+          offers: {
+            create: {
+              name: "Programa de embajadoras Latin Nails",
+              description: "Esmaltes semipermanentes de alta rotación.",
+              categoryId: semipermanentes.id,
+              defaultCommissionPercent: 15,
+              defaultDiscountPercent: 15,
+              joinMode: "OPEN",
+            },
+          },
+        },
+      },
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: "demo-brand-mixcoco@marcolini.co" },
+    update: {},
+    create: {
+      email: "demo-brand-mixcoco@marcolini.co",
+      role: "BRAND",
+      emailVerified: new Date(),
+      brandProfile: {
+        create: {
+          companyName: "Mixcoco",
+          city: "Bogotá",
+          status: "APPROVED",
+          approvedAt: new Date(),
+          termsAcceptedAt: new Date(),
+          verticalId: unas.id,
+          storeType: "WOOCOMMERCE",
+          storeUrl: "https://mixcoco.co",
+          offers: {
+            create: {
+              name: "Programa de embajadoras Mixcoco",
+              description: "Herramientas profesionales para uñas.",
+              categoryId: herramientas.id,
+              defaultCommissionPercent: 12,
+              defaultDiscountPercent: 10,
+              joinMode: "APPROVAL",
+            },
+          },
+        },
+      },
+    },
+  });
+
+  console.log("Seed completado: configuración global + vertical Uñas + 2 marcas demo con oferta.");
 }
 
 main()

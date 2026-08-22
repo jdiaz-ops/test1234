@@ -136,6 +136,23 @@ export async function requestPasswordReset(email: string) {
   await sendPasswordResetEmail(email, resetUrl);
 }
 
+// --------------------------------------------------------------------------
+// Cambio de contraseña (usuario ya autenticado, desde Configuración de cuenta)
+// --------------------------------------------------------------------------
+
+export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  if (!user.passwordHash) {
+    throw new AuthServiceError("Tu cuenta usa login con Google — no tiene contraseña que cambiar.");
+  }
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) throw new AuthServiceError("La contraseña actual no es correcta.");
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+}
+
 export async function resetPassword(token: string, newPassword: string) {
   const email = await consumeToken(token);
   if (!email) {

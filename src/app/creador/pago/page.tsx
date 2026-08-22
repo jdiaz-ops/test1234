@@ -1,0 +1,30 @@
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { PaymentForm } from "@/components/portal/payment-form";
+
+export default async function PagoPage() {
+  const session = await auth();
+  const profile = await prisma.creatorProfile.findUniqueOrThrow({
+    where: { userId: session!.user.id },
+  });
+
+  return (
+    <div>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CONFIGURACIÓN DE PAGO</p>
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Dónde te pagamos</h1>
+      <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
+        El pago se procesa automáticamente cada mes (día 15) a la cuenta que
+        registres aquí.
+      </p>
+
+      <PaymentForm
+        initial={{
+          bankName: profile.bankName ?? "",
+          bankAccountType: profile.bankAccountType ?? "",
+          bankAccountNumber: profile.bankAccountNumber ?? "",
+          paymentHolderName: profile.paymentHolderName ?? "",
+        }}
+      />
+    </div>
+  );
+}
