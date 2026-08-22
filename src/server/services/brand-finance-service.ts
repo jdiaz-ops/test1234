@@ -47,3 +47,45 @@ export async function getBrandTransactions(brandId: string) {
     orderBy: { occurredAt: "desc" },
   });
 }
+
+/// Los N creadores que más ingresos le generaron a la marca — para el
+/// dashboard, mostrarle rápido "quién te está funcionando".
+export async function getTopCreatorsForBrand(brandId: string, limit = 3) {
+  const stats = await prisma.transaction.groupBy({
+    by: ["creatorId"],
+    where: { offer: { brandId }, status: { not: "REFUNDED" } },
+    _count: { _all: true },
+    _sum: { netAmount: true },
+    orderBy: { _sum: { netAmount: "desc" } },
+    take: limit,
+  });
+  if (stats.length === 0) return [];
+
+  const creators = await prisma.creatorProfile.findMany({
+    where: { id: { in: stats.map((s) => s.creatorId) } },
+  });
+  const creatorById = new Map(creators.map((c) => [c.id, c]));
+
+  return stats
+    .map((s) => {
+      const creator = creatorById.get(s.creatorId);
+      if (!creator) return null;
+      return {
+        id: creator.id,
+        displayName: creator.displayName,
+        photoUrl: creator.photoUrl,
+        orderCount: s._count._all,
+        revenue: Number(s._sum.netAmount ?? 0),
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+}
+
+/// Cuántos creadores están esperando que la marca los apruebe — solo aplica
+/// a ofertas configuradas como "por aprobación" (JoinMode.APPROVAL); en una
+/// oferta abierta nadie queda pendiente, se unen directo.
+export async function countPendingApprovalsForBrand(brandId: string) {
+  return prisma.creatorOfferEnrollment.count({
+    where: { offer: { brandId }, status: "PENDING_APPROVAL" },
+  });
+}

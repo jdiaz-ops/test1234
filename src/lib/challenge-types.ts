@@ -8,3 +8,18 @@ export const HIDDEN_CHALLENGE_TYPES: ChallengeType[] = ["LEADERBOARD", "WELCOME_
 export const VISIBLE_CHALLENGE_TYPES: ChallengeType[] = (
   ["GOAL_BONUS", "TEMP_COMMISSION_BOOST", "LEADERBOARD", "WELCOME_BONUS", "CONTENT_CHALLENGE"] as ChallengeType[]
 ).filter((t) => !HIDDEN_CHALLENGE_TYPES.includes(t));
+
+/// Plantilla de reto lista para usar — la marca solo tiene que revisar/tocar
+/// las fechas y montos antes de crearlo. durationDays se usa para sugerir la
+/// fecha de fin (hoy + N días).
+export type ChallengeTemplate = {
+  key: string;
+  title: string;
+  description: string;
+  name: string;
+  type: ChallengeType;
+  durationDays: number;
+  goalAmount?: number;
+  bonusAmount?: number;
+  newCommissionPercent?: number;
+};

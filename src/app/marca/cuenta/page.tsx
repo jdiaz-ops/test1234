@@ -149,6 +149,23 @@ export default async function MarcaCuentaPage() {
     </div>
   );
 
+  const seguridadTab = (
+    <div className="max-w-lg">
+      <p className="text-sm text-brand-ink-soft mb-4 font-mono">{session!.user.email}</p>
+      <ChangePasswordForm />
+
+      <form
+        action={async () => {
+          "use server";
+          await signOut({ redirectTo: "/login" });
+        }}
+        className="mt-6"
+      >
+        <button className="text-sm text-brand-ink-soft hover:text-red-600 hover:underline">Cerrar sesión</button>
+      </form>
+    </div>
+  );
+
   return (
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CUENTA</p>
@@ -160,24 +177,9 @@ export default async function MarcaCuentaPage() {
           { key: "pago", label: "Pago", content: pagoTab },
           { key: "facturacion", label: "Facturación", content: facturacionTab },
           { key: "tienda", label: "Conexión de tienda", content: tiendaTab },
+          { key: "seguridad", label: "Seguridad", content: seguridadTab },
         ]}
       />
-
-      <div className="mt-12 pt-6 border-t border-brand-line max-w-lg">
-        <h2 className="font-display font-semibold text-brand-ink mb-4">Seguridad</h2>
-        <p className="text-sm text-brand-ink-soft mb-4 font-mono">{session!.user.email}</p>
-        <ChangePasswordForm />
-
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/login" });
-          }}
-          className="mt-6"
-        >
-          <button className="text-sm text-brand-ink-soft hover:text-red-600 hover:underline">Cerrar sesión</button>
-        </form>
-      </div>
     </div>
   );
 }

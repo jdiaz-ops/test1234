@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { VISIBLE_CHALLENGE_TYPES, type ChallengeType } from "@/lib/challenge-types";
+import { VISIBLE_CHALLENGE_TYPES, type ChallengeType, type ChallengeTemplate } from "@/lib/challenge-types";
+
+function toDateInput(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
 
 const typeLabel: Record<ChallengeType, string> = {
   GOAL_BONUS: "Bono por ventas generadas",
@@ -22,16 +26,28 @@ const typeHint: Record<ChallengeType, string> = {
   CONTENT_CHALLENGE: "El creador manda un link como evidencia; tú lo revisas y decides si aprobar el bono.",
 };
 
-export function ChallengeForm({ offers, onDone }: { offers: { id: string; name: string }[]; onDone: () => void }) {
+export function ChallengeForm({
+  offers,
+  template,
+  onDone,
+}: {
+  offers: { id: string; name: string }[];
+  template?: ChallengeTemplate;
+  onDone: () => void;
+}) {
   const router = useRouter();
   const [offerId, setOfferId] = useState(offers[0]?.id ?? "");
-  const [name, setName] = useState("");
-  const [type, setType] = useState<ChallengeType>("GOAL_BONUS");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [goalAmount, setGoalAmount] = useState("");
-  const [bonusAmount, setBonusAmount] = useState("");
-  const [newCommissionPercent, setNewCommissionPercent] = useState("");
+  const [name, setName] = useState(template?.name ?? "");
+  const [type, setType] = useState<ChallengeType>(template?.type ?? "GOAL_BONUS");
+  const [startDate, setStartDate] = useState(template ? toDateInput(new Date()) : "");
+  const [endDate, setEndDate] = useState(
+    template ? toDateInput(new Date(Date.now() + template.durationDays * 24 * 60 * 60 * 1000)) : ""
+  );
+  const [goalAmount, setGoalAmount] = useState(template?.goalAmount ? String(template.goalAmount) : "");
+  const [bonusAmount, setBonusAmount] = useState(template?.bonusAmount ? String(template.bonusAmount) : "");
+  const [newCommissionPercent, setNewCommissionPercent] = useState(
+    template?.newCommissionPercent ? String(template.newCommissionPercent) : ""
+  );
   const [winnersCount, setWinnersCount] = useState("3");
   const [prizes, setPrizes] = useState("");
   const [slotsCount, setSlotsCount] = useState("");

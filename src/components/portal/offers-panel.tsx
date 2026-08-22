@@ -41,29 +41,36 @@ function CostCalculator({
   const brandReceives = netAmount - commissionAmount - feeAmount - vatAmount;
 
   return (
-    <div className="rounded-xl bg-brand-bg border border-brand-line p-4 text-xs font-mono space-y-1">
-      <p className="text-brand-ink-soft not-italic mb-2 font-sans">
-        Ejemplo — ticket de compra de {formatCOP(listPrice)}:
-      </p>
-      <div className="flex justify-between text-brand-ink-soft">
-        <span>Compra del cliente</span>
-        <span>{formatCOP(listPrice)}</span>
+    <div className="rounded-xl bg-brand-bg border border-brand-line overflow-hidden">
+      <div className="flex items-center gap-2 bg-brand-accent-soft px-4 py-2 border-b border-brand-line">
+        <span className="font-mono text-[10px] font-semibold tracking-widest text-brand-accent">
+          EJEMPLO
+        </span>
+        <span className="text-xs text-brand-ink">
+          si un cliente compra por {formatCOP(listPrice)}
+        </span>
       </div>
-      <div className="flex justify-between text-brand-ink-soft">
-        <span>Descuento cliente ({discount}%)</span>
-        <span>-{formatCOP(listPrice - netAmount)}</span>
-      </div>
-      <div className="flex justify-between text-brand-ink-soft">
-        <span>Comisión creador ({commission}%)</span>
-        <span>-{formatCOP(commissionAmount)}</span>
-      </div>
-      <div className="flex justify-between text-brand-ink-soft">
-        <span>Tarifa Marcolini ({platformFeePercent}% + IVA)</span>
-        <span>-{formatCOP(feeAmount + vatAmount)}</span>
-      </div>
-      <div className="flex justify-between text-brand-ink font-semibold pt-1 border-t border-brand-line">
-        <span>Tú recibes</span>
-        <span>{formatCOP(brandReceives)}</span>
+      <div className="p-4 text-xs font-mono space-y-1.5">
+        <div className="flex justify-between text-brand-ink-soft">
+          <span>Compra del cliente</span>
+          <span>{formatCOP(listPrice)}</span>
+        </div>
+        <div className="flex justify-between text-brand-ink-soft">
+          <span>Descuento al consumidor final ({discount}%)</span>
+          <span>-{formatCOP(listPrice - netAmount)}</span>
+        </div>
+        <div className="flex justify-between text-brand-ink-soft">
+          <span>Comisión para el creador ({commission}%)</span>
+          <span>-{formatCOP(commissionAmount)}</span>
+        </div>
+        <div className="flex justify-between text-brand-ink-soft">
+          <span>Tarifa Marcolini ({platformFeePercent}% + IVA)</span>
+          <span>-{formatCOP(feeAmount + vatAmount)}</span>
+        </div>
+        <div className="flex justify-between text-brand-ink font-semibold pt-1.5 border-t border-brand-line">
+          <span>Tú recibes</span>
+          <span>{formatCOP(brandReceives)}</span>
+        </div>
       </div>
     </div>
   );
@@ -138,10 +145,15 @@ export function OffersPanel({
                     Editar
                   </button>
                 </div>
-                <div className="flex items-center gap-4 text-sm font-mono mb-4">
-                  <span className="text-brand-accent">{Number(offer.defaultCommissionPercent)}% comisión</span>
-                  <span className="text-brand-ink-soft">{Number(offer.defaultDiscountPercent)}% descuento</span>
-                  <span className="text-brand-ink-soft">{offer._count.enrollments} creadores</span>
+                <div className="grid grid-cols-2 gap-4 mb-4 max-w-xs">
+                  <div>
+                    <p className="text-xs text-brand-ink-soft mb-0.5">Comisión para el creador</p>
+                    <p className="font-mono text-brand-accent text-lg">{Number(offer.defaultCommissionPercent)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-brand-ink-soft mb-0.5">Descuento al consumidor final</p>
+                    <p className="font-mono text-brand-ink text-lg">{Number(offer.defaultDiscountPercent)}%</p>
+                  </div>
                 </div>
                 <CostCalculator
                   commission={Number(offer.defaultCommissionPercent)}

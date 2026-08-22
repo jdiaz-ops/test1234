@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChallengeForm } from "./challenge-form";
-import type { ChallengeType } from "@/lib/challenge-types";
+import { ChallengeTemplates, buildChallengeTemplates } from "./challenge-templates";
+import type { ChallengeType, ChallengeTemplate } from "@/lib/challenge-types";
 
 const typeLabel: Record<ChallengeType, string> = {
   GOAL_BONUS: "Bono por ventas generadas",
@@ -92,12 +93,23 @@ export function ChallengesPanel({
   challenges,
   submissions,
 }: {
-  offers: { id: string; name: string }[];
+  offers: { id: string; name: string; defaultCommissionPercent: number }[];
   challenges: Challenge[];
   submissions: Submission[];
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
+  const [template, setTemplate] = useState<ChallengeTemplate | undefined>(undefined);
+
+  function useTemplate(t: ChallengeTemplate) {
+    setTemplate(t);
+    setCreating(true);
+  }
+
+  function closeForm() {
+    setCreating(false);
+    setTemplate(undefined);
+  }
 
   async function handleEnd(challengeId: string) {
     await fetch("/api/marca/retos", {
@@ -139,11 +151,18 @@ export function ChallengesPanel({
         </div>
       )}
 
+      {!creating && offers.length > 0 && (
+        <ChallengeTemplates
+          templates={buildChallengeTemplates(offers[0].defaultCommissionPercent)}
+          onUseTemplate={useTemplate}
+        />
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-display font-semibold text-brand-ink">Tus retos ({challenges.length})</h2>
         {!creating && offers.length > 0 && (
           <button onClick={() => setCreating(true)} className="text-sm text-brand-accent font-medium hover:underline">
-            + Nuevo reto
+            + Nuevo reto desde cero
           </button>
         )}
       </div>
@@ -154,7 +173,7 @@ export function ChallengesPanel({
 
       {creating && (
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 mb-6">
-          <ChallengeForm offers={offers} onDone={() => setCreating(false)} />
+          <ChallengeForm offers={offers} template={template} onDone={closeForm} />
         </div>
       )}
 

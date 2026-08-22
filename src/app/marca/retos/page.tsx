@@ -10,11 +10,15 @@ export default async function RetosPage() {
     where: { userId: session!.user.id },
   });
 
-  const [offers, challenges, submissions] = await Promise.all([
-    prisma.offer.findMany({ where: { brandId: profile.id, status: "ACTIVE" }, select: { id: true, name: true } }),
+  const [offersRaw, challenges, submissions] = await Promise.all([
+    prisma.offer.findMany({
+      where: { brandId: profile.id, status: "ACTIVE" },
+      select: { id: true, name: true, defaultCommissionPercent: true },
+    }),
     listChallengesForBrand(profile.id),
     listSubmissionsForBrand(profile.id),
   ]);
+  const offers = offersRaw.map((o) => ({ ...o, defaultCommissionPercent: Number(o.defaultCommissionPercent) }));
 
   return (
     <div>
