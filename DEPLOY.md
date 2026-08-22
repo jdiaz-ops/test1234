@@ -15,11 +15,12 @@ hacer clic.
 No hay costo para empezar (planes gratuitos de ambos alcanzan para el
 lanzamiento); si el tráfico crece, se sube de plan desde el mismo panel.
 
-## 1. Sube el código a GitHub (ya está)
+## 1. El código ya está en GitHub (nada que hacer)
 
-El proyecto ya vive en `github.com/jdiaz-ops/test1234`, en la rama
-`claude/me-escuchas-ucxsdc`. Antes de desplegar, esa rama debe fusionarse
-(merge) a la rama principal (`main`) — pídemelo cuando quieras y lo hago.
+El proyecto vive en `github.com/jdiaz-ops/test1234`, en la rama
+`claude/me-escuchas-ucxsdc` — esa es la rama por defecto del repositorio,
+así que Vercel la va a detectar sola como la rama de producción. No hace
+falta fusionarla a `main`.
 
 ## 2. Crea tu cuenta de Vercel
 
