@@ -1,0 +1,150 @@
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+import { createToken, consumeToken, ONE_DAY_MS, ONE_HOUR_MS } from "@/lib/tokens";
+import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/email";
+import {
+  generateUniqueBaseCode,
+  generateUniqueStorefrontSlug,
+} from "@/lib/creator-identity";
+
+const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
+
+export class AuthServiceError extends Error {}
+
+// --------------------------------------------------------------------------
+// Registro de CREADOR
+// --------------------------------------------------------------------------
+
+export async function registerCreator(input: {
+  email: string;
+  password: string;
+  displayName: string;
+  desiredCode: string;
+  city?: string;
+}) {
+  const existing = await prisma.user.findUnique({ where: { email: input.email } });
+  if (existing) throw new AuthServiceError("Ya existe una cuenta con este correo.");
+
+  const passwordHash = await bcrypt.hash(input.password, 10);
+  const baseCode = await generateUniqueBaseCode(input.desiredCode);
+  const storefrontSlug = await generateUniqueStorefrontSlug(input.displayName);
+
+  const user = await prisma.user.create({
+    data: {
+      email: input.email,
+      passwordHash,
+      role: "CREATOR",
+      creatorProfile: {
+        create: {
+          displayName: input.displayName,
+          city: input.city,
+          baseCode,
+          storefrontSlug,
+        },
+      },
+    },
+    include: { creatorProfile: true },
+  });
+
+  await sendVerificationForUser(user.email);
+
+  return user;
+}
+
+// --------------------------------------------------------------------------
+// Registro de MARCA
+// --------------------------------------------------------------------------
+
+export async function registerBrand(input: {
+  email: string;
+  password: string;
+  companyName: string;
+  city?: string;
+  termsAccepted: boolean;
+}) {
+  if (!input.termsAccepted) {
+    throw new AuthServiceError("Debes aceptar los Términos y Condiciones para registrarte.");
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email: input.email } });
+  if (existing) throw new AuthServiceError("Ya existe una cuenta con este correo.");
+
+  const passwordHash = await bcrypt.hash(input.password, 10);
+
+  const user = await prisma.user.create({
+    data: {
+      email: input.email,
+      passwordHash,
+      role: "BRAND",
+      brandProfile: {
+        create: {
+          companyName: input.companyName,
+          city: input.city,
+          termsAcceptedAt: new Date(),
+          // status queda en PENDING por defecto — a la espera de aprobación
+          // del admin, como se definió para mantener la curaduría de calidad.
+        },
+      },
+    },
+    include: { brandProfile: true },
+  });
+
+  await sendVerificationForUser(user.email);
+
+  return user;
+}
+
+// --------------------------------------------------------------------------
+// Verificación de email
+// --------------------------------------------------------------------------
+
+async function sendVerificationForUser(email: string) {
+  const token = await createToken(email, ONE_DAY_MS);
+  const verifyUrl = `${APP_URL}/verificar-email?token=${token}`;
+  await sendVerificationEmail(email, verifyUrl);
+}
+
+export async function verifyEmail(token: string) {
+  const email = await consumeToken(token);
+  if (!email) {
+    throw new AuthServiceError("El link de verificación es inválido o ya expiró.");
+  }
+
+  await prisma.user.update({
+    where: { email },
+    data: { emailVerified: new Date() },
+  });
+}
+
+export async function resendVerificationEmail(email: string) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  // No revelamos si el correo existe o no, para no filtrar información.
+  if (!user || user.emailVerified) return;
+  await sendVerificationForUser(email);
+}
+
+// --------------------------------------------------------------------------
+// Recuperación de contraseña
+// --------------------------------------------------------------------------
+
+export async function requestPasswordReset(email: string) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return; // no revelamos si el correo existe
+
+  const token = await createToken(email, ONE_HOUR_MS);
+  const resetUrl = `${APP_URL}/restablecer-password?token=${token}`;
+  await sendPasswordResetEmail(email, resetUrl);
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const email = await consumeToken(token);
+  if (!email) {
+    throw new AuthServiceError("El link para restablecer tu contraseña es inválido o ya expiró.");
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { email },
+    data: { passwordHash },
+  });
+}
