@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileUploadField } from "@/components/portal/file-upload-field";
+import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 
 type Values = {
   companyName: string;
@@ -107,6 +108,19 @@ export function BrandProfileForm({ initial, files }: { initial: Values; files: F
           <label className="block text-sm text-brand-ink mb-1">Descripción</label>
           <textarea value={form.description} onChange={(e) => set("description", e.target.value)} className="input min-h-20" />
         </div>
+
+        <div>
+          <p className="text-xs text-brand-ink-soft mb-2">Así te ven los creadores en el marketplace:</p>
+          <div className="rounded-2xl border border-brand-line bg-brand-surface p-4">
+            <BrandMiniProfile
+              companyName={form.companyName}
+              logoUrl={files.logoUrl}
+              description={form.description}
+              websiteUrl={form.websiteUrl}
+            />
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <Field label="Ciudad" value={form.city} onChange={(v) => set("city", v)} />
           <Field label="Teléfono / WhatsApp" value={form.phone} onChange={(v) => set("phone", v)} />

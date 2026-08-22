@@ -40,9 +40,12 @@ export function ChallengeForm({
   const [offerId, setOfferId] = useState(offers[0]?.id ?? "");
   const [name, setName] = useState(template?.name ?? "");
   const [type, setType] = useState<ChallengeType>(template?.type ?? "GOAL_BONUS");
-  const [startDate, setStartDate] = useState(template ? toDateInput(new Date()) : "");
+  const [startDate, setStartDate] = useState(template?.startDate ?? (template ? toDateInput(new Date()) : ""));
   const [endDate, setEndDate] = useState(
-    template ? toDateInput(new Date(Date.now() + template.durationDays * 24 * 60 * 60 * 1000)) : ""
+    template?.endDate ??
+      (template
+        ? toDateInput(new Date(Date.now() + (template.durationDays ?? 7) * 24 * 60 * 60 * 1000))
+        : "")
   );
   const [goalAmount, setGoalAmount] = useState(template?.goalAmount ? String(template.goalAmount) : "");
   const [bonusAmount, setBonusAmount] = useState(template?.bonusAmount ? String(template.bonusAmount) : "");

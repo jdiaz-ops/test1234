@@ -162,8 +162,11 @@ export function ChallengesPanel({
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-display font-semibold text-brand-ink">Tus retos ({challenges.length})</h2>
         {!creating && offers.length > 0 && (
-          <button onClick={() => setCreating(true)} className="text-sm text-brand-accent font-medium hover:underline">
-            + Nuevo reto desde cero
+          <button
+            onClick={() => setCreating(true)}
+            className="bg-brand-accent text-white text-sm font-medium rounded-full px-5 py-2 hover:opacity-90"
+          >
+            Crear un nuevo reto desde cero
           </button>
         )}
       </div>

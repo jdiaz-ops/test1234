@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listActiveOffers, getEnrollmentsForCreator } from "@/server/services/marketplace-service";
 import { JoinOfferButton } from "@/components/portal/join-offer-button";
+import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 
 export default async function MarketplacePage({
   searchParams,
@@ -58,8 +59,13 @@ export default async function MarketplacePage({
             const enrollment = enrollmentByOffer.get(offer.id);
             return (
               <div key={offer.id} className="rounded-2xl border border-brand-line bg-brand-surface p-5">
-                <p className="text-xs text-brand-ink-soft mb-1">{offer.category?.name ?? "General"}</p>
-                <p className="font-display font-semibold text-brand-ink mb-1">{offer.brand.companyName}</p>
+                <BrandMiniProfile
+                  companyName={offer.brand.companyName}
+                  logoUrl={offer.brand.logoUrl}
+                  description={offer.brand.description}
+                  websiteUrl={offer.brand.websiteUrl}
+                />
+                <p className="text-xs text-brand-ink-soft mt-3 mb-1">{offer.category?.name ?? "General"}</p>
                 <p className="text-sm text-brand-ink-soft mb-3">{offer.name}</p>
                 <div className="flex items-center gap-4 text-sm font-mono mb-4">
                   <span className="text-brand-accent">{Number(offer.defaultCommissionPercent)}% comisión</span>

@@ -10,15 +10,20 @@ export const VISIBLE_CHALLENGE_TYPES: ChallengeType[] = (
 ).filter((t) => !HIDDEN_CHALLENGE_TYPES.includes(t));
 
 /// Plantilla de reto lista para usar — la marca solo tiene que revisar/tocar
-/// las fechas y montos antes de crearlo. durationDays se usa para sugerir la
-/// fecha de fin (hoy + N días).
+/// las fechas y montos antes de crearlo.
+/// Fechas: si la plantilla trae startDate/endDate explícitas (ISO
+/// yyyy-mm-dd) — las de temporada, atadas a una fecha real del calendario —
+/// se usan tal cual. Si no, se sugiere hoy -> hoy + durationDays (las que no
+/// dependen de una fecha, como Reto relámpago o Meta mensual).
 export type ChallengeTemplate = {
   key: string;
   title: string;
   description: string;
   name: string;
   type: ChallengeType;
-  durationDays: number;
+  durationDays?: number;
+  startDate?: string;
+  endDate?: string;
   goalAmount?: number;
   bonusAmount?: number;
   newCommissionPercent?: number;
