@@ -1,7 +1,7 @@
 const steps = [
   {
     title: "Tú creas el descuento",
-    text: "Defines qué % de descuento recibe quien compre en tu web con el código de un creador.",
+    text: "Defines qué % de descuento recibe quien compre en tu web con el código de un creador de contenido.",
   },
   {
     title: "Un creador lo promueve",
@@ -17,13 +17,16 @@ const steps = [
   },
 ];
 
-/// Explicador simple del mecanismo de afiliación, para marcas que están
-/// configurando su oferta por primera vez y no vienen del mundo del
-/// marketing de afiliados.
+/// Explicador simple del mecanismo de afiliación — vive en Oferta y
+/// comisión (no en el onboarding, que ya está explicando paso a paso) para
+/// que la marca lo pueda consultar cuando quiera, no solo una vez.
 export function AffiliateExplainer() {
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
-      <p className="font-display font-semibold text-brand-ink mb-4">¿Cómo funciona la afiliación?</p>
+      <p className="font-display font-semibold text-brand-ink mb-1">¿Cómo funciona la afiliación?</p>
+      <p className="text-xs text-brand-ink-soft mb-4">
+        Un creador de contenido promueve tu marca y gana una comisión por cada venta que genera.
+      </p>
       <div className="space-y-4">
         {steps.map((step, i) => (
           <div key={step.title} className="flex gap-3">

@@ -6,7 +6,6 @@ import { BrandProfileForm } from "@/components/portal/brand-profile-form";
 import { StoreConnectionForm } from "@/components/portal/store-connection-form";
 import { CardForm } from "@/components/portal/card-form";
 import { OfferForm } from "@/components/portal/offer-form";
-import { AffiliateExplainer } from "@/components/portal/affiliate-explainer";
 
 type ProfileValues = React.ComponentProps<typeof BrandProfileForm>["initial"];
 type ProfileFiles = React.ComponentProps<typeof BrandProfileForm>["files"];
@@ -17,11 +16,17 @@ export function OnboardingWizard({
   profile,
   store,
   hasCard,
+  cardHolder,
+  platformFeePercent,
+  vatPercent,
 }: {
   steps: OnboardingStep[];
   profile: { initial: ProfileValues; files: ProfileFiles };
   store: { initial: StoreValues; initialWebhookUrl: string | null; initialWebhookSecret: string | null };
   hasCard: boolean;
+  cardHolder: { name: string; email: string };
+  platformFeePercent: number;
+  vatPercent: number;
 }) {
   const order = steps.map((s) => s.key);
   const [open, setOpen] = useState<string | null>(steps.find((s) => !s.done)?.key ?? order[0]);
@@ -85,12 +90,20 @@ export function OnboardingWizard({
                       onSaved={() => goToNext("tienda")}
                     />
                   )}
-                  {step.key === "pago" && <CardForm hasCard={hasCard} onSaved={() => goToNext("pago")} />}
+                  {step.key === "pago" && (
+                    <CardForm
+                      hasCard={hasCard}
+                      initialHolderName={cardHolder.name}
+                      initialHolderEmail={cardHolder.email}
+                      onSaved={() => goToNext("pago")}
+                    />
+                  )}
                   {step.key === "oferta" && (
-                    <div className="grid md:grid-cols-[1.4fr_1fr] gap-6 items-start">
-                      <OfferForm onDone={() => goToNext("oferta")} />
-                      <AffiliateExplainer />
-                    </div>
+                    <OfferForm
+                      onDone={() => goToNext("oferta")}
+                      platformFeePercent={platformFeePercent}
+                      vatPercent={vatPercent}
+                    />
                   )}
                 </div>
 

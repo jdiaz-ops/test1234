@@ -81,7 +81,11 @@ export default async function MarcaCuentaPage() {
             ? "Tienes una tarjeta registrada para el cobro automático."
             : "Registra tu tarjeta para que el cobro del día 1 se haga solo, sin que tengas que hacer nada cada mes."}
         </p>
-        <CardForm hasCard={!!profile.cardTokenRef} />
+        <CardForm
+          hasCard={!!profile.cardTokenRef}
+          initialHolderName={profile.legalName || profile.companyName}
+          initialHolderEmail={session!.user.email ?? ""}
+        />
       </div>
     </div>
   );

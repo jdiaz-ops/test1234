@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getBrandOnboardingStatus } from "@/server/services/onboarding-service";
 import { getWebhookUrl } from "@/server/services/brand-profile-service";
+import { getBrandDashboardSummary } from "@/server/services/brand-finance-service";
 import { OnboardingWizard } from "@/components/portal/onboarding-wizard";
 
 export default async function OnboardingPage() {
@@ -10,7 +11,10 @@ export default async function OnboardingPage() {
   const profile = await prisma.brandProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },
   });
-  const { steps, complete, completedCount, total } = await getBrandOnboardingStatus(profile);
+  const [{ steps, complete, completedCount, total }, summary] = await Promise.all([
+    getBrandOnboardingStatus(profile),
+    getBrandDashboardSummary(profile.id),
+  ]);
 
   // Ya no hay nada pendiente — esta página no tiene sentido, de vuelta al Dashboard.
   if (complete) redirect("/marca");
@@ -76,6 +80,12 @@ export default async function OnboardingPage() {
             initialWebhookSecret: profile.webhookSecret ?? null,
           }}
           hasCard={!!profile.cardTokenRef}
+          cardHolder={{
+            name: profile.legalName || profile.companyName,
+            email: session!.user.email ?? "",
+          }}
+          platformFeePercent={summary.platformFeePercent}
+          vatPercent={summary.vatPercent}
         />
       </div>
     </div>

@@ -34,7 +34,8 @@ export async function getBrandOnboardingStatus(profile: BrandProfile) {
     {
       key: "pago",
       label: "Método de pago",
-      description: "Tu tarjeta para el cobro automático de la tarifa de Marcolini, el día 1 de cada mes.",
+      description:
+        "Tu tarjeta para el cobro automático el día 1 de cada mes — incluye la comisión de tus creadores y la tarifa de Marcolini.",
       done: Boolean(profile.cardTokenRef),
     },
     {

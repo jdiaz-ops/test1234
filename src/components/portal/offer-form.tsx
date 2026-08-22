@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CostCalculator } from "@/components/portal/cost-calculator";
 
 type OfferValues = {
   name: string;
@@ -17,10 +18,14 @@ export function OfferForm({
   initial,
   offerId,
   onDone,
+  platformFeePercent,
+  vatPercent,
 }: {
   initial?: OfferValues;
   offerId?: string;
   onDone?: () => void;
+  platformFeePercent: number;
+  vatPercent: number;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<OfferValues>(
@@ -132,6 +137,14 @@ export function OfferForm({
             </p>
           </div>
         </div>
+
+        <p className="text-sm text-brand-ink font-medium mb-2">Prueba con un ticket de compra real</p>
+        <CostCalculator
+          commission={form.defaultCommissionPercent || 0}
+          discount={form.defaultDiscountPercent || 0}
+          platformFeePercent={platformFeePercent}
+          vatPercent={vatPercent}
+        />
       </div>
 
       <div>

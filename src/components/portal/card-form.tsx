@@ -8,15 +8,25 @@ import { useRouter } from "next/navigation";
 /// pasa por nuestro servidor). Mientras tanto envía los datos a nuestra API,
 /// que los tokeniza del lado del servidor contra ePayco antes de guardar
 /// nada — ver src/server/integrations/epayco-client.ts.
-export function CardForm({ hasCard, onSaved }: { hasCard: boolean; onSaved?: () => void }) {
+export function CardForm({
+  hasCard,
+  initialHolderName = "",
+  initialHolderEmail = "",
+  onSaved,
+}: {
+  hasCard: boolean;
+  initialHolderName?: string;
+  initialHolderEmail?: string;
+  onSaved?: () => void;
+}) {
   const router = useRouter();
   const [form, setForm] = useState({
     cardNumber: "",
     expMonth: "",
     expYear: "",
     cvc: "",
-    holderName: "",
-    holderEmail: "",
+    holderName: initialHolderName,
+    holderEmail: initialHolderEmail,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +118,9 @@ export function CardForm({ hasCard, onSaved }: { hasCard: boolean; onSaved?: () 
           onChange={(e) => setForm({ ...form, holderEmail: e.target.value })}
           className="input"
         />
+        <p className="text-xs text-brand-ink-soft mt-1">
+          ePayco los pide para registrar la tarjeta de forma segura — no para contactarte.
+        </p>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
