@@ -31,21 +31,29 @@ export function AdminInvoiceUpload({ brands }: { brands: { id: string; companyNa
     form.append("note", note);
     form.append("file", file);
 
-    const res = await fetch("/api/admin/facturas", { method: "POST", body: form });
-    setSaving(false);
+    try {
+      const res = await fetch("/api/admin/facturas", { method: "POST", body: form });
 
-    if (!res.ok) {
-      const body = await res.json();
-      setError(body.error ?? "No se pudo subir la factura.");
-      return;
+      if (!res.ok) {
+        const message = await res
+          .json()
+          .then((b) => b.error as string | undefined)
+          .catch(() => undefined);
+        setError(message ?? "No se pudo subir la factura. Intenta de nuevo.");
+        return;
+      }
+
+      setOk(true);
+      setPeriod("");
+      setAmount("");
+      setNote("");
+      setFile(null);
+      router.refresh();
+    } catch {
+      setError("No se pudo subir la factura — revisa tu conexión e intenta de nuevo.");
+    } finally {
+      setSaving(false);
     }
-
-    setOk(true);
-    setPeriod("");
-    setAmount("");
-    setNote("");
-    setFile(null);
-    router.refresh();
   }
 
   return (
