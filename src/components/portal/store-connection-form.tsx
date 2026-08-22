@@ -25,7 +25,13 @@ export function StoreConnectionForm({
   onSaved?: () => void;
 }) {
   const router = useRouter();
-  const [form, setForm] = useState(initial);
+  // Solo se puede elegir Shopify o WooCommerce — si la marca nunca conectó
+  // nada, el perfil trae "OTHER" por defecto de la base de datos, y eso ya
+  // no es una opción seleccionable.
+  const [form, setForm] = useState<FormState>(() => ({
+    ...initial,
+    storeType: initial.storeType === "OTHER" ? "SHOPIFY" : initial.storeType,
+  }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [webhookUrl, setWebhookUrl] = useState(initialWebhookUrl);
@@ -68,7 +74,6 @@ export function StoreConnectionForm({
           >
             <option value="SHOPIFY">Shopify</option>
             <option value="WOOCOMMERCE">WooCommerce</option>
-            <option value="OTHER">Otra / código con reporte manual</option>
           </select>
         </div>
         <div>
