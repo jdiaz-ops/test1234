@@ -11,6 +11,22 @@ function normalizeCode(input: string) {
     .slice(0, 20);
 }
 
+/// Normaliza el código de descuento que el creador elige para una marca en
+/// particular — a diferencia del baseCode (identidad, solo letras/números),
+/// aquí sí se permite el guión, porque es común querer algo tipo
+/// "LAURA-SEPHORA" para distinguir marcas. Sigue siendo el mismo criterio de
+/// mayúsculas/sin acentos.
+export function normalizeDiscountCode(input: string) {
+  return input
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 30);
+}
+
 function normalizeSlug(input: string) {
   return input
     .normalize("NFD")

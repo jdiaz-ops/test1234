@@ -15,10 +15,10 @@ export default async function CodigosPage() {
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">MIS CÓDIGOS Y LINKS</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
-        Un código, todas tus marcas
+        Un código por marca
       </h1>
-      <p className="text-sm text-brand-ink-soft mb-8 font-mono">
-        Tu código personal: <span className="text-brand-accent">{profile.baseCode}</span>
+      <p className="text-sm text-brand-ink-soft mb-8">
+        Elegiste tu código al unirte a cada marca — aquí abajo están todos, con su link listo para compartir.
       </p>
 
       {active.length === 0 ? (

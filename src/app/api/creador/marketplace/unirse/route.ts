@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const enrollment = await joinOffer(profile.id, parsed.data.offerId);
+    const enrollment = await joinOffer(profile.id, parsed.data.offerId, parsed.data.discountCode || undefined);
     return NextResponse.json({ ok: true, status: enrollment.status });
   } catch (err) {
     if (err instanceof MarketplaceError) {

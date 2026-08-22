@@ -25,6 +25,12 @@ export const updatePaymentSchema = z.object({
 
 export const joinOfferSchema = z.object({
   offerId: z.string().min(1),
+  discountCode: z
+    .string()
+    .min(3, "El código debe tener al menos 3 caracteres")
+    .max(30, "El código es demasiado largo")
+    .optional()
+    .or(z.literal("")),
 });
 
 export const submitContentChallengeSchema = z.object({

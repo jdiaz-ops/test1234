@@ -74,7 +74,11 @@ export default async function MarketplacePage({
                     {enrollment.status === "ACTIVE" ? "Ya estás unido ✓" : "Esperando aprobación"}
                   </span>
                 ) : (
-                  <JoinOfferButton offerId={offer.id} joinMode={offer.joinMode} />
+                  <JoinOfferButton
+                    offerId={offer.id}
+                    joinMode={offer.joinMode}
+                    suggestedCode={profile.baseCode}
+                  />
                 )}
               </div>
             );

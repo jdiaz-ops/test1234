@@ -148,9 +148,10 @@ model CreatorProfile {
   verticalId String?
   vertical   Vertical? @relation(fields: [verticalId], references: [id])
 
-  /// El código personal único del creador (ej. "LAURA30") — se reutiliza en
-  /// TODAS las marcas a las que se une, para que nunca tenga que manejar un
-  /// código distinto por marca.
+  /// El código de identidad único del creador (ej. "LAURA30") — nace del
+  /// nombre al registrarse. Sirve como sugerencia de partida al unirse a una
+  /// marca, pero el código real que usa en cada tienda (CreatorOfferEnrollment.discountCode)
+  /// es independiente por marca, porque cada tienda tiene sus propias reglas.
   baseCode String @unique
 
   /// "Modo Descubrible" (Fase 2 — Marcolini Discover): apagado por defecto.

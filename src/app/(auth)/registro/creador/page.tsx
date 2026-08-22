@@ -56,7 +56,7 @@ export default function RegistroCreadorPage() {
         Regístrate como Creador
       </h1>
       <p className="text-sm text-brand-ink-soft text-center mb-6">
-        Un solo código para todas las marcas que promociones.
+        Al unirte a cada marca eliges el código con el que te van a reconocer.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
