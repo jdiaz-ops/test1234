@@ -106,7 +106,15 @@ export function BrandProfileForm({ initial, files }: { initial: Values; files: F
         <Field label="Página web" value={form.websiteUrl} onChange={(v) => set("websiteUrl", v)} placeholder="https://" type="url" />
         <div>
           <label className="block text-sm text-brand-ink mb-1">Descripción</label>
-          <textarea value={form.description} onChange={(e) => set("description", e.target.value)} className="input min-h-20" />
+          <textarea
+            value={form.description}
+            onChange={(e) => set("description", e.target.value.slice(0, 500))}
+            maxLength={500}
+            className="input min-h-20"
+          />
+          <p className={`text-xs mt-1 text-right ${form.description.length >= 500 ? "text-red-600" : "text-brand-ink-soft"}`}>
+            {form.description.length}/500 caracteres
+          </p>
         </div>
 
         <div>
