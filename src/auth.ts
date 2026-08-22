@@ -35,18 +35,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // recuperación de contraseña usan una tabla completamente aparte).
         const impersonateToken = credentials?.impersonateToken as string | undefined;
         if (impersonateToken) {
-          const targetUserId = await consumeImpersonationToken(impersonateToken);
-          if (!targetUserId) return null;
+          const record = await consumeImpersonationToken(impersonateToken);
+          if (!record) return null;
 
-          const user = await prisma.user.findUnique({ where: { id: targetUserId } });
+          const user = await prisma.user.findUnique({ where: { id: record.targetUserId } });
           if (!user) return null;
+
+          // El mismo token sirve para "Entrar como" (admin -> cuenta) y para
+          // "Volver" (cuenta -> admin, ver /api/admin/entrar-como/salir) — se
+          // distingue por el rol de a quién apunta: solo se puede terminar en
+          // un ADMIN por el camino de "volver", nunca por "Entrar como" (ese
+          // endpoint ya rechaza apuntar a otro admin), así que si el destino
+          // es ADMIN, esta sesión ya NO está impersonando a nadie.
+          const isReturnToAdmin = user.role === "ADMIN";
 
           return {
             id: user.id,
             email: user.email,
             role: user.role,
             adminRole: user.adminRole,
-            impersonated: true,
+            impersonated: !isReturnToAdmin,
+            impersonatorId: !isReturnToAdmin ? record.createdByUserId : undefined,
           };
         }
 
@@ -83,6 +92,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.adminRole = (user as { adminRole?: import("@prisma/client").AdminRole | null })
           .adminRole;
         token.impersonated = (user as { impersonated?: boolean }).impersonated ?? false;
+        token.impersonatorId = (user as { impersonatorId?: string }).impersonatorId;
       }
       return token;
     },
@@ -91,6 +101,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.role = token.role;
       session.user.adminRole = token.adminRole;
       session.user.impersonated = token.impersonated;
+      session.user.impersonatorId = token.impersonatorId;
       return session;
     },
   },

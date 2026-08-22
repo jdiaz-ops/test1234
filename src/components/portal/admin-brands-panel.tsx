@@ -148,6 +148,7 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
   const [editingFeeId, setEditingFeeId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [addingBrand, setAddingBrand] = useState(false);
+  const [creatingTestBrands, setCreatingTestBrands] = useState(false);
 
   async function decide(brandId: string, decision: string) {
     setLoadingId(brandId);
@@ -160,9 +161,25 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
     router.refresh();
   }
 
+  async function createTestBrands() {
+    setCreatingTestBrands(true);
+    await fetch("/api/admin/marcas/prueba", { method: "POST" });
+    setCreatingTestBrands(false);
+    router.refresh();
+  }
+
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
-      <div className="flex justify-end px-5 py-3 border-b border-brand-line">
+      <div className="flex justify-end gap-4 px-5 py-3 border-b border-brand-line">
+        {isOwner && (
+          <button
+            onClick={createTestBrands}
+            disabled={creatingTestBrands}
+            className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+          >
+            {creatingTestBrands ? "Creando..." : "Crear 4 marcas de prueba"}
+          </button>
+        )}
         {!addingBrand && (
           <button onClick={() => setAddingBrand(true)} className="text-xs text-brand-accent font-medium hover:underline">
             + Agregar marca manualmente

@@ -15,6 +15,9 @@ declare module "next-auth" {
       /// Propietario viendo el portal como esta cuenta) — ver
       /// src/lib/impersonation.ts.
       impersonated?: boolean;
+      /// Solo presente cuando impersonated=true: el id del admin al que hay
+      /// que volver cuando se le da a "Salir".
+      impersonatorId?: string;
     } & DefaultSessionUser;
   }
 }
@@ -25,6 +28,7 @@ declare module "next-auth/jwt" {
     role: UserRole;
     adminRole?: AdminRole | null;
     impersonated?: boolean;
+    impersonatorId?: string;
   }
 }
 

@@ -12,13 +12,18 @@ export async function createImpersonationToken(targetUserId: string, createdByUs
 }
 
 /// Se borra al leerlo, sea válido o no — de un solo uso, igual que los demás
-/// tokens de la plataforma.
-export async function consumeImpersonationToken(token: string): Promise<string | null> {
+/// tokens de la plataforma. Devuelve también quién lo creó (createdByUserId)
+/// porque el mismo mecanismo se usa en las dos direcciones: admin -> cuenta
+/// (Entrar como) y cuenta -> admin (Salir/Volver), y para "volver" hace
+/// falta saber a qué admin regresar.
+export async function consumeImpersonationToken(
+  token: string
+): Promise<{ targetUserId: string; createdByUserId: string } | null> {
   const record = await prisma.impersonationToken.findUnique({ where: { token } });
   if (!record) return null;
 
   await prisma.impersonationToken.delete({ where: { token } });
 
   if (record.expires < new Date()) return null;
-  return record.targetUserId;
+  return { targetUserId: record.targetUserId, createdByUserId: record.createdByUserId };
 }
