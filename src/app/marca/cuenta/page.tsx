@@ -1,14 +1,19 @@
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getBrandProfileByUserId } from "@/server/services/brand-profile-service";
+import { getBrandProfileByUserId, getWebhookUrl } from "@/server/services/brand-profile-service";
 import { getBrandDashboardSummary } from "@/server/services/brand-finance-service";
-import { listNotifications } from "@/server/services/notification-service";
 import { BrandProfileForm } from "@/components/portal/brand-profile-form";
 import { CardForm } from "@/components/portal/card-form";
 import { BrandInvoicesList } from "@/components/portal/brand-invoices-list";
-import { NotificationsList } from "@/components/portal/notifications-list";
+import { StoreConnectionForm } from "@/components/portal/store-connection-form";
 import { ChangePasswordForm } from "@/components/portal/change-password-form";
 import { AccountTabs } from "@/components/portal/account-tabs";
+
+const storeStatusLabel: Record<string, string> = {
+  NOT_CONNECTED: "No conectada todavía",
+  CONNECTED: "Conectada",
+  ERROR: "Error de conexión — revisa tus credenciales",
+};
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
@@ -25,12 +30,16 @@ const chargeStatusLabel: Record<string, string> = {
 export default async function MarcaCuentaPage() {
   const session = await auth();
   const profile = await getBrandProfileByUserId(session!.user.id);
-  const [summary, charges, invoices, notifications] = await Promise.all([
+  const [summary, charges, invoices] = await Promise.all([
     getBrandDashboardSummary(profile.id),
     prisma.brandCharge.findMany({ where: { brandId: profile.id }, orderBy: { periodStart: "desc" } }),
     prisma.brandInvoice.findMany({ where: { brandId: profile.id }, orderBy: { period: "desc" } }),
-    listNotifications(session!.user.id),
   ]);
+
+  const webhookUrl =
+    profile.webhookSecret && (profile.storeType === "SHOPIFY" || profile.storeType === "WOOCOMMERCE")
+      ? getWebhookUrl(profile.id, profile.storeType)
+      : null;
 
   const perfilTab = (
     <BrandProfileForm
@@ -117,8 +126,27 @@ export default async function MarcaCuentaPage() {
     </div>
   );
 
-  const notificacionesTab = (
-    <NotificationsList notifications={notifications.map((n) => ({ ...n, createdAt: n.createdAt.toISOString() }))} />
+  const tiendaTab = (
+    <div className="max-w-lg">
+      <p className="text-sm text-brand-ink-soft mb-2">
+        Conecta tu tienda para que el código de cada creador se cree automáticamente y las ventas se
+        detecten solas.
+      </p>
+      <p className="text-xs font-mono text-brand-ink-soft mb-6">
+        Estado: {storeStatusLabel[profile.storeConnectionStatus]}
+      </p>
+      <StoreConnectionForm
+        initial={{
+          storeType: profile.storeType,
+          storeUrl: profile.storeUrl ?? "",
+          shopifyAccessToken: profile.shopifyAccessToken ?? "",
+          wooConsumerKey: profile.wooConsumerKey ?? "",
+          wooConsumerSecret: profile.wooConsumerSecret ?? "",
+        }}
+        initialWebhookUrl={webhookUrl}
+        initialWebhookSecret={profile.webhookSecret ?? null}
+      />
+    </div>
   );
 
   return (
@@ -131,7 +159,7 @@ export default async function MarcaCuentaPage() {
           { key: "perfil", label: "Perfil del negocio", content: perfilTab },
           { key: "pago", label: "Pago", content: pagoTab },
           { key: "facturacion", label: "Facturación", content: facturacionTab },
-          { key: "notificaciones", label: "Notificaciones", content: notificacionesTab },
+          { key: "tienda", label: "Conexión de tienda", content: tiendaTab },
         ]}
       />
 

@@ -5,18 +5,18 @@ import { usePathname } from "next/navigation";
 
 // Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
 // ruta siguen intactos, solo se quitó del menú. Perfil, Facturación y
-// Notificaciones se consolidaron dentro de Cuenta.
+// Conexión de tienda se consolidaron dentro de Cuenta. Notificaciones vive
+// aparte, en el menú lateral, con su burbuja de pendientes.
 const items = [
   { href: "/marca", label: "Dashboard", exact: true },
   { href: "/marca/ofertas", label: "Oferta y comisión" },
-  { href: "/marca/retos", label: "Retos y Campañas" },
+  { href: "/marca/retos", label: "Retos" },
   { href: "/marca/creadores", label: "Creadores vinculados" },
   { href: "/marca/transacciones", label: "Transacciones" },
-  { href: "/marca/tienda", label: "Conexión de tienda" },
   { href: "/marca/cuenta", label: "Cuenta" },
 ];
 
-export function BrandNav() {
+export function BrandNav({ unreadNotifications = 0 }: { unreadNotifications?: number }) {
   const pathname = usePathname();
 
   return (
@@ -37,6 +37,21 @@ export function BrandNav() {
           </Link>
         );
       })}
+      <Link
+        href="/marca/notificaciones"
+        className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
+          pathname.startsWith("/marca/notificaciones")
+            ? "bg-brand-accent-soft text-brand-accent font-medium"
+            : "text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink"
+        }`}
+      >
+        Notificaciones
+        {unreadNotifications > 0 && (
+          <span className="bg-brand-accent text-white text-[10px] font-mono font-medium rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
+            {unreadNotifications > 99 ? "99+" : unreadNotifications}
+          </span>
+        )}
+      </Link>
     </nav>
   );
 }

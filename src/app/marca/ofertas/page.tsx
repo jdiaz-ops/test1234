@@ -19,9 +19,14 @@ export default async function OfertasPage() {
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">OFERTA Y COMISIÓN</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Tu programa de afiliados</h1>
-      <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
+      <p className="text-sm text-brand-ink-soft mb-2 max-w-lg">
         La comisión que definas es 100% para el creador. La tarifa de
         Marcolini se cobra aparte, nunca se descuenta de lo que él gana.
+      </p>
+      <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
+        Marcolini cobra <span className="font-mono text-brand-accent">{summary.platformFeePercent}%</span>{" "}
+        + IVA (<span className="font-mono">{summary.vatPercent}%</span>) sobre cada venta, aparte de la
+        comisión que tú definas para tus creadores.
       </p>
 
       <OffersPanel

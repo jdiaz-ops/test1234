@@ -4,14 +4,16 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { BrandNav } from "@/components/portal/brand-nav";
 import { ImpersonationBanner } from "@/components/portal/impersonation-banner";
+import { countUnreadNotifications } from "@/server/services/notification-service";
 
 export default async function MarcaLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user || session.user.role !== "BRAND") redirect("/login");
 
-  const profile = await prisma.brandProfile.findUniqueOrThrow({
-    where: { userId: session.user.id },
-  });
+  const [profile, unreadNotifications] = await Promise.all([
+    prisma.brandProfile.findUniqueOrThrow({ where: { userId: session.user.id } }),
+    countUnreadNotifications(session.user.id),
+  ]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -21,7 +23,7 @@ export default async function MarcaLayout({ children }: { children: React.ReactN
           <Link href="/" className="font-mono text-sm font-medium text-brand-accent tracking-wide mb-8 block">
             MARCOLINI
           </Link>
-          <BrandNav />
+          <BrandNav unreadNotifications={unreadNotifications} />
           <div className="mt-auto pt-5 border-t border-brand-line">
             <p className="text-xs text-brand-ink-soft truncate mb-2">{session.user.email}</p>
             <form

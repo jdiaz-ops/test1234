@@ -9,6 +9,11 @@ export async function listNotifications(userId: string) {
   });
 }
 
+/// Para la burbuja de notificaciones pendientes en el menú lateral.
+export async function countUnreadNotifications(userId: string) {
+  return prisma.notification.count({ where: { userId, read: false } });
+}
+
 export async function markNotificationRead(userId: string, notificationId: string) {
   await prisma.notification.updateMany({
     where: { id: notificationId, userId },

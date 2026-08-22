@@ -29,7 +29,7 @@ export default async function CreadorRetosPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">RETOS Y CAMPAÑAS</p>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">RETOS</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">Gana más</h1>
 
       <h2 className="font-display font-semibold text-brand-ink mb-4">Retos activos</h2>

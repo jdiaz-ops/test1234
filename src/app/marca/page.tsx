@@ -28,7 +28,7 @@ export default async function MarcaDashboardPage() {
           <p className="font-display text-xl font-semibold text-brand-ink">{formatCOP(summary.gmv)}</p>
         </div>
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
-          <p className="text-xs text-brand-ink-soft mb-1">Transacciones / órdenes</p>
+          <p className="text-xs text-brand-ink-soft mb-1">Transacciones / órdenes vía Marcolini</p>
           <p className="font-display text-xl font-semibold text-brand-ink">{summary.orderCount}</p>
         </div>
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
@@ -52,15 +52,6 @@ export default async function MarcaDashboardPage() {
           </p>
           <p className="text-xs text-brand-ink-soft mt-1">por cada $1 en tarifa</p>
         </div>
-      </div>
-
-      <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
-        <h2 className="font-display font-semibold text-brand-ink mb-3">Tu tarifa actual</h2>
-        <p className="text-sm text-brand-ink-soft">
-          Marcolini cobra <span className="font-mono text-brand-accent">{summary.platformFeePercent}%</span>{" "}
-          + IVA (<span className="font-mono">{summary.vatPercent}%</span>) sobre cada venta, aparte de la
-          comisión que tú definas para tus creadores.
-        </p>
       </div>
     </div>
   );

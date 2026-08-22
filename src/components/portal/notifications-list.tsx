@@ -22,6 +22,15 @@ export function NotificationsList({ notifications }: { notifications: Notificati
     router.refresh();
   }
 
+  async function markRead(notificationId: string) {
+    await fetch("/api/notificaciones", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notificationId }),
+    });
+    router.refresh();
+  }
+
   const hasUnread = notifications.some((n) => !n.read);
 
   return (
@@ -42,14 +51,20 @@ export function NotificationsList({ notifications }: { notifications: Notificati
           {notifications.map((n) => (
             <li
               key={n.id}
+              onClick={() => !n.read && markRead(n.id)}
               className={`rounded-xl border border-brand-line p-4 text-sm ${
-                n.read ? "bg-brand-surface text-brand-ink-soft" : "bg-brand-accent-soft text-brand-ink"
+                n.read
+                  ? "bg-brand-surface text-brand-ink-soft"
+                  : "bg-brand-accent-soft text-brand-ink cursor-pointer hover:opacity-90"
               }`}
             >
               <p>{n.message}</p>
-              <p className="text-xs text-brand-ink-soft mt-1 font-mono">
-                {new Date(n.createdAt).toLocaleDateString("es-CO")}
-              </p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-brand-ink-soft font-mono">
+                  {new Date(n.createdAt).toLocaleDateString("es-CO")}
+                </p>
+                {!n.read && <span className="text-xs text-brand-accent font-medium">Marcar leída</span>}
+              </div>
             </li>
           ))}
         </ul>
