@@ -1,0 +1,64 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import {
+  verifyShopifyWebhookSignature,
+  type ShopifyOrderWebhookPayload,
+  type ShopifyRefundWebhookPayload,
+} from "@/server/integrations/shopify-client";
+import { recordOrderFromWebhook, recordRefundFromWebhook } from "@/server/services/attribution-service";
+
+/// Shopify avisa qué evento es en el header `X-Shopify-Topic`
+/// (ej. "orders/create", "refunds/create").
+export async function POST(req: Request, { params }: { params: Promise<{ brandId: string }> }) {
+  const { brandId } = await params;
+
+  const brand = await prisma.brandProfile.findUnique({ where: { id: brandId } });
+  if (!brand || !brand.webhookSecret) {
+    // Ni existe la marca ni tiene webhook activado — no revelamos cuál caso
+    // es, para no darle pistas a quien intenta adivinar IDs.
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const rawBody = await req.text();
+  const hmac = req.headers.get("x-shopify-hmac-sha256");
+  if (!verifyShopifyWebhookSignature(rawBody, hmac, brand.webhookSecret)) {
+    return NextResponse.json({ error: "Firma inválida" }, { status: 401 });
+  }
+
+  const topic = req.headers.get("x-shopify-topic");
+  const payload = JSON.parse(rawBody);
+
+  if (topic === "orders/create" || topic === "orders/updated") {
+    const order = payload as ShopifyOrderWebhookPayload;
+    const code = order.discount_codes?.[0]?.code ?? null;
+    const gross = Number(order.total_line_items_price);
+    const discount = Number(order.total_discounts);
+
+    const result = await recordOrderFromWebhook({
+      brandId,
+      source: "SHOPIFY",
+      externalOrderId: String(order.id),
+      discountCode: code,
+      grossAmount: gross,
+      discountAmount: discount,
+      netAmount: gross - discount,
+      occurredAt: new Date(order.created_at),
+    });
+
+    return NextResponse.json({ ok: true, ...result });
+  }
+
+  if (topic === "refunds/create") {
+    const refund = payload as ShopifyRefundWebhookPayload;
+    const result = await recordRefundFromWebhook({
+      brandId,
+      source: "SHOPIFY",
+      externalOrderId: String(refund.order_id),
+      refundedAt: new Date(),
+    });
+    return NextResponse.json({ ok: true, ...result });
+  }
+
+  // Otros topics (ej. app/uninstalled) — los reconocemos pero no hacemos nada.
+  return NextResponse.json({ ok: true, ignored: true });
+}

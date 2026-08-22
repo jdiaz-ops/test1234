@@ -1,11 +1,12 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getWebhookUrl } from "@/server/services/brand-profile-service";
 import { StoreConnectionForm } from "@/components/portal/store-connection-form";
 
 const statusLabel: Record<string, string> = {
   NOT_CONNECTED: "No conectada todavía",
   CONNECTED: "Conectada",
-  ERROR: "Error de conexión",
+  ERROR: "Error de conexión — revisa tus credenciales",
 };
 
 export default async function TiendaPage() {
@@ -13,6 +14,11 @@ export default async function TiendaPage() {
   const profile = await prisma.brandProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },
   });
+
+  const webhookUrl =
+    profile.webhookSecret && (profile.storeType === "SHOPIFY" || profile.storeType === "WOOCOMMERCE")
+      ? getWebhookUrl(profile.id, profile.storeType)
+      : null;
 
   return (
     <div>
@@ -27,7 +33,15 @@ export default async function TiendaPage() {
       </p>
 
       <StoreConnectionForm
-        initial={{ storeType: profile.storeType, storeUrl: profile.storeUrl ?? "" }}
+        initial={{
+          storeType: profile.storeType,
+          storeUrl: profile.storeUrl ?? "",
+          shopifyAccessToken: profile.shopifyAccessToken ?? "",
+          wooConsumerKey: profile.wooConsumerKey ?? "",
+          wooConsumerSecret: profile.wooConsumerSecret ?? "",
+        }}
+        initialWebhookUrl={webhookUrl}
+        initialWebhookSecret={profile.webhookSecret ?? null}
       />
     </div>
   );

@@ -1,0 +1,83 @@
+import crypto from "crypto";
+
+// Integración con la REST API de WooCommerce. Igual que con Shopify, no hay
+// una tienda real conectada para probar esto en vivo — el código sigue la
+// documentación oficial de WooCommerce (Coupons API + Webhooks), y lo único
+// que no se pudo verificar end-to-end es la llamada real a la tienda
+// WordPress. La parte crítica (recibir y validar sus webhooks) sí está
+// probada — ver /api/webhooks/woocommerce/[brandId].
+
+const API_PATH = "wp-json/wc/v3";
+
+export class WooCommerceApiError extends Error {}
+
+function restApiUrl(storeUrl: string, path: string) {
+  const host = new URL(storeUrl).origin;
+  return `${host}/${API_PATH}/${path}`;
+}
+
+function basicAuthHeader(consumerKey: string, consumerSecret: string) {
+  return "Basic " + Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
+}
+
+/// Crea el cupón de descuento único del creador directamente en la tienda
+/// de la marca — el creador nunca tiene que hacerlo a mano.
+export async function createWooCommerceCoupon(params: {
+  storeUrl: string;
+  consumerKey: string;
+  consumerSecret: string;
+  code: string;
+  discountPercent: number;
+}): Promise<{ couponId: string }> {
+  const res = await fetch(restApiUrl(params.storeUrl, "coupons"), {
+    method: "POST",
+    headers: {
+      Authorization: basicAuthHeader(params.consumerKey, params.consumerSecret),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      code: params.code,
+      discount_type: "percent",
+      amount: String(params.discountPercent),
+      individual_use: false,
+      free_shipping: false,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new WooCommerceApiError(`No se pudo crear el cupón (${res.status})`);
+  }
+  const body = await res.json();
+  return { couponId: String(body.id) };
+}
+
+/// Verifica que un webhook realmente venga de WooCommerce (firma
+/// HMAC-SHA256 sobre el cuerpo crudo, codificada en base64, comparada con
+/// el secreto guardado para esa marca) — sin esto, cualquiera podría
+/// inventarse ventas falsas.
+export function verifyWooCommerceWebhookSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  secret: string
+) {
+  if (!signatureHeader) return false;
+  const digest = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("base64");
+  try {
+    return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signatureHeader));
+  } catch {
+    return false; // longitudes distintas → timingSafeEqual lanza error
+  }
+}
+
+/// Forma de los campos que realmente usamos del payload del webhook
+/// `order.created`/`order.updated` de WooCommerce — el payload real trae
+/// muchos más campos.
+export interface WooCommerceOrderWebhookPayload {
+  id: number | string;
+  status: string;
+  total: string;
+  discount_total: string;
+  coupon_lines: { code: string; discount: string }[];
+  date_created: string;
+  date_modified: string;
+}

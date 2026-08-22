@@ -253,6 +253,9 @@ model BrandProfile {
   shopifyAccessToken    String?
   wooConsumerKey        String?
   wooConsumerSecret     String?
+  /// Secreto único para verificar la firma de los webhooks entrantes (tanto
+  /// Shopify como WooCommerce) — se genera al conectar la tienda.
+  webhookSecret         String?
 
   /// Tarifa de plataforma para ESTA marca. Si es null, aplica el valor por
   /// defecto de PlatformConfig (5%) — el admin puede sobrescribirla por
@@ -263,8 +266,9 @@ model BrandProfile {
   /// automático del día 1 — nunca se guarda el número de tarjeta aquí.
   cardTokenRef String?
 
-  offers  Offer[]
-  charges BrandCharge[]
+  offers       Offer[]
+  charges      BrandCharge[]
+  transactions Transaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -417,6 +421,9 @@ enum TransactionStatus {
 model Transaction {
   id String @id @default(cuid())
 
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id])
+
   offerId String
   offer   Offer  @relation(fields: [offerId], references: [id])
 
@@ -441,6 +448,11 @@ model Transaction {
   commission Commission?
 
   createdAt DateTime @default(now())
+
+  /// El mismo pedido nunca puede convertirse en dos Transactions — protege
+  /// contra reintentos de webhook (Shopify/WooCommerce reenvían si no
+  /// reciben 200 a tiempo).
+  @@unique([brandId, source, externalOrderId])
 }
 
 // ----------------------------------------------------------------------------

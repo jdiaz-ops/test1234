@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { provisionDiscountCodeForEnrollment } from "@/server/services/attribution-service";
 
 export class MarketplaceError extends Error {}
 
@@ -29,10 +30,11 @@ export async function getEnrollmentsForCreator(creatorId: string) {
   });
 }
 
-/// Une al creador a una oferta. La creación del código real en la tienda de
-/// la marca (Shopify/WooCommerce) la hace el Motor de Atribución — por ahora
-/// el código queda registrado como el baseCode del creador, listo para que
-/// esa integración lo tome cuando esté construida.
+/// Une al creador a una oferta. El código del creador queda registrado de
+/// inmediato (discountCode = su baseCode); si la oferta es OPEN (queda
+/// ACTIVE al toque) el Motor de Atribución intenta crear ese código de
+/// verdad en la tienda de la marca. Si es APPROVAL, eso se dispara recién
+/// cuando la marca aprueba (ver enrollment-management-service).
 export async function joinOffer(creatorId: string, offerId: string) {
   const offer = await prisma.offer.findUnique({
     where: { id: offerId },
@@ -52,7 +54,7 @@ export async function joinOffer(creatorId: string, offerId: string) {
 
   const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: creatorId } });
 
-  return prisma.creatorOfferEnrollment.create({
+  const enrollment = await prisma.creatorOfferEnrollment.create({
     data: {
       creatorId,
       offerId,
@@ -60,4 +62,10 @@ export async function joinOffer(creatorId: string, offerId: string) {
       discountCode: creator.baseCode,
     },
   });
+
+  if (enrollment.status === "ACTIVE") {
+    await provisionDiscountCodeForEnrollment(enrollment.id);
+  }
+
+  return enrollment;
 }

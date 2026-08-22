@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { provisionDiscountCodeForEnrollment } from "@/server/services/attribution-service";
 
 export class EnrollmentManagementError extends Error {}
 
@@ -20,10 +21,12 @@ async function assertBelongsToBrand(enrollmentId: string, brandId: string) {
 
 export async function approveEnrollment(brandId: string, enrollmentId: string) {
   await assertBelongsToBrand(enrollmentId, brandId);
-  return prisma.creatorOfferEnrollment.update({
+  const enrollment = await prisma.creatorOfferEnrollment.update({
     where: { id: enrollmentId },
     data: { status: "ACTIVE" },
   });
+  await provisionDiscountCodeForEnrollment(enrollment.id);
+  return enrollment;
 }
 
 export async function rejectEnrollment(brandId: string, enrollmentId: string) {

@@ -11,6 +11,9 @@ export const updateBrandProfileSchema = z.object({
 export const updateStoreSchema = z.object({
   storeType: z.enum(["SHOPIFY", "WOOCOMMERCE", "OTHER"]),
   storeUrl: z.string().url("Ingresa una URL válida (https://...)"),
+  shopifyAccessToken: z.string().optional().or(z.literal("")),
+  wooConsumerKey: z.string().optional().or(z.literal("")),
+  wooConsumerSecret: z.string().optional().or(z.literal("")),
 });
 
 const percent = z.number().min(0, "Debe ser 0 o más").max(100, "No puede superar 100");
