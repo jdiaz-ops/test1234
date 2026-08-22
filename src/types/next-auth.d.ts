@@ -11,6 +11,10 @@ declare module "next-auth" {
       id: string;
       role: UserRole;
       adminRole?: AdminRole | null;
+      /// true cuando esta sesión nació de "Entrar como" (un admin
+      /// Propietario viendo el portal como esta cuenta) — ver
+      /// src/lib/impersonation.ts.
+      impersonated?: boolean;
     } & DefaultSessionUser;
   }
 }
@@ -20,6 +24,7 @@ declare module "next-auth/jwt" {
     id: string;
     role: UserRole;
     adminRole?: AdminRole | null;
+    impersonated?: boolean;
   }
 }
 

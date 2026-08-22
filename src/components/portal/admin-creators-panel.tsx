@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { EnterAsButton } from "@/components/portal/enter-as-button";
 
 type Creator = {
   id: string;
+  userId: string;
   displayName: string;
   city: string | null;
   baseCode: string;
@@ -96,7 +98,7 @@ function AddCreatorForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-export function AdminCreatorsPanel({ creators }: { creators: Creator[] }) {
+export function AdminCreatorsPanel({ creators, isOwner }: { creators: Creator[]; isOwner: boolean }) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [addingCreator, setAddingCreator] = useState(false);
@@ -149,13 +151,16 @@ export function AdminCreatorsPanel({ creators }: { creators: Creator[] }) {
                 )}
               </td>
               <td className="px-5 py-3">
-                <button
-                  onClick={() => toggleSuspended(c.id, !c.suspended)}
-                  disabled={loadingId === c.id}
-                  className="text-xs text-brand-ink-soft hover:text-red-600 hover:underline"
-                >
-                  {c.suspended ? "Reactivar" : "Suspender"}
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => toggleSuspended(c.id, !c.suspended)}
+                    disabled={loadingId === c.id}
+                    className="text-xs text-brand-ink-soft hover:text-red-600 hover:underline"
+                  >
+                    {c.suspended ? "Reactivar" : "Suspender"}
+                  </button>
+                  {isOwner && <EnterAsButton userId={c.userId} role="CREATOR" />}
+                </div>
               </td>
             </tr>
           ))}

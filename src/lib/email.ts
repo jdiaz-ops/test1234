@@ -18,7 +18,16 @@ async function send(to: string, subject: string, html: string) {
     console.log(`\n📧  [email simulado] Para: ${to}\nAsunto: ${subject}\n${html}\n`);
     return;
   }
-  await resend.emails.send({ from: FROM, to, subject, html });
+
+  try {
+    await resend.emails.send({ from: FROM, to, subject, html });
+  } catch (err) {
+    // Un correo que no sale (dominio sin verificar, límite de Resend en modo
+    // de prueba, lo que sea) nunca debe tumbar la acción que lo disparó —
+    // registrarse, restablecer contraseña, etc. Se deja registrado el error
+    // para poder diagnosticarlo en los logs, pero el flujo sigue.
+    console.error(`[email] no se pudo enviar a ${to} ("${subject}"):`, err);
+  }
 }
 
 export async function sendVerificationEmail(to: string, verifyUrl: string) {

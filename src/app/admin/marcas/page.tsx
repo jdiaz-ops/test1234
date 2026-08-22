@@ -1,7 +1,10 @@
+import { auth } from "@/auth";
 import { listBrands } from "@/server/services/admin-brand-service";
 import { AdminBrandsPanel } from "@/components/portal/admin-brands-panel";
+import { isOwner } from "@/lib/current-admin";
 
 export default async function AdminMarcasPage() {
+  const session = await auth();
   const brands = await listBrands();
   const pendingCount = brands.filter((b) => b.status === "PENDING").length;
 
@@ -23,6 +26,7 @@ export default async function AdminMarcasPage() {
             ? Number(b.platformFeePercentOverride)
             : null,
         }))}
+        isOwner={isOwner(session!.user.adminRole)}
       />
     </div>
   );

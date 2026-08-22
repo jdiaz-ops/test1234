@@ -101,6 +101,20 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+/// Token de un solo uso, de muy corta duración, para que un admin Propietario
+/// pueda "entrar como" una marca o un creador y ver el portal tal cual lo ve
+/// esa cuenta (soporte, pruebas) — nunca se reutiliza el mecanismo de
+/// VerificationToken para esto, porque ese sí se manda por correo y no debe
+/// poder usarse para iniciar sesión sin contraseña.
+model ImpersonationToken {
+  id              String   @id @default(cuid())
+  token           String   @unique
+  targetUserId    String
+  createdByUserId String
+  expires         DateTime
+  createdAt       DateTime @default(now())
+}
+
 // ----------------------------------------------------------------------------
 // VERTICALES Y CATEGORÍAS
 // Estructurado en dos niveles desde el día 1 para soportar la expansión

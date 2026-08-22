@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { EnterAsButton } from "@/components/portal/enter-as-button";
 
 type Brand = {
   id: string;
+  userId: string;
   companyName: string;
   city: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED" | "PAUSED";
@@ -141,7 +143,7 @@ function FeeEditor({ brand, onDone }: { brand: Brand; onDone: () => void }) {
   );
 }
 
-export function AdminBrandsPanel({ brands }: { brands: Brand[] }) {
+export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner: boolean }) {
   const router = useRouter();
   const [editingFeeId, setEditingFeeId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -239,6 +241,7 @@ export function AdminBrandsPanel({ brands }: { brands: Brand[] }) {
                       Reactivar
                     </button>
                   )}
+                  {isOwner && <EnterAsButton userId={b.userId} role="BRAND" />}
                 </div>
               </td>
             </tr>
