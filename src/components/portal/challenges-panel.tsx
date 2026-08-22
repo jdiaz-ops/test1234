@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChallengeForm } from "./challenge-form";
-
-type ChallengeType = "GOAL_BONUS" | "TEMP_COMMISSION_BOOST" | "LEADERBOARD" | "WELCOME_BONUS" | "CONTENT_CHALLENGE";
+import type { ChallengeType } from "@/lib/challenge-types";
 
 const typeLabel: Record<ChallengeType, string> = {
-  GOAL_BONUS: "Bono por meta de ventas",
-  TEMP_COMMISSION_BOOST: "Comisión temporal elevada",
+  GOAL_BONUS: "Bono por ventas generadas",
+  TEMP_COMMISSION_BOOST: "Comisión temporal elevada (todos los creadores)",
   LEADERBOARD: "Leaderboard",
   WELCOME_BONUS: "Bono de bienvenida",
   CONTENT_CHALLENGE: "Reto de contenido",

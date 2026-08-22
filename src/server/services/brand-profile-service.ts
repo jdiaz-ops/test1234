@@ -18,6 +18,14 @@ export async function updateBrandProfile(
     taxId?: string;
     description?: string;
     city?: string;
+    websiteUrl?: string;
+    phone?: string;
+    fiscalAddress?: string;
+    taxRegime?: string;
+    legalRepName?: string;
+    legalRepId?: string;
+    instagramHandle?: string;
+    tiktokHandle?: string;
   }
 ) {
   return prisma.brandProfile.update({ where: { userId }, data });

@@ -10,9 +10,8 @@ export default async function OfertasPage() {
     where: { userId: session!.user.id },
   });
 
-  const [offers, categories, summary] = await Promise.all([
+  const [offers, summary] = await Promise.all([
     listOffersForBrand(profile.id),
-    prisma.category.findMany({ orderBy: { name: "asc" } }),
     getBrandDashboardSummary(profile.id),
   ]);
 
@@ -31,7 +30,6 @@ export default async function OfertasPage() {
           defaultCommissionPercent: Number(o.defaultCommissionPercent),
           defaultDiscountPercent: Number(o.defaultDiscountPercent),
         }))}
-        categories={categories}
         platformFeePercent={summary.platformFeePercent}
         vatPercent={summary.vatPercent}
       />

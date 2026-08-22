@@ -6,6 +6,14 @@ export const updateBrandProfileSchema = z.object({
   taxId: z.string().optional().or(z.literal("")),
   description: z.string().max(500).optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
+  websiteUrl: z.string().url("Ingresa una URL válida (https://...)").optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+  fiscalAddress: z.string().optional().or(z.literal("")),
+  taxRegime: z.string().optional().or(z.literal("")),
+  legalRepName: z.string().optional().or(z.literal("")),
+  legalRepId: z.string().optional().or(z.literal("")),
+  instagramHandle: z.string().optional().or(z.literal("")),
+  tiktokHandle: z.string().optional().or(z.literal("")),
 });
 
 export const updateStoreSchema = z.object({

@@ -4,12 +4,32 @@ import { awardWelcomeBonusIfEligible } from "@/server/services/challenge-service
 
 export class EnrollmentManagementError extends Error {}
 
+/// Trae los creadores vinculados a las ofertas de una marca, cada uno con
+/// sus números (transacciones, órdenes, ingreso generado) para que la marca
+/// vea rápido quién le está funcionando mejor — ordenados de mayor a menor
+/// ingreso generado por defecto.
 export async function listEnrollmentsForBrand(brandId: string) {
-  return prisma.creatorOfferEnrollment.findMany({
+  const enrollments = await prisma.creatorOfferEnrollment.findMany({
     where: { offer: { brandId } },
     include: { creator: true, offer: true },
-    orderBy: { joinedAt: "desc" },
   });
+
+  const stats = await prisma.transaction.groupBy({
+    by: ["enrollmentId"],
+    where: { offer: { brandId }, status: { not: "REFUNDED" } },
+    _count: { _all: true },
+    _sum: { netAmount: true },
+  });
+  const statsByEnrollment = new Map(
+    stats.map((s) => [s.enrollmentId, { orders: s._count._all, revenue: Number(s._sum.netAmount ?? 0) }])
+  );
+
+  return enrollments
+    .map((e) => {
+      const s = statsByEnrollment.get(e.id) ?? { orders: 0, revenue: 0 };
+      return { ...e, orderCount: s.orders, transactionCount: s.orders, revenue: s.revenue };
+    })
+    .sort((a, b) => b.revenue - a.revenue);
 }
 
 async function assertBelongsToBrand(enrollmentId: string, brandId: string) {

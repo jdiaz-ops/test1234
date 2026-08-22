@@ -46,12 +46,14 @@ export async function createCommissionForTransaction(transactionId: string) {
 
   const config = await prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } });
 
-  // Un TEMP_COMMISSION_BOOST activo en la fecha de la venta manda sobre el
-  // % normal de la oferta/inscripción (pero no sobre un override puntual
-  // del creador — eso sigue siendo lo más específico).
+  // Un TEMP_COMMISSION_BOOST activo en la fecha de la venta es la prioridad
+  // máxima: sobrescribe absolutamente todo — el % normal de la oferta Y
+  // cualquier override individual que tenga negociado un creador — porque
+  // es una campaña temporal pareja para todos los embajadores vinculados a
+  // esta oferta mientras dure, sin excepciones.
   const boostPercent = await getActiveCommissionBoost(transaction.offerId, transaction.occurredAt);
   const commissionPercent = Number(
-    transaction.enrollment.commissionPercentOverride ?? boostPercent ?? transaction.offer.defaultCommissionPercent
+    boostPercent ?? transaction.enrollment.commissionPercentOverride ?? transaction.offer.defaultCommissionPercent
   );
   const platformFeePercent = transaction.brand.platformFeePercentOverride
     ? Number(transaction.brand.platformFeePercentOverride)

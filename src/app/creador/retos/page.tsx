@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listActiveChallengesForCreator, listRewardsForCreator } from "@/server/services/challenge-service";
 import { CreatorChallengesPanel } from "@/components/portal/creator-challenges-panel";
+import { HIDDEN_CHALLENGE_TYPES } from "@/lib/challenge-types";
 
 const rewardStatusLabel: Record<string, string> = {
   PENDING_REVIEW: "En revisión",
@@ -33,7 +34,9 @@ export default async function CreadorRetosPage() {
 
       <h2 className="font-display font-semibold text-brand-ink mb-4">Retos activos</h2>
       <CreatorChallengesPanel
-        activeChallenges={active.map((a) => ({
+        activeChallenges={active
+          .filter((a) => !HIDDEN_CHALLENGE_TYPES.includes(a.challenge.type))
+          .map((a) => ({
           challenge: {
             id: a.challenge.id,
             name: a.challenge.name,

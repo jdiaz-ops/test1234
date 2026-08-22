@@ -2,20 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-type ChallengeType = "GOAL_BONUS" | "TEMP_COMMISSION_BOOST" | "LEADERBOARD" | "WELCOME_BONUS" | "CONTENT_CHALLENGE";
+import { VISIBLE_CHALLENGE_TYPES, type ChallengeType } from "@/lib/challenge-types";
 
 const typeLabel: Record<ChallengeType, string> = {
-  GOAL_BONUS: "Bono por meta de ventas",
-  TEMP_COMMISSION_BOOST: "Comisión temporal elevada",
+  GOAL_BONUS: "Bono por ventas generadas",
+  TEMP_COMMISSION_BOOST: "Comisión temporal elevada (para todos los creadores)",
   LEADERBOARD: "Leaderboard con premio al Top N",
   WELCOME_BONUS: "Bono de bienvenida (primeros N cupos)",
   CONTENT_CHALLENGE: "Reto de contenido (revisión manual)",
 };
 
 const typeHint: Record<ChallengeType, string> = {
-  GOAL_BONUS: "El creador gana un bono fijo si sus ventas en el período llegan a la meta.",
-  TEMP_COMMISSION_BOOST: "Durante el período, todas las ventas de esta oferta pagan este % en vez del normal.",
+  GOAL_BONUS:
+    "El creador gana un bono fijo si el total de lo que vende con su código, durante este período, llega a la meta que definas.",
+  TEMP_COMMISSION_BOOST:
+    "Sube la comisión para TODOS los creadores vinculados a esta oferta durante el período, sin excepción — reemplaza la comisión normal de cada uno mientras dure, sin importar lo que tengan configurado individualmente.",
   LEADERBOARD: "Al terminar el período, los N creadores con más ventas se llevan el premio correspondiente a su puesto.",
   WELCOME_BONUS: "Los primeros N creadores que se unan a la oferta durante el período ganan el bono, sin esperar ventas.",
   CONTENT_CHALLENGE: "El creador manda un link como evidencia; tú lo revisas y decides si aprobar el bono.",
@@ -102,7 +103,7 @@ export function ChallengeForm({ offers, onDone }: { offers: { id: string; name: 
       <div>
         <label className="block text-sm text-brand-ink mb-1">Tipo de reto</label>
         <select value={type} onChange={(e) => setType(e.target.value as ChallengeType)} className="input">
-          {(Object.keys(typeLabel) as ChallengeType[]).map((t) => (
+          {VISIBLE_CHALLENGE_TYPES.map((t) => (
             <option key={t} value={t}>
               {typeLabel[t]}
             </option>

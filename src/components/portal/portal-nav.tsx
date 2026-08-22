@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
+// ruta siguen intactos, solo se quitó del menú.
 const items = [
   { href: "/creador", label: "Dashboard", exact: true },
   { href: "/creador/marketplace", label: "Marketplace" },
@@ -10,7 +12,6 @@ const items = [
   { href: "/creador/storefront", label: "Mi Storefront" },
   { href: "/creador/codigos", label: "Mis Códigos y Links" },
   { href: "/creador/transacciones", label: "Transacciones" },
-  { href: "/creador/mensajes", label: "Mensajes" },
   { href: "/creador/perfil", label: "Perfil" },
   { href: "/creador/pago", label: "Configuración de pago" },
   { href: "/creador/notificaciones", label: "Notificaciones" },

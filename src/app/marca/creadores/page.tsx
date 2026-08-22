@@ -22,6 +22,8 @@ export default async function CreadoresVinculadosPage() {
           ...e,
           commissionPercentOverride: e.commissionPercentOverride ? Number(e.commissionPercentOverride) : null,
           discountPercentOverride: e.discountPercentOverride ? Number(e.discountPercentOverride) : null,
+          orderCount: e.orderCount,
+          revenue: e.revenue,
           offer: {
             ...e.offer,
             defaultCommissionPercent: Number(e.offer.defaultCommissionPercent),

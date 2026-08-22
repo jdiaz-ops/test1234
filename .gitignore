@@ -42,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# archivos subidos en desarrollo local (sin BLOB_READ_WRITE_TOKEN) — ver src/lib/file-upload.ts
+/public/uploads

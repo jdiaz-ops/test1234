@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Category = { id: string; name: string };
-
 type OfferValues = {
   name: string;
   description: string;
@@ -16,12 +14,10 @@ type OfferValues = {
 };
 
 export function OfferForm({
-  categories,
   initial,
   offerId,
   onDone,
 }: {
-  categories: Category[];
   initial?: OfferValues;
   offerId?: string;
   onDone?: () => void;
@@ -31,7 +27,7 @@ export function OfferForm({
     initial ?? {
       name: "",
       description: "",
-      categoryId: categories[0]?.id ?? null,
+      categoryId: null,
       defaultCommissionPercent: 15,
       defaultDiscountPercent: 15,
       joinMode: "OPEN",
@@ -90,21 +86,6 @@ export function OfferForm({
           className="input min-h-16"
         />
       </div>
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">Categoría</label>
-        <select
-          value={form.categoryId ?? ""}
-          onChange={(e) => setForm({ ...form, categoryId: e.target.value || null })}
-          className="input"
-        >
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-brand-ink mb-1">% Comisión al creador</label>
@@ -132,7 +113,9 @@ export function OfferForm({
             onChange={(e) => setForm({ ...form, defaultDiscountPercent: Number(e.target.value) })}
             className="input font-mono"
           />
-          <p className="text-xs text-brand-ink-soft mt-1">Lo que recibe el comprador final.</p>
+          <p className="text-xs text-brand-ink-soft mt-1">
+            El descuento que se aplicaría en la compra para el consumidor final.
+          </p>
         </div>
       </div>
 

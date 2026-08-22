@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { OfferForm } from "./offer-form";
 
-type Category = { id: string; name: string };
 type Offer = {
   id: string;
   name: string;
@@ -43,8 +42,11 @@ function CostCalculator({
 
   return (
     <div className="rounded-xl bg-brand-bg border border-brand-line p-4 text-xs font-mono space-y-1">
+      <p className="text-brand-ink-soft not-italic mb-2 font-sans">
+        Ejemplo — ticket de compra de {formatCOP(listPrice)}:
+      </p>
       <div className="flex justify-between text-brand-ink-soft">
-        <span>Precio de lista</span>
+        <span>Compra del cliente</span>
         <span>{formatCOP(listPrice)}</span>
       </div>
       <div className="flex justify-between text-brand-ink-soft">
@@ -69,12 +71,10 @@ function CostCalculator({
 
 export function OffersPanel({
   offers,
-  categories,
   platformFeePercent,
   vatPercent,
 }: {
   offers: Offer[];
-  categories: Category[];
   platformFeePercent: number;
   vatPercent: number;
 }) {
@@ -84,20 +84,22 @@ export function OffersPanel({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display font-semibold text-brand-ink">Tus ofertas ({offers.length})</h2>
-        {!creating && (
+        <h2 className="font-display font-semibold text-brand-ink">
+          {offers.length === 0 ? "Configura tu oferta" : "Tu oferta"}
+        </h2>
+        {!creating && offers.length === 0 && (
           <button
             onClick={() => setCreating(true)}
             className="text-sm text-brand-accent font-medium hover:underline"
           >
-            + Nueva oferta
+            + Crear oferta
           </button>
         )}
       </div>
 
       {creating && (
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 mb-6">
-          <OfferForm categories={categories} onDone={() => setCreating(false)} />
+          <OfferForm onDone={() => setCreating(false)} />
         </div>
       )}
 
@@ -106,7 +108,6 @@ export function OffersPanel({
           <div key={offer.id} className="rounded-2xl border border-brand-line bg-brand-surface p-6">
             {editingId === offer.id ? (
               <OfferForm
-                categories={categories}
                 offerId={offer.id}
                 initial={{
                   name: offer.name,
@@ -124,7 +125,6 @@ export function OffersPanel({
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="text-xs text-brand-ink-soft mb-1">
-                      {offer.category?.name ?? "General"} ·{" "}
                       <span className={offer.status === "ACTIVE" ? "text-brand-accent" : ""}>
                         {offer.status === "ACTIVE" ? "Activa" : "Pausada"}
                       </span>

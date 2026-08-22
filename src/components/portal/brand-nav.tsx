@@ -3,17 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
+// ruta siguen intactos, solo se quitó del menú. Perfil, Facturación y
+// Notificaciones se consolidaron dentro de Cuenta.
 const items = [
   { href: "/marca", label: "Dashboard", exact: true },
   { href: "/marca/ofertas", label: "Oferta y comisión" },
   { href: "/marca/retos", label: "Retos y Campañas" },
   { href: "/marca/creadores", label: "Creadores vinculados" },
-  { href: "/marca/mensajes", label: "Mensajes" },
   { href: "/marca/transacciones", label: "Transacciones" },
-  { href: "/marca/perfil", label: "Perfil" },
-  { href: "/marca/facturacion", label: "Facturación" },
   { href: "/marca/tienda", label: "Conexión de tienda" },
-  { href: "/marca/notificaciones", label: "Notificaciones" },
   { href: "/marca/cuenta", label: "Cuenta" },
 ];
 

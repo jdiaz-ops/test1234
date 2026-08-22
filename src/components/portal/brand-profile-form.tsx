@@ -2,17 +2,67 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FileUploadField } from "@/components/portal/file-upload-field";
 
-export function BrandProfileForm({
-  initial,
+type Values = {
+  companyName: string;
+  legalName: string;
+  taxId: string;
+  description: string;
+  city: string;
+  websiteUrl: string;
+  phone: string;
+  fiscalAddress: string;
+  taxRegime: string;
+  legalRepName: string;
+  legalRepId: string;
+  instagramHandle: string;
+  tiktokHandle: string;
+};
+
+type Files = {
+  logoUrl: string | null;
+  rutDocumentUrl: string | null;
+  camaraComercioUrl: string | null;
+};
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
 }: {
-  initial: { companyName: string; legalName: string; taxId: string; description: string; city: string };
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
 }) {
+  return (
+    <div>
+      <label className="block text-sm text-brand-ink mb-1">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="input"
+      />
+    </div>
+  );
+}
+
+export function BrandProfileForm({ initial, files }: { initial: Values; files: Files }) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  function set<K extends keyof Values>(key: K, value: Values[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,59 +89,65 @@ export function BrandProfileForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 max-w-lg">
+    <div className="space-y-10 max-w-lg">
       <div>
-        <label className="block text-sm text-brand-ink mb-1">Nombre de la marca</label>
-        <input
-          required
-          value={form.companyName}
-          onChange={(e) => setForm({ ...form, companyName: e.target.value })}
-          className="input"
-        />
-      </div>
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">Razón social</label>
-        <input
-          value={form.legalName}
-          onChange={(e) => setForm({ ...form, legalName: e.target.value })}
-          className="input"
-        />
-      </div>
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">NIT</label>
-        <input
-          value={form.taxId}
-          onChange={(e) => setForm({ ...form, taxId: e.target.value })}
-          className="input font-mono"
-        />
-      </div>
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">Descripción</label>
-        <textarea
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          className="input min-h-20"
-        />
-      </div>
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">Ciudad</label>
-        <input
-          value={form.city}
-          onChange={(e) => setForm({ ...form, city: e.target.value })}
-          className="input"
-        />
+        <h2 className="font-display font-semibold text-brand-ink mb-1">Logo</h2>
+        <p className="text-xs text-brand-ink-soft mb-3">
+          Formato cuadrado (1:1), mínimo 400×400px, fondo transparente en PNG o SVG — así se ve bien
+          en cualquier tamaño (lista de marcas, storefront de creadores, comunicados).
+        </p>
+        <FileUploadField kind="logo" label="" currentUrl={files.logoUrl} />
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {saved && <p className="text-sm text-brand-accent">Perfil actualizado.</p>}
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <h2 className="font-display font-semibold text-brand-ink -mb-1">Información del negocio</h2>
+        <Field label="Nombre de la marca" value={form.companyName} onChange={(v) => set("companyName", v)} />
+        <Field label="Página web" value={form.websiteUrl} onChange={(v) => set("websiteUrl", v)} placeholder="https://" type="url" />
+        <div>
+          <label className="block text-sm text-brand-ink mb-1">Descripción</label>
+          <textarea value={form.description} onChange={(e) => set("description", e.target.value)} className="input min-h-20" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Ciudad" value={form.city} onChange={(v) => set("city", v)} />
+          <Field label="Teléfono / WhatsApp" value={form.phone} onChange={(v) => set("phone", v)} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Instagram" value={form.instagramHandle} onChange={(v) => set("instagramHandle", v)} placeholder="@marca" />
+          <Field label="TikTok" value={form.tiktokHandle} onChange={(v) => set("tiktokHandle", v)} placeholder="@marca" />
+        </div>
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-      >
-        {saving ? "Guardando..." : "Guardar cambios"}
-      </button>
-    </form>
+        <h2 className="font-display font-semibold text-brand-ink pt-4 -mb-1">Datos legales y tributarios</h2>
+        <p className="text-xs text-brand-ink-soft -mt-3">Los usamos para la facturación electrónica.</p>
+        <Field label="Razón social" value={form.legalName} onChange={(v) => set("legalName", v)} />
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="NIT" value={form.taxId} onChange={(v) => set("taxId", v)} />
+          <Field label="Régimen tributario" value={form.taxRegime} onChange={(v) => set("taxRegime", v)} placeholder="Responsable de IVA" />
+        </div>
+        <Field label="Dirección fiscal" value={form.fiscalAddress} onChange={(v) => set("fiscalAddress", v)} />
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Representante legal" value={form.legalRepName} onChange={(v) => set("legalRepName", v)} />
+          <Field label="Cédula del representante" value={form.legalRepId} onChange={(v) => set("legalRepId", v)} />
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        {saved && <p className="text-sm text-brand-accent">Perfil actualizado.</p>}
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? "Guardando..." : "Guardar cambios"}
+        </button>
+      </form>
+
+      <div>
+        <h2 className="font-display font-semibold text-brand-ink mb-3">Documentos</h2>
+        <div className="space-y-4">
+          <FileUploadField kind="rut" label="RUT" currentUrl={files.rutDocumentUrl} />
+          <FileUploadField kind="camara" label="Cámara de Comercio" currentUrl={files.camaraComercioUrl} />
+        </div>
+      </div>
+    </div>
   );
 }

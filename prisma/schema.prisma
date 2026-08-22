@@ -253,6 +253,19 @@ model BrandProfile {
   city        String?
   country     String  @default("Colombia")
 
+  /// Perfil más sólido — para que se vea profesional y sirva también para
+  /// lo tributario/facturación (ver BrandInvoice).
+  websiteUrl        String?
+  phone             String?
+  fiscalAddress     String?
+  taxRegime         String? // ej. "Responsable de IVA" / "No responsable"
+  legalRepName      String? // representante legal
+  legalRepId        String? // cédula del representante legal
+  instagramHandle   String?
+  tiktokHandle      String?
+  rutDocumentUrl    String? // PDF/imagen del RUT
+  camaraComercioUrl String? // PDF/imagen de Cámara de Comercio
+
   verticalId String?
   vertical   Vertical? @relation(fields: [verticalId], references: [id])
 
@@ -285,6 +298,7 @@ model BrandProfile {
 
   offers       Offer[]
   charges      BrandCharge[]
+  invoices     BrandInvoice[]
   transactions Transaction[]
 
   createdAt DateTime @default(now())
@@ -635,6 +649,26 @@ model BrandCharge {
 
   commissions      Commission[]
   challengeRewards ChallengeReward[]
+
+  createdAt DateTime @default(now())
+}
+
+/// La factura electrónica de verdad se genera por fuera (proveedor de
+/// facturación electrónica) — Marcolini le manda qué cobrar, y de vuelta
+/// llega un PDF. Este modelo es solo el registro de ese PDF ya generado,
+/// para que la marca lo pueda ver y descargar desde su portal.
+model BrandInvoice {
+  id String @id @default(cuid())
+
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  period String // ej. "2026-08" (mes que factura)
+  amount Decimal @db.Decimal(12, 2)
+  pdfUrl String
+  note   String?
+
+  uploadedByUserId String
 
   createdAt DateTime @default(now())
 }

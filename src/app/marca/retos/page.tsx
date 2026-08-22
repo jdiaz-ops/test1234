@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listChallengesForBrand, listSubmissionsForBrand } from "@/server/services/challenge-service";
 import { ChallengesPanel } from "@/components/portal/challenges-panel";
+import { HIDDEN_CHALLENGE_TYPES } from "@/lib/challenge-types";
 
 export default async function RetosPage() {
   const session = await auth();
@@ -20,14 +21,16 @@ export default async function RetosPage() {
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">RETOS Y CAMPAÑAS</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Motiva a tus creadores</h1>
       <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
-        Lanza bonos por meta, leaderboards, comisiones temporales elevadas,
-        bonos de bienvenida o retos de contenido — el premio se cobra junto
-        con tus comisiones normales.
+        Lanza un bono por ventas generadas o sube la comisión de todos tus
+        creadores por un tiempo limitado — el premio se cobra junto con tus
+        comisiones normales.
       </p>
 
       <ChallengesPanel
         offers={offers}
-        challenges={challenges.map((c) => ({
+        challenges={challenges
+          .filter((c) => !HIDDEN_CHALLENGE_TYPES.includes(c.type))
+          .map((c) => ({
           id: c.id,
           name: c.name,
           type: c.type,

@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-type ChallengeType = "GOAL_BONUS" | "TEMP_COMMISSION_BOOST" | "LEADERBOARD" | "WELCOME_BONUS" | "CONTENT_CHALLENGE";
+import type { ChallengeType } from "@/lib/challenge-types";
 
 const typeLabel: Record<ChallengeType, string> = {
-  GOAL_BONUS: "Bono por meta",
-  TEMP_COMMISSION_BOOST: "Comisión elevada",
+  GOAL_BONUS: "Bono por ventas generadas",
+  TEMP_COMMISSION_BOOST: "Comisión elevada temporal",
   LEADERBOARD: "Leaderboard",
   WELCOME_BONUS: "Bono de bienvenida",
   CONTENT_CHALLENGE: "Reto de contenido",
@@ -123,9 +122,10 @@ export function CreatorChallengesPanel({ activeChallenges }: { activeChallenges:
 
           {challenge.type === "TEMP_COMMISSION_BOOST" && (
             <p className="text-sm text-brand-ink-soft">
-              Todas tus ventas de esta oferta pagan{" "}
-              <span className="text-brand-accent font-mono">{String(challenge.config.newCommissionPercent)}%</span> mientras
-              dure el reto.
+              Comisión especial activa para <strong>todos</strong> los creadores de esta oferta: mientras dure,
+              tus ventas pagan{" "}
+              <span className="text-brand-accent font-mono">{String(challenge.config.newCommissionPercent)}%</span>{" "}
+              en vez de tu comisión normal.
             </p>
           )}
 

@@ -9,9 +9,17 @@ type Enrollment = {
   discountCode: string;
   commissionPercentOverride: number | null;
   discountPercentOverride: number | null;
+  orderCount: number;
+  revenue: number;
   creator: { displayName: string; city: string | null };
   offer: { name: string; defaultCommissionPercent: number; defaultDiscountPercent: number };
 };
+
+function formatCOP(amount: number) {
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
+    amount
+  );
+}
 
 const statusLabel: Record<string, string> = {
   PENDING_APPROVAL: "Esperando tu aprobación",
@@ -104,6 +112,8 @@ export function EnrollmentsPanel({ enrollments }: { enrollments: Enrollment[] })
             <th className="px-5 py-3 font-normal">Creador</th>
             <th className="px-5 py-3 font-normal">Oferta</th>
             <th className="px-5 py-3 font-normal">Código</th>
+            <th className="px-5 py-3 font-normal">Órdenes</th>
+            <th className="px-5 py-3 font-normal">Ingreso generado</th>
             <th className="px-5 py-3 font-normal">Comisión / Descuento</th>
             <th className="px-5 py-3 font-normal">Estado</th>
             <th className="px-5 py-3 font-normal"></th>
@@ -118,6 +128,8 @@ export function EnrollmentsPanel({ enrollments }: { enrollments: Enrollment[] })
               </td>
               <td className="px-5 py-3 text-brand-ink-soft">{e.offer.name}</td>
               <td className="px-5 py-3 font-mono text-brand-accent">{e.discountCode}</td>
+              <td className="px-5 py-3 font-mono text-brand-ink-soft">{e.orderCount}</td>
+              <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(e.revenue)}</td>
               <td className="px-5 py-3">
                 {editingId === e.id ? (
                   <OverrideEditor enrollment={e} onDone={() => setEditingId(null)} />
