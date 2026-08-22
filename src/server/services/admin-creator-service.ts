@@ -1,4 +1,41 @@
 import { prisma } from "@/lib/prisma";
+import { sendAccountInvite } from "@/server/services/auth-service";
+import { generateUniqueBaseCode, generateUniqueStorefrontSlug } from "@/lib/creator-identity";
+
+export class AdminCreatorError extends Error {}
+
+/// El admin agrega el creador a mano — mismo espíritu que
+/// createBrandManually: nace activo de una (los creadores no tienen cola
+/// de aprobación, ver la decisión en Equipo/roles), y le llega un correo
+/// para poner su propia contraseña.
+export async function createCreatorManually(data: { email: string; displayName: string; desiredCode: string; city?: string }) {
+  const existing = await prisma.user.findUnique({ where: { email: data.email } });
+  if (existing) throw new AdminCreatorError("Ya existe una cuenta con este correo.");
+
+  const baseCode = await generateUniqueBaseCode(data.desiredCode);
+  const storefrontSlug = await generateUniqueStorefrontSlug(data.displayName);
+
+  const user = await prisma.user.create({
+    data: {
+      email: data.email,
+      role: "CREATOR",
+      emailVerified: new Date(),
+      creatorProfile: {
+        create: {
+          displayName: data.displayName,
+          city: data.city,
+          baseCode,
+          storefrontSlug,
+        },
+      },
+    },
+    include: { creatorProfile: true },
+  });
+
+  await sendAccountInvite(data.email);
+
+  return user;
+}
 
 export async function listCreators() {
   return prisma.creatorProfile.findMany({

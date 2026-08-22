@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { sendPushForUser } from "@/server/services/push-service";
 
 export async function listNotifications(userId: string) {
   return prisma.notification.findMany({
@@ -22,6 +23,13 @@ export async function markAllNotificationsRead(userId: string) {
   });
 }
 
+/// El único punto donde nace una notificación en toda la plataforma — por
+/// eso es también el único lugar donde hace falta enganchar el push
+/// (ver push-service.ts): todo lo que ya llama a esta función (retos,
+/// pagos, aprobaciones, comunicados...) se vuelve push automáticamente el
+/// día que exista la app móvil, sin tener que tocar nada de eso.
 export async function createNotification(userId: string, type: string, message: string) {
-  return prisma.notification.create({ data: { userId, type, message } });
+  const notification = await prisma.notification.create({ data: { userId, type, message } });
+  await sendPushForUser(userId, "Marcolini", message);
+  return notification;
 }

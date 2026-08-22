@@ -41,7 +41,7 @@ export const monthlyCostSchema = z.object({
   note: z.string().optional(),
 });
 
-export const adminRoleEnum = z.enum(["OWNER", "SUPPORT", "FINANCE", "BRAND_APPROVER"]);
+export const adminRoleEnum = z.enum(["OWNER", "SUPPORT", "FINANCE", "BRAND_APPROVER", "CREATOR_APPROVER"]);
 
 export const createAdminSchema = z.object({
   email: z.string().email(),
@@ -56,4 +56,24 @@ export const updateAdminRoleSchema = z.object({
 
 export const removeAdminSchema = z.object({
   userId: z.string().min(1),
+});
+
+export const createBrandManuallySchema = z.object({
+  email: z.string().email(),
+  companyName: z.string().min(2, "Ingresa el nombre de la marca"),
+  city: z.string().optional().or(z.literal("")),
+});
+
+export const createCreatorManuallySchema = z.object({
+  email: z.string().email(),
+  displayName: z.string().min(2, "Ingresa el nombre del creador"),
+  desiredCode: z.string().min(2, "Ingresa un código deseado"),
+  city: z.string().optional().or(z.literal("")),
+});
+
+export const broadcastSchema = z.object({
+  audience: z.enum(["BRANDS", "CREATORS"]),
+  channels: z.array(z.enum(["EMAIL", "NOTIFICATION"])).min(1, "Elige al menos un canal"),
+  subject: z.string().min(2, "Ingresa un asunto"),
+  body: z.string().min(2, "Escribe el mensaje"),
 });

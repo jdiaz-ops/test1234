@@ -1,4 +1,38 @@
 import { prisma } from "@/lib/prisma";
+import { sendAccountInvite } from "@/server/services/auth-service";
+
+export class AdminBrandError extends Error {}
+
+/// El admin agrega la marca a mano — para el arranque "casi uno a uno",
+/// donde la marca ya se validó por fuera (llamada, reunión), así que nace
+/// ya Aprobada en vez de pasar por la cola de revisión. La persona recibe
+/// un correo para poner su propia contraseña, nunca se la inventa el admin.
+export async function createBrandManually(data: { email: string; companyName: string; city?: string }) {
+  const existing = await prisma.user.findUnique({ where: { email: data.email } });
+  if (existing) throw new AdminBrandError("Ya existe una cuenta con este correo.");
+
+  const user = await prisma.user.create({
+    data: {
+      email: data.email,
+      role: "BRAND",
+      emailVerified: new Date(),
+      brandProfile: {
+        create: {
+          companyName: data.companyName,
+          city: data.city,
+          status: "APPROVED",
+          approvedAt: new Date(),
+          termsAcceptedAt: new Date(),
+        },
+      },
+    },
+    include: { brandProfile: true },
+  });
+
+  await sendAccountInvite(data.email);
+
+  return user;
+}
 
 export async function listBrands(status?: string) {
   return prisma.brandProfile.findMany({

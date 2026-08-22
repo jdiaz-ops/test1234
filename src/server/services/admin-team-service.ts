@@ -11,7 +11,7 @@ export async function listAdmins() {
   });
 }
 
-export async function createAdmin(email: string, adminRole: "OWNER" | "SUPPORT" | "FINANCE" | "BRAND_APPROVER", temporaryPassword: string) {
+export async function createAdmin(email: string, adminRole: "OWNER" | "SUPPORT" | "FINANCE" | "BRAND_APPROVER" | "CREATOR_APPROVER", temporaryPassword: string) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw new AdminTeamError("Ya existe una cuenta con este correo.");
 
@@ -21,7 +21,7 @@ export async function createAdmin(email: string, adminRole: "OWNER" | "SUPPORT" 
   });
 }
 
-export async function updateAdminRole(userId: string, adminRole: "OWNER" | "SUPPORT" | "FINANCE" | "BRAND_APPROVER") {
+export async function updateAdminRole(userId: string, adminRole: "OWNER" | "SUPPORT" | "FINANCE" | "BRAND_APPROVER" | "CREATOR_APPROVER") {
   return prisma.user.update({ where: { id: userId }, data: { adminRole } });
 }
 

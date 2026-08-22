@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createToken, consumeToken, ONE_DAY_MS, ONE_HOUR_MS } from "@/lib/tokens";
-import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/email";
+import { sendVerificationEmail, sendPasswordResetEmail, sendAccountInviteEmail } from "@/lib/email";
 import {
   generateUniqueBaseCode,
   generateUniqueStorefrontSlug,
@@ -134,6 +134,16 @@ export async function requestPasswordReset(email: string) {
   const token = await createToken(email, ONE_HOUR_MS);
   const resetUrl = `${APP_URL}/restablecer-password?token=${token}`;
   await sendPasswordResetEmail(email, resetUrl);
+}
+
+/// Para cuentas que el admin crea a mano (marca o creador agregados
+/// manualmente, sin pasar por el registro público): reusa el mismo
+/// mecanismo de token que la recuperación de contraseña, pero con el
+/// correo de invitación en vez del de "recuperar contraseña".
+export async function sendAccountInvite(email: string) {
+  const token = await createToken(email, ONE_HOUR_MS);
+  const setPasswordUrl = `${APP_URL}/restablecer-password?token=${token}`;
+  await sendAccountInviteEmail(email, setPasswordUrl);
 }
 
 // --------------------------------------------------------------------------

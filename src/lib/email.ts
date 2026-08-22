@@ -35,3 +35,27 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
      <p>Si no fuiste tú, ignora este correo. Este link expira en 1 hora.</p>`
   );
 }
+
+/// Invitación a una cuenta que el admin creó a mano (marca o creador
+/// agregados manualmente) — reusa el mismo link de "restablecer
+/// contraseña" como forma de que la persona ponga su propia clave.
+export async function sendAccountInviteEmail(to: string, setPasswordUrl: string) {
+  await send(
+    to,
+    "Te dieron acceso a Marcolini",
+    `<p>Ya tienes una cuenta activa en Marcolini.</p>
+     <p><a href="${setPasswordUrl}">Haz clic aquí para poner tu contraseña</a> y entrar.</p>
+     <p>Este link expira en 1 hora — si expira, puedes pedir uno nuevo desde "¿Olvidaste tu contraseña?" en la pantalla de inicio de sesión.</p>`
+  );
+}
+
+/// Comunicado del admin a todas las marcas o a todos los creadores — el
+/// cuerpo ya viene armado (texto simple, se envuelve en párrafos).
+export async function sendBroadcastEmail(to: string, subject: string, body: string) {
+  const paragraphs = body
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => `<p>${line}</p>`)
+    .join("\n");
+  await send(to, subject, paragraphs);
+}

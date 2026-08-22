@@ -27,6 +27,82 @@ const statusColor: Record<string, string> = {
   PAUSED: "text-brand-ink-soft",
 };
 
+function AddBrandForm({ onDone }: { onDone: () => void }) {
+  const router = useRouter();
+  const [form, setForm] = useState({ email: "", companyName: "", city: "" });
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+
+    const res = await fetch("/api/admin/marcas/crear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+
+    setSaving(false);
+
+    if (!res.ok) {
+      const body = await res.json();
+      setError(body.error ?? "No se pudo crear la marca.");
+      return;
+    }
+
+    router.refresh();
+    onDone();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="p-5 border-b border-brand-line bg-brand-accent-soft/40 space-y-3">
+      <div className="grid sm:grid-cols-3 gap-3">
+        <input
+          type="email"
+          required
+          placeholder="correo@marca.com"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+          className="input"
+        />
+        <input
+          type="text"
+          required
+          placeholder="Nombre de la marca"
+          value={form.companyName}
+          onChange={(e) => setForm({ ...form, companyName: e.target.value })}
+          className="input"
+        />
+        <input
+          type="text"
+          placeholder="Ciudad (opcional)"
+          value={form.city}
+          onChange={(e) => setForm({ ...form, city: e.target.value })}
+          className="input"
+        />
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex items-center gap-4">
+        <button
+          type="submit"
+          disabled={saving}
+          className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? "Creando..." : "Crear marca"}
+        </button>
+        <button type="button" onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
+          Cancelar
+        </button>
+        <p className="text-xs text-brand-ink-soft">
+          Queda aprobada de inmediato y le llega un correo para poner su contraseña.
+        </p>
+      </div>
+    </form>
+  );
+}
+
 function FeeEditor({ brand, onDone }: { brand: Brand; onDone: () => void }) {
   const router = useRouter();
   const [fee, setFee] = useState(brand.platformFeePercentOverride ?? 5);
@@ -69,6 +145,7 @@ export function AdminBrandsPanel({ brands }: { brands: Brand[] }) {
   const router = useRouter();
   const [editingFeeId, setEditingFeeId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [addingBrand, setAddingBrand] = useState(false);
 
   async function decide(brandId: string, decision: string) {
     setLoadingId(brandId);
@@ -83,6 +160,14 @@ export function AdminBrandsPanel({ brands }: { brands: Brand[] }) {
 
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
+      <div className="flex justify-end px-5 py-3 border-b border-brand-line">
+        {!addingBrand && (
+          <button onClick={() => setAddingBrand(true)} className="text-xs text-brand-accent font-medium hover:underline">
+            + Agregar marca manualmente
+          </button>
+        )}
+      </div>
+      {addingBrand && <AddBrandForm onDone={() => setAddingBrand(false)} />}
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">

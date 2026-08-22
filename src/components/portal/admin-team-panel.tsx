@@ -10,7 +10,36 @@ const roleLabel: Record<string, string> = {
   SUPPORT: "Soporte",
   FINANCE: "Finanzas",
   BRAND_APPROVER: "Aprobador de marcas",
+  CREATOR_APPROVER: "Aprobador de creadores",
 };
+
+const roleExplanation: { role: string; label: string; description: string }[] = [
+  {
+    role: "OWNER",
+    label: "Propietario",
+    description: "Acceso total. Es el único rol que puede editar Configuración de la plataforma y gestionar el Equipo (agregar, cambiar rol o eliminar personas).",
+  },
+  {
+    role: "SUPPORT",
+    label: "Soporte",
+    description: "Atiende el día a día: revisa transacciones, mensajería y responde dudas de marcas y creadores.",
+  },
+  {
+    role: "FINANCE",
+    label: "Finanzas",
+    description: "Sigue de cerca cobros a marcas, pagos a creadores, costos mensuales y reportes financieros.",
+  },
+  {
+    role: "BRAND_APPROVER",
+    label: "Aprobador de marcas",
+    description: "Encargado de revisar y aprobar o rechazar el registro de nuevas marcas.",
+  },
+  {
+    role: "CREATOR_APPROVER",
+    label: "Aprobador de creadores",
+    description: "Encargado de dar seguimiento a los creadores: hoy esto significa suspender o reactivar cuentas desde Creadores. Los creadores quedan activos automáticamente al registrarse — no hay una cola de aprobación separada por ahora.",
+  },
+];
 
 export function AdminTeamPanel({ admins, currentUserId }: { admins: AdminUser[]; currentUserId: string }) {
   const router = useRouter();
@@ -143,6 +172,26 @@ export function AdminTeamPanel({ admins, currentUserId }: { admins: AdminUser[];
           Comunícale la contraseña temporal por fuera de la plataforma — no se envía por correo todavía.
         </p>
       </form>
+
+      <h2 className="font-display font-semibold text-brand-ink mt-10 mb-4">Roles y qué hace cada uno</h2>
+      <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
+              <th className="px-5 py-3 font-normal w-48">Rol</th>
+              <th className="px-5 py-3 font-normal">Función</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-brand-line">
+            {roleExplanation.map((r) => (
+              <tr key={r.role}>
+                <td className="px-5 py-3 text-brand-ink font-medium align-top">{r.label}</td>
+                <td className="px-5 py-3 text-brand-ink-soft align-top">{r.description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

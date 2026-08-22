@@ -12,6 +12,7 @@ const items = [
   { href: "/admin/fraude", label: "Antifraude" },
   { href: "/admin/configuracion", label: "Configuración" },
   { href: "/admin/equipo", label: "Equipo" },
+  { href: "/admin/comunicados", label: "Comunicados" },
   { href: "/admin/notificaciones", label: "Notificaciones" },
   { href: "/admin/cuenta", label: "Cuenta" },
 ];

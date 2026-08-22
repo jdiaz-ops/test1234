@@ -12,9 +12,94 @@ type Creator = {
   _count: { enrollments: number };
 };
 
+function AddCreatorForm({ onDone }: { onDone: () => void }) {
+  const router = useRouter();
+  const [form, setForm] = useState({ email: "", displayName: "", desiredCode: "", city: "" });
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+
+    const res = await fetch("/api/admin/creadores/crear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+
+    setSaving(false);
+
+    if (!res.ok) {
+      const body = await res.json();
+      setError(body.error ?? "No se pudo crear el creador.");
+      return;
+    }
+
+    router.refresh();
+    onDone();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="p-5 border-b border-brand-line bg-brand-accent-soft/40 space-y-3">
+      <div className="grid sm:grid-cols-4 gap-3">
+        <input
+          type="email"
+          required
+          placeholder="correo@creador.com"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+          className="input"
+        />
+        <input
+          type="text"
+          required
+          placeholder="Nombre a mostrar"
+          value={form.displayName}
+          onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+          className="input"
+        />
+        <input
+          type="text"
+          required
+          placeholder="Código deseado"
+          value={form.desiredCode}
+          onChange={(e) => setForm({ ...form, desiredCode: e.target.value })}
+          className="input"
+        />
+        <input
+          type="text"
+          placeholder="Ciudad (opcional)"
+          value={form.city}
+          onChange={(e) => setForm({ ...form, city: e.target.value })}
+          className="input"
+        />
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex items-center gap-4">
+        <button
+          type="submit"
+          disabled={saving}
+          className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? "Creando..." : "Crear creador"}
+        </button>
+        <button type="button" onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
+          Cancelar
+        </button>
+        <p className="text-xs text-brand-ink-soft">
+          Queda activo de inmediato y le llega un correo para poner su contraseña.
+        </p>
+      </div>
+    </form>
+  );
+}
+
 export function AdminCreatorsPanel({ creators }: { creators: Creator[] }) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [addingCreator, setAddingCreator] = useState(false);
 
   async function toggleSuspended(creatorId: string, suspended: boolean) {
     setLoadingId(creatorId);
@@ -29,6 +114,14 @@ export function AdminCreatorsPanel({ creators }: { creators: Creator[] }) {
 
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
+      <div className="flex justify-end px-5 py-3 border-b border-brand-line">
+        {!addingCreator && (
+          <button onClick={() => setAddingCreator(true)} className="text-xs text-brand-accent font-medium hover:underline">
+            + Agregar creador manualmente
+          </button>
+        )}
+      </div>
+      {addingCreator && <AddCreatorForm onDone={() => setAddingCreator(false)} />}
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">

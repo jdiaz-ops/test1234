@@ -34,6 +34,7 @@ enum AdminRole {
   SUPPORT // Ve y resuelve disputas/reclamos
   FINANCE // Ve panel de finanzas, cobros, pagos, reportes
   BRAND_APPROVER // Revisa y aprueba/rechaza marcas nuevas
+  CREATOR_APPROVER // Gestiona creadores (suspender/reactivar cuentas)
 }
 
 model User {
@@ -719,6 +720,36 @@ model Notification {
   type    String // ej. "brand_approved", "sale_generated", "payout_processed", "fee_changed"
   message String
   read    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// COMUNICADOS (broadcast del admin a todas las marcas o a todos los creadores)
+// ----------------------------------------------------------------------------
+
+enum BroadcastAudience {
+  BRANDS
+  CREATORS
+}
+
+enum BroadcastChannel {
+  EMAIL
+  NOTIFICATION // vía Notification — el mismo canal que se vuelve push apenas exista la app móvil
+}
+
+model Broadcast {
+  id String @id @default(cuid())
+
+  audience BroadcastAudience
+  channel  BroadcastChannel
+
+  subject String
+  body    String @db.Text
+
+  recipientCount Int
+
+  sentByUserId String
 
   createdAt DateTime @default(now())
 }
