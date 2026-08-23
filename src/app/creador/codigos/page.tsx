@@ -69,7 +69,7 @@ export default async function CodigosPage() {
                         <CopyButton value={storeLink} />
                       </div>
                       <p className="text-xs text-brand-ink-soft mt-0.5">
-                        {linkHasCode ? "Link de tu tienda, con tu código ya aplicado" : "Link de la tienda para compartir"}
+                        {linkHasCode ? "Link de la tienda, con tu código ya aplicado" : "Link de la tienda para compartir"}
                       </p>
                     </div>
                   )}
