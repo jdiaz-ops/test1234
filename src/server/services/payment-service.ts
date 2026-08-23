@@ -224,6 +224,76 @@ export async function markOverdueCharges() {
   return { lockedCount: overdue.length };
 }
 
+/// SOLO PARA PRUEBAS — crea de una vez un corte ya vencido (OVERDUE) para
+/// que el Propietario pueda ver el aviso de bloqueo en vivo sin esperar un
+/// ciclo real de 72h. Nunca se llama desde el flujo real de cobro (ver
+/// chargeBrandForPeriod). Respeta la misma regla de "un corte abierto a la
+/// vez" — si ya hay uno, lo devuelve tal cual en vez de duplicar.
+export async function createTestOverdueCharge(brandId: string) {
+  const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId } });
+
+  const openCharge = await prisma.brandCharge.findFirst({
+    where: { brandId, status: { in: ["PENDING", "PROOF_SUBMITTED", "OVERDUE"] } },
+  });
+  if (openCharge) return openCharge;
+
+  const periodEnd = new Date();
+  const periodStart = new Date(periodEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const dueAt = new Date(Date.now() - 2 * 60 * 60 * 1000); // vencido hace 2 horas
+  const commissionsTotal = 200_000;
+  const platformFeeTotal = 37_800;
+  const vatTotal = 7_200;
+  const totalAmount = commissionsTotal + platformFeeTotal + vatTotal;
+
+  const charge = await prisma.brandCharge.create({
+    data: { brandId, periodStart, periodEnd, totalAmount: new Prisma.Decimal(totalAmount), status: "OVERDUE", dueAt },
+  });
+
+  try {
+    const config = await getPlatformConfig();
+    const pdfBytes = await generateBrandChargeDoc({
+      brandName: brand.companyName,
+      periodStart,
+      periodEnd,
+      commissionsTotal,
+      platformFeeTotal,
+      vatTotal,
+      rewardsTotal: 0,
+      totalAmount,
+      dueAt,
+      paymentInstructions: config.paymentInstructions,
+      paymentQrImageUrl: config.paymentQrImageUrl,
+    });
+    const pdfFile = new File([new Uint8Array(pdfBytes)], "aviso-de-cobro.pdf", { type: "application/pdf" });
+    const pdfUrl = await uploadFile(pdfFile, `cortes/${brandId}`);
+    await prisma.brandCharge.update({ where: { id: charge.id }, data: { pdfUrl } });
+  } catch (err) {
+    console.error(`[pagos] no se pudo generar el aviso de cobro de prueba de ${brand.companyName}:`, err);
+  }
+
+  await createNotification(
+    brand.userId,
+    "BRAND_LOCKED",
+    "[Prueba] Tu marca quedó oculta del marketplace por falta de pago verificado — sube tu comprobante en Cuenta → Pago para reactivarla."
+  );
+
+  return charge;
+}
+
+/// SOLO PARA PRUEBAS — quita un corte para poder repetir la demostración
+/// las veces que haga falta. Nunca borra uno con comisiones o premios
+/// reales enlazados (eso sí sería perder plata real de la contabilidad).
+export async function removeTestCharge(chargeId: string) {
+  const charge = await prisma.brandCharge.findUniqueOrThrow({
+    where: { id: chargeId },
+    include: { commissions: true, challengeRewards: true },
+  });
+  if (charge.commissions.length > 0 || charge.challengeRewards.length > 0) {
+    throw new PaymentError("Este corte tiene comisiones o premios reales enlazados — no se puede borrar.");
+  }
+  await prisma.brandCharge.delete({ where: { id: chargeId } });
+}
+
 /// La marca está bloqueada si tiene un corte sin pagar cuyo plazo ya pasó
 /// — se calcula directo contra `dueAt`, no contra el status OVERDUE (que
 /// solo lo pone markOverdueCharges una vez al día, para el panel admin y

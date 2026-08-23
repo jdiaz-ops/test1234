@@ -13,6 +13,9 @@ type Brand = {
   storeType: string;
   platformFeePercentOverride: number | null;
   _count: { offers: number };
+  // El query que llena esto ya filtra status != PAID — el tipo incluye PAID
+  // solo porque así lo infiere Prisma, nunca llega ese valor en la práctica.
+  openCharge: { id: string; status: "PENDING" | "PROOF_SUBMITTED" | "OVERDUE" | "PAID"; totalAmount: number } | null;
 };
 
 const statusLabel: Record<string, string> = {
@@ -27,6 +30,12 @@ const statusColor: Record<string, string> = {
   APPROVED: "text-brand-accent",
   REJECTED: "text-red-600",
   PAUSED: "text-brand-ink-soft",
+};
+
+const chargeStatusLabel: Record<string, string> = {
+  PENDING: "esperando pago",
+  PROOF_SUBMITTED: "comprobante en revisión",
+  OVERDUE: "vencido — bloqueada",
 };
 
 function AddBrandForm({ onDone }: { onDone: () => void }) {
@@ -168,6 +177,28 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
     router.refresh();
   }
 
+  async function simulateOverdue(brandId: string) {
+    setLoadingId(brandId);
+    await fetch("/api/admin/marcas/prueba/moroso", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandId }),
+    });
+    setLoadingId(null);
+    router.refresh();
+  }
+
+  async function removeTestCharge(brandId: string, chargeId: string) {
+    setLoadingId(brandId);
+    await fetch("/api/admin/marcas/prueba/moroso/quitar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chargeId }),
+    });
+    setLoadingId(null);
+    router.refresh();
+  }
+
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
       <div className="flex justify-end gap-4 px-5 py-3 border-b border-brand-line">
@@ -257,6 +288,28 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
                     >
                       Reactivar
                     </button>
+                  )}
+                  {isOwner && b.status === "APPROVED" && (
+                    <>
+                      {b.openCharge ? (
+                        <button
+                          onClick={() => removeTestCharge(b.id, b.openCharge!.id)}
+                          disabled={loadingId === b.id}
+                          className="text-xs text-brand-ink-soft hover:text-red-600 hover:underline disabled:opacity-50"
+                          title={`Corte activo: ${chargeStatusLabel[b.openCharge.status] ?? b.openCharge.status}`}
+                        >
+                          Quitar corte de prueba
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => simulateOverdue(b.id)}
+                          disabled={loadingId === b.id}
+                          className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+                        >
+                          Simular corte vencido
+                        </button>
+                      )}
+                    </>
                   )}
                   {isOwner && <EnterAsButton userId={b.userId} role="BRAND" />}
                 </div>

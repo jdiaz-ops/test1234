@@ -37,7 +37,14 @@ export async function createBrandManually(data: { email: string; companyName: st
 export async function listBrands(status?: string) {
   return prisma.brandProfile.findMany({
     where: status ? { status: status as never } : {},
-    include: { vertical: true, _count: { select: { offers: true } } },
+    include: {
+      vertical: true,
+      _count: { select: { offers: true } },
+      // Solo el corte abierto (si hay uno) — para mostrar en Marcas si se
+      // puede "simular corte vencido" o hay que ofrecer "quitarlo" (ver
+      // createTestOverdueCharge/removeTestCharge en payment-service.ts).
+      charges: { where: { status: { not: "PAID" } }, orderBy: { createdAt: "desc" }, take: 1 },
+    },
     orderBy: { createdAt: "desc" },
   });
 }

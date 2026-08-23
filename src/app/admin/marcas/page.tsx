@@ -25,6 +25,9 @@ export default async function AdminMarcasPage() {
           platformFeePercentOverride: b.platformFeePercentOverride
             ? Number(b.platformFeePercentOverride)
             : null,
+          openCharge: b.charges[0]
+            ? { id: b.charges[0].id, status: b.charges[0].status, totalAmount: Number(b.charges[0].totalAmount) }
+            : null,
         }))}
         isOwner={isOwner(session!.user.adminRole)}
       />
