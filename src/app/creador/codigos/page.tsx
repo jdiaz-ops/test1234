@@ -44,19 +44,38 @@ export default async function CodigosPage() {
             const discount = e.discountPercentOverride ?? e.offer.defaultDiscountPercent;
             const { brand } = e.offer;
             const storeLink = buildBrandStoreLink(brand, e.discountCode);
+            const linkHasCode = brand.storeType === "SHOPIFY" && Boolean(brand.storeUrl);
             return (
               <div key={e.id} className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
                 <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
-                  <div>
-                    <p className="font-display font-semibold text-brand-ink">{brand.companyName}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="font-mono text-brand-accent">{e.discountCode}</span>
-                      <CopyButton value={e.discountCode} />
-                    </div>
-                  </div>
+                  <p className="font-display font-semibold text-brand-ink">{brand.companyName}</p>
                   <LeaveOfferButton enrollmentId={e.id} />
                 </div>
-                <div className="grid grid-cols-2 gap-2.5 mb-3">
+
+                {/* Código y link van juntos, en un mismo bloque — son las dos
+                    piezas de lo mismo (compartir), no dos cosas separadas. */}
+                <div className="rounded-xl border border-brand-line px-3 py-2.5 mb-3 divide-y divide-brand-line">
+                  <div className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-brand-accent font-medium">{e.discountCode}</span>
+                      <CopyButton value={e.discountCode} />
+                    </div>
+                    <p className="text-xs text-brand-ink-soft mt-0.5">Tu código para compartir</p>
+                  </div>
+                  {storeLink && (
+                    <div className="pt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-brand-ink truncate">{storeLink}</span>
+                        <CopyButton value={storeLink} />
+                      </div>
+                      <p className="text-xs text-brand-ink-soft mt-0.5">
+                        {linkHasCode ? "Link de tu tienda, con tu código ya aplicado" : "Link de la tienda para compartir"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
                   <div className="rounded-xl bg-brand-bg px-3 py-2.5">
                     <p className="font-mono text-lg font-medium text-brand-ink leading-tight">{Number(discount)}%</p>
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Código de descuento para tu comunidad</p>
@@ -66,13 +85,6 @@ export default async function CodigosPage() {
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Tu comisión por cada venta con tu código</p>
                   </div>
                 </div>
-                {storeLink && (
-                  <div className="flex items-center gap-2 pt-3 border-t border-brand-line">
-                    <span className="text-xs text-brand-ink-soft shrink-0">Link de la marca</span>
-                    <span className="text-xs font-mono text-brand-ink truncate">{storeLink}</span>
-                    <CopyButton value={storeLink} />
-                  </div>
-                )}
               </div>
             );
           })}
