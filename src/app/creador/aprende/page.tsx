@@ -68,6 +68,13 @@ const evitar = [
   "Dejar tu vitrina desactualizada con marcas de las que ya no eres parte.",
 ];
 
+const avisoLegal = [
+  'Marca claramente que es contenido publicitario o con código de afiliado — con palabras como "Publicidad" o "Pauta", no solo un hashtag perdido al final.',
+  "Ponlo en un lugar visible desde el principio — al inicio del video o del post, no escondido donde nadie lo vea.",
+  "Aplica igual en historias, reels y contenido en vivo, no solo en publicaciones fijas.",
+  "Comunica solo lo que la marca realmente respalda — no prometas efectos, resultados o garantías por tu cuenta.",
+];
+
 export default async function AprendePage() {
   const session = await auth();
   const profile = await getCreatorProfileByUserId(session!.user.id);
@@ -176,6 +183,33 @@ export default async function AprendePage() {
             </ul>
           </div>
         </div>
+      </section>
+
+      {/* Aviso legal — transparencia publicitaria */}
+      <section className="max-w-5xl mx-auto px-6 py-14 border-t border-brand-line">
+        <p className="font-mono text-xs text-brand-accent tracking-widest text-center mb-3">AVISO LEGAL</p>
+        <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-4 text-balance">
+          Transparencia en tus publicaciones
+        </h2>
+        <p className="text-sm text-brand-ink-soft text-center max-w-2xl mx-auto mb-10">
+          En Colombia, la Superintendencia de Industria y Comercio (SIC) exige que la publicidad de
+          influenciadores sea identificable como tal — tu audiencia tiene derecho a saber cuándo estás
+          promocionando algo a cambio de una comisión.
+        </p>
+        <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 max-w-2xl mx-auto">
+          <ul className="space-y-3">
+            {avisoLegal.map((t) => (
+              <li key={t} className="flex items-start gap-2.5 text-sm text-brand-ink-soft leading-relaxed">
+                <span className="text-brand-accent font-semibold shrink-0">•</span>
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="text-xs text-brand-ink-soft text-center max-w-2xl mx-auto mt-6">
+          Esta es una guía general, no asesoría legal — si tienes dudas específicas sobre tu caso, consulta
+          a un abogado.
+        </p>
       </section>
 
       {/* CTA de cierre */}
