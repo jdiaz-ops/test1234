@@ -4,6 +4,22 @@ import { getEnrollmentsForCreator } from "@/server/services/marketplace-service"
 import { CopyButton } from "@/components/portal/copy-button";
 import { LeaveOfferButton } from "@/components/portal/leave-offer-button";
 
+/// Shopify soporta de fábrica un link que aplica el descuento solo, sin que
+/// el cliente tenga que escribir el código — `tienda.myshopify.com/discount/CODIGO`.
+/// WooCommerce no trae nada equivalente (necesitaría un plugin o código
+/// adicional en la tienda de cada marca, fuera de nuestro control), así que
+/// para esas marcas solo se ofrece el link normal de su web, sin intentar
+/// armar un link "inteligente" que no podemos garantizar que funcione.
+function buildShopifyDiscountLink(storeUrl: string | null, code: string) {
+  if (!storeUrl) return null;
+  try {
+    const host = new URL(storeUrl).host;
+    return `https://${host}/discount/${encodeURIComponent(code)}`;
+  } catch {
+    return null;
+  }
+}
+
 export default async function CodigosPage() {
   const session = await auth();
   const profile = await prisma.creatorProfile.findUniqueOrThrow({
@@ -41,11 +57,14 @@ export default async function CodigosPage() {
           {active.map((e) => {
             const commission = e.commissionPercentOverride ?? e.offer.defaultCommissionPercent;
             const discount = e.discountPercentOverride ?? e.offer.defaultDiscountPercent;
+            const { brand } = e.offer;
+            const smartLink =
+              brand.storeType === "SHOPIFY" ? buildShopifyDiscountLink(brand.storeUrl, e.discountCode) : null;
             return (
               <div key={e.id} className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
                 <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
                   <div>
-                    <p className="font-display font-semibold text-brand-ink">{e.offer.brand.companyName}</p>
+                    <p className="font-display font-semibold text-brand-ink">{brand.companyName}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="font-mono text-brand-accent">{e.discountCode}</span>
                       <CopyButton value={e.discountCode} />
@@ -53,7 +72,7 @@ export default async function CodigosPage() {
                   </div>
                   <LeaveOfferButton enrollmentId={e.id} />
                 </div>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-2.5 mb-3">
                   <div className="rounded-xl bg-brand-bg px-3 py-2.5">
                     <p className="font-mono text-lg font-medium text-brand-ink leading-tight">{Number(discount)}%</p>
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Código de descuento para tu comunidad</p>
@@ -63,6 +82,24 @@ export default async function CodigosPage() {
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Tu comisión por cada venta con tu código</p>
                   </div>
                 </div>
+                {(brand.websiteUrl || smartLink) && (
+                  <div className="space-y-1.5 pt-3 border-t border-brand-line">
+                    {brand.websiteUrl && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-brand-ink-soft w-28 shrink-0">Web de la marca</span>
+                        <span className="text-xs font-mono text-brand-ink truncate">{brand.websiteUrl}</span>
+                        <CopyButton value={brand.websiteUrl} />
+                      </div>
+                    )}
+                    {smartLink && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-brand-ink-soft w-28 shrink-0">Con tu descuento</span>
+                        <span className="text-xs font-mono text-brand-ink truncate">{smartLink}</span>
+                        <CopyButton value={smartLink} />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
