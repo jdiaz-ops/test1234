@@ -12,6 +12,7 @@ type Brand = {
   status: "PENDING" | "APPROVED" | "REJECTED" | "PAUSED";
   storeType: string;
   platformFeePercentOverride: number | null;
+  marketplaceVisibilityOverride: "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN";
   _count: { offers: number };
   // El query que llena esto ya filtra status != PAID — el tipo incluye PAID
   // solo porque así lo infiere Prisma, nunca llega ese valor en la práctica.
@@ -199,6 +200,17 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
     router.refresh();
   }
 
+  async function setVisibility(brandId: string, override: "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN") {
+    setLoadingId(brandId);
+    await fetch("/api/admin/marcas/visibilidad", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandId, override }),
+    });
+    setLoadingId(null);
+    router.refresh();
+  }
+
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
       <div className="flex justify-end gap-4 px-5 py-3 border-b border-brand-line">
@@ -226,6 +238,7 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
             <th className="px-5 py-3 font-normal">Ofertas</th>
             <th className="px-5 py-3 font-normal">Tarifa</th>
             <th className="px-5 py-3 font-normal">Estado</th>
+            {isOwner && <th className="px-5 py-3 font-normal">Marketplace</th>}
             <th className="px-5 py-3 font-normal"></th>
           </tr>
         </thead>
@@ -251,6 +264,23 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
                 )}
               </td>
               <td className={`px-5 py-3 font-medium ${statusColor[b.status]}`}>{statusLabel[b.status]}</td>
+              {isOwner && (
+                <td className="px-5 py-3">
+                  <select
+                    value={b.marketplaceVisibilityOverride}
+                    onChange={(e) => setVisibility(b.id, e.target.value as "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN")}
+                    disabled={loadingId === b.id}
+                    title="Fuerza si esta marca aparece en el marketplace del creador, sin importar si completó su onboarding real — para pruebas visuales."
+                    className={`input py-1 text-xs ${
+                      b.marketplaceVisibilityOverride !== "AUTO" ? "border-brand-accent text-brand-accent font-medium" : ""
+                    }`}
+                  >
+                    <option value="AUTO">Auto (real)</option>
+                    <option value="FORCE_VISIBLE">Forzar visible</option>
+                    <option value="FORCE_HIDDEN">Forzar oculta</option>
+                  </select>
+                </td>
+              )}
               <td className="px-5 py-3">
                 <div className="flex gap-3">
                   {b.status === "PENDING" && (

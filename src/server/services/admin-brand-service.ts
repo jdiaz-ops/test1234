@@ -94,6 +94,21 @@ export async function reactivateBrand(brandId: string) {
   return prisma.brandProfile.update({ where: { id: brandId }, data: { status: "APPROVED" } });
 }
 
+/// Le permite al admin forzar si una marca aparece o no en el marketplace de
+/// creadores, sin importar si cumple los requisitos reales de onboarding —
+/// pensado para probar visualmente el flujo del creador con marcas de
+/// prueba a medio llenar (ver MarketplaceVisibilityOverride en el schema y
+/// listActiveOffers en marketplace-service.ts, que es quien lo respeta).
+export async function setBrandMarketplaceVisibility(
+  brandId: string,
+  override: "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN"
+) {
+  return prisma.brandProfile.update({
+    where: { id: brandId },
+    data: { marketplaceVisibilityOverride: override },
+  });
+}
+
 export async function setBrandFeeOverride(brandId: string, feePercent: number | null) {
   const brand = await prisma.brandProfile.update({
     where: { id: brandId },

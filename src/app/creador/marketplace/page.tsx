@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listActiveOffers, getEnrollmentsForCreator } from "@/server/services/marketplace-service";
 import { JoinOfferButton } from "@/components/portal/join-offer-button";
+import { LeaveOfferButton } from "@/components/portal/leave-offer-button";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 
 export default async function MarketplacePage({
@@ -21,7 +22,12 @@ export default async function MarketplacePage({
     prisma.vertical.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  const enrollmentByOffer = new Map(enrollments.map((e) => [e.offerId, e]));
+  // Solo ACTIVE/PENDING_APPROVAL cuentan como "unido" — un creador que se
+  // retiró (REMOVED) o que fue rechazado (REJECTED) debe poder volver a ver
+  // el botón de unirse, no quedar atascado mostrando un estado viejo.
+  const enrollmentByOffer = new Map(
+    enrollments.filter((e) => e.status === "ACTIVE" || e.status === "PENDING_APPROVAL").map((e) => [e.offerId, e])
+  );
 
   return (
     <div>
@@ -67,11 +73,8 @@ export default async function MarketplacePage({
                   description={offer.brand.description}
                   websiteUrl={offer.brand.websiteUrl}
                 />
-                <p className="text-xs text-brand-ink-soft mt-3 mb-4">
-                  {offer.category?.name ?? "General"} · {offer.name}
-                </p>
 
-                <div className="grid grid-cols-2 gap-2.5 mb-4">
+                <div className="grid grid-cols-2 gap-2.5 mb-4 mt-4">
                   <div className="rounded-xl bg-brand-bg px-3 py-2.5">
                     <p className="font-mono text-lg font-medium text-brand-ink leading-tight">
                       {Number(offer.defaultDiscountPercent)}%
@@ -87,13 +90,16 @@ export default async function MarketplacePage({
                 </div>
 
                 {enrollment ? (
-                  <p
-                    className={`text-sm font-medium text-center ${
-                      enrollment.status === "ACTIVE" ? "text-brand-accent" : "text-brand-ink-soft"
-                    }`}
-                  >
-                    {enrollment.status === "ACTIVE" ? "Ya estás unido ✓" : "Esperando aprobación"}
-                  </p>
+                  <div className="text-center space-y-1.5">
+                    <p
+                      className={`text-sm font-medium ${
+                        enrollment.status === "ACTIVE" ? "text-brand-accent" : "text-brand-ink-soft"
+                      }`}
+                    >
+                      {enrollment.status === "ACTIVE" ? "Ya estás unido ✓" : "Esperando aprobación"}
+                    </p>
+                    <LeaveOfferButton enrollmentId={enrollment.id} />
+                  </div>
                 ) : (
                   <JoinOfferButton
                     offerId={offer.id}

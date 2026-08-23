@@ -301,6 +301,17 @@ enum BrandStatus {
   PAUSED
 }
 
+/// Le permite al admin forzar si una marca aparece o no en el marketplace de
+/// creadores, sin importar si de verdad completó los 4 pasos de onboarding
+/// (perfil, tienda conectada, cómo-te-cobramos) — pensado para que Juan pueda
+/// probar visualmente el flujo del creador con marcas de prueba a medio
+/// llenar, sin tener que completarles todo el onboarding real primero.
+enum MarketplaceVisibilityOverride {
+  AUTO // comportamiento normal: visible solo si cumple todos los requisitos reales
+  FORCE_VISIBLE
+  FORCE_HIDDEN
+}
+
 enum StoreType {
   SHOPIFY
   WOOCOMMERCE
@@ -352,6 +363,8 @@ model BrandProfile {
   status       BrandStatus @default(PENDING)
   approvedAt   DateTime?
   approvedById String? // referencia al User admin que aprobó
+
+  marketplaceVisibilityOverride MarketplaceVisibilityOverride @default(AUTO)
 
   termsAcceptedAt DateTime?
 

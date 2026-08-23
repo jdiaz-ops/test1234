@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { JoinOfferButton } from "@/components/portal/join-offer-button";
+import { LeaveOfferButton } from "@/components/portal/leave-offer-button";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 
 type Offer = {
@@ -12,6 +13,7 @@ type Offer = {
   defaultDiscountPercent: number;
   suggestedCode: string;
   enrollmentStatus: "ACTIVE" | "PENDING_APPROVAL" | null;
+  enrollmentId: string | null;
   brand: { companyName: string; logoUrl: string | null; description: string | null; websiteUrl: string | null };
 };
 
@@ -67,9 +69,12 @@ export function CreatorJoinBrandsStep({ offers, filteredByInterests }: { offers:
                 </div>
               </div>
               {offer.enrollmentStatus ? (
-                <p className={`text-sm font-medium text-center ${offer.enrollmentStatus === "ACTIVE" ? "text-brand-accent" : "text-brand-ink-soft"}`}>
-                  {offer.enrollmentStatus === "ACTIVE" ? "Ya estás unido ✓" : "Esperando aprobación"}
-                </p>
+                <div className="text-center space-y-1.5">
+                  <p className={`text-sm font-medium ${offer.enrollmentStatus === "ACTIVE" ? "text-brand-accent" : "text-brand-ink-soft"}`}>
+                    {offer.enrollmentStatus === "ACTIVE" ? "Ya estás unido ✓" : "Esperando aprobación"}
+                  </p>
+                  {offer.enrollmentId && <LeaveOfferButton enrollmentId={offer.enrollmentId} />}
+                </div>
               ) : (
                 <JoinOfferButton offerId={offer.id} joinMode={offer.joinMode} suggestedCode={offer.suggestedCode} fullWidth />
               )}

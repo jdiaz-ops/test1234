@@ -26,32 +26,46 @@ export async function listActiveOffers(filters: { categorySlug?: string; search?
   return prisma.offer.findMany({
     where: {
       status: "ACTIVE",
-      // Además de aprobada, la marca debe haber terminado su onboarding
-      // (perfil, tienda, cómo-te-cobramos) — ver getBrandOnboardingStatus en
-      // onboarding-service.ts, que usa exactamente estas mismas condiciones
-      // — y no estar bloqueada por falta de pago verificado (ver
-      // isBrandPaymentLocked en payment-service.ts).
       brand: {
-        status: "APPROVED",
-        // logoUrl/description/websiteUrl se guardan como "" (no null) cuando
-        // el campo está vacío — por eso se excluyen ambos valores.
-        NOT: [
-          { logoUrl: null },
-          { logoUrl: "" },
-          { description: null },
-          { description: "" },
-          { websiteUrl: null },
-          { websiteUrl: "" },
+        // FORCE_HIDDEN gana siempre (ej. para ocultar una marca a medio
+        // conectar mientras se prueba otra cosa), y FORCE_VISIBLE se salta
+        // por completo los requisitos reales de onboarding — pensado para
+        // que Juan pueda probar el flujo del marketplace con marcas de
+        // prueba sin tener que llenarles perfil, conectar tienda, etc. Ver
+        // MarketplaceVisibilityOverride en el schema.
+        marketplaceVisibilityOverride: { not: "FORCE_HIDDEN" },
+        OR: [
+          { marketplaceVisibilityOverride: "FORCE_VISIBLE" },
+          {
+            // Comportamiento real: además de aprobada, la marca debe haber
+            // terminado su onboarding (perfil, tienda, cómo-te-cobramos) —
+            // ver getBrandOnboardingStatus en onboarding-service.ts, que usa
+            // exactamente estas mismas condiciones — y no estar bloqueada
+            // por falta de pago verificado (ver isBrandPaymentLocked en
+            // payment-service.ts).
+            status: "APPROVED",
+            // logoUrl/description/websiteUrl se guardan como "" (no null)
+            // cuando el campo está vacío — por eso se excluyen ambos valores.
+            NOT: [
+              { logoUrl: null },
+              { logoUrl: "" },
+              { description: null },
+              { description: "" },
+              { websiteUrl: null },
+              { websiteUrl: "" },
+            ],
+            storeConnectionStatus: "CONNECTED",
+            billingAcknowledgedAt: { not: null },
+            // Igual que isBrandPaymentLocked en payment-service.ts: bloqueada
+            // si hay un corte sin pagar cuyo plazo ya venció (no depende de
+            // que el cron ya haya puesto el status en OVERDUE).
+            charges: { none: { status: { not: "PAID" }, dueAt: { lt: new Date() } } },
+          },
         ],
-        storeConnectionStatus: "CONNECTED",
-        billingAcknowledgedAt: { not: null },
-        // Igual que isBrandPaymentLocked en payment-service.ts: bloqueada si
-        // hay un corte sin pagar cuyo plazo ya venció (no depende de que el
-        // cron ya haya puesto el status en OVERDUE).
-        charges: { none: { status: { not: "PAID" }, dueAt: { lt: new Date() } } },
         // Filtro opcional del wizard de onboarding de creador — ofertas de
         // marcas en las categorías que le interesan, para no mostrarle las
         // 200 de una (ver src/components/portal/creator-join-brands-step.tsx).
+        // Aplica siempre, sin importar el override de visibilidad.
         ...(filters.verticalIds && filters.verticalIds.length > 0
           ? { verticalId: { in: filters.verticalIds } }
           : {}),
@@ -95,10 +109,13 @@ export async function joinOffer(creatorId: string, offerId: string, desiredCode?
     throw new MarketplaceError("Esta oferta ya no está disponible.");
   }
 
+  // offerId_creatorId es único — un creador que se retiró (ver leaveOffer)
+  // conserva su fila en REMOVED/REJECTED, así que "unirse de nuevo" es
+  // reactivar esa misma fila, no crear una segunda.
   const existing = await prisma.creatorOfferEnrollment.findUnique({
     where: { offerId_creatorId: { offerId, creatorId } },
   });
-  if (existing) {
+  if (existing && (existing.status === "ACTIVE" || existing.status === "PENDING_APPROVAL")) {
     throw new MarketplaceError("Ya estás unido a esta oferta.");
   }
 
@@ -112,14 +129,11 @@ export async function joinOffer(creatorId: string, offerId: string, desiredCode?
     throw new MarketplaceError("Ese código ya está en uso en esta marca — elige otro.");
   }
 
-  const enrollment = await prisma.creatorOfferEnrollment.create({
-    data: {
-      creatorId,
-      offerId,
-      status: offer.joinMode === "OPEN" ? "ACTIVE" : "PENDING_APPROVAL",
-      discountCode: normalized,
-    },
-  });
+  const status: "ACTIVE" | "PENDING_APPROVAL" = offer.joinMode === "OPEN" ? "ACTIVE" : "PENDING_APPROVAL";
+  const data = { status, discountCode: normalized };
+  const enrollment = existing
+    ? await prisma.creatorOfferEnrollment.update({ where: { id: existing.id }, data })
+    : await prisma.creatorOfferEnrollment.create({ data: { creatorId, offerId, ...data } });
 
   if (enrollment.status === "ACTIVE") {
     await provisionDiscountCodeForEnrollment(enrollment.id);
@@ -127,4 +141,25 @@ export async function joinOffer(creatorId: string, offerId: string, desiredCode?
   }
 
   return enrollment;
+}
+
+/// El creador se retira de un programa al que ya se había unido — libera su
+/// fila (queda en REMOVED, no se borra) para que pueda volver a unirse más
+/// adelante si quiere. No revoca el código en la tienda real de la marca
+/// (Shopify/WooCommerce) — solo dejamos de contarlo como activo de nuestro
+/// lado; si hace falta desactivarlo también allá, es trabajo futuro.
+export async function leaveOffer(creatorId: string, enrollmentId: string) {
+  const enrollment = await prisma.creatorOfferEnrollment.findFirst({
+    where: { id: enrollmentId, creatorId },
+  });
+  if (!enrollment) {
+    throw new MarketplaceError("No encontramos esa inscripción.");
+  }
+  if (enrollment.status !== "ACTIVE" && enrollment.status !== "PENDING_APPROVAL") {
+    throw new MarketplaceError("Ya no estás en este programa.");
+  }
+  return prisma.creatorOfferEnrollment.update({
+    where: { id: enrollmentId },
+    data: { status: "REMOVED" },
+  });
 }

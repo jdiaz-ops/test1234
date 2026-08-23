@@ -8,7 +8,13 @@ export default async function StorefrontSettingsPage() {
   const profile = await getCreatorProfileByUserId(session!.user.id);
   const enrollments = await getEnrollmentsForCreator(profile.id);
 
-  const publicUrl = `marcolini.co/c/${profile.storefrontSlug}`;
+  // Domino real del entorno actual (variable APP_URL — misma fuente única de
+  // verdad que usan los correos y los webhooks, ver docs/cambiar-dominio.md).
+  // Antes decía "marcolini.co" fijo en el texto, que hoy no lleva a ningún
+  // lado porque ese dominio aún no existe — con esto se actualiza solo el
+  // día que se conecte un dominio propio, sin tocar código.
+  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const publicUrl = `${appUrl.replace(/^https?:\/\//, "")}/c/${profile.storefrontSlug}`;
 
   return (
     <div>

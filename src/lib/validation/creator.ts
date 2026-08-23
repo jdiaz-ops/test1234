@@ -74,6 +74,10 @@ export const joinOfferSchema = z.object({
     .or(z.literal("")),
 });
 
+export const leaveOfferSchema = z.object({
+  enrollmentId: z.string().min(1),
+});
+
 export const submitContentChallengeSchema = z.object({
   challengeId: z.string().min(1),
   submissionUrl: z.string().url("Ingresa un link válido (https://...)"),

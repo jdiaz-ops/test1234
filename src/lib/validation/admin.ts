@@ -10,6 +10,11 @@ export const brandFeeOverrideSchema = z.object({
   feePercent: z.number().min(0).max(100).nullable(),
 });
 
+export const brandMarketplaceVisibilitySchema = z.object({
+  brandId: z.string().min(1),
+  override: z.enum(["AUTO", "FORCE_VISIBLE", "FORCE_HIDDEN"]),
+});
+
 export const creatorSuspendSchema = z.object({
   creatorId: z.string().min(1),
   suspended: z.boolean(),

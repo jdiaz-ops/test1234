@@ -125,6 +125,10 @@ export function CreatorProfileStepForm({
             <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handlePhotoChange} disabled={uploadingPhoto} className="hidden" />
           </label>
         </div>
+        <p className="text-xs text-brand-ink-soft mt-1.5">
+          Recomendado: foto cuadrada, con tu cara centrada, mínimo 400×400px — se muestra en círculo aquí
+          y en tu vitrina pública.
+        </p>
       </div>
 
       <div>

@@ -18,8 +18,14 @@ export default async function CreatorOnboardingPage() {
     getEnrollmentsForCreator(profile.id),
   ]);
 
-  const enrollmentByOffer = new Map(enrollments.map((e) => [e.offerId, e]));
-  const publicUrl = `marcolini.co/c/${profile.storefrontSlug}`;
+  // Solo ACTIVE/PENDING_APPROVAL cuentan como "unido" — un creador que se
+  // retiró (REMOVED) o que fue rechazado (REJECTED) debe poder volver a ver
+  // el botón de unirse, no quedar atascado mostrando un estado viejo.
+  const enrollmentByOffer = new Map(
+    enrollments.filter((e) => e.status === "ACTIVE" || e.status === "PENDING_APPROVAL").map((e) => [e.offerId, e])
+  );
+  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const publicUrl = `${appUrl.replace(/^https?:\/\//, "")}/c/${profile.storefrontSlug}`;
 
   return (
     <div>
@@ -72,6 +78,7 @@ export default async function CreatorOnboardingPage() {
               defaultDiscountPercent: Number(offer.defaultDiscountPercent),
               suggestedCode: profile.baseCode,
               enrollmentStatus: enrollmentByOffer.get(offer.id)?.status === "ACTIVE" ? "ACTIVE" : enrollmentByOffer.has(offer.id) ? "PENDING_APPROVAL" : null,
+              enrollmentId: enrollmentByOffer.get(offer.id)?.id ?? null,
               brand: {
                 companyName: offer.brand.companyName,
                 logoUrl: offer.brand.logoUrl,

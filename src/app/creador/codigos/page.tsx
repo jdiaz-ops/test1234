@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getEnrollmentsForCreator } from "@/server/services/marketplace-service";
 import { CopyButton } from "@/components/portal/copy-button";
+import { LeaveOfferButton } from "@/components/portal/leave-offer-button";
 
 export default async function CodigosPage() {
   const session = await auth();
@@ -17,8 +18,9 @@ export default async function CodigosPage() {
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
         Un código por marca
       </h1>
-      <p className="text-sm text-brand-ink-soft mb-8">
-        Elegiste tu código al unirte a cada marca — aquí abajo están todos, con su link listo para compartir.
+      <p className="text-sm text-brand-ink-soft mb-8 max-w-xl">
+        El link que compartes con tu audiencia es tu vitrina — este es solo tu referencia rápida, para
+        cuando necesitas escribir un código a mano (en un live, respondiendo un DM, atención al cliente).
       </p>
 
       {active.length === 0 ? (
@@ -35,16 +37,15 @@ export default async function CodigosPage() {
               <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
                 <th className="px-5 py-3 font-normal">Marca</th>
                 <th className="px-5 py-3 font-normal">Código</th>
-                <th className="px-5 py-3 font-normal">Link</th>
                 <th className="px-5 py-3 font-normal">Comisión</th>
                 <th className="px-5 py-3 font-normal">Descuento</th>
+                <th className="px-5 py-3 font-normal"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-line">
               {active.map((e) => {
                 const commission = e.commissionPercentOverride ?? e.offer.defaultCommissionPercent;
                 const discount = e.discountPercentOverride ?? e.offer.defaultDiscountPercent;
-                const link = `${e.offer.brand.storeUrl ?? ""}?discount=${e.discountCode}`;
                 return (
                   <tr key={e.id}>
                     <td className="px-5 py-3 text-brand-ink">{e.offer.brand.companyName}</td>
@@ -54,14 +55,11 @@ export default async function CodigosPage() {
                         <CopyButton value={e.discountCode} />
                       </div>
                     </td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2 max-w-[220px]">
-                        <span className="font-mono text-brand-ink-soft truncate">{link}</span>
-                        <CopyButton value={link} />
-                      </div>
-                    </td>
                     <td className="px-5 py-3 font-mono text-brand-ink">{Number(commission)}%</td>
                     <td className="px-5 py-3 font-mono text-brand-ink-soft">{Number(discount)}%</td>
+                    <td className="px-5 py-3 text-right">
+                      <LeaveOfferButton enrollmentId={e.id} />
+                    </td>
                   </tr>
                 );
               })}
