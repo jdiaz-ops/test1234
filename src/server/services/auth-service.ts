@@ -20,7 +20,12 @@ export async function registerCreator(input: {
   password: string;
   displayName: string;
   city?: string;
+  termsAccepted: boolean;
 }) {
+  if (!input.termsAccepted) {
+    throw new AuthServiceError("Debes aceptar los Términos y Condiciones para registrarte.");
+  }
+
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) throw new AuthServiceError("Ya existe una cuenta con este correo.");
 
@@ -43,6 +48,7 @@ export async function registerCreator(input: {
           city: input.city,
           baseCode,
           storefrontSlug,
+          termsAcceptedAt: new Date(),
         },
       },
     },

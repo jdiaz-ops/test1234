@@ -22,7 +22,7 @@ async function isDiscountCodeTakenInBrand(brandId: string, code: string) {
   return Boolean(clash);
 }
 
-export async function listActiveOffers(filters: { categorySlug?: string; search?: string }) {
+export async function listActiveOffers(filters: { categorySlug?: string; search?: string; verticalIds?: string[] }) {
   return prisma.offer.findMany({
     where: {
       status: "ACTIVE",
@@ -49,6 +49,12 @@ export async function listActiveOffers(filters: { categorySlug?: string; search?
         // hay un corte sin pagar cuyo plazo ya venció (no depende de que el
         // cron ya haya puesto el status en OVERDUE).
         charges: { none: { status: { not: "PAID" }, dueAt: { lt: new Date() } } },
+        // Filtro opcional del wizard de onboarding de creador — ofertas de
+        // marcas en las categorías que le interesan, para no mostrarle las
+        // 200 de una (ver src/components/portal/creator-join-brands-step.tsx).
+        ...(filters.verticalIds && filters.verticalIds.length > 0
+          ? { verticalId: { in: filters.verticalIds } }
+          : {}),
       },
       ...(filters.categorySlug ? { category: { slug: filters.categorySlug } } : {}),
       ...(filters.search

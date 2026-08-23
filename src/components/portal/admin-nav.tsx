@@ -10,6 +10,7 @@ const items = [
   { href: "/admin/transacciones", label: "Transacciones" },
   { href: "/admin/finanzas", label: "Finanzas" },
   { href: "/admin/cobros", label: "Cobros" },
+  { href: "/admin/pagos-creadores", label: "Pagos" },
   { href: "/admin/facturas", label: "Facturas" },
   { href: "/admin/fraude", label: "Antifraude" },
   { href: "/admin/configuracion", label: "Configuración" },
@@ -19,14 +20,18 @@ const items = [
   { href: "/admin/cuenta", label: "Cuenta" },
 ];
 
-export function AdminNav({ pendingCobros = 0 }: { pendingCobros?: number }) {
+export function AdminNav({ pendingCobros = 0, pendingPagos = 0 }: { pendingCobros?: number; pendingPagos?: number }) {
   const pathname = usePathname();
+  const badges: Record<string, number> = {
+    "/admin/cobros": pendingCobros,
+    "/admin/pagos-creadores": pendingPagos,
+  };
 
   return (
     <nav className="flex flex-col gap-0.5">
       {items.map((item) => {
         const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-        const badge = item.href === "/admin/cobros" ? pendingCobros : 0;
+        const badge = badges[item.href] ?? 0;
         return (
           <Link
             key={item.href}

@@ -52,6 +52,22 @@ export async function seedPlatform(prisma: PrismaClient) {
     where: { verticalId: unas.id, slug: "herramientas" },
   });
 
+  // Marcolini solo opera en Uñas por ahora, pero el onboarding de creador
+  // les pregunta categorías de interés (multi-selección, ver
+  // CreatorInterest) para saber desde ya hacia dónde tiene sentido
+  // expandir — estas categorías existen solo para eso, ninguna marca puede
+  // publicarse en ellas todavía.
+  const categoriasInteres = [
+    { name: "Maquillaje", slug: "maquillaje" },
+    { name: "Skincare", slug: "skincare" },
+    { name: "Cabello", slug: "cabello" },
+    { name: "Moda y ropa", slug: "moda-ropa" },
+    { name: "Mascotas", slug: "mascotas" },
+  ];
+  for (const vertical of categoriasInteres) {
+    await prisma.vertical.upsert({ where: { slug: vertical.slug }, update: {}, create: vertical });
+  }
+
   // Marcas de ejemplo — solo para desarrollo/pruebas, nunca en la base
   // real. Se activan a propósito, con SEED_DEMO_DATA=true.
   if (process.env.SEED_DEMO_DATA === "true") {

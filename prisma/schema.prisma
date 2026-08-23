@@ -128,8 +128,9 @@ model Vertical {
   slug       String     @unique
   categories Category[]
 
-  brandProfiles   BrandProfile[]
-  creatorProfiles CreatorProfile[]
+  brandProfiles    BrandProfile[]
+  creatorProfiles  CreatorProfile[]
+  creatorInterests CreatorInterest[]
 }
 
 model Category {
@@ -148,6 +149,11 @@ model Category {
 // PERFIL DE CREADOR
 // ----------------------------------------------------------------------------
 
+enum CreatorPayoutMethod {
+  BANK
+  BRE_B
+}
+
 model CreatorProfile {
   id     String @id @default(cuid())
   userId String @unique
@@ -159,8 +165,31 @@ model CreatorProfile {
   city        String?
   country     String  @default("Colombia")
 
+  /// Nombre y apellido completo — para pagos/identidad legal, nunca se
+  /// muestra en la vitrina pública (ahí solo se ve displayName, que es como
+  /// el creador es conocido — ej. "Laura" en la vida real, "dani15" en
+  /// redes/vitrina).
+  legalName String?
+  /// Cédula del titular — la piden bancos/Bre-B para validar que la cuenta
+  /// realmente es de esa persona antes de dejar transferir.
+  documentId String?
+  /// Celular/WhatsApp — para que una marca pueda coordinar logística
+  /// (envío de producto, campañas) sin tener que pedirlo por chat.
+  phone String?
+
+  /// Confirmación de Términos y Condiciones — se pone al registrarse, igual
+  /// que BrandProfile.termsAcceptedAt.
+  termsAcceptedAt DateTime?
+
   verticalId String?
   vertical   Vertical? @relation(fields: [verticalId], references: [id])
+
+  /// Categorías de interés (multi-selección) — a diferencia de verticalId
+  /// (heredado, uno solo), esto es lo que se usa en el onboarding para que
+  /// el creador marque todas las que le interesen. Sirve para saber qué
+  /// potencial de creadores hay en categorías a las que Marcolini todavía
+  /// no se expande (ej. Mascotas, Moda) — ver CreatorInterest.
+  interests CreatorInterest[]
 
   /// El código de identidad único del creador (ej. "LAURA30") — nace del
   /// nombre al registrarse. Sirve como sugerencia de partida al unirse a una
@@ -181,7 +210,17 @@ model CreatorProfile {
   /// Slug de su página pública "Mi Storefront" (ej. marcolini.co/@lauragomez)
   storefrontSlug String @unique
 
-  // Datos de pago para el desembolso del día 15 (ePayco Pagos Divididos)
+  /// Personalización de la vitrina pública — paletas y fuentes prearmadas
+  /// (ver src/lib/creator-storefront-themes.ts para las opciones válidas),
+  /// nunca color/fuente libres, para que siempre se vea bien combinado.
+  storefrontPalette String  @default("rosa-marcolini")
+  storefrontFont    String  @default("clasica")
+  storefrontHeadline String?
+
+  // Datos de pago para el desembolso — el pago en sí es manual (ver
+  // payment-service.ts), esto es solo dónde debe llegar la plata.
+  payoutMethod      CreatorPayoutMethod?
+  breBKey           String?
   bankName          String?
   bankAccountType   String?
   bankAccountNumber String?
@@ -208,6 +247,22 @@ model CreatorSocialLink {
   platform        String // Instagram, TikTok, Facebook...
   handle          String
   approxFollowers Int?
+}
+
+/// Categoría de interés marcada por el creador en el onboarding —
+/// multi-selección, a diferencia de CreatorProfile.verticalId (single,
+/// heredado). No implica nada operativo todavía (Marcolini solo opera en
+/// Uñas hoy) — es información para saber hacia dónde expandir.
+model CreatorInterest {
+  id String @id @default(cuid())
+
+  creatorProfileId String
+  creatorProfile   CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+
+  verticalId String
+  vertical   Vertical @relation(fields: [verticalId], references: [id])
+
+  @@unique([creatorProfileId, verticalId])
 }
 
 // ----------------------------------------------------------------------------
@@ -385,6 +440,12 @@ model CreatorOfferEnrollment {
   // Referencia al objeto creado vía API en la tienda de la marca
   shopifyPriceRuleId String?
   wooCouponId        String?
+
+  /// Control del creador sobre su propia vitrina — qué marcas se muestran
+  /// ahí y en qué orden (menor primero). No afecta nada operativo, solo la
+  /// página pública /c/[slug].
+  storefrontVisible Boolean @default(true)
+  storefrontOrder   Int     @default(0)
 
   transactions  Transaction[]
   conversations Conversation[]

@@ -370,11 +370,14 @@ export async function isBrandPaymentLocked(brandId: string) {
 }
 
 /// Pago del día 15: junta las comisiones APPROVED de un creador (ya pasó
-/// su hold de reembolsos) y todavía no se pagaron, y hace la transferencia
-/// bancaria de una sola vez. No depende de si la marca ya pagó su corte —
-/// Marcolini le paga al creador en su fecha normal así la marca esté
-/// atrasada o bloqueada; ese riesgo lo asume la plataforma, nunca el
-/// creador (ver isBrandPaymentLocked para el lado de la marca).
+/// su hold de reembolsos) y todavía no se pagaron, en un Payout. El pago en
+/// sí ya NO es automático (nunca hubo credenciales reales de ePayco para
+/// esto) — queda PENDING hasta que un admin lo transfiera a mano (banco o
+/// Bre-B, según lo que eligió el creador) y lo marque pagado (ver
+/// markPayoutPaid). No depende de si la marca ya pagó su corte — Marcolini
+/// le paga al creador en su fecha normal así la marca esté atrasada o
+/// bloqueada; ese riesgo lo asume la plataforma, nunca el creador (ver
+/// isBrandPaymentLocked para el lado de la marca).
 export async function payoutCreator(creatorId: string) {
   const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: creatorId } });
 
@@ -390,8 +393,15 @@ export async function payoutCreator(creatorId: string) {
 
   if (eligible.length === 0 && eligibleRewards.length === 0) return null;
 
-  if (!creator.bankAccountNumber || !creator.bankName || !creator.bankAccountType || !creator.paymentHolderName) {
-    console.warn(`[pagos] ${creator.displayName} tiene comisiones listas para pagar pero no registró cuenta bancaria — se omite.`);
+  const payoutReady =
+    creator.payoutMethod === "BRE_B"
+      ? Boolean(creator.breBKey)
+      : creator.payoutMethod === "BANK"
+        ? Boolean(creator.bankAccountNumber && creator.bankName && creator.bankAccountType && creator.paymentHolderName)
+        : false;
+
+  if (!payoutReady) {
+    console.warn(`[pagos] ${creator.displayName} tiene comisiones listas para pagar pero no configuró cómo cobrar — se omite.`);
     return null;
   }
 
@@ -409,43 +419,65 @@ export async function payoutCreator(creatorId: string) {
   const itemCount = eligible.length + eligibleRewards.length;
 
   const payout = await prisma.payout.create({
-    data: { creatorId, periodStart, periodEnd, totalAmount: new Prisma.Decimal(totalAmount), status: "PROCESSING" },
+    data: { creatorId, periodStart, periodEnd, totalAmount: new Prisma.Decimal(totalAmount), status: "PENDING" },
   });
 
-  try {
-    const { transactionRef } = await payoutToCreatorBank({
-      bankName: creator.bankName,
-      bankAccountType: creator.bankAccountType,
-      bankAccountNumber: creator.bankAccountNumber,
-      holderName: creator.paymentHolderName,
-      amount: totalAmount,
-      description: `Marcolini — comisiones y premios de retos (${itemCount} ítem(s))`,
-    });
+  // Se enlazan de una (para que el cron de mañana no los vuelva a agarrar),
+  // pero el status de cada comisión/premio sigue APPROVED — solo pasa a
+  // PAID cuando el admin confirma la transferencia real en markPayoutPaid.
+  await prisma.$transaction([
+    prisma.commission.updateMany({
+      where: { id: { in: eligible.map((c) => c.id) } },
+      data: { payoutId: payout.id },
+    }),
+    prisma.challengeReward.updateMany({
+      where: { id: { in: eligibleRewards.map((r) => r.id) } },
+      data: { payoutId: payout.id },
+    }),
+  ]);
 
-    await prisma.$transaction([
-      prisma.payout.update({
-        where: { id: payout.id },
-        data: { status: "PAID", paidAt: new Date(), epaycoTransactionRef: transactionRef },
-      }),
-      prisma.commission.updateMany({
-        where: { id: { in: eligible.map((c) => c.id) } },
-        data: { status: "PAID", payoutId: payout.id },
-      }),
-      prisma.challengeReward.updateMany({
-        where: { id: { in: eligibleRewards.map((r) => r.id) } },
-        data: { status: "PAID", payoutId: payout.id },
-      }),
-    ]);
+  await createNotification(
+    creator.userId,
+    "PAYOUT_PENDING",
+    `Tienes ${formatCOP(totalAmount)} en camino — lo transferimos manualmente en los próximos días.`
+  );
 
-    await createNotification(creator.userId, "PAYOUT_PAID", `Te pagamos ${formatCOP(totalAmount)} — ya deberían verse en tu cuenta.`);
+  return { payout, totalAmount, commissionCount: itemCount, status: "PENDING" as const };
+}
 
-    return { payout, totalAmount, commissionCount: itemCount, status: "PAID" as const };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Error desconocido";
-    await prisma.payout.update({ where: { id: payout.id }, data: { status: "FAILED" } });
-    await createNotification(creator.userId, "PAYOUT_FAILED", `No pudimos procesar tu pago de ${formatCOP(totalAmount)} — revisa tus datos bancarios.`);
-    return { payout, totalAmount, commissionCount: itemCount, status: "FAILED" as const, error: message };
-  }
+/// El admin ya hizo la transferencia real (banco o Bre-B) y lo confirma —
+/// recién aquí las comisiones/premios de ese Payout pasan a PAID.
+export async function markPayoutPaid(payoutId: string) {
+  const payout = await prisma.payout.findUniqueOrThrow({
+    where: { id: payoutId },
+    include: { creator: true },
+  });
+
+  await prisma.$transaction([
+    prisma.payout.update({ where: { id: payoutId }, data: { status: "PAID", paidAt: new Date() } }),
+    prisma.commission.updateMany({ where: { payoutId }, data: { status: "PAID" } }),
+    prisma.challengeReward.updateMany({ where: { payoutId }, data: { status: "PAID" } }),
+  ]);
+
+  await createNotification(
+    payout.creator.userId,
+    "PAYOUT_PAID",
+    `Te pagamos ${formatCOP(Number(payout.totalAmount))} — ya deberían verse en tu cuenta.`
+  );
+}
+
+/// Los pagos que el admin todavía tiene que transferir a mano — para la
+/// cola de Admin → Pagos y el resumen descargable (ver payout-pdf.ts).
+export async function listPendingPayouts() {
+  return prisma.payout.findMany({
+    where: { status: "PENDING" },
+    include: { creator: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function countPendingPayouts() {
+  return prisma.payout.count({ where: { status: "PENDING" } });
 }
 
 /// Corre el pago del día 15 para todos los creadores con algo listo.

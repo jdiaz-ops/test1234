@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const updateProfileSchema = z.object({
   displayName: z.string().min(2, "Ingresa tu nombre"),
+  legalName: z.string().optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
   bio: z.string().max(280, "Máximo 280 caracteres").optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
   verticalId: z.string().nullable().optional(),
@@ -16,11 +18,46 @@ export const updateProfileSchema = z.object({
     .max(10),
 });
 
-export const updatePaymentSchema = z.object({
-  bankName: z.string().min(2, "Ingresa el nombre del banco/entidad"),
-  bankAccountType: z.string().min(1, "Selecciona el tipo de cuenta"),
-  bankAccountNumber: z.string().min(4, "Ingresa el número de cuenta"),
-  paymentHolderName: z.string().min(2, "Ingresa el nombre del titular"),
+export const updateInterestsSchema = z.object({
+  verticalIds: z.array(z.string().min(1)).max(20),
+});
+
+export const updatePaymentSchema = z
+  .object({
+    documentId: z.string().optional().or(z.literal("")),
+    payoutMethod: z.enum(["BANK", "BRE_B"]),
+    breBKey: z.string().optional().or(z.literal("")),
+    bankName: z.string().optional().or(z.literal("")),
+    bankAccountType: z.string().optional().or(z.literal("")),
+    bankAccountNumber: z.string().optional().or(z.literal("")),
+    paymentHolderName: z.string().optional().or(z.literal("")),
+  })
+  .refine((data) => data.payoutMethod !== "BRE_B" || data.breBKey, {
+    message: "Ingresa tu llave Bre-B",
+    path: ["breBKey"],
+  })
+  .refine((data) => data.payoutMethod !== "BANK" || (data.bankName && data.bankAccountNumber && data.paymentHolderName), {
+    message: "Completa los datos de la cuenta bancaria",
+    path: ["bankName"],
+  });
+
+export const updateStorefrontSchema = z.object({
+  storefrontPalette: z.string().min(1),
+  storefrontFont: z.string().min(1),
+  storefrontHeadline: z.string().max(120).optional().or(z.literal("")),
+  bio: z.string().max(280).optional().or(z.literal("")),
+});
+
+export const updateEnrollmentDisplaySchema = z.object({
+  items: z
+    .array(
+      z.object({
+        enrollmentId: z.string().min(1),
+        storefrontVisible: z.boolean(),
+        storefrontOrder: z.number().int(),
+      })
+    )
+    .max(200),
 });
 
 export const joinOfferSchema = z.object({

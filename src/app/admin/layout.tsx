@@ -2,13 +2,16 @@ import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AdminNav } from "@/components/portal/admin-nav";
-import { countPendingBillingVerifications } from "@/server/services/payment-service";
+import { countPendingBillingVerifications, countPendingPayouts } from "@/server/services/payment-service";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") redirect("/login");
 
-  const pendingCobros = await countPendingBillingVerifications();
+  const [pendingCobros, pendingPagos] = await Promise.all([
+    countPendingBillingVerifications(),
+    countPendingPayouts(),
+  ]);
 
   return (
     <div className="min-h-screen flex">
@@ -16,7 +19,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <Link href="/" className="font-mono text-sm font-medium text-brand-accent tracking-wide mb-8 block">
           MARCOLINI ADMIN
         </Link>
-        <AdminNav pendingCobros={pendingCobros} />
+        <AdminNav pendingCobros={pendingCobros} pendingPagos={pendingPagos} />
         <div className="mt-auto pt-5 border-t border-brand-line">
           <p className="text-xs text-brand-ink-soft truncate mb-1">{session.user.email}</p>
           <p className="text-xs font-mono text-brand-accent mb-2">{session.user.adminRole}</p>

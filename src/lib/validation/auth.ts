@@ -9,6 +9,9 @@ export const registerCreatorSchema = z.object({
   password: passwordSchema,
   displayName: z.string().min(2, "Ingresa tu nombre"),
   city: z.string().optional(),
+  termsAccepted: z.literal(true, {
+    message: "Debes aceptar los Términos y Condiciones",
+  }),
 });
 
 export const registerBrandSchema = z.object({

@@ -11,6 +11,7 @@ export default function RegistroCreadorPage() {
     email: "",
     password: "",
     city: "",
+    termsAccepted: false,
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,6 +20,12 @@ export default function RegistroCreadorPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!form.termsAccepted) {
+      setError("Debes aceptar los Términos y Condiciones para continuar.");
+      return;
+    }
+
     setLoading(true);
 
     const res = await fetch("/api/register/creador", {
@@ -94,6 +101,22 @@ export default function RegistroCreadorPage() {
             className="input"
           />
         </Field>
+
+        <label className="flex items-start gap-2 text-sm text-brand-ink-soft">
+          <input
+            type="checkbox"
+            checked={form.termsAccepted}
+            onChange={(e) => setForm({ ...form, termsAccepted: e.target.checked })}
+            className="mt-0.5"
+          />
+          <span>
+            Acepto los{" "}
+            <Link href="/terminos" className="underline" target="_blank">
+              Términos y Condiciones
+            </Link>{" "}
+            de Marcolini
+          </span>
+        </label>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
