@@ -12,7 +12,7 @@ export default async function StorefrontSettingsPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">MI STOREFRONT</p>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">MI VITRINA</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Tu vitrina pública</h1>
       <p className="text-sm text-brand-ink-soft mb-8 max-w-xl">
         Este es el único link que necesitas compartir — reúne todas tus marcas activas en una sola

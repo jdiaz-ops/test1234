@@ -20,7 +20,7 @@ export default async function PagoPage() {
       <PaymentForm
         initial={{
           documentId: profile.documentId ?? "",
-          payoutMethod: profile.payoutMethod ?? "BANK",
+          payoutMethod: profile.payoutMethod ?? "BRE_B",
           breBKey: profile.breBKey ?? "",
           bankName: profile.bankName ?? "",
           bankAccountType: profile.bankAccountType ?? "",

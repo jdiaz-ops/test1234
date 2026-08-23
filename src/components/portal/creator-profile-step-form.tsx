@@ -6,6 +6,19 @@ import { useRouter } from "next/navigation";
 type SocialLink = { platform: string; handle: string };
 type Vertical = { id: string; name: string };
 
+// Antes era una lista libre (agregar fila + elegir plataforma) — ahora son
+// tres campos fijos, más directo para el creador.
+const SOCIAL_PLATFORMS = ["TikTok", "Instagram", "Facebook"] as const;
+
+function getHandle(links: SocialLink[], platform: string) {
+  return links.find((l) => l.platform === platform)?.handle ?? "";
+}
+
+function setHandle(links: SocialLink[], platform: string, handle: string): SocialLink[] {
+  const others = links.filter((l) => l.platform !== platform);
+  return handle.trim() ? [...others, { platform, handle }] : others;
+}
+
 export function CreatorProfileStepForm({
   initial,
   photoUrl,
@@ -35,18 +48,8 @@ export function CreatorProfileStepForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function updateLink(index: number, field: keyof SocialLink, value: string) {
-    const links = [...form.socialLinks];
-    links[index] = { ...links[index], [field]: value };
-    setForm({ ...form, socialLinks: links });
-  }
-
-  function addLink() {
-    setForm({ ...form, socialLinks: [...form.socialLinks, { platform: "Instagram", handle: "" }] });
-  }
-
-  function removeLink(index: number) {
-    setForm({ ...form, socialLinks: form.socialLinks.filter((_, i) => i !== index) });
+  function updateSocial(platform: string, handle: string) {
+    setForm((f) => ({ ...f, socialLinks: setHandle(f.socialLinks, platform, handle) }));
   }
 
   function toggleInterest(id: string) {
@@ -125,7 +128,6 @@ export function CreatorProfileStepForm({
             <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handlePhotoChange} disabled={uploadingPhoto} className="hidden" />
           </label>
         </div>
-        <p className="text-xs text-brand-ink-soft mt-1">Opcional — pero ayuda a que las marcas confíen más rápido.</p>
       </div>
 
       <div>
@@ -160,27 +162,19 @@ export function CreatorProfileStepForm({
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm text-brand-ink">Redes sociales</label>
-          <button type="button" onClick={addLink} className="text-xs text-brand-accent font-medium hover:underline">
-            + Agregar red
-          </button>
-        </div>
+        <label className="block text-sm text-brand-ink mb-2">Redes sociales</label>
         <div className="space-y-2">
-          {form.socialLinks.map((link, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <select value={link.platform} onChange={(e) => updateLink(i, "platform", e.target.value)} className="input w-32">
-                <option>Instagram</option>
-                <option>TikTok</option>
-                <option>Facebook</option>
-              </select>
-              <input value={link.handle} onChange={(e) => updateLink(i, "handle", e.target.value)} placeholder="@usuario" className="input" />
-              <button type="button" onClick={() => removeLink(i)} className="text-xs text-brand-ink-soft hover:text-red-600 shrink-0">
-                Quitar
-              </button>
+          {SOCIAL_PLATFORMS.map((platform) => (
+            <div key={platform} className="flex items-center gap-2">
+              <span className="text-xs text-brand-ink-soft w-20 shrink-0">@{platform}</span>
+              <input
+                value={getHandle(form.socialLinks, platform)}
+                onChange={(e) => updateSocial(platform, e.target.value)}
+                placeholder="tu_usuario"
+                className="input"
+              />
             </div>
           ))}
-          {form.socialLinks.length === 0 && <p className="text-xs text-brand-ink-soft">Todavía no agregas ninguna.</p>}
         </div>
       </div>
 
@@ -202,9 +196,7 @@ export function CreatorProfileStepForm({
             </button>
           ))}
         </div>
-        <p className="text-xs text-brand-ink-soft mt-1">
-          Marca todas las que te interesen — nos ayuda a saber a dónde expandir el marketplace.
-        </p>
+        <p className="text-xs text-brand-ink-soft mt-1">Marca todas las categorías que te interesan.</p>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

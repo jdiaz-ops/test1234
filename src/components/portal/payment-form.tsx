@@ -53,11 +53,6 @@ export function PaymentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 max-w-lg">
-      <p className="text-xs text-brand-ink-soft bg-brand-accent-soft rounded-lg px-3 py-2">
-        El pago se hace por transferencia manual — nosotros la hacemos a la cuenta o llave que dejes aquí,
-        no hay cobro automático de tarjeta ni nada que tengas que hacer tú.
-      </p>
-
       <div>
         <label className="block text-sm text-brand-ink mb-1">Cédula (titular de la cuenta)</label>
         <input
@@ -76,17 +71,6 @@ export function PaymentForm({
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={() => setForm({ ...form, payoutMethod: "BANK" })}
-            className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium ${
-              form.payoutMethod === "BANK"
-                ? "border-brand-accent bg-brand-accent-soft text-brand-accent"
-                : "border-brand-line text-brand-ink-soft hover:border-brand-ink-soft"
-            }`}
-          >
-            Cuenta bancaria
-          </button>
-          <button
-            type="button"
             onClick={() => setForm({ ...form, payoutMethod: "BRE_B" })}
             className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium ${
               form.payoutMethod === "BRE_B"
@@ -95,6 +79,17 @@ export function PaymentForm({
             }`}
           >
             Llave Bre-B
+          </button>
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, payoutMethod: "BANK" })}
+            className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium ${
+              form.payoutMethod === "BANK"
+                ? "border-brand-accent bg-brand-accent-soft text-brand-accent"
+                : "border-brand-line text-brand-ink-soft hover:border-brand-ink-soft"
+            }`}
+          >
+            Cuenta bancaria
           </button>
         </div>
       </div>

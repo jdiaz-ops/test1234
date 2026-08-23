@@ -60,11 +60,11 @@ export function CreatorJoinBrandsStep({ offers, filteredByInterests }: { offers:
               </div>
               <div className="grid grid-cols-2 gap-px bg-brand-line">
                 <div className="bg-brand-surface p-3 text-center">
-                  <p className="text-xs text-brand-ink-soft mb-1">Descuento</p>
+                  <p className="text-xs text-brand-ink-soft mb-1">Descuento para tu comunidad</p>
                   <p className="font-display text-lg font-semibold text-brand-ink">{offer.defaultDiscountPercent}%</p>
                 </div>
                 <div className="bg-brand-accent-soft p-3 text-center">
-                  <p className="text-xs text-brand-ink-soft mb-1">Tu comisión</p>
+                  <p className="text-xs text-brand-ink-soft mb-1">Comisión por cada venta que realices</p>
                   <p className="font-display text-lg font-semibold text-brand-accent">{offer.defaultCommissionPercent}%</p>
                 </div>
               </div>
