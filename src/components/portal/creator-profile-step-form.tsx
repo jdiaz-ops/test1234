@@ -12,6 +12,7 @@ export function CreatorProfileStepForm({
   verticals,
   initialInterestIds,
   onSaved,
+  submitLabel = "Guardar y continuar",
 }: {
   initial: {
     displayName: string;
@@ -24,6 +25,7 @@ export function CreatorProfileStepForm({
   verticals: Vertical[];
   initialInterestIds: string[];
   onSaved?: () => void;
+  submitLabel?: string;
 }) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
@@ -212,7 +214,7 @@ export function CreatorProfileStepForm({
         disabled={saving}
         className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
       >
-        {saving ? "Guardando..." : "Guardar y continuar"}
+        {saving ? "Guardando..." : submitLabel}
       </button>
     </form>
   );
