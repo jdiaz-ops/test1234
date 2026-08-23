@@ -108,3 +108,20 @@ export const markShipmentSentSchema = z.object({
   carrier: z.string().optional().or(z.literal("")),
   trackingNumber: z.string().optional().or(z.literal("")),
 });
+
+/// occurredAt viene como string ISO desde un <input type="date"> del
+/// formulario — no puede ser futura ni más vieja que 90 días (evita cargar
+/// "ventas" que en realidad son un error de digitación de años).
+export const recordManualSaleSchema = z.object({
+  discountCode: z.string().min(1, "Elige el código de la venta"),
+  grossAmount: z.coerce.number().positive("El monto debe ser mayor a cero"),
+  occurredAt: z
+    .string()
+    .refine((v) => !isNaN(Date.parse(v)), "Fecha inválida")
+    .refine((v) => new Date(v).getTime() <= Date.now() + 24 * 60 * 60 * 1000, "La fecha no puede ser futura")
+    .refine(
+      (v) => new Date(v).getTime() >= Date.now() - 90 * 24 * 60 * 60 * 1000,
+      "La fecha es demasiado vieja — revisa que sea correcta"
+    ),
+  note: z.string().max(200, "Máximo 200 caracteres").optional().or(z.literal("")),
+});

@@ -13,6 +13,12 @@ const statusLabel: Record<string, string> = {
   REVERSED: "Revertida",
 };
 
+const sourceLabel: Record<string, string> = {
+  SHOPIFY: "Shopify",
+  WOOCOMMERCE: "WooCommerce",
+  MANUAL: "Manual",
+};
+
 export default async function AdminTransaccionesPage() {
   const transactions = await listAllTransactions();
 
@@ -33,6 +39,7 @@ export default async function AdminTransaccionesPage() {
                 <th className="px-5 py-3 font-normal">Fecha</th>
                 <th className="px-5 py-3 font-normal">Marca</th>
                 <th className="px-5 py-3 font-normal">Creador</th>
+                <th className="px-5 py-3 font-normal">Origen</th>
                 <th className="px-5 py-3 font-normal">Venta</th>
                 <th className="px-5 py-3 font-normal">Estado</th>
               </tr>
@@ -45,6 +52,10 @@ export default async function AdminTransaccionesPage() {
                   </td>
                   <td className="px-5 py-3 text-brand-ink">{t.offer.brand.companyName}</td>
                   <td className="px-5 py-3 text-brand-ink-soft">{t.creator.displayName}</td>
+                  <td className="px-5 py-3 text-brand-ink-soft">
+                    {sourceLabel[t.source] ?? t.source}
+                    {t.note && <span className="block text-xs text-brand-ink-soft/70">{t.note}</span>}
+                  </td>
                   <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(t.netAmount))}</td>
                   <td className="px-5 py-3 text-brand-ink-soft">
                     {t.commission ? statusLabel[t.commission.status] : "—"}

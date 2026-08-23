@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createShopifyDiscountCode, ShopifyApiError } from "@/server/integrations/shopify-client";
@@ -15,7 +16,7 @@ export class AttributionError extends Error {}
 
 interface RecordOrderParams {
   brandId: string;
-  source: "SHOPIFY" | "WOOCOMMERCE";
+  source: "SHOPIFY" | "WOOCOMMERCE" | "MANUAL";
   externalOrderId: string;
   /// Código de descuento tal como vino en el pedido — puede venir con
   /// mayúsculas/espacios distintos a como se guardó, por eso se normaliza.
@@ -24,6 +25,8 @@ interface RecordOrderParams {
   discountAmount: number;
   netAmount: number;
   occurredAt: Date;
+  /// Solo tiene sentido con source MANUAL — ver Transaction.note.
+  note?: string;
 }
 
 function normalizeCode(code: string) {
@@ -149,6 +152,7 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
       netAmount: new Prisma.Decimal(params.netAmount),
       status: "COMPLETED",
       occurredAt: params.occurredAt,
+      note: params.note,
     },
   });
 
@@ -195,4 +199,50 @@ export async function recordRefundFromWebhook(params: {
   await reverseCommissionForTransaction(updated.id);
 
   return { transaction: updated, updated: true as const };
+}
+
+export class ManualSaleError extends Error {}
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+/// Reporte manual de venta — para la marca que no tiene Shopify/WooCommerce
+/// conectado (StoreType.OTHER), o para esa venta puntual que pasó por fuera
+/// de la tienda (ej. un pedido cerrado por WhatsApp). Lo registra la propia
+/// marca desde Transacciones. Reusa recordOrderFromWebhook para que el
+/// cálculo de comisión, el hold de reembolsos y el chequeo de retos
+/// GOAL_BONUS sean exactamente los mismos que en una venta automática — lo
+/// único que cambia es de dónde vino el dato.
+export async function recordManualSale(params: {
+  brandId: string;
+  discountCode: string;
+  grossAmount: number;
+  occurredAt: Date;
+  note?: string;
+}) {
+  if (!(params.grossAmount > 0)) {
+    throw new ManualSaleError("El monto debe ser mayor a cero.");
+  }
+
+  const enrollment = await findEnrollmentByDiscountCode(params.brandId, params.discountCode);
+  if (!enrollment) {
+    throw new ManualSaleError("No encontramos ese código entre tus creadores vinculados y activos.");
+  }
+
+  const discountPercent = Number(enrollment.discountPercentOverride ?? enrollment.offer.defaultDiscountPercent);
+  const discountAmount = round2(params.grossAmount * (discountPercent / 100));
+  const netAmount = round2(params.grossAmount - discountAmount);
+
+  return recordOrderFromWebhook({
+    brandId: params.brandId,
+    source: "MANUAL",
+    externalOrderId: `MANUAL-${randomUUID()}`,
+    discountCode: params.discountCode,
+    grossAmount: params.grossAmount,
+    discountAmount,
+    netAmount,
+    occurredAt: params.occurredAt,
+    note: params.note,
+  });
 }
