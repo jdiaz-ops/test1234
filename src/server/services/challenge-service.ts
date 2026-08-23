@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/server/services/notification-service";
+import { sendChallengeUrgencyEmail } from "@/lib/email";
 
 export class ChallengeError extends Error {}
 
@@ -415,6 +416,82 @@ export async function listActiveChallengesForCreator(creatorId: string) {
     }
   }
   return result;
+}
+
+/// Recordatorio de urgencia para retos activos por cerrar — a los 3 días y
+/// al 1 día antes de endDate. Solo le llega a un creador con enrollment
+/// ACTIVE en la oferta del reto que todavía no tiene ningún ChallengeReward
+/// para él (si ya tiene uno, ya ganó o ya le rechazaron una evidencia — no
+/// hace falta apurarlo). Cada combinación (reto, creador, ventana) se manda
+/// una sola vez, sin importar cuántas veces corra el cron ese día — ver
+/// ChallengeUrgencyPing.
+export async function sendChallengeUrgencyReminders() {
+  const now = new Date();
+  const in3Days = addDays(now, 3);
+
+  const challenges = await prisma.challenge.findMany({
+    where: { status: "ACTIVE", endDate: { gt: now, lte: in3Days } },
+  });
+
+  let sentCount = 0;
+  for (const challenge of challenges) {
+    const daysRemaining = Math.ceil((challenge.endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+    const window = daysRemaining <= 1 ? "1d" : "3d";
+    const daysLabel = window === "1d" ? "1 día" : "3 días";
+
+    const enrollments = await prisma.creatorOfferEnrollment.findMany({
+      where: { offerId: challenge.offerId, status: "ACTIVE" },
+      include: { creator: { include: { user: true } } },
+    });
+
+    for (const enrollment of enrollments) {
+      const creatorId = enrollment.creatorId;
+
+      const alreadyEngaged = await prisma.challengeReward.findFirst({ where: { challengeId: challenge.id, creatorId } });
+      if (alreadyEngaged) continue;
+
+      const alreadyPinged = await prisma.challengeUrgencyPing.findUnique({
+        where: { challengeId_creatorId_window: { challengeId: challenge.id, creatorId, window } },
+      });
+      if (alreadyPinged) continue;
+
+      let progressText = "";
+      if (challenge.type === "GOAL_BONUS") {
+        const cfg = challenge.config as { goalAmount: number; bonusAmount: number };
+        const sum = await prisma.transaction.aggregate({
+          where: {
+            offerId: challenge.offerId,
+            creatorId,
+            status: { not: "REFUNDED" },
+            occurredAt: { gte: challenge.startDate, lte: challenge.endDate },
+          },
+          _sum: { netAmount: true },
+        });
+        const current = Number(sum._sum.netAmount ?? 0);
+        const remaining = Math.max(cfg.goalAmount - current, 0);
+        progressText =
+          remaining > 0
+            ? ` Te faltan ${formatCOP(remaining)} para la meta y ganar ${formatCOP(cfg.bonusAmount)}.`
+            : ` ¡Ya llegaste a la meta! Se confirma en cuanto termine el reto.`;
+      }
+
+      await createNotification(
+        enrollment.creator.userId,
+        "CHALLENGE_URGENCY",
+        `Quedan ${daysLabel} para "${challenge.name}".${progressText}`
+      );
+      await sendChallengeUrgencyEmail(enrollment.creator.user.email, {
+        displayName: enrollment.creator.displayName,
+        challengeName: challenge.name,
+        daysLabel,
+        progressText,
+      });
+
+      await prisma.challengeUrgencyPing.create({ data: { challengeId: challenge.id, creatorId, window } });
+      sentCount++;
+    }
+  }
+  return { sentCount };
 }
 
 function formatCOP(amount: number) {

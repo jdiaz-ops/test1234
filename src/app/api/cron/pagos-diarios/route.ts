@@ -7,7 +7,12 @@ import {
   markOverdueCharges,
   sendUpcomingDueReminders,
 } from "@/server/services/payment-service";
-import { approveEligibleChallengeRewards, closeEndedLeaderboards } from "@/server/services/challenge-service";
+import {
+  approveEligibleChallengeRewards,
+  closeEndedLeaderboards,
+  sendChallengeUrgencyReminders,
+} from "@/server/services/challenge-service";
+import { evaluateCreatorBadges } from "@/server/services/creator-badge-service";
 
 /// Punto de entrada para el cron diario real. Soporta dos formas de
 /// autenticarse, según quién lo llame:
@@ -20,10 +25,12 @@ import { approveEligibleChallengeRewards, closeEndedLeaderboards } from "@/serve
 /// retos vencidos, 2) cierra los leaderboards que ya terminaron, 3) manda
 /// recordatorios a las marcas con un corte por vencer (48h/24h antes),
 /// 4) marca como OVERDUE (y bloquea) los cortes cuyo plazo de pago ya
-/// venció sin comprobante verificado, 5) si hoy es el día de corte
-/// configurado, genera el aviso de cobro a las marcas, 6) si hoy es el día
-/// de pago configurado, paga a los creadores — sin importar el estado de
-/// pago de sus marcas.
+/// venció sin comprobante verificado, 5) manda avisos de urgencia a
+/// creadores con un reto por cerrar (3 días/1 día antes) en el que pueden
+/// participar y no han completado, 6) otorga las insignias nuevas que ya se
+/// ganaron los creadores, 7) si hoy es el día de corte configurado, genera
+/// el aviso de cobro a las marcas, 8) si hoy es el día de pago configurado,
+/// paga a los creadores — sin importar el estado de pago de sus marcas.
 async function runDailyJob() {
   const config = await prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } });
   const today = new Date().getDate();
@@ -33,6 +40,8 @@ async function runDailyJob() {
   const approvedRewards = await approveEligibleChallengeRewards();
   const reminders = await sendUpcomingDueReminders();
   const overdue = await markOverdueCharges();
+  const challengeUrgency = await sendChallengeUrgencyReminders();
+  const badges = await evaluateCreatorBadges();
 
   const chargeResults = today === config.chargeDayOfMonth ? await runBrandCharges() : [];
   const payoutResults = today === config.payoutDayOfMonth ? await runCreatorPayouts() : [];
@@ -44,6 +53,8 @@ async function runDailyJob() {
     rewardsApproved: approvedRewards.approvedCount,
     remindersSent: reminders.sentCount,
     brandsLocked: overdue.lockedCount,
+    challengeUrgencyPingsSent: challengeUrgency.sentCount,
+    badgesAwarded: badges.awardedCount,
     brandCharges: chargeResults.length,
     creatorPayouts: payoutResults.length,
   };

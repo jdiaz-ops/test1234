@@ -234,9 +234,27 @@ model CreatorProfile {
   instantPayoutRequests InstantPayoutRequest[]
   challengeRewards      ChallengeReward[]
   conversations         Conversation[]
+  badges                CreatorBadge[]
+  challengeUrgencyPings ChallengeUrgencyPing[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Insignias por logros — se otorgan solas, una vez, dentro del cron diario
+/// (ver evaluateCreatorBadges en creator-badge-service.ts). El catálogo de
+/// claves válidas vive en src/lib/creator-badges.ts, no acá — así se pueden
+/// agregar insignias nuevas sin migración.
+model CreatorBadge {
+  id String @id @default(cuid())
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  badgeKey String
+  earnedAt DateTime @default(now())
+
+  @@unique([creatorId, badgeKey])
 }
 
 model CreatorSocialLink {
@@ -493,9 +511,30 @@ model Challenge {
   /// CONTENT_CHALLENGE      -> { instructions, bonusAmount }
   config Json
 
-  rewards ChallengeReward[]
+  rewards       ChallengeReward[]
+  urgencyPings  ChallengeUrgencyPing[]
 
   createdAt DateTime @default(now())
+}
+
+/// Registro de qué recordatorio de urgencia ("quedan 3 días" / "queda 1
+/// día") ya se le mandó a qué creador para qué reto — evita mandarlo dos
+/// veces si el cron corre más de una vez el mismo día. Ver
+/// sendChallengeUrgencyReminders en challenge-service.ts.
+model ChallengeUrgencyPing {
+  id String @id @default(cuid())
+
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  window String // "3d" | "1d"
+
+  sentAt DateTime @default(now())
+
+  @@unique([challengeId, creatorId, window])
 }
 
 enum ChallengeRewardStatus {

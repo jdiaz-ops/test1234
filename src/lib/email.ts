@@ -114,6 +114,38 @@ export async function sendBrandPaymentVerifiedEmail(to: string, companyName: str
   );
 }
 
+/// Se manda cada vez que evaluateCreatorBadges (creator-badge-service.ts)
+/// le otorga una insignia nueva a un creador — el cron diario es el único
+/// lugar que la dispara.
+export async function sendBadgeEarnedEmail(
+  to: string,
+  params: { displayName: string; label: string; description: string }
+) {
+  await send(
+    to,
+    `Marcolini — nueva insignia: ${params.label}`,
+    `<p>Hola ${params.displayName},</p>
+     <p>¡Desbloqueaste una insignia nueva! <strong>${params.label}</strong> — ${params.description}</p>
+     <p>Ya la puedes ver en tu Dashboard.</p>`
+  );
+}
+
+/// Se manda desde sendChallengeUrgencyReminders (challenge-service.ts) — 3
+/// días y 1 día antes de que cierre un reto en el que el creador puede
+/// participar y todavía no completó.
+export async function sendChallengeUrgencyEmail(
+  to: string,
+  params: { displayName: string; challengeName: string; daysLabel: string; progressText: string }
+) {
+  await send(
+    to,
+    `Marcolini — quedan ${params.daysLabel} para "${params.challengeName}"`,
+    `<p>Hola ${params.displayName},</p>
+     <p>El reto <strong>${params.challengeName}</strong> cierra en ${params.daysLabel}.${params.progressText}</p>
+     <p>Revísalo en Retos antes de que se acabe el tiempo.</p>`
+  );
+}
+
 /// Comunicado del admin a todas las marcas o a todos los creadores — el
 /// cuerpo ya viene armado (texto simple, se envuelve en párrafos).
 export async function sendBroadcastEmail(to: string, subject: string, body: string) {
