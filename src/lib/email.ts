@@ -77,11 +77,29 @@ export async function sendBrandChargeEmail(
     `<p>Hola ${params.companyName},</p>
      <p>Este mes te corresponde pagar <strong>${params.totalAmount}</strong> (comisión de tus creadores de
      contenido + tarifa de Marcolini).</p>
-     <p><strong>Fecha límite: ${params.dueAt}.</strong> Si no verificamos tu pago antes de esa fecha, tu
+     <p><strong>Fecha límite: ${params.dueAt}</strong> Si no verificamos tu pago antes de esa fecha, tu
      marca se oculta del marketplace hasta que regularices la situación.</p>
      ${params.paymentInstructions ? `<p>${params.paymentInstructions.replace(/\n/g, "<br/>")}</p>` : ""}
      <p>Entra a tu portal de Marcolini, en Cuenta → Pago, para ver el desglose completo y subir tu
      comprobante una vez pagues.</p>`
+  );
+}
+
+/// Recordatorio antes de que se cumpla el plazo del corte (48h y 24h
+/// antes) — para que a nadie se le bloquee la marca solo por no haberse
+/// dado cuenta a tiempo.
+export async function sendBrandChargeReminderEmail(
+  to: string,
+  params: { companyName: string; totalAmount: string; dueAt: string; hoursLabel: string }
+) {
+  await send(
+    to,
+    `Marcolini — te quedan ${params.hoursLabel} para pagar tu corte`,
+    `<p>Hola ${params.companyName},</p>
+     <p>Recordatorio: tienes un corte pendiente de <strong>${params.totalAmount}</strong> — el plazo vence
+     el <strong>${params.dueAt}</strong>.</p>
+     <p>Si ya pagaste, sube tu comprobante en Cuenta → Pago para que lo verifiquemos. Si no verificamos tu
+     pago antes de esa fecha, tu marca se oculta del marketplace hasta que regularices la situación.</p>`
   );
 }
 

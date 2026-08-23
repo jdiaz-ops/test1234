@@ -670,6 +670,11 @@ model BrandCharge {
   proofRejectedAt     DateTime?
   proofRejectedReason String?
 
+  /// Marcan si ya se mandó el recordatorio de "te quedan 48h/24h" — para no
+  /// reenviarlo cada vez que corre el cron mientras el corte siga abierto.
+  reminder48SentAt DateTime?
+  reminder24SentAt DateTime?
+
   paidAt           DateTime?
   verifiedByUserId String? // userId del admin que verificó el comprobante
 

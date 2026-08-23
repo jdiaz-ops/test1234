@@ -5,7 +5,7 @@ import { createNotification } from "@/server/services/notification-service";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { generateBrandChargeDoc } from "@/lib/billing-pdf";
 import { uploadFile } from "@/lib/file-upload";
-import { sendBrandChargeEmail, sendBrandPaymentVerifiedEmail } from "@/lib/email";
+import { sendBrandChargeEmail, sendBrandPaymentVerifiedEmail, sendBrandChargeReminderEmail } from "@/lib/email";
 
 export class PaymentError extends Error {}
 
@@ -112,7 +112,7 @@ export async function chargeBrandForPeriod(brandId: string) {
   await createNotification(
     brand.userId,
     "BRAND_CHARGE",
-    `Nuevo corte: debes ${formatCOP(totalAmount)} (comisiones, tarifa y premios de retos). Fecha límite: ${dueAtLabel}.`
+    `Nuevo corte: debes ${formatCOP(totalAmount)} (comisiones, tarifa y premios de retos). Fecha límite: ${dueAtLabel}`
   );
   await sendBrandChargeEmail(brand.user.email, {
     companyName: brand.companyName,
@@ -201,6 +201,59 @@ export async function rejectPaymentProof(chargeId: string, adminUserId: string, 
     `Tu comprobante no se pudo verificar: ${reason}. Sube uno nuevo desde Cuenta → Pago.`
   );
   void adminUserId; // no se guarda por ahora — el registro relevante es el de la marca notificada
+}
+
+/// Corre a diario: manda un recordatorio (correo + notificación) a las
+/// marcas con un corte abierto cuyo plazo está por vencer — una vez quedan
+/// dentro de las 48h, y otra vez dentro de las 24h. Cada aviso se manda
+/// una sola vez por corte (marcado en reminder48SentAt/reminder24SentAt),
+/// aunque el cron corra varias veces mientras el corte siga abierto. Al
+/// correr una vez al día, el momento exacto en que se manda cada aviso cae
+/// dentro de esa ventana, no exactamente a las 48h/24h.
+export async function sendUpcomingDueReminders() {
+  const now = new Date();
+  const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+  const upcoming = await prisma.brandCharge.findMany({
+    where: {
+      status: { in: ["PENDING", "PROOF_SUBMITTED"] },
+      dueAt: { gt: now, lte: in48h },
+      OR: [{ reminder48SentAt: null }, { reminder24SentAt: null }],
+    },
+    include: { brand: { include: { user: true } } },
+  });
+
+  let sentCount = 0;
+  for (const charge of upcoming) {
+    const hoursRemaining = (charge.dueAt.getTime() - now.getTime()) / (60 * 60 * 1000);
+    const window = hoursRemaining <= 24 ? "24" : "48";
+    if (window === "24" && charge.reminder24SentAt) continue;
+    if (window === "48" && charge.reminder48SentAt) continue;
+
+    const totalAmount = formatCOP(Number(charge.totalAmount));
+    const dueAtLabel = charge.dueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" });
+    const hoursLabel = window === "24" ? "24 horas" : "48 horas";
+
+    await createNotification(
+      charge.brand.userId,
+      "BRAND_CHARGE_REMINDER",
+      `Te quedan ${hoursLabel} para pagar tu corte de ${totalAmount} — vence ${dueAtLabel}`
+    );
+    await sendBrandChargeReminderEmail(charge.brand.user.email, {
+      companyName: charge.brand.companyName,
+      totalAmount,
+      dueAt: dueAtLabel,
+      hoursLabel,
+    });
+
+    await prisma.brandCharge.update({
+      where: { id: charge.id },
+      data: window === "24" ? { reminder24SentAt: now } : { reminder48SentAt: now },
+    });
+    sentCount++;
+  }
+
+  return { sentCount };
 }
 
 /// Corre a diario: los cortes cuyo plazo ya venció sin comprobante
@@ -292,6 +345,15 @@ export async function removeTestCharge(chargeId: string) {
     throw new PaymentError("Este corte tiene comisiones o premios reales enlazados — no se puede borrar.");
   }
   await prisma.brandCharge.delete({ where: { id: chargeId } });
+}
+
+/// Cuántos comprobantes están esperando revisión — para el contador en
+/// Admin → Cobros (misma condición que la cola que se ve ahí: ver
+/// AdminFacturacionPage).
+export async function countPendingBillingVerifications() {
+  return prisma.brandCharge.count({
+    where: { proofSubmittedAt: { not: null }, proofRejectedAt: null, status: { not: "PAID" } },
+  });
 }
 
 /// La marca está bloqueada si tiene un corte sin pagar cuyo plazo ya pasó

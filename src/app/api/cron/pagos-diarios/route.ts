@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { approveEligibleCommissions } from "@/server/services/commission-service";
-import { runBrandCharges, runCreatorPayouts, markOverdueCharges } from "@/server/services/payment-service";
+import {
+  runBrandCharges,
+  runCreatorPayouts,
+  markOverdueCharges,
+  sendUpcomingDueReminders,
+} from "@/server/services/payment-service";
 import { approveEligibleChallengeRewards, closeEndedLeaderboards } from "@/server/services/challenge-service";
 
 /// Punto de entrada para el cron diario real. Soporta dos formas de
@@ -12,12 +17,13 @@ import { approveEligibleChallengeRewards, closeEndedLeaderboards } from "@/serve
 ///    llamar por POST con el header `x-cron-secret: <CRON_SECRET>`.
 ///
 /// Cada día: 1) levanta la espera de 15 días de comisiones y premios de
-/// retos vencidos, 2) cierra los leaderboards que ya terminaron, 3) marca
-/// como OVERDUE (y bloquea) los cortes cuyo plazo de pago ya venció sin
-/// comprobante verificado, 4) si hoy es el día de corte configurado,
-/// genera el aviso de cobro a las marcas, 5) si hoy es el día de pago
-/// configurado, paga a los creadores — sin importar el estado de pago de
-/// sus marcas.
+/// retos vencidos, 2) cierra los leaderboards que ya terminaron, 3) manda
+/// recordatorios a las marcas con un corte por vencer (48h/24h antes),
+/// 4) marca como OVERDUE (y bloquea) los cortes cuyo plazo de pago ya
+/// venció sin comprobante verificado, 5) si hoy es el día de corte
+/// configurado, genera el aviso de cobro a las marcas, 6) si hoy es el día
+/// de pago configurado, paga a los creadores — sin importar el estado de
+/// pago de sus marcas.
 async function runDailyJob() {
   const config = await prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } });
   const today = new Date().getDate();
@@ -25,6 +31,7 @@ async function runDailyJob() {
   const approvedCommissions = await approveEligibleCommissions();
   const closedLeaderboards = await closeEndedLeaderboards();
   const approvedRewards = await approveEligibleChallengeRewards();
+  const reminders = await sendUpcomingDueReminders();
   const overdue = await markOverdueCharges();
 
   const chargeResults = today === config.chargeDayOfMonth ? await runBrandCharges() : [];
@@ -35,6 +42,7 @@ async function runDailyJob() {
     commissionsApproved: approvedCommissions.approvedCount,
     leaderboardsClosed: closedLeaderboards.closedCount,
     rewardsApproved: approvedRewards.approvedCount,
+    remindersSent: reminders.sentCount,
     brandsLocked: overdue.lockedCount,
     brandCharges: chargeResults.length,
     creatorPayouts: payoutResults.length,
