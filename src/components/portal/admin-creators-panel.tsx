@@ -102,6 +102,7 @@ export function AdminCreatorsPanel({ creators, isOwner }: { creators: Creator[];
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [addingCreator, setAddingCreator] = useState(false);
+  const [creatingTestCreators, setCreatingTestCreators] = useState(false);
 
   async function toggleSuspended(creatorId: string, suspended: boolean) {
     setLoadingId(creatorId);
@@ -114,9 +115,25 @@ export function AdminCreatorsPanel({ creators, isOwner }: { creators: Creator[];
     router.refresh();
   }
 
+  async function createTestCreators() {
+    setCreatingTestCreators(true);
+    await fetch("/api/admin/creadores/prueba", { method: "POST" });
+    setCreatingTestCreators(false);
+    router.refresh();
+  }
+
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
-      <div className="flex justify-end px-5 py-3 border-b border-brand-line">
+      <div className="flex justify-end gap-4 px-5 py-3 border-b border-brand-line">
+        {isOwner && (
+          <button
+            onClick={createTestCreators}
+            disabled={creatingTestCreators}
+            className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+          >
+            {creatingTestCreators ? "Creando..." : "Crear 3 creadores de prueba"}
+          </button>
+        )}
         {!addingCreator && (
           <button onClick={() => setAddingCreator(true)} className="text-xs text-brand-accent font-medium hover:underline">
             + Agregar creador manualmente
