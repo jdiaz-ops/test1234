@@ -1,6 +1,32 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { getPalette, getFont } from "@/lib/creator-storefront-themes";
+
+/// El título/descripción de acá + la imagen de opengraph-image.tsx (mismo
+/// folder, Next.js la detecta sola por convención) son lo que se ve cuando
+/// un creador pega su link en WhatsApp/Instagram/etc.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const profile = await prisma.creatorProfile.findUnique({ where: { storefrontSlug: slug } });
+  if (!profile) return {};
+
+  const title = profile.storefrontHeadline
+    ? `${profile.storefrontHeadline} — ${profile.displayName}`
+    : `${profile.displayName} en Marcolini`;
+  const description = profile.bio || `Descuentos y códigos de ${profile.displayName} en marcas de belleza — con Marcolini.`;
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
 
 export default async function PublicStorefrontPage({
   params,
