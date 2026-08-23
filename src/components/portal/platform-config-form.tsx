@@ -10,6 +10,8 @@ type Config = {
   payoutDayOfMonth: number;
   refundHoldDays: number;
   instantPayoutFeePercent: number;
+  paymentInstructions: string;
+  paymentGraceHours: number;
 };
 
 export function PlatformConfigForm({ initial, readOnly }: { initial: Config; readOnly: boolean }) {
@@ -67,6 +69,22 @@ export function PlatformConfigForm({ initial, readOnly }: { initial: Config; rea
       {field("Día de pago a creadores", "payoutDayOfMonth", "del mes")}
       {field("Días de espera por reembolsos", "refundHoldDays", "días")}
       {field("Fee de cobro anticipado", "instantPayoutFeePercent")}
+      {field("Plazo antes del bloqueo por impago", "paymentGraceHours", "horas")}
+
+      <div>
+        <label className="block text-sm text-brand-ink mb-1">Instrucciones de pago (QR/Bre-B, cuenta, etc.)</label>
+        <textarea
+          disabled={readOnly}
+          value={form.paymentInstructions}
+          onChange={(e) => setForm({ ...form, paymentInstructions: e.target.value })}
+          rows={4}
+          placeholder="Ej: Bre-B — llave: 3134058607&#10;Cuenta de ahorros Bancolombia 000-000000-00, Marcolini SAS"
+          className="input disabled:opacity-60"
+        />
+        <p className="text-xs text-brand-ink-soft mt-1">
+          Se muestra tal cual (con saltos de línea) en cada aviso de cobro y en el aviso de bloqueo.
+        </p>
+      </div>
 
       {readOnly && (
         <p className="text-xs text-brand-ink-soft">Solo el propietario puede editar esta configuración.</p>

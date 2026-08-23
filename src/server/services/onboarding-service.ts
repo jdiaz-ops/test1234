@@ -9,12 +9,13 @@ export type OnboardingStep = {
 };
 
 /// Lo mínimo que una marca necesita para "salir en vivo": perfil presentable,
-/// tienda conectada (para que la atribución funcione), método de cobro
-/// (para que el día 1 se le pueda cobrar la tarifa + comisiones) y al menos
-/// una oferta creada. Mientras falte algo, la marca puede seguir navegando
-/// el portal libremente, pero no aparece en el marketplace — ver
-/// listActiveOffers en marketplace-service.ts, que aplica exactamente estas
-/// mismas condiciones.
+/// tienda conectada (para que la atribución funcione), haber entendido cómo
+/// funciona el cobro mensual, y al menos una oferta creada. Mientras falte
+/// algo, la marca puede seguir navegando el portal libremente, pero no
+/// aparece en el marketplace — ver listActiveOffers en
+/// marketplace-service.ts, que aplica exactamente estas mismas condiciones
+/// (más el bloqueo por falta de pago, que es aparte — ver
+/// isBrandPaymentLocked en payment-service.ts).
 export async function getBrandOnboardingStatus(profile: BrandProfile) {
   const offerCount = await prisma.offer.count({ where: { brandId: profile.id } });
 
@@ -33,10 +34,10 @@ export async function getBrandOnboardingStatus(profile: BrandProfile) {
     },
     {
       key: "pago",
-      label: "Método de pago",
+      label: "Cómo te cobramos",
       description:
-        "Tu tarjeta para el cobro automático el día 1 de cada mes — incluye la comisión de tus creadores y la tarifa de Marcolini.",
-      done: Boolean(profile.cardTokenRef),
+        "El día 1 de cada mes te mandamos el corte (comisión de tus creadores + tarifa de Marcolini) para pagar por transferencia — sin tarjeta ni procesador de por medio.",
+      done: Boolean(profile.billingAcknowledgedAt),
     },
     {
       key: "oferta",

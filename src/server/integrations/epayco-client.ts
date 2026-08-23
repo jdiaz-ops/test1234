@@ -1,17 +1,18 @@
-// Integración con ePayco (Pagos Divididos) — cobro a la tarjeta de la marca
-// el día 1, y desembolso a la cuenta bancaria del creador el día 15 (o en un
-// cobro anticipado). Sigue la documentación pública de la API REST de
-// ePayco (https://apify.epayco.co: tokenización de tarjeta, creación de
-// cliente y cobro; transferencias a cuenta bancaria para el desembolso).
+// Integración con ePayco — desembolso a la cuenta bancaria del creador el
+// día 15 (o en un cobro anticipado). El cobro a las marcas ya NO pasa por
+// aquí: se hace por transferencia directa (QR/Bre-B) con comprobante
+// verificado a mano, ver payment-service.ts. Sigue la documentación pública
+// de la API REST de ePayco (https://apify.epayco.co) para transferencias a
+// cuenta bancaria.
 //
 // No hay credenciales reales de ePayco configuradas en este entorno, así
 // que — exactamente como ya se hace con el correo transaccional en
 // src/lib/email.ts cuando falta RESEND_API_KEY — si no hay
-// EPAYCO_PUBLIC_KEY/EPAYCO_PRIVATE_KEY, cada función cae a un modo
-// simulado que queda registrado en consola con la etiqueta "[ePayco
-// simulado]" y devuelve una referencia de transacción falsa pero
-// reconocible (prefijo SIM-), para poder probar a fondo toda la lógica de
-// cálculo/estados del Motor de Pagos sin necesitar una cuenta real.
+// EPAYCO_PUBLIC_KEY/EPAYCO_PRIVATE_KEY, la función cae a un modo simulado
+// que queda registrado en consola con la etiqueta "[ePayco simulado]" y
+// devuelve una referencia de transacción falsa pero reconocible (prefijo
+// SIM-), para poder probar a fondo toda la lógica de cálculo/estados del
+// Motor de Pagos sin necesitar una cuenta real.
 
 const API_BASE = "https://apify.epayco.co";
 const PUBLIC_KEY = process.env.EPAYCO_PUBLIC_KEY;
@@ -34,84 +35,6 @@ async function getAccessToken(): Promise<string> {
 function simulate<T>(label: string, detail: string, value: T): T {
   console.log(`[ePayco simulado] ${label}: ${detail}`);
   return value;
-}
-
-/// Tokeniza los datos de la tarjeta (nunca se guardan en nuestra base) y
-/// crea un cliente ePayco recurrente — el `customerId` resultante es lo que
-/// se guarda como BrandProfile.cardTokenRef para cobrar sin pedir la
-/// tarjeta de nuevo cada mes.
-export async function tokenizeAndSaveCard(params: {
-  cardNumber: string;
-  expMonth: string;
-  expYear: string;
-  cvc: string;
-  holderName: string;
-  holderEmail: string;
-}): Promise<{ customerId: string }> {
-  if (SIMULATED) {
-    return simulate(
-      "Tarjeta guardada",
-      `terminada en ${params.cardNumber.slice(-4)} para ${params.holderName}`,
-      { customerId: `SIM-CUST-${Date.now()}` }
-    );
-  }
-
-  const token = await getAccessToken();
-  const tokenRes = await fetch(`${API_BASE}/payment/token/create`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      "card[number]": params.cardNumber,
-      "card[exp-year]": params.expYear,
-      "card[exp-month]": params.expMonth,
-      "card[cvc]": params.cvc,
-    }),
-  });
-  if (!tokenRes.ok) throw new EpaycoApiError(`No se pudo tokenizar la tarjeta (${tokenRes.status})`);
-  const tokenBody = await tokenRes.json();
-
-  const customerRes = await fetch(`${API_BASE}/payment/customer/create`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      token_card: tokenBody.id,
-      name: params.holderName,
-      email: params.holderEmail,
-    }),
-  });
-  if (!customerRes.ok) throw new EpaycoApiError(`No se pudo registrar el cliente en ePayco (${customerRes.status})`);
-  const customerBody = await customerRes.json();
-
-  return { customerId: customerBody.data.customerId };
-}
-
-/// Cobro del día 1 — usa el cliente/tarjeta ya guardado, sin volver a pedir
-/// datos de la tarjeta.
-export async function chargeBrandCard(params: {
-  customerId: string;
-  amount: number;
-  description: string;
-}): Promise<{ transactionRef: string }> {
-  if (SIMULATED) {
-    return simulate("Cobro a marca", `${params.description} por $${params.amount}`, {
-      transactionRef: `SIM-CHARGE-${Date.now()}`,
-    });
-  }
-
-  const token = await getAccessToken();
-  const res = await fetch(`${API_BASE}/payment/process`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      customer_id: params.customerId,
-      value: params.amount,
-      currency: "cop",
-      description: params.description,
-    }),
-  });
-  if (!res.ok) throw new EpaycoApiError(`No se pudo cobrar a la marca (${res.status})`);
-  const body = await res.json();
-  return { transactionRef: body.data.ref_payco };
 }
 
 /// Desembolso a la cuenta bancaria del creador (día 15, o cobro

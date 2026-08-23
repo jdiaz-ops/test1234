@@ -3,8 +3,9 @@ import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getBrandProfileByUserId, getWebhookUrl } from "@/server/services/brand-profile-service";
 import { getBrandDashboardSummary } from "@/server/services/brand-finance-service";
+import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { BrandProfileForm } from "@/components/portal/brand-profile-form";
-import { CardForm } from "@/components/portal/card-form";
+import { ChargePaymentBox } from "@/components/portal/charge-payment-box";
 import { BrandInvoicesList } from "@/components/portal/brand-invoices-list";
 import { StoreConnectionForm } from "@/components/portal/store-connection-form";
 import { ChangePasswordForm } from "@/components/portal/change-password-form";
@@ -23,19 +24,22 @@ function formatCOP(amount: number) {
 }
 
 const chargeStatusLabel: Record<string, string> = {
-  PENDING: "Pendiente",
-  CHARGED: "Cobrado",
-  FAILED: "Falló",
+  PENDING: "Esperando pago",
+  PROOF_SUBMITTED: "Comprobante en revisión",
+  PAID: "Pagado",
+  OVERDUE: "Vencido — marca bloqueada",
 };
 
 export default async function MarcaCuentaPage() {
   const session = await auth();
   const profile = await getBrandProfileByUserId(session!.user.id);
-  const [summary, charges, invoices] = await Promise.all([
+  const [summary, charges, invoices, platformConfig] = await Promise.all([
     getBrandDashboardSummary(profile.id),
     prisma.brandCharge.findMany({ where: { brandId: profile.id }, orderBy: { periodStart: "desc" } }),
     prisma.brandInvoice.findMany({ where: { brandId: profile.id }, orderBy: { period: "desc" } }),
+    getPlatformConfig(),
   ]);
+  const openCharge = charges.find((c) => c.status !== "PAID") ?? null;
 
   const webhookUrl =
     profile.webhookSecret && (profile.storeType === "SHOPIFY" || profile.storeType === "WOOCOMMERCE")
@@ -65,27 +69,67 @@ export default async function MarcaCuentaPage() {
   );
 
   const pagoTab = (
-    <div className="max-w-lg">
-      <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 mb-6">
+    <div className="max-w-lg space-y-6">
+      <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
         <h2 className="font-display font-semibold text-brand-ink mb-2">Tu tarifa</h2>
         <p className="text-sm text-brand-ink-soft">
           <span className="font-mono text-brand-accent">{summary.platformFeePercent}%</span> + IVA (
-          <span className="font-mono">{summary.vatPercent}%</span>) sobre cada venta, cobrado el día 1
-          de cada mes junto con la comisión de tus creadores.
+          <span className="font-mono">{summary.vatPercent}%</span>) sobre cada venta — se junta con la
+          comisión de tus creadores en el corte del día 1, y se paga por transferencia directa, sin
+          tarjeta ni procesador de por medio.
         </p>
       </div>
-      <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
-        <h2 className="font-display font-semibold text-brand-ink mb-2">Método de cobro</h2>
-        <p className="text-sm text-brand-ink-soft mb-4">
-          {profile.cardTokenRef
-            ? "Tienes una tarjeta registrada para el cobro automático."
-            : "Registra tu tarjeta para que el cobro del día 1 se haga solo, sin que tengas que hacer nada cada mes."}
-        </p>
-        <CardForm
-          hasCard={!!profile.cardTokenRef}
-          initialHolderName={profile.legalName || profile.companyName}
-          initialHolderEmail={session!.user.email ?? ""}
+
+      {openCharge ? (
+        <ChargePaymentBox
+          charge={{
+            id: openCharge.id,
+            totalAmount: Number(openCharge.totalAmount),
+            dueAt: openCharge.dueAt.toISOString(),
+            status: openCharge.status,
+            pdfUrl: openCharge.pdfUrl,
+            proofSubmittedAt: openCharge.proofSubmittedAt?.toISOString() ?? null,
+            proofRejectedAt: openCharge.proofRejectedAt?.toISOString() ?? null,
+            proofRejectedReason: openCharge.proofRejectedReason,
+          }}
+          paymentInstructions={platformConfig.paymentInstructions}
+          paymentQrImageUrl={platformConfig.paymentQrImageUrl}
         />
+      ) : (
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
+          <p className="text-sm text-brand-accent font-medium">✓ Estás al día</p>
+          <p className="text-sm text-brand-ink-soft mt-1">No tienes ningún corte pendiente de pago.</p>
+        </div>
+      )}
+
+      <div>
+        <h2 className="font-display font-semibold text-brand-ink mb-4">Historial de cortes</h2>
+        {charges.length === 0 ? (
+          <p className="text-sm text-brand-ink-soft">Aún no se ha generado ningún corte.</p>
+        ) : (
+          <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
+                  <th className="px-5 py-3 font-normal">Período</th>
+                  <th className="px-5 py-3 font-normal">Monto</th>
+                  <th className="px-5 py-3 font-normal">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-line">
+                {charges.map((c) => (
+                  <tr key={c.id}>
+                    <td className="px-5 py-3 text-brand-ink-soft font-mono">
+                      {c.periodStart.toLocaleDateString("es-CO")}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(c.totalAmount))}</td>
+                    <td className="px-5 py-3 text-brand-ink-soft">{chargeStatusLabel[c.status]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -94,37 +138,7 @@ export default async function MarcaCuentaPage() {
     <div className="max-w-2xl">
       <h2 className="font-display font-semibold text-brand-ink mb-4">Facturas electrónicas</h2>
       <p className="text-sm text-brand-ink-soft mb-4">Descarga el PDF de la factura electrónica de cada período.</p>
-      <div className="mb-10">
-        <BrandInvoicesList invoices={invoices.map((i) => ({ ...i, amount: Number(i.amount), createdAt: i.createdAt.toISOString() }))} />
-      </div>
-
-      <h2 className="font-display font-semibold text-brand-ink mb-4">Historial de cobros</h2>
-      {charges.length === 0 ? (
-        <p className="text-sm text-brand-ink-soft">Aún no se ha generado ningún cobro.</p>
-      ) : (
-        <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
-                <th className="px-5 py-3 font-normal">Período</th>
-                <th className="px-5 py-3 font-normal">Monto</th>
-                <th className="px-5 py-3 font-normal">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-brand-line">
-              {charges.map((c) => (
-                <tr key={c.id}>
-                  <td className="px-5 py-3 text-brand-ink-soft font-mono">
-                    {c.periodStart.toLocaleDateString("es-CO")}
-                  </td>
-                  <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(c.totalAmount))}</td>
-                  <td className="px-5 py-3 text-brand-ink-soft">{chargeStatusLabel[c.status]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <BrandInvoicesList invoices={invoices.map((i) => ({ ...i, amount: Number(i.amount), createdAt: i.createdAt.toISOString() }))} />
     </div>
   );
 

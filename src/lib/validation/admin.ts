@@ -22,6 +22,17 @@ export const platformConfigSchema = z.object({
   payoutDayOfMonth: z.number().int().min(1).max(28),
   refundHoldDays: z.number().int().min(0).max(90),
   instantPayoutFeePercent: z.number().min(0).max(100),
+  paymentInstructions: z.string().max(2000).optional().or(z.literal("")),
+  paymentGraceHours: z.number().int().min(1).max(24 * 30),
+});
+
+export const verifyChargeSchema = z.object({
+  chargeId: z.string().min(1),
+});
+
+export const rejectChargeSchema = z.object({
+  chargeId: z.string().min(1),
+  reason: z.string().min(2, "Explica por qué se rechaza"),
 });
 
 export const legalContentSchema = z.object({

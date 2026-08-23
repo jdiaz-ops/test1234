@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { OnboardingStep } from "@/server/services/onboarding-service";
 import { BrandProfileForm } from "@/components/portal/brand-profile-form";
 import { StoreConnectionForm } from "@/components/portal/store-connection-form";
-import { CardForm } from "@/components/portal/card-form";
+import { BillingAcknowledgeStep } from "@/components/portal/billing-acknowledge-step";
 import { OfferForm } from "@/components/portal/offer-form";
 
 type ProfileValues = React.ComponentProps<typeof BrandProfileForm>["initial"];
@@ -15,16 +15,16 @@ export function OnboardingWizard({
   steps,
   profile,
   store,
-  hasCard,
-  cardHolder,
+  paymentInstructions,
+  paymentQrImageUrl,
   platformFeePercent,
   vatPercent,
 }: {
   steps: OnboardingStep[];
   profile: { initial: ProfileValues; files: ProfileFiles };
   store: { initial: StoreValues; initialWebhookUrl: string | null; initialWebhookSecret: string | null };
-  hasCard: boolean;
-  cardHolder: { name: string; email: string };
+  paymentInstructions: string | null;
+  paymentQrImageUrl: string | null;
   platformFeePercent: number;
   vatPercent: number;
 }) {
@@ -100,10 +100,9 @@ export function OnboardingWizard({
                     />
                   )}
                   {step.key === "pago" && (
-                    <CardForm
-                      hasCard={hasCard}
-                      initialHolderName={cardHolder.name}
-                      initialHolderEmail={cardHolder.email}
+                    <BillingAcknowledgeStep
+                      paymentInstructions={paymentInstructions}
+                      paymentQrImageUrl={paymentQrImageUrl}
                       onSaved={() => goToNext("pago")}
                     />
                   )}

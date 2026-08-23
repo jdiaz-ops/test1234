@@ -4,8 +4,11 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { BrandNav } from "@/components/portal/brand-nav";
 import { ImpersonationBanner } from "@/components/portal/impersonation-banner";
+import { BillingLockScreen } from "@/components/portal/billing-lock-screen";
 import { countUnreadNotifications } from "@/server/services/notification-service";
 import { getBrandOnboardingStatus } from "@/server/services/onboarding-service";
+import { isBrandPaymentLocked } from "@/server/services/payment-service";
+import { getPlatformConfig } from "@/server/services/admin-config-service";
 
 export default async function MarcaLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -15,6 +18,31 @@ export default async function MarcaLayout({ children }: { children: React.ReactN
     prisma.brandProfile.findUniqueOrThrow({ where: { userId: session.user.id } }),
     countUnreadNotifications(session.user.id),
   ]);
+
+  // Bloqueo total — mientras haya un corte OVERDUE, no se ve nada del
+  // portal salvo este aviso (ver payment-service.ts para el ciclo
+  // completo: corte, comprobante, verificación).
+  const lockedCharge = await isBrandPaymentLocked(profile.id);
+  if (lockedCharge) {
+    const platformConfig = await getPlatformConfig();
+    return (
+      <BillingLockScreen
+        charge={{
+          id: lockedCharge.id,
+          totalAmount: Number(lockedCharge.totalAmount),
+          dueAt: lockedCharge.dueAt.toISOString(),
+          status: lockedCharge.status,
+          pdfUrl: lockedCharge.pdfUrl,
+          proofSubmittedAt: lockedCharge.proofSubmittedAt?.toISOString() ?? null,
+          proofRejectedAt: lockedCharge.proofRejectedAt?.toISOString() ?? null,
+          proofRejectedReason: lockedCharge.proofRejectedReason,
+        }}
+        paymentInstructions={platformConfig.paymentInstructions}
+        paymentQrImageUrl={platformConfig.paymentQrImageUrl}
+      />
+    );
+  }
+
   const onboarding = await getBrandOnboardingStatus(profile);
 
   return (

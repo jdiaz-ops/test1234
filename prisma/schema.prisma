@@ -275,6 +275,11 @@ model BrandProfile {
 
   termsAcceptedAt DateTime?
 
+  /// Confirmación del paso "Cómo te cobramos" del onboarding — la marca vio
+  /// y entendió el ciclo de corte mensual, transferencia y bloqueo por
+  /// impago antes de salir en vivo.
+  billingAcknowledgedAt DateTime?
+
   storeType             StoreType             @default(OTHER)
   storeUrl              String?
   storeConnectionStatus StoreConnectionStatus @default(NOT_CONNECTED)
@@ -291,10 +296,6 @@ model BrandProfile {
   /// defecto de PlatformConfig (5%) — el admin puede sobrescribirla por
   /// negociación, y la marca lo ve reflejado automáticamente en su portal.
   platformFeePercentOverride Decimal? @db.Decimal(5, 2)
-
-  /// Referencia tokenizada de la tarjeta guardada en ePayco para el cobro
-  /// automático del día 1 — nunca se guarda el número de tarjeta aquí.
-  cardTokenRef String?
 
   offers       Offer[]
   charges      BrandCharge[]
@@ -468,9 +469,11 @@ model ChallengeReward {
   holdUntil  DateTime?
   approvedAt DateTime?
 
-  /// El premio lo financia la MARCA (es su presupuesto de marketing, no un
-  /// costo de Marcolini) — igual que con las comisiones, no se le paga al
-  /// creador con plata que la marca todavía no puso.
+  /// A qué corte del día 1 quedó asociado, solo para el desglose del aviso
+  /// de cobro de esa marca — el pago al creador ya NO depende de que ese
+  /// corte esté verificado (ver payment-service.ts): Marcolini le paga en
+  /// su fecha normal así la marca esté atrasada o bloqueada, nunca al
+  /// revés.
   brandChargeId String?
   brandCharge   BrandCharge? @relation(fields: [brandChargeId], references: [id])
 
@@ -577,9 +580,11 @@ model Commission {
   instantPayoutRequestId String?
   instantPayoutRequest   InstantPayoutRequest? @relation(fields: [instantPayoutRequestId], references: [id])
 
-  /// A qué cobro del día 1 quedó asociada — se pone al cobrarle a la marca;
-  /// una comisión sin marca cobrada todavía no se le puede pagar al
-  /// creador (primero hay que haber recibido la plata).
+  /// A qué corte del día 1 quedó asociada, solo para el desglose del aviso
+  /// de cobro de esa marca — el pago al creador ya NO depende de que ese
+  /// corte esté verificado (ver payment-service.ts): Marcolini le paga en
+  /// su fecha normal así la marca esté atrasada o bloqueada, nunca al
+  /// revés.
   brandChargeId String?
   brandCharge   BrandCharge? @relation(fields: [brandChargeId], references: [id])
 
@@ -623,14 +628,21 @@ model Payout {
 }
 
 enum BrandChargeStatus {
-  PENDING
-  CHARGED
-  FAILED
+  PENDING // corte generado, esperando comprobante — el contador de dueAt está corriendo
+  PROOF_SUBMITTED // la marca subió comprobante, esperando verificación del admin
+  PAID // el admin verificó el comprobante
+  OVERDUE // pasó dueAt sin comprobante verificado — la marca queda bloqueada (ver isBrandPaymentLocked)
 }
 
-/// Cobro del día 1 a la tarjeta de una marca — cubre comisiones + tarifa de
-/// plataforma + IVA del período. Da el colchón de 15 días antes de pagarle a
-/// los creadores.
+/// Corte del día 1: cubre comisiones + tarifa de plataforma + IVA del
+/// período. La marca paga por transferencia directa (QR/Bre-B, ver
+/// PlatformConfig.paymentInstructions) y sube su comprobante en la
+/// plataforma — no hay cobro automático a tarjeta ni procesador de pagos de
+/// por medio. Si no se verifica el pago antes de `dueAt`, la marca queda
+/// bloqueada (ver isBrandPaymentLocked en payment-service.ts) hasta
+/// regularizar. A los creadores se les sigue pagando en su fecha normal sin
+/// importar el estado de este corte — Marcolini asume ese riesgo, nunca el
+/// creador.
 model BrandCharge {
   id String @id @default(cuid())
 
@@ -643,9 +655,23 @@ model BrandCharge {
   totalAmount Decimal           @db.Decimal(12, 2)
   status      BrandChargeStatus @default(PENDING)
 
-  epaycoTransactionRef String?
-  chargedAt            DateTime?
-  failureReason        String?
+  /// Fecha límite fija (createdAt + PlatformConfig.paymentGraceHours) para
+  /// subir y que se verifique el comprobante — no se corre aunque la marca
+  /// entre a mirar el aviso varios días después.
+  dueAt DateTime
+
+  /// El aviso de cobro que se genera al crear el corte (monto, desglose,
+  /// instrucciones de pago, fecha límite) — se muestra en el dashboard y se
+  /// manda por correo.
+  pdfUrl String?
+
+  proofUrl            String?
+  proofSubmittedAt    DateTime?
+  proofRejectedAt     DateTime?
+  proofRejectedReason String?
+
+  paidAt           DateTime?
+  verifiedByUserId String? // userId del admin que verificó el comprobante
 
   commissions      Commission[]
   challengeRewards ChallengeReward[]
@@ -713,6 +739,17 @@ model PlatformConfig {
   payoutDayOfMonth          Int     @default(15)
   refundHoldDays            Int     @default(15)
   instantPayoutFeePercent   Decimal @default(5.0) @db.Decimal(5, 2)
+
+  /// Cómo le pagan las marcas a Marcolini — texto libre (cuenta bancaria,
+  /// Nequi, llave Bre-B, lo que aplique) más un QR opcional, mostrados en
+  /// cada aviso de cobro. Editable desde el Panel Admin, sin depender de un
+  /// deploy.
+  paymentInstructions String?
+  paymentQrImageUrl   String?
+
+  /// Horas desde que se genera el corte hasta que, sin comprobante
+  /// verificado, la marca queda bloqueada.
+  paymentGraceHours Int @default(72)
 
   updatedAt DateTime @updatedAt
 }

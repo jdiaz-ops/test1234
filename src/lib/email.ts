@@ -63,6 +63,39 @@ export async function sendAccountInviteEmail(to: string, setPasswordUrl: string)
   );
 }
 
+/// Aviso de cobro del día 1 — se manda en paralelo a lo que ya se ve en el
+/// dashboard, por si la marca no entra a la plataforma. Trae el mismo PDF
+/// que se muestra ahí, con el desglose, las instrucciones de pago y la
+/// fecha límite antes del bloqueo.
+export async function sendBrandChargeEmail(
+  to: string,
+  params: { companyName: string; totalAmount: string; dueAt: string; paymentInstructions: string | null }
+) {
+  await send(
+    to,
+    `Marcolini — tu cobro de este mes: ${params.totalAmount}`,
+    `<p>Hola ${params.companyName},</p>
+     <p>Este mes te corresponde pagar <strong>${params.totalAmount}</strong> (comisión de tus creadores de
+     contenido + tarifa de Marcolini).</p>
+     <p><strong>Fecha límite: ${params.dueAt}.</strong> Si no verificamos tu pago antes de esa fecha, tu
+     marca se oculta del marketplace hasta que regularices la situación.</p>
+     ${params.paymentInstructions ? `<p>${params.paymentInstructions.replace(/\n/g, "<br/>")}</p>` : ""}
+     <p>Entra a tu portal de Marcolini, en Cuenta → Pago, para ver el desglose completo y subir tu
+     comprobante una vez pagues.</p>`
+  );
+}
+
+/// Se manda apenas se verifica el comprobante — la marca queda
+/// reactivada de inmediato en la plataforma.
+export async function sendBrandPaymentVerifiedEmail(to: string, companyName: string) {
+  await send(
+    to,
+    "Marcolini — pago verificado, tu marca está activa",
+    `<p>Hola ${companyName},</p>
+     <p>Verificamos tu comprobante de pago — tu marca ya está activa y visible en el marketplace de nuevo.</p>`
+  );
+}
+
 /// Comunicado del admin a todas las marcas o a todos los creadores — el
 /// cuerpo ya viene armado (texto simple, se envuelve en párrafos).
 export async function sendBroadcastEmail(to: string, subject: string, body: string) {

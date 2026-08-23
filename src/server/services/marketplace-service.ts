@@ -27,8 +27,10 @@ export async function listActiveOffers(filters: { categorySlug?: string; search?
     where: {
       status: "ACTIVE",
       // Además de aprobada, la marca debe haber terminado su onboarding
-      // (perfil, tienda, método de pago) — ver getBrandOnboardingStatus en
-      // onboarding-service.ts, que usa exactamente estas mismas condiciones.
+      // (perfil, tienda, cómo-te-cobramos) — ver getBrandOnboardingStatus en
+      // onboarding-service.ts, que usa exactamente estas mismas condiciones
+      // — y no estar bloqueada por falta de pago verificado (ver
+      // isBrandPaymentLocked en payment-service.ts).
       brand: {
         status: "APPROVED",
         // logoUrl/description/websiteUrl se guardan como "" (no null) cuando
@@ -42,7 +44,11 @@ export async function listActiveOffers(filters: { categorySlug?: string; search?
           { websiteUrl: "" },
         ],
         storeConnectionStatus: "CONNECTED",
-        cardTokenRef: { not: null },
+        billingAcknowledgedAt: { not: null },
+        // Igual que isBrandPaymentLocked en payment-service.ts: bloqueada si
+        // hay un corte sin pagar cuyo plazo ya venció (no depende de que el
+        // cron ya haya puesto el status en OVERDUE).
+        charges: { none: { status: { not: "PAID" }, dueAt: { lt: new Date() } } },
       },
       ...(filters.categorySlug ? { category: { slug: filters.categorySlug } } : {}),
       ...(filters.search

@@ -24,15 +24,6 @@ export const updateStoreSchema = z.object({
   wooConsumerSecret: z.string().optional().or(z.literal("")),
 });
 
-export const saveCardSchema = z.object({
-  cardNumber: z.string().min(13, "Número de tarjeta inválido").max(19),
-  expMonth: z.string().regex(/^(0[1-9]|1[0-2])$/, "Mes inválido"),
-  expYear: z.string().regex(/^\d{4}$/, "Año inválido"),
-  cvc: z.string().regex(/^\d{3,4}$/, "CVC inválido"),
-  holderName: z.string().min(2, "Ingresa el nombre del titular"),
-  holderEmail: z.string().email("Ingresa un correo válido"),
-});
-
 const percent = z.number().min(0, "Debe ser 0 o más").max(100, "No puede superar 100");
 
 export const offerSchema = z.object({

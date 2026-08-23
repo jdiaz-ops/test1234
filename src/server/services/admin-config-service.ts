@@ -11,8 +11,14 @@ export async function updatePlatformConfig(data: {
   payoutDayOfMonth: number;
   refundHoldDays: number;
   instantPayoutFeePercent: number;
+  paymentInstructions?: string;
+  paymentGraceHours?: number;
 }) {
   return prisma.platformConfig.update({ where: { id: "singleton" }, data });
+}
+
+export async function updatePlatformPaymentQrImage(paymentQrImageUrl: string) {
+  return prisma.platformConfig.update({ where: { id: "singleton" }, data: { paymentQrImageUrl } });
 }
 
 export async function getLegalContent(key: string) {

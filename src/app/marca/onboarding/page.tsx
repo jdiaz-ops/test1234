@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getBrandOnboardingStatus } from "@/server/services/onboarding-service";
 import { getWebhookUrl } from "@/server/services/brand-profile-service";
 import { getBrandDashboardSummary } from "@/server/services/brand-finance-service";
+import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { OnboardingWizard } from "@/components/portal/onboarding-wizard";
 
 export default async function OnboardingPage() {
@@ -12,9 +13,10 @@ export default async function OnboardingPage() {
   const profile = await prisma.brandProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },
   });
-  const [{ steps, complete, completedCount, total }, summary] = await Promise.all([
+  const [{ steps, complete, completedCount, total }, summary, platformConfig] = await Promise.all([
     getBrandOnboardingStatus(profile),
     getBrandDashboardSummary(profile.id),
+    getPlatformConfig(),
   ]);
 
   // Ya no hay nada pendiente — esta página no tiene sentido, de vuelta al Dashboard.
@@ -90,11 +92,8 @@ export default async function OnboardingPage() {
             initialWebhookUrl: webhookUrl,
             initialWebhookSecret: profile.webhookSecret ?? null,
           }}
-          hasCard={!!profile.cardTokenRef}
-          cardHolder={{
-            name: profile.legalName || profile.companyName,
-            email: session!.user.email ?? "",
-          }}
+          paymentInstructions={platformConfig.paymentInstructions}
+          paymentQrImageUrl={platformConfig.paymentQrImageUrl}
           platformFeePercent={summary.platformFeePercent}
           vatPercent={summary.vatPercent}
         />
