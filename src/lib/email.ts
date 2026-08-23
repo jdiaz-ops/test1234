@@ -146,6 +146,27 @@ export async function sendChallengeUrgencyEmail(
   );
 }
 
+/// Se manda desde sendOnboardingReminders (creator-onboarding-service.ts) —
+/// a los 3 y 7 días de registrarse un creador, si todavía no completó su
+/// perfil. No bloqueante — es solo un empujón.
+export async function sendOnboardingReminderEmail(
+  to: string,
+  params: { displayName: string; missingLabels: string[]; round: 1 | 2 }
+) {
+  const subject =
+    params.round === 1
+      ? "Marcolini — te faltan unos pasos en tu perfil"
+      : "Marcolini — tu perfil de creador sigue incompleto";
+  await send(
+    to,
+    subject,
+    `<p>Hola ${params.displayName},</p>
+     <p>Todavía te falta: <strong>${params.missingLabels.join(", ")}</strong>.</p>
+     <p>No es obligatorio — ya puedes usar toda la plataforma — pero completarlo ayuda a que las marcas confíen
+     más rápido y a que te paguemos sin contratiempos. Lo encuentras en "Empieza aquí" dentro de tu cuenta.</p>`
+  );
+}
+
 /// Comunicado del admin a todas las marcas o a todos los creadores — el
 /// cuerpo ya viene armado (texto simple, se envuelve en párrafos).
 export async function sendBroadcastEmail(to: string, subject: string, body: string) {

@@ -226,6 +226,13 @@ model CreatorProfile {
   bankAccountNumber String?
   paymentHolderName String?
 
+  /// Recordatorios para terminar el onboarding (no bloqueante, así que solo
+  /// son un empujón) — a los 3 y 7 días de registrarse si todavía no lo
+  /// completó. Ver sendOnboardingReminders en creator-onboarding-service.ts.
+  /// Null = todavía no se le mandó ese recordatorio.
+  onboardingReminder1SentAt DateTime?
+  onboardingReminder2SentAt DateTime?
+
   socialLinks           CreatorSocialLink[]
   enrollments           CreatorOfferEnrollment[]
   transactions          Transaction[]
@@ -620,11 +627,16 @@ model Transaction {
   enrollment   CreatorOfferEnrollment @relation(fields: [enrollmentId], references: [id])
 
   source          TransactionSource
-  externalOrderId String // id de la orden en Shopify/WooCommerce
+  externalOrderId String // id de la orden en Shopify/WooCommerce — para MANUAL, se genera solo
 
   grossAmount    Decimal @db.Decimal(12, 2) // precio de lista
   discountAmount Decimal @db.Decimal(12, 2) // lo que no pagó el cliente
   netAmount      Decimal @db.Decimal(12, 2) // lo que realmente pagó el cliente (base de la comisión)
+
+  /// Solo se usa con source MANUAL — la referencia que la marca escribió al
+  /// reportar la venta a mano (ej. "Pedido de Instagram #4521"), para poder
+  /// auditarla después. Null en ventas de Shopify/WooCommerce.
+  note String?
 
   status TransactionStatus @default(COMPLETED)
 

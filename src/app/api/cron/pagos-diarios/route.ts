@@ -13,6 +13,7 @@ import {
   sendChallengeUrgencyReminders,
 } from "@/server/services/challenge-service";
 import { evaluateCreatorBadges } from "@/server/services/creator-badge-service";
+import { sendOnboardingReminders } from "@/server/services/creator-onboarding-service";
 
 /// Punto de entrada para el cron diario real. Soporta dos formas de
 /// autenticarse, según quién lo llame:
@@ -28,9 +29,11 @@ import { evaluateCreatorBadges } from "@/server/services/creator-badge-service";
 /// venció sin comprobante verificado, 5) manda avisos de urgencia a
 /// creadores con un reto por cerrar (3 días/1 día antes) en el que pueden
 /// participar y no han completado, 6) otorga las insignias nuevas que ya se
-/// ganaron los creadores, 7) si hoy es el día de corte configurado, genera
-/// el aviso de cobro a las marcas, 8) si hoy es el día de pago configurado,
-/// paga a los creadores — sin importar el estado de pago de sus marcas.
+/// ganaron los creadores, 7) manda recordatorios de onboarding a creadores
+/// (3 y 7 días de registrados) que todavía no completaron su perfil,
+/// 8) si hoy es el día de corte configurado, genera el aviso de cobro a
+/// las marcas, 9) si hoy es el día de pago configurado, paga a los
+/// creadores — sin importar el estado de pago de sus marcas.
 async function runDailyJob() {
   const config = await prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } });
   const today = new Date().getDate();
@@ -42,6 +45,7 @@ async function runDailyJob() {
   const overdue = await markOverdueCharges();
   const challengeUrgency = await sendChallengeUrgencyReminders();
   const badges = await evaluateCreatorBadges();
+  const onboardingReminders = await sendOnboardingReminders();
 
   const chargeResults = today === config.chargeDayOfMonth ? await runBrandCharges() : [];
   const payoutResults = today === config.payoutDayOfMonth ? await runCreatorPayouts() : [];
@@ -55,6 +59,7 @@ async function runDailyJob() {
     brandsLocked: overdue.lockedCount,
     challengeUrgencyPingsSent: challengeUrgency.sentCount,
     badgesAwarded: badges.awardedCount,
+    onboardingRemindersSent: onboardingReminders.sentCount,
     brandCharges: chargeResults.length,
     creatorPayouts: payoutResults.length,
   };
