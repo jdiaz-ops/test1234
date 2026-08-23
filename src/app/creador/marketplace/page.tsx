@@ -7,7 +7,7 @@ import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 export default async function MarketplacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ categoria?: string; buscar?: string }>;
+  searchParams: Promise<{ vertical?: string; buscar?: string }>;
 }) {
   const params = await searchParams;
   const session = await auth();
@@ -15,10 +15,10 @@ export default async function MarketplacePage({
     where: { userId: session!.user.id },
   });
 
-  const [offers, enrollments, categories] = await Promise.all([
-    listActiveOffers({ categorySlug: params.categoria, search: params.buscar }),
+  const [offers, enrollments, verticals] = await Promise.all([
+    listActiveOffers({ verticalIds: params.vertical ? [params.vertical] : undefined, search: params.buscar }),
     getEnrollmentsForCreator(profile.id),
-    prisma.category.findMany({ orderBy: { name: "asc" } }),
+    prisma.vertical.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   const enrollmentByOffer = new Map(enrollments.map((e) => [e.offerId, e]));
@@ -38,11 +38,11 @@ export default async function MarketplacePage({
           placeholder="Buscar marca u oferta..."
           className="input max-w-xs"
         />
-        <select name="categoria" defaultValue={params.categoria ?? ""} className="input max-w-xs">
+        <select name="vertical" defaultValue={params.vertical ?? ""} className="input max-w-xs">
           <option value="">Todas las categorías</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.slug}>
-              {c.name}
+          {verticals.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
             </option>
           ))}
         </select>

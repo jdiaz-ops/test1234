@@ -20,6 +20,8 @@ export default async function StorefrontSettingsPage() {
       </p>
 
       <CreatorStorefrontStep
+        displayName={profile.displayName}
+        photoUrl={profile.photoUrl}
         initial={{
           storefrontPalette: profile.storefrontPalette,
           storefrontFont: profile.storefrontFont,
@@ -34,6 +36,8 @@ export default async function StorefrontSettingsPage() {
             brandName: e.offer.brand.companyName,
             logoUrl: e.offer.brand.logoUrl,
             visible: e.storefrontVisible,
+            discountPercent: Number(e.discountPercentOverride ?? e.offer.defaultDiscountPercent),
+            discountCode: e.discountCode,
           }))}
         publicUrl={publicUrl}
       />

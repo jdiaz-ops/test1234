@@ -24,11 +24,8 @@ export default async function CreatorOnboardingPage() {
   return (
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">EMPIEZA AQUÍ</p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Completa tu perfil de creador</h1>
-      <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Nada de esto es obligatorio — ya puedes usar toda la plataforma. Pero completar estos pasos te
-        ayuda a que las marcas confíen más rápido y a que te paguemos sin contratiempos.
-      </p>
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Tu perfil de creador de contenido</h1>
+      <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">Complétalo y empieza a generar comisiones.</p>
 
       <div className="flex items-center gap-3 mb-8 max-w-lg">
         <div className="flex-1 h-2 rounded-full bg-brand-line overflow-hidden">
@@ -84,6 +81,8 @@ export default async function CreatorOnboardingPage() {
             filteredByInterests: interestVerticalIds.length > 0,
           }}
           storefrontStepProps={{
+            displayName: profile.displayName,
+            photoUrl: profile.photoUrl,
             initial: {
               storefrontPalette: profile.storefrontPalette,
               storefrontFont: profile.storefrontFont,
@@ -97,6 +96,8 @@ export default async function CreatorOnboardingPage() {
                 brandName: e.offer.brand.companyName,
                 logoUrl: e.offer.brand.logoUrl,
                 visible: e.storefrontVisible,
+                discountPercent: Number(e.discountPercentOverride ?? e.offer.defaultDiscountPercent),
+                discountCode: e.discountCode,
               })),
             publicUrl,
           }}
