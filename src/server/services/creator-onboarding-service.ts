@@ -31,14 +31,14 @@ export async function getCreatorOnboardingStatus(profile: CreatorProfile) {
     {
       key: "perfil",
       label: "Tu perfil",
-      description: "Nombre completo, celular, redes sociales y categorías de interés.",
-      done: Boolean(profile.legalName && profile.phone && interestCount > 0),
+      description: "Username, redes sociales y categorías de interés.",
+      done: interestCount > 0,
     },
     {
       key: "pago",
       label: "Cómo te pagamos",
-      description: "Cédula y cuenta bancaria o llave Bre-B — el pago se hace manual, por transferencia.",
-      done: Boolean(profile.documentId) && payoutReady,
+      description: "Tu identidad y cuenta bancaria o llave Bre-B para transferirte.",
+      done: Boolean(profile.legalName && profile.phone && profile.documentId) && payoutReady,
     },
     {
       key: "marcas",

@@ -47,36 +47,32 @@ export function CreatorJoinBrandsStep({ offers, filteredByInterests }: { offers:
       {filtered.length === 0 ? (
         <p className="text-sm text-brand-ink-soft">No hay ofertas disponibles con ese filtro por ahora.</p>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="space-y-4">
           {filtered.map((offer) => (
-            <div key={offer.id} className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden flex flex-col">
-              <div className="p-4">
-                <BrandMiniProfile
-                  companyName={offer.brand.companyName}
-                  logoUrl={offer.brand.logoUrl}
-                  description={offer.brand.description}
-                  websiteUrl={offer.brand.websiteUrl}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-px bg-brand-line">
-                <div className="bg-brand-surface p-3 text-center">
-                  <p className="text-xs text-brand-ink-soft mb-1">Descuento para tu comunidad</p>
-                  <p className="font-display text-lg font-semibold text-brand-ink">{offer.defaultDiscountPercent}%</p>
+            <div key={offer.id} className="rounded-2xl border border-brand-line bg-brand-surface p-4">
+              <BrandMiniProfile
+                companyName={offer.brand.companyName}
+                logoUrl={offer.brand.logoUrl}
+                description={offer.brand.description}
+                websiteUrl={offer.brand.websiteUrl}
+              />
+              <div className="grid grid-cols-2 gap-2.5 mt-4 mb-4">
+                <div className="rounded-xl bg-brand-bg px-3 py-2.5">
+                  <p className="font-mono text-lg font-medium text-brand-ink leading-tight">{offer.defaultDiscountPercent}%</p>
+                  <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Código de descuento para tu comunidad</p>
                 </div>
-                <div className="bg-brand-accent-soft p-3 text-center">
-                  <p className="text-xs text-brand-ink-soft mb-1">Comisión por cada venta que realices</p>
-                  <p className="font-display text-lg font-semibold text-brand-accent">{offer.defaultCommissionPercent}%</p>
+                <div className="rounded-xl bg-brand-accent-soft px-3 py-2.5">
+                  <p className="font-mono text-lg font-medium text-brand-accent leading-tight">{offer.defaultCommissionPercent}%</p>
+                  <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Tu comisión por cada venta con tu código</p>
                 </div>
               </div>
-              <div className="p-4 mt-auto">
-                {offer.enrollmentStatus ? (
-                  <p className={`text-sm font-medium text-center ${offer.enrollmentStatus === "ACTIVE" ? "text-brand-accent" : "text-brand-ink-soft"}`}>
-                    {offer.enrollmentStatus === "ACTIVE" ? "Ya estás unido ✓" : "Esperando aprobación"}
-                  </p>
-                ) : (
-                  <JoinOfferButton offerId={offer.id} joinMode={offer.joinMode} suggestedCode={offer.suggestedCode} fullWidth />
-                )}
-              </div>
+              {offer.enrollmentStatus ? (
+                <p className={`text-sm font-medium text-center ${offer.enrollmentStatus === "ACTIVE" ? "text-brand-accent" : "text-brand-ink-soft"}`}>
+                  {offer.enrollmentStatus === "ACTIVE" ? "Ya estás unido ✓" : "Esperando aprobación"}
+                </p>
+              ) : (
+                <JoinOfferButton offerId={offer.id} joinMode={offer.joinMode} suggestedCode={offer.suggestedCode} fullWidth />
+              )}
             </div>
           ))}
         </div>

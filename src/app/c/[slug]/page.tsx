@@ -155,7 +155,7 @@ export default async function PublicStorefrontPage({
             className="inline-block rounded-full px-5 py-2 text-xs font-medium border"
             style={{ borderColor: palette.accent, color: palette.accent }}
           >
-            ¿Eres creador de contenido? Crea tu propia vitrina →
+            ¿Eres creador de contenido? Crea tu propia vitrina y empieza a generar ingresos con tu audiencia →
           </a>
         </div>
       </div>

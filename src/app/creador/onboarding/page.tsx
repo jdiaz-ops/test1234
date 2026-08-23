@@ -42,9 +42,6 @@ export default async function CreatorOnboardingPage() {
           profileStepProps={{
             initial: {
               displayName: profile.displayName,
-              legalName: profile.legalName ?? "",
-              city: profile.city ?? "",
-              phone: profile.phone ?? "",
               socialLinks: profile.socialLinks.map((s) => ({ platform: s.platform, handle: s.handle })),
             },
             photoUrl: profile.photoUrl,
@@ -52,7 +49,11 @@ export default async function CreatorOnboardingPage() {
             initialInterestIds: interestVerticalIds,
           }}
           paymentStepProps={{
+            displayName: profile.displayName,
             initial: {
+              legalName: profile.legalName ?? "",
+              phone: profile.phone ?? "",
+              city: profile.city ?? "",
               documentId: profile.documentId ?? "",
               payoutMethod: profile.payoutMethod ?? "BRE_B",
               breBKey: profile.breBKey ?? "",

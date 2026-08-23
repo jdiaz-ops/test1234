@@ -29,9 +29,6 @@ export function CreatorProfileStepForm({
 }: {
   initial: {
     displayName: string;
-    legalName: string;
-    city: string;
-    phone: string;
     socialLinks: SocialLink[];
   };
   photoUrl: string | null;
@@ -139,26 +136,6 @@ export function CreatorProfileStepForm({
           placeholder="ej. dani15"
           className="input"
         />
-      </div>
-
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">Nombre y apellido completo</label>
-        <input
-          value={form.legalName}
-          onChange={(e) => setForm({ ...form, legalName: e.target.value })}
-          placeholder="Para pagos — nunca se muestra en tu vitrina pública"
-          className="input"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">Ciudad</label>
-        <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="input" />
-      </div>
-
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">Celular / WhatsApp</label>
-        <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input" />
       </div>
 
       <div>

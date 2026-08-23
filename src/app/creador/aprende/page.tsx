@@ -7,6 +7,7 @@ import {
   IconTrendingUp,
   IconArrowRight,
 } from "@/components/marketing/icons";
+import { EarningsSimulator } from "@/components/portal/earnings-simulator";
 
 const beneficios = [
   {
@@ -149,6 +150,21 @@ export default async function AprendePage() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* Simulador de ganancias */}
+      <section className="max-w-5xl mx-auto px-6 py-14 border-t border-brand-line">
+        <p className="font-mono text-xs text-brand-accent tracking-widest text-center mb-3">
+          ¿CUÁNTO PODRÍAS GANAR?
+        </p>
+        <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-4 text-balance">
+          Juega con los números
+        </h2>
+        <p className="text-sm text-brand-ink-soft text-center max-w-xl mx-auto mb-10">
+          Es solo un ejemplo para que entiendas el mecanismo — el % de comisión real lo ves al unirte a
+          cada marca.
+        </p>
+        <EarningsSimulator />
       </section>
 
       {/* Cómo comunicarlo bien — el corazón de esta sección */}

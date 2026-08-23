@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type FormState = {
+  legalName: string;
+  phone: string;
+  city: string;
   documentId: string;
   payoutMethod: "BANK" | "BRE_B";
   breBKey: string;
@@ -14,9 +17,14 @@ type FormState = {
 };
 
 export function PaymentForm({
+  displayName,
   initial,
   onSaved,
 }: {
+  // Se manda sin cambios al PATCH de /api/creador/perfil (ver handleSubmit) —
+  // ese endpoint pide displayName siempre, aunque este formulario no lo
+  // edite.
+  displayName: string;
   initial: FormState;
   onSaved?: () => void;
 }) {
@@ -32,16 +40,30 @@ export function PaymentForm({
     setError(null);
     setSaved(false);
 
-    const res = await fetch("/api/creador/pago", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    const { legalName, phone, city, ...paymentFields } = form;
+
+    const [identityRes, pagoRes] = await Promise.all([
+      fetch("/api/creador/perfil", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName, legalName, phone, city }),
+      }),
+      fetch("/api/creador/pago", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(paymentFields),
+      }),
+    ]);
 
     setSaving(false);
 
-    if (!res.ok) {
-      const body = await res.json();
+    if (!identityRes.ok) {
+      const body = await identityRes.json();
+      setError(body.error ?? "No se pudo guardar.");
+      return;
+    }
+    if (!pagoRes.ok) {
+      const body = await pagoRes.json();
       setError(body.error ?? "No se pudo guardar.");
       return;
     }
@@ -54,6 +76,17 @@ export function PaymentForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-5 max-w-lg">
       <div>
+        <label className="block text-sm text-brand-ink mb-1">Nombre y apellido completo</label>
+        <input
+          required
+          value={form.legalName}
+          onChange={(e) => setForm({ ...form, legalName: e.target.value })}
+          placeholder="Para pagos — nunca se muestra en tu vitrina pública"
+          className="input"
+        />
+      </div>
+
+      <div>
         <label className="block text-sm text-brand-ink mb-1">Cédula (titular de la cuenta)</label>
         <input
           required
@@ -64,6 +97,16 @@ export function PaymentForm({
         <p className="text-xs text-brand-ink-soft mt-1">
           Los bancos la piden para validar que la cuenta es realmente tuya antes de transferir.
         </p>
+      </div>
+
+      <div>
+        <label className="block text-sm text-brand-ink mb-1">Celular / WhatsApp</label>
+        <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input" />
+      </div>
+
+      <div>
+        <label className="block text-sm text-brand-ink mb-1">Ciudad</label>
+        <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="input" />
       </div>
 
       <div>

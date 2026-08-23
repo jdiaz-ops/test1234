@@ -13,7 +13,7 @@ import { usePathname } from "next/navigation";
 const flatItems = [
   { href: "/creador/onboarding", label: "Empieza aquí" },
   { href: "/creador", label: "Dashboard" },
-  { href: "/creador/marketplace", label: "Marketplace" },
+  { href: "/creador/marketplace", label: "Marketplace de marcas" },
   { href: "/creador/retos", label: "Retos" },
   { href: "/creador/storefront", label: "Mi vitrina" },
   { href: "/creador/codigos", label: "Mis Códigos y Links" },

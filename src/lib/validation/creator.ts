@@ -7,6 +7,9 @@ export const updateProfileSchema = z.object({
   bio: z.string().max(280, "Máximo 280 caracteres").optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
   verticalId: z.string().nullable().optional(),
+  // Opcional — PaymentForm también le pega a este endpoint (para nombre
+  // completo/celular/ciudad, que ahora viven en el paso de pago) sin tocar
+  // las redes sociales. Ausente = no se modifica.
   socialLinks: z
     .array(
       z.object({
@@ -15,7 +18,8 @@ export const updateProfileSchema = z.object({
         approxFollowers: z.number().int().nonnegative().nullable().optional(),
       })
     )
-    .max(10),
+    .max(10)
+    .optional(),
 });
 
 export const updateInterestsSchema = z.object({

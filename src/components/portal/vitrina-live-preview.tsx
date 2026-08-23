@@ -37,7 +37,13 @@ export function VitrinaLivePreview({
 
   return (
     <div className="lg:sticky lg:top-6">
-      <p className="text-xs text-brand-ink-soft mb-2">Vista previa en vivo</p>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-accent" />
+        </span>
+        <p className="font-display font-semibold text-brand-ink">Vista previa en vivo de tu vitrina</p>
+      </div>
       <div
         className="rounded-2xl border border-brand-line overflow-hidden shadow-sm"
         style={{ background: palette.bg, fontFamily: font.stack, color: palette.ink }}

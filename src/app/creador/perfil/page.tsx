@@ -16,9 +16,6 @@ export default async function PerfilPage() {
       <CreatorProfileStepForm
         initial={{
           displayName: profile.displayName,
-          legalName: profile.legalName ?? "",
-          city: profile.city ?? "",
-          phone: profile.phone ?? "",
           socialLinks: profile.socialLinks.map((s) => ({ platform: s.platform, handle: s.handle })),
         }}
         photoUrl={profile.photoUrl}

@@ -16,7 +16,9 @@ export async function PATCH(req: Request) {
   const { socialLinks, ...rest } = parsed.data;
 
   await updateCreatorProfile(profile.userId, rest);
-  await replaceSocialLinks(profile.userId, socialLinks);
+  if (socialLinks !== undefined) {
+    await replaceSocialLinks(profile.userId, socialLinks);
+  }
 
   return NextResponse.json({ ok: true });
 }
