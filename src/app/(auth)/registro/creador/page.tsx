@@ -10,7 +10,6 @@ export default function RegistroCreadorPage() {
     displayName: "",
     email: "",
     password: "",
-    city: "",
     termsAccepted: false,
   });
   const [error, setError] = useState<string | null>(null);
@@ -67,11 +66,12 @@ export default function RegistroCreadorPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Field label="Nombre">
+        <Field label="Username (cómo te van a conocer)">
           <input
             required
             value={form.displayName}
             onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+            placeholder="ej. dani15"
             className="input"
           />
         </Field>
@@ -91,13 +91,6 @@ export default function RegistroCreadorPage() {
             minLength={8}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="input"
-          />
-        </Field>
-        <Field label="Ciudad (opcional)">
-          <input
-            value={form.city}
-            onChange={(e) => setForm({ ...form, city: e.target.value })}
             className="input"
           />
         </Field>

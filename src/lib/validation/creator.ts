@@ -48,8 +48,10 @@ export const updatePaymentSchema = z
 export const updateStorefrontSchema = z.object({
   storefrontPalette: z.string().min(1),
   storefrontFont: z.string().min(1),
-  storefrontHeadline: z.string().max(120).optional().or(z.literal("")),
-  bio: z.string().max(280).optional().or(z.literal("")),
+  // Cortos a propósito — el título se lee de un vistazo arriba de la
+  // vitrina, y la descripción es solo un par de líneas, no una biografía.
+  storefrontHeadline: z.string().max(60, "Máximo 60 caracteres").optional().or(z.literal("")),
+  bio: z.string().max(160, "Máximo 160 caracteres").optional().or(z.literal("")),
 });
 
 export const updateEnrollmentDisplaySchema = z.object({

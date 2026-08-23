@@ -7,8 +7,7 @@ const passwordSchema = z
 export const registerCreatorSchema = z.object({
   email: z.string().email("Correo inválido"),
   password: passwordSchema,
-  displayName: z.string().min(2, "Ingresa tu nombre"),
-  city: z.string().optional(),
+  displayName: z.string().min(2, "Ingresa tu username"),
   termsAccepted: z.literal(true, {
     message: "Debes aceptar los Términos y Condiciones",
   }),

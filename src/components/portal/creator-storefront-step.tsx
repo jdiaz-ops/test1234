@@ -142,8 +142,12 @@ export function CreatorStorefrontStep({
         </div>
 
         <div>
-          <label className="block text-sm text-brand-ink mb-1">Título de tu vitrina</label>
+          <div className="flex items-baseline justify-between mb-1">
+            <label className="block text-sm text-brand-ink">Título de tu vitrina (opcional)</label>
+            <span className="text-xs text-brand-ink-soft">{form.storefrontHeadline.length}/60</span>
+          </div>
           <input
+            maxLength={60}
             value={form.storefrontHeadline}
             onChange={(e) => setForm({ ...form, storefrontHeadline: e.target.value })}
             placeholder="ej. Mis descuentos favoritos ✨"
@@ -152,9 +156,12 @@ export function CreatorStorefrontStep({
         </div>
 
         <div>
-          <label className="block text-sm text-brand-ink mb-1">Descripción corta (opcional)</label>
+          <div className="flex items-baseline justify-between mb-1">
+            <label className="block text-sm text-brand-ink">Descripción corta (opcional)</label>
+            <span className="text-xs text-brand-ink-soft">{form.bio.length}/160</span>
+          </div>
           <textarea
-            maxLength={280}
+            maxLength={160}
             value={form.bio}
             onChange={(e) => setForm({ ...form, bio: e.target.value })}
             className="input min-h-20"

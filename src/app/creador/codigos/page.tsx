@@ -18,13 +18,21 @@ export default async function CodigosPage() {
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
         Un código por marca
       </h1>
-      <p className="text-sm text-brand-ink-soft mb-8 max-w-xl">
-        El link que compartes con tu audiencia es tu vitrina — este es solo tu referencia rápida, para
-        cuando necesitas escribir un código a mano (en un live, respondiendo un DM, atención al cliente).
+      <p className="text-sm text-brand-ink-soft mb-2 max-w-xl">
+        Aquí tienes todos tus códigos en un solo lugar — útil para cuando necesitas escribirlo a mano (en
+        un live, respondiendo un DM, atención al cliente). Para compartir con tu audiencia, usa siempre tu
+        vitrina.
       </p>
 
+      {active.length > 0 && (
+        <p className="text-xs text-brand-ink-soft mb-6 max-w-xl">
+          Al compartir tu código, cuando alguien lo usa se le aplica el descuento a él automáticamente, y
+          a ti la comisión.
+        </p>
+      )}
+
       {active.length === 0 ? (
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 text-sm text-brand-ink-soft">
+        <div className="mt-4 rounded-2xl border border-brand-line bg-brand-surface p-6 text-sm text-brand-ink-soft">
           Todavía no te has unido a ninguna marca.{" "}
           <a href="/creador/marketplace" className="text-brand-accent font-medium hover:underline">
             Ve al marketplace →

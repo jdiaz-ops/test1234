@@ -19,7 +19,6 @@ export async function registerCreator(input: {
   email: string;
   password: string;
   displayName: string;
-  city?: string;
   termsAccepted: boolean;
 }) {
   if (!input.termsAccepted) {
@@ -45,7 +44,6 @@ export async function registerCreator(input: {
       creatorProfile: {
         create: {
           displayName: input.displayName,
-          city: input.city,
           baseCode,
           storefrontSlug,
           termsAcceptedAt: new Date(),
