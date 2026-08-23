@@ -62,7 +62,7 @@ export default function RegistroCreadorPage() {
         Regístrate como Creador
       </h1>
       <p className="text-sm text-brand-ink-soft text-center mb-6">
-        Al unirte a cada marca eliges el código con el que te van a reconocer.
+        Empieza a recomendar tus marcas favoritas — y a generar dinero gracias a tu audiencia.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">

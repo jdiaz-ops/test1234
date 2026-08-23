@@ -18,61 +18,54 @@ export default async function CodigosPage() {
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
         Un código por marca
       </h1>
-      <p className="text-sm text-brand-ink-soft mb-2 max-w-xl">
+      <p className="text-sm text-brand-ink-soft mb-8 max-w-xl">
         Aquí tienes todos tus códigos en un solo lugar — útil para cuando necesitas escribirlo a mano (en
         un live, respondiendo un DM, atención al cliente). Para compartir con tu audiencia, usa siempre tu
         vitrina.
       </p>
 
-      {active.length > 0 && (
-        <p className="text-xs text-brand-ink-soft mb-6 max-w-xl">
-          Al compartir tu código, cuando alguien lo usa se le aplica el descuento a él automáticamente, y
-          a ti la comisión.
-        </p>
-      )}
-
       {active.length === 0 ? (
-        <div className="mt-4 rounded-2xl border border-brand-line bg-brand-surface p-6 text-sm text-brand-ink-soft">
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 text-sm text-brand-ink-soft">
           Todavía no te has unido a ninguna marca.{" "}
           <a href="/creador/marketplace" className="text-brand-accent font-medium hover:underline">
             Ve al marketplace →
           </a>
         </div>
       ) : (
-        <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
-                <th className="px-5 py-3 font-normal">Marca</th>
-                <th className="px-5 py-3 font-normal">Código</th>
-                <th className="px-5 py-3 font-normal">Comisión</th>
-                <th className="px-5 py-3 font-normal">Descuento</th>
-                <th className="px-5 py-3 font-normal"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-brand-line">
-              {active.map((e) => {
-                const commission = e.commissionPercentOverride ?? e.offer.defaultCommissionPercent;
-                const discount = e.discountPercentOverride ?? e.offer.defaultDiscountPercent;
-                return (
-                  <tr key={e.id}>
-                    <td className="px-5 py-3 text-brand-ink">{e.offer.brand.companyName}</td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-brand-accent">{e.discountCode}</span>
-                        <CopyButton value={e.discountCode} />
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 font-mono text-brand-ink">{Number(commission)}%</td>
-                    <td className="px-5 py-3 font-mono text-brand-ink-soft">{Number(discount)}%</td>
-                    <td className="px-5 py-3 text-right">
-                      <LeaveOfferButton enrollmentId={e.id} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        // Tarjetas en vez de tabla — así la explicación de a quién le
+        // corresponde cada número (descuento/comisión) puede ir pegada al
+        // número mismo, en vez de una nota aparte arriba que quedaba lejos
+        // de las columnas. Mismas etiquetas exactas que en el marketplace y
+        // "únete a marcas", para que sea consistente en todo el ecosistema.
+        <div className="space-y-4">
+          {active.map((e) => {
+            const commission = e.commissionPercentOverride ?? e.offer.defaultCommissionPercent;
+            const discount = e.discountPercentOverride ?? e.offer.defaultDiscountPercent;
+            return (
+              <div key={e.id} className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+                  <div>
+                    <p className="font-display font-semibold text-brand-ink">{e.offer.brand.companyName}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="font-mono text-brand-accent">{e.discountCode}</span>
+                      <CopyButton value={e.discountCode} />
+                    </div>
+                  </div>
+                  <LeaveOfferButton enrollmentId={e.id} />
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">{Number(discount)}%</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Código de descuento para tu comunidad</p>
+                  </div>
+                  <div className="rounded-xl bg-brand-accent-soft px-3 py-2.5">
+                    <p className="font-mono text-lg font-medium text-brand-accent leading-tight">{Number(commission)}%</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Tu comisión por cada venta con tu código</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
