@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { getPalette, getFont } from "@/lib/creator-storefront-themes";
+import { buildBrandStoreLink } from "@/lib/brand-store-link";
 
 /// El título/descripción de acá + la imagen de opengraph-image.tsx (mismo
 /// folder, Next.js la detecta sola por convención) son lo que se ve cuando
@@ -97,7 +98,10 @@ export default async function PublicStorefrontPage({
           ) : (
             profile.enrollments.map((e) => {
               const discountPercent = Number(e.discountPercentOverride ?? e.offer.defaultDiscountPercent);
-              const storeUrl = e.offer.brand.storeUrl;
+              // Mismo link para el logo y el botón — con el código ya
+              // aplicado si la tienda es Shopify (soporte nativo), o el
+              // link normal de la tienda si no (ver buildBrandStoreLink).
+              const storeLink = buildBrandStoreLink(e.offer.brand, e.discountCode);
               return (
                 <div
                   key={e.id}
@@ -105,7 +109,7 @@ export default async function PublicStorefrontPage({
                   style={{ background: palette.surface, border: `1px solid ${palette.accentSoft}` }}
                 >
                   <a
-                    href={storeUrl ?? "#"}
+                    href={storeLink ?? "#"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-3 mb-3"
@@ -132,7 +136,7 @@ export default async function PublicStorefrontPage({
                     </span>
                   </p>
                   <a
-                    href={storeUrl ?? "#"}
+                    href={storeLink ?? "#"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block text-center rounded-full px-5 py-2.5 text-sm font-semibold text-white"
