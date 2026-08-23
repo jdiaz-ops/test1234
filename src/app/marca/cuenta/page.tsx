@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getBrandProfileByUserId, getWebhookUrl } from "@/server/services/brand-profile-service";
+import { getBrandProfileByUserId } from "@/server/services/brand-profile-service";
 import { getBrandDashboardSummary } from "@/server/services/brand-finance-service";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { BrandProfileForm } from "@/components/portal/brand-profile-form";
@@ -40,11 +40,6 @@ export default async function MarcaCuentaPage() {
     getPlatformConfig(),
   ]);
   const openCharge = charges.find((c) => c.status !== "PAID") ?? null;
-
-  const webhookUrl =
-    profile.webhookSecret && (profile.storeType === "SHOPIFY" || profile.storeType === "WOOCOMMERCE")
-      ? getWebhookUrl(profile.id, profile.storeType)
-      : null;
 
   const perfilTab = (
     <BrandProfileForm
@@ -159,9 +154,8 @@ export default async function MarcaCuentaPage() {
           wooConsumerKey: profile.wooConsumerKey ?? "",
           wooConsumerSecret: profile.wooConsumerSecret ?? "",
         }}
-        initialWebhookUrl={webhookUrl}
-        initialWebhookSecret={profile.webhookSecret ?? null}
         shopifyConnected={profile.storeType === "SHOPIFY" && profile.storeConnectionStatus === "CONNECTED"}
+        wooConnected={profile.storeType === "WOOCOMMERCE" && profile.storeConnectionStatus === "CONNECTED"}
       />
     </div>
   );

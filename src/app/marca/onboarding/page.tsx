@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getBrandOnboardingStatus } from "@/server/services/onboarding-service";
-import { getWebhookUrl } from "@/server/services/brand-profile-service";
 import { getBrandDashboardSummary } from "@/server/services/brand-finance-service";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { OnboardingWizard } from "@/components/portal/onboarding-wizard";
@@ -21,11 +20,6 @@ export default async function OnboardingPage() {
 
   // Ya no hay nada pendiente — esta página no tiene sentido, de vuelta al Dashboard.
   if (complete) redirect("/marca");
-
-  const webhookUrl =
-    profile.webhookSecret && (profile.storeType === "SHOPIFY" || profile.storeType === "WOOCOMMERCE")
-      ? getWebhookUrl(profile.id, profile.storeType)
-      : null;
 
   return (
     <div>
@@ -89,8 +83,6 @@ export default async function OnboardingPage() {
               wooConsumerKey: profile.wooConsumerKey ?? "",
               wooConsumerSecret: profile.wooConsumerSecret ?? "",
             },
-            initialWebhookUrl: webhookUrl,
-            initialWebhookSecret: profile.webhookSecret ?? null,
           }}
           paymentInstructions={platformConfig.paymentInstructions}
           paymentQrImageUrl={platformConfig.paymentQrImageUrl}

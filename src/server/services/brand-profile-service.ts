@@ -101,3 +101,30 @@ export async function connectShopifyViaOAuth(
     },
   });
 }
+
+/// Guarda la conexión de WooCommerce obtenida vía su flujo de REST API App
+/// Authentication — igual que con Shopify, ya sabemos que las credenciales
+/// sirven porque se probaron (ver verifyCredentials en woocommerce-oauth.ts)
+/// antes de llegar acá. Genera el webhookSecret si todavía no existe (se
+/// reutiliza el mismo mecanismo que la entrada manual, para no romper
+/// webhooks ya configurados a mano).
+export async function connectWooCommerceViaOAuth(
+  brandId: string,
+  data: { storeUrl: string; consumerKey: string; consumerSecret: string }
+) {
+  const current = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId } });
+  const webhookSecret = current.webhookSecret ?? crypto.randomBytes(24).toString("hex");
+
+  return prisma.brandProfile.update({
+    where: { id: brandId },
+    data: {
+      storeType: "WOOCOMMERCE",
+      storeUrl: data.storeUrl,
+      wooConsumerKey: data.consumerKey,
+      wooConsumerSecret: data.consumerSecret,
+      webhookSecret,
+      storeConnectionStatus: "CONNECTED",
+      storeLastSyncedAt: new Date(),
+    },
+  });
+}

@@ -22,7 +22,7 @@ export function OnboardingWizard({
 }: {
   steps: OnboardingStep[];
   profile: { initial: ProfileValues; files: ProfileFiles };
-  store: { initial: StoreValues; initialWebhookUrl: string | null; initialWebhookSecret: string | null };
+  store: { initial: StoreValues };
   paymentInstructions: string | null;
   paymentQrImageUrl: string | null;
   platformFeePercent: number;
@@ -93,9 +93,8 @@ export function OnboardingWizard({
                   {step.key === "tienda" && (
                     <StoreConnectionForm
                       initial={store.initial}
-                      initialWebhookUrl={store.initialWebhookUrl}
-                      initialWebhookSecret={store.initialWebhookSecret}
                       shopifyConnected={tiendaDone && store.initial.storeType === "SHOPIFY"}
+                      wooConnected={tiendaDone && store.initial.storeType === "WOOCOMMERCE"}
                       onSaved={() => goToNext("tienda")}
                     />
                   )}

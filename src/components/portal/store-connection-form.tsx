@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 type StoreType = "SHOPIFY" | "WOOCOMMERCE" | "OTHER";
 
@@ -15,18 +15,15 @@ interface FormState {
 
 export function StoreConnectionForm({
   initial,
-  initialWebhookUrl,
-  initialWebhookSecret,
   shopifyConnected,
+  wooConnected,
   onSaved,
 }: {
   initial: FormState;
-  initialWebhookUrl: string | null;
-  initialWebhookSecret: string | null;
   shopifyConnected: boolean;
+  wooConnected: boolean;
   onSaved?: () => void;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   // Solo se puede elegir Shopify o WooCommerce — si la marca nunca conectó
@@ -36,28 +33,32 @@ export function StoreConnectionForm({
     ...initial,
     storeType: initial.storeType === "OTHER" ? "SHOPIFY" : initial.storeType,
   }));
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [webhookUrl, setWebhookUrl] = useState(initialWebhookUrl);
-  const [webhookSecret, setWebhookSecret] = useState(initialWebhookSecret);
   const [shopDomain, setShopDomain] = useState("");
+  const [wooStoreUrl, setWooStoreUrl] = useState("");
   // Si ya está conectada, el formulario para conectar (de nuevo) empieza
   // escondido — si no, lo que se ve es "aquí está tu tienda conectada" y,
   // justo debajo, un formulario pidiendo conectarla otra vez, que confunde.
-  const [showConnectForm, setShowConnectForm] = useState(!shopifyConnected);
+  const [showShopifyForm, setShowShopifyForm] = useState(!shopifyConnected);
+  const [showWooForm, setShowWooForm] = useState(!wooConnected);
 
-  // Resultado de la conexión automática con Shopify — Shopify nos regresa
+  // Resultado de la conexión automática — Shopify/WooCommerce nos regresan
   // aquí después de que la marca autorizó (o canceló/falló) el acceso.
   const [shopifyResult] = useState<{ status: "connected" | "error"; message?: string } | null>(() => {
-      const status = searchParams.get("shopify");
-      if (status === "connected") return { status: "connected" };
-      if (status === "error") return { status: "error", message: searchParams.get("shopifyMessage") ?? undefined };
-      return null;
-    }
-  );
+    const status = searchParams.get("shopify");
+    if (status === "connected") return { status: "connected" };
+    if (status === "error") return { status: "error", message: searchParams.get("shopifyMessage") ?? undefined };
+    return null;
+  });
+  const [wooResult] = useState<{ status: "connected" | "error"; message?: string } | null>(() => {
+    const status = searchParams.get("woocommerce");
+    if (status === "connected") return { status: "connected" };
+    if (status === "error") return { status: "error", message: searchParams.get("woocommerceMessage") ?? undefined };
+    return null;
+  });
 
   useEffect(() => {
-    if (shopifyResult) onSaved?.();
+    if (shopifyResult || wooResult) onSaved?.();
     // Solo debe reaccionar una vez, al montar con el resultado que trae la URL.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -77,29 +78,18 @@ export function StoreConnectionForm({
     window.location.href = `/api/integrations/shopify/connect?shop=${encodeURIComponent(domain)}&returnTo=${returnTo}`;
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-
-    const res = await fetch("/api/marca/tienda", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-
-    const body = await res.json();
-    setSaving(false);
-
-    if (!res.ok) {
-      setError(body.error ?? "No se pudo guardar.");
+  function connectWooCommerce() {
+    const url = wooStoreUrl.trim().replace(/\/$/, "");
+    if (!/^https:\/\/.+\..+/.test(url)) {
+      setError("Escribe la URL completa de tu tienda, empezando por https://");
       return;
     }
-
-    setWebhookUrl(body.webhookUrl);
-    setWebhookSecret(body.webhookSecret);
-    router.refresh();
-    onSaved?.();
+    setError(null);
+    const returnTo = encodeURIComponent(pathname);
+    // Igual que con Shopify: esta ruta responde con un redirect hacia el
+    // wp-admin de la marca, no hacia otra página de Next.js.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = `/api/integrations/woocommerce/connect?storeUrl=${encodeURIComponent(url)}&returnTo=${returnTo}`;
   }
 
   return (
@@ -136,9 +126,9 @@ export function StoreConnectionForm({
               </p>
               <p className="text-sm text-brand-ink-soft mb-1">Tienda conectada</p>
               <p className="font-mono text-sm text-brand-ink break-all">{initial.storeUrl}</p>
-              {!showConnectForm && (
+              {!showShopifyForm && (
                 <button
-                  onClick={() => setShowConnectForm(true)}
+                  onClick={() => setShowShopifyForm(true)}
                   className="text-xs text-brand-accent hover:underline mt-3"
                 >
                   Conectar otra tienda / reconectar
@@ -152,7 +142,7 @@ export function StoreConnectionForm({
             </p>
           )}
 
-          {showConnectForm && (
+          {showShopifyForm && (
             <>
               <div>
                 <label className="block text-sm text-brand-ink mb-1">Dominio de tu tienda</label>
@@ -183,72 +173,65 @@ export function StoreConnectionForm({
       )}
 
       {form.storeType === "WOOCOMMERCE" && (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-brand-ink mb-1">URL de tu tienda</label>
-            <input
-              required
-              type="url"
-              value={form.storeUrl}
-              onChange={(e) => setForm({ ...form, storeUrl: e.target.value })}
-              placeholder="https://tu-tienda.com"
-              className="input"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-brand-ink mb-1">Consumer Key</label>
-            <input
-              type="password"
-              value={form.wooConsumerKey}
-              onChange={(e) => setForm({ ...form, wooConsumerKey: e.target.value })}
-              placeholder="ck_..."
-              className="input"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-brand-ink mb-1">Consumer Secret</label>
-            <input
-              type="password"
-              value={form.wooConsumerSecret}
-              onChange={(e) => setForm({ ...form, wooConsumerSecret: e.target.value })}
-              placeholder="cs_..."
-              className="input"
-            />
-          </div>
-          <p className="text-xs text-brand-ink-soft -mt-2">
-            Se crean en WooCommerce → Ajustes → Avanzado → REST API, con permisos de Lectura/Escritura.
-          </p>
+        <div className="space-y-4">
+          {wooResult?.status === "connected" && (
+            <p className="text-sm text-brand-accent bg-brand-accent-soft rounded-lg px-3 py-2">
+              ✓ Tu tienda WooCommerce quedó conectada — ya podemos detectar tus ventas automáticamente.
+            </p>
+          )}
+          {wooResult?.status === "error" && (
+            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+              No se pudo conectar: {wooResult.message ?? "intenta de nuevo."}
+            </p>
+          )}
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-          >
-            {saving ? "Guardando..." : "Guardar"}
-          </button>
-        </form>
-      )}
-
-      {webhookUrl && webhookSecret && form.storeType === "WOOCOMMERCE" && (
-        <div className="border border-brand-line rounded-2xl p-5">
-          <h2 className="font-display font-semibold text-brand-ink mb-2">Último paso: activa el webhook</h2>
-          <p className="text-sm text-brand-ink-soft mb-4">
-            Pega esta URL en tu tienda para que las ventas y reembolsos se detecten automáticamente.
-            WooCommerce → Ajustes → Avanzado → Webhooks (crea uno para &quot;Pedido creado&quot; y otro
-            para &quot;Pedido actualizado&quot;).
-          </p>
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs font-mono text-brand-ink-soft mb-1">URL del webhook</p>
-              <code className="block text-xs bg-brand-cream rounded-lg px-3 py-2 break-all">{webhookUrl}</code>
+          {wooConnected ? (
+            <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+              <p className="text-xs font-medium text-green-700 bg-green-50 inline-block rounded-full px-2.5 py-1 mb-2">
+                ✓ Conectada
+              </p>
+              <p className="text-sm text-brand-ink-soft mb-1">Tienda conectada</p>
+              <p className="font-mono text-sm text-brand-ink break-all">{initial.storeUrl}</p>
+              {!showWooForm && (
+                <button onClick={() => setShowWooForm(true)} className="text-xs text-brand-accent hover:underline mt-3">
+                  Conectar otra tienda / reconectar
+                </button>
+              )}
             </div>
-            <div>
-              <p className="text-xs font-mono text-brand-ink-soft mb-1">Secreto (Secret)</p>
-              <code className="block text-xs bg-brand-cream rounded-lg px-3 py-2 break-all">{webhookSecret}</code>
-            </div>
-          </div>
+          ) : (
+            <p className="text-sm text-brand-ink-soft">
+              Conéctate directo con tu tienda — nada de copiar Consumer Key/Secret a mano. Solo autorizas
+              el acceso desde tu propio wp-admin y quedas conectada.
+            </p>
+          )}
+
+          {showWooForm && (
+            <>
+              <div>
+                <label className="block text-sm text-brand-ink mb-1">URL de tu tienda</label>
+                <input
+                  value={wooStoreUrl}
+                  onChange={(e) => setWooStoreUrl(e.target.value)}
+                  placeholder="https://tu-tienda.com"
+                  className="input"
+                />
+                <p className="text-xs text-brand-ink-soft mt-1">
+                  La URL completa de tu tienda — te vamos a mandar a tu propio wp-admin a autorizar el
+                  acceso, ahí mismo.
+                </p>
+              </div>
+
+              {error && <p className="text-sm text-red-600">{error}</p>}
+
+              <button
+                type="button"
+                onClick={connectWooCommerce}
+                className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90"
+              >
+                Conectar con WooCommerce
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
