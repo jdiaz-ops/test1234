@@ -60,6 +60,7 @@ const money = z.number().positive("Debe ser mayor a 0");
 const challengeConfigSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("GOAL_BONUS"), goalAmount: money, bonusAmount: money }),
   z.object({ type: z.literal("TEMP_COMMISSION_BOOST"), newCommissionPercent: percent }),
+  z.object({ type: z.literal("TEMP_DISCOUNT_BOOST"), newDiscountPercent: percent }),
   z.object({
     type: z.literal("LEADERBOARD"),
     winnersCount: z.number().int().min(1).max(20),

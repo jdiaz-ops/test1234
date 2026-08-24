@@ -16,15 +16,23 @@ function addDays(d: Date, days: number) {
 
 /// Plantillas listas para usar — pensadas para que una marca sin experiencia
 /// previa en este tipo de campañas vea de una qué se puede hacer con lo que
-/// ya está permitido (Bono por ventas / Comisión temporal elevada), en vez
-/// de enfrentarse a un formulario en blanco. Los montos de comisión se
-/// calculan sobre la comisión real de la oferta, para que la sugerencia sea
-/// suya, no un número genérico. Las fechas son solo un punto de partida
-/// (hoy + N días) — la marca las ajusta a la fecha real que tenga en mente.
-export function buildChallengeTemplates(defaultCommissionPercent: number, now = new Date()): ChallengeTemplate[] {
-  const boosted = Math.min(100, Math.round(defaultCommissionPercent * 2));
+/// ya está permitido (Bono por ventas / Comisión temporal elevada / Descuento
+/// especial temporal), en vez de enfrentarse a un formulario en blanco. Los
+/// montos de comisión y descuento se calculan sobre los valores reales de la
+/// oferta, para que la sugerencia sea suya, no un número genérico. Las
+/// fechas son solo un punto de partida (hoy + N días) — la marca las ajusta
+/// a la fecha real que tenga en mente.
+export function buildChallengeTemplates(
+  defaultCommissionPercent: number,
+  defaultDiscountPercent: number,
+  now = new Date()
+): ChallengeTemplate[] {
   const boostedSmall = Math.min(100, Math.round(defaultCommissionPercent + 5));
   const boostedFlash = Math.min(100, Math.round(defaultCommissionPercent * 2.5));
+  // El descuento es más sensible que la comisión (lo paga directo el margen
+  // de la marca en cada venta) — por eso el tope es más conservador: +10
+  // puntos, nunca más de 50%, en vez de duplicar como con la comisión.
+  const discountBoosted = Math.min(50, Math.round(defaultDiscountPercent + 10));
 
   return [
     {
@@ -66,6 +74,16 @@ export function buildChallengeTemplates(defaultCommissionPercent: number, now = 
       durationDays: 2,
       newCommissionPercent: boostedFlash,
     },
+    {
+      key: "descuento-especial",
+      title: "Descuento especial",
+      description:
+        "Dale al comprador una razón extra para comprar ya — sube el % de descuento del código de tus creadores durante la ventana. Útil para liquidar inventario o reforzar una fecha fuerte junto con una comisión elevada.",
+      name: "Descuento especial",
+      type: "TEMP_DISCOUNT_BOOST",
+      durationDays: 7,
+      newDiscountPercent: discountBoosted,
+    },
   ];
 }
 
@@ -73,9 +91,17 @@ export function buildChallengeTemplates(defaultCommissionPercent: number, now = 
 /// clarísimo qué está activando la marca antes de darle a "Usar esta
 /// plantilla". Se arma a partir de los valores reales de la plantilla, así
 /// que si algún día cambian los montos, el texto sigue siendo cierto.
-function explainTemplate(t: ChallengeTemplate, defaultCommissionPercent: number, durationDays: number): string {
+function explainTemplate(
+  t: ChallengeTemplate,
+  defaultCommissionPercent: number,
+  defaultDiscountPercent: number,
+  durationDays: number
+): string {
   if (t.type === "GOAL_BONUS") {
     return `Si un creador vende ${formatCOP(t.goalAmount!)} en total con su código durante los ${durationDays} días de la campaña, gana ${formatCOP(t.bonusAmount!)} de bono — adicional a su comisión normal por esas mismas ventas. Aplica a cada creador que llegue a la meta, no solo al primero.`;
+  }
+  if (t.type === "TEMP_DISCOUNT_BOOST") {
+    return `Durante los ${durationDays} días de la campaña, el código de cada creador vinculado a esta oferta pasa de ${defaultDiscountPercent}% a ${t.newDiscountPercent}% de descuento para quien compre — se actualiza directo en tu tienda y vuelve solo al valor normal al terminar. La comisión del creador no cambia.`;
   }
   return `Durante los ${durationDays} días de la campaña, la comisión de TODOS tus creadores vinculados a esta oferta sube de ${defaultCommissionPercent}% a ${t.newCommissionPercent}% — sin excepción, mientras dure.`;
 }
@@ -88,10 +114,12 @@ function formatDateRange(startISO: string, endISO: string) {
 export function ChallengeTemplates({
   templates,
   defaultCommissionPercent,
+  defaultDiscountPercent,
   onUseTemplate,
 }: {
   templates: ChallengeTemplate[];
   defaultCommissionPercent: number;
+  defaultDiscountPercent: number;
   onUseTemplate: (template: ChallengeTemplate) => void;
 }) {
   return (
@@ -120,6 +148,10 @@ export function ChallengeTemplates({
                     <span>·</span>
                     <span>Bono {formatCOP(t.bonusAmount!)}</span>
                   </>
+                ) : t.type === "TEMP_DISCOUNT_BOOST" ? (
+                  <span>
+                    Descuento {defaultDiscountPercent}% → {t.newDiscountPercent}%
+                  </span>
                 ) : (
                   <span>
                     Comisión {defaultCommissionPercent}% → {t.newCommissionPercent}%
@@ -130,7 +162,7 @@ export function ChallengeTemplates({
               </div>
 
               <p className="text-xs text-brand-ink-soft bg-brand-bg rounded-lg p-3 mb-4 flex-1">
-                {explainTemplate(t, defaultCommissionPercent, durationDays)}
+                {explainTemplate(t, defaultCommissionPercent, defaultDiscountPercent, durationDays)}
               </p>
 
               <button

@@ -99,6 +99,35 @@ export async function setShopifyDiscountCodeActive(params: {
   }
 }
 
+/// Sube (o devuelve a su valor normal) el % de descuento real de una price
+/// rule ya creada — a diferencia de setShopifyDiscountCodeActive (que solo
+/// prende/apaga sin tocar el valor), esto cambia cuánto descuento recibe el
+/// comprador en el checkout real. Se usa para las campañas de "descuento
+/// especial temporal" (TEMP_DISCOUNT_BOOST) — al terminar la campaña se
+/// vuelve a llamar con el % normal del creador para devolverlo a como
+/// estaba.
+export async function setShopifyDiscountValue(params: {
+  storeUrl: string;
+  accessToken: string;
+  priceRuleId: string;
+  discountPercent: number;
+}): Promise<void> {
+  const res = await fetch(adminApiUrl(params.storeUrl, `price_rules/${params.priceRuleId}.json`), {
+    method: "PUT",
+    headers: {
+      "X-Shopify-Access-Token": params.accessToken,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      price_rule: { value: `-${params.discountPercent}` },
+    }),
+  });
+
+  if (!res.ok) {
+    throw new ShopifyApiError(`No se pudo actualizar el % de descuento de la regla de precio (${res.status})`);
+  }
+}
+
 /// Forma reducida de un producto tal como lo devuelve products.json — solo
 /// los campos que de verdad usamos.
 export interface ShopifyProduct {

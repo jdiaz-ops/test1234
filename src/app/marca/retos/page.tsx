@@ -13,20 +13,25 @@ export default async function RetosPage() {
   const [offersRaw, challenges, submissions] = await Promise.all([
     prisma.offer.findMany({
       where: { brandId: profile.id, status: "ACTIVE" },
-      select: { id: true, name: true, defaultCommissionPercent: true },
+      select: { id: true, name: true, defaultCommissionPercent: true, defaultDiscountPercent: true },
     }),
     listChallengesForBrand(profile.id),
     listSubmissionsForBrand(profile.id),
   ]);
-  const offers = offersRaw.map((o) => ({ ...o, defaultCommissionPercent: Number(o.defaultCommissionPercent) }));
+  const offers = offersRaw.map((o) => ({
+    ...o,
+    defaultCommissionPercent: Number(o.defaultCommissionPercent),
+    defaultDiscountPercent: Number(o.defaultDiscountPercent),
+  }));
 
   return (
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CAMPAÑAS</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Motiva a tus creadores</h1>
       <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
-        Lanza un bono por ventas generadas o sube la comisión de todos tus
-        creadores por un tiempo limitado, para motivarlos a vender más.
+        Lanza un bono por ventas generadas, sube la comisión de todos tus
+        creadores, o dale un descuento especial temporal a sus compradores —
+        por un tiempo limitado, para motivarlos a vender más.
       </p>
 
       <ChallengesPanel
@@ -41,6 +46,7 @@ export default async function RetosPage() {
           startDate: c.startDate.toISOString(),
           endDate: c.endDate.toISOString(),
           offer: { name: c.offer.name },
+          discountBoostActive: c.discountBoostActive,
           rewards: c.rewards.map((r) => ({
             id: r.id,
             amount: Number(r.amount),

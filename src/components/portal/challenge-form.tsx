@@ -12,6 +12,7 @@ function toDateInput(date: Date) {
 const typeLabel: Record<ChallengeType, string> = {
   GOAL_BONUS: "Bono por ventas generadas",
   TEMP_COMMISSION_BOOST: "Comisión temporal elevada (para todos los creadores)",
+  TEMP_DISCOUNT_BOOST: "Descuento especial temporal (para el comprador)",
   LEADERBOARD: "Leaderboard con premio al Top N",
   WELCOME_BONUS: "Bono de bienvenida (primeros N cupos)",
   CONTENT_CHALLENGE: "Campaña de contenido (revisión manual)",
@@ -22,6 +23,8 @@ const typeHint: Record<ChallengeType, string> = {
     "Cada creador que llegue a la meta gana el bono — no solo el primero, todos los que la alcancen. Es un pago adicional, aparte de su comisión normal por esas ventas.",
   TEMP_COMMISSION_BOOST:
     "Sube la comisión para TODOS los creadores vinculados a esta oferta durante el período, sin excepción — reemplaza la comisión normal de cada uno mientras dure, sin importar lo que tengan configurado individualmente.",
+  TEMP_DISCOUNT_BOOST:
+    "Sube el % de descuento que recibe el COMPRADOR en el checkout real, con el código de cada creador vinculado a esta oferta — no cambia lo que gana el creador, solo lo que paga quien compra. Se actualiza directo en tu tienda y vuelve sola al valor normal cuando termine el período.",
   LEADERBOARD: "Al terminar el período, los N creadores con más ventas se llevan el premio correspondiente a su puesto.",
   WELCOME_BONUS: "Los primeros N creadores que se unan a la oferta durante el período ganan el bono, sin esperar ventas.",
   CONTENT_CHALLENGE: "El creador manda un link como evidencia; tú lo revisas y decides si aprobar el bono.",
@@ -52,6 +55,9 @@ export function ChallengeForm({
   const [newCommissionPercent, setNewCommissionPercent] = useState(
     template?.newCommissionPercent ? String(template.newCommissionPercent) : ""
   );
+  const [newDiscountPercent, setNewDiscountPercent] = useState(
+    template?.newDiscountPercent ? String(template.newDiscountPercent) : ""
+  );
   const [winnersCount, setWinnersCount] = useState("3");
   const [prizes, setPrizes] = useState("");
   const [slotsCount, setSlotsCount] = useState("");
@@ -66,6 +72,8 @@ export function ChallengeForm({
         return { type, goalAmount: Number(goalAmount), bonusAmount: Number(bonusAmount) };
       case "TEMP_COMMISSION_BOOST":
         return { type, newCommissionPercent: Number(newCommissionPercent) };
+      case "TEMP_DISCOUNT_BOOST":
+        return { type, newDiscountPercent: Number(newDiscountPercent) };
       case "LEADERBOARD":
         return {
           type,
@@ -168,6 +176,24 @@ export function ChallengeForm({
             onChange={(e) => setNewCommissionPercent(e.target.value)}
             className="input"
           />
+        </div>
+      )}
+
+      {type === "TEMP_DISCOUNT_BOOST" && (
+        <div>
+          <label className="block text-sm text-brand-ink mb-1">Nuevo % de descuento para el comprador</label>
+          <input
+            required
+            type="number"
+            min="0"
+            max="100"
+            value={newDiscountPercent}
+            onChange={(e) => setNewDiscountPercent(e.target.value)}
+            className="input"
+          />
+          <p className="text-xs text-brand-ink-soft mt-1">
+            Se sube directo en tu tienda — puede tardar unos minutos en reflejarse.
+          </p>
         </div>
       )}
 

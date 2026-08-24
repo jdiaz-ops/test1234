@@ -80,6 +80,34 @@ export async function setWooCommerceCouponActive(params: {
   }
 }
 
+/// Sube (o devuelve a su valor normal) el % de descuento real de un cupón
+/// ya creado — a diferencia de setWooCommerceCouponActive (que solo
+/// prende/apaga sin tocar el valor), esto cambia cuánto descuento recibe el
+/// comprador en el checkout real. Se usa para las campañas de "descuento
+/// especial temporal" (TEMP_DISCOUNT_BOOST) — al terminar la campaña se
+/// vuelve a llamar con el % normal del creador para devolverlo a como
+/// estaba.
+export async function setWooCommerceCouponValue(params: {
+  storeUrl: string;
+  consumerKey: string;
+  consumerSecret: string;
+  couponId: string;
+  discountPercent: number;
+}): Promise<void> {
+  const res = await fetch(restApiUrl(params.storeUrl, `coupons/${params.couponId}`), {
+    method: "PUT",
+    headers: {
+      Authorization: basicAuthHeader(params.consumerKey, params.consumerSecret),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ amount: String(params.discountPercent) }),
+  });
+
+  if (!res.ok) {
+    throw new WooCommerceApiError(`No se pudo actualizar el % de descuento del cupón (${res.status})`);
+  }
+}
+
 /// Forma reducida de un producto tal como lo devuelve /products — solo los
 /// campos que de verdad usamos. `permalink` ya es la URL real y completa
 /// del producto en la tienda, tal como WooCommerce la arma según sus

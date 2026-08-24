@@ -1,4 +1,10 @@
-export type ChallengeType = "GOAL_BONUS" | "TEMP_COMMISSION_BOOST" | "LEADERBOARD" | "WELCOME_BONUS" | "CONTENT_CHALLENGE";
+export type ChallengeType =
+  | "GOAL_BONUS"
+  | "TEMP_COMMISSION_BOOST"
+  | "TEMP_DISCOUNT_BOOST"
+  | "LEADERBOARD"
+  | "WELCOME_BONUS"
+  | "CONTENT_CHALLENGE";
 
 /// Ocultos por ahora (no se destruyen — los retos ya creados con estos tipos
 /// simplemente dejan de mostrarse, en marca y en creador, hasta que se
@@ -6,7 +12,14 @@ export type ChallengeType = "GOAL_BONUS" | "TEMP_COMMISSION_BOOST" | "LEADERBOAR
 export const HIDDEN_CHALLENGE_TYPES: ChallengeType[] = ["LEADERBOARD", "WELCOME_BONUS", "CONTENT_CHALLENGE"];
 
 export const VISIBLE_CHALLENGE_TYPES: ChallengeType[] = (
-  ["GOAL_BONUS", "TEMP_COMMISSION_BOOST", "LEADERBOARD", "WELCOME_BONUS", "CONTENT_CHALLENGE"] as ChallengeType[]
+  [
+    "GOAL_BONUS",
+    "TEMP_COMMISSION_BOOST",
+    "TEMP_DISCOUNT_BOOST",
+    "LEADERBOARD",
+    "WELCOME_BONUS",
+    "CONTENT_CHALLENGE",
+  ] as ChallengeType[]
 ).filter((t) => !HIDDEN_CHALLENGE_TYPES.includes(t));
 
 /// Plantilla de reto lista para usar — la marca solo tiene que revisar/tocar
@@ -27,4 +40,5 @@ export type ChallengeTemplate = {
   goalAmount?: number;
   bonusAmount?: number;
   newCommissionPercent?: number;
+  newDiscountPercent?: number;
 };

@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/server/services/notification-service";
 import { sendChallengeUrgencyEmail } from "@/lib/email";
+import { setShopifyDiscountValue, ShopifyApiError } from "@/server/integrations/shopify-client";
+import { setWooCommerceCouponValue, WooCommerceApiError } from "@/server/integrations/woocommerce-client";
 
 export class ChallengeError extends Error {}
 
@@ -34,6 +36,7 @@ export async function listChallengesForBrand(brandId: string) {
 type ChallengeConfig =
   | { type: "GOAL_BONUS"; goalAmount: number; bonusAmount: number }
   | { type: "TEMP_COMMISSION_BOOST"; newCommissionPercent: number }
+  | { type: "TEMP_DISCOUNT_BOOST"; newDiscountPercent: number }
   | { type: "LEADERBOARD"; winnersCount: number; prizes: number[] }
   | { type: "WELCOME_BONUS"; slotsCount: number; bonusPerSlot: number }
   | { type: "CONTENT_CHALLENGE"; instructions: string; bonusAmount: number };
@@ -48,7 +51,7 @@ export async function createChallenge(
 
   const { type, ...config } = data.config;
 
-  return prisma.challenge.create({
+  const challenge = await prisma.challenge.create({
     data: {
       offerId: data.offerId,
       name: data.name,
@@ -58,6 +61,17 @@ export async function createChallenge(
       config: config as Prisma.InputJsonValue,
     },
   });
+
+  // TEMP_COMMISSION_BOOST no necesita nada más — se calcula al vuelo en cada
+  // venta (ver getActiveCommissionBoost). TEMP_DISCOUNT_BOOST sí tiene que
+  // tocar la tienda real, y si la campaña ya arranca hoy no puede esperar al
+  // cron de mañana (una campaña relámpago de 48h no puede perder medio día
+  // sin el descuento realmente activo en el checkout).
+  if (type === "TEMP_DISCOUNT_BOOST" && data.startDate <= new Date()) {
+    await applyDiscountBoost(challenge);
+  }
+
+  return challenge;
 }
 
 export async function endChallenge(brandId: string, challengeId: string) {
@@ -66,6 +80,11 @@ export async function endChallenge(brandId: string, challengeId: string) {
   await prisma.challenge.update({ where: { id: challengeId }, data: { status: "ENDED" } });
   if (challenge.type === "LEADERBOARD") {
     await closeLeaderboardChallenge(challenge.id);
+  }
+  // La marca terminó la campaña antes de tiempo — el descuento elevado
+  // tiene que bajar ya, no esperar a que endDate llegue solo.
+  if (challenge.type === "TEMP_DISCOUNT_BOOST" && challenge.discountBoostActive) {
+    await revertDiscountBoost(challenge);
   }
 }
 
@@ -191,6 +210,165 @@ export async function getActiveCommissionBoost(offerId: string, occurredAt: Date
   if (!boost) return null;
   const cfg = boost.config as { newCommissionPercent: number };
   return cfg.newCommissionPercent;
+}
+
+// ----------------------------------------------------------------------------
+// TEMP_DISCOUNT_BOOST — a diferencia de la comisión (que se calcula al
+// vuelo, sin tocar nada externo), el % que ve el comprador SÍ vive en la
+// tienda real de la marca — así que esta campaña tiene que llamar la API de
+// Shopify/WooCommerce para subirlo al arrancar y devolverlo al terminar.
+// syncDiscountBoosts() es lo que hace ambas cosas, y corre a diario junto
+// con el resto de tareas del cron (ver /api/cron/pagos-diarios) — más la
+// activación inmediata en createChallenge y la reversión inmediata en
+// endChallenge, para no depender de esperar al cron de mañana.
+// ----------------------------------------------------------------------------
+
+type DiscountEnrollment = {
+  discountCode: string;
+  shopifyPriceRuleId: string | null;
+  wooCouponId: string | null;
+  creator: { displayName: string };
+};
+
+type DiscountBrand = {
+  companyName: string;
+  storeType: string;
+  storeUrl: string | null;
+  shopifyAccessToken: string | null;
+  wooConsumerKey: string | null;
+  wooConsumerSecret: string | null;
+};
+
+/// Nunca deja que una falla de la tienda real bloquee la campaña — igual que
+/// setBrandDiscountCodesActive en payment-service.ts para Nivel 3, se loguea
+/// y se le avisa al admin OWNER por enrollment fallido, y se sigue con el
+/// resto (una marca sin tienda conectada simplemente no tiene nada que
+/// tocar aquí — la campaña sigue existiendo igual).
+async function setEnrollmentDiscountValue(
+  enrollment: DiscountEnrollment,
+  brand: DiscountBrand,
+  discountPercent: number,
+  challengeName: string,
+  accion: string
+) {
+  try {
+    if (brand.storeType === "SHOPIFY" && brand.storeUrl && brand.shopifyAccessToken && enrollment.shopifyPriceRuleId) {
+      await setShopifyDiscountValue({
+        storeUrl: brand.storeUrl,
+        accessToken: brand.shopifyAccessToken,
+        priceRuleId: enrollment.shopifyPriceRuleId,
+        discountPercent,
+      });
+    } else if (
+      brand.storeType === "WOOCOMMERCE" &&
+      brand.storeUrl &&
+      brand.wooConsumerKey &&
+      brand.wooConsumerSecret &&
+      enrollment.wooCouponId
+    ) {
+      await setWooCommerceCouponValue({
+        storeUrl: brand.storeUrl,
+        consumerKey: brand.wooConsumerKey,
+        consumerSecret: brand.wooConsumerSecret,
+        couponId: enrollment.wooCouponId,
+        discountPercent,
+      });
+    }
+  } catch (err) {
+    const isKnownApiError = err instanceof ShopifyApiError || err instanceof WooCommerceApiError;
+    console.error(
+      `[campañas] no se pudo ${accion} el % de descuento del código "${enrollment.discountCode}" de ${brand.companyName}:`,
+      isKnownApiError ? err.message : err
+    );
+
+    const admins = await prisma.user.findMany({ where: { role: "ADMIN", adminRole: "OWNER" }, select: { id: true } });
+    await Promise.all(
+      admins.map((admin) =>
+        createNotification(admin.id, "DISCOUNT_BOOST_FAILED_ADMIN", {
+          accion,
+          codigo: enrollment.discountCode,
+          creador: enrollment.creator.displayName,
+          marca: brand.companyName,
+          campana: challengeName,
+        })
+      )
+    );
+  }
+}
+
+async function applyDiscountBoost(challenge: { id: string; offerId: string; name: string; config: Prisma.JsonValue }) {
+  const offer = await prisma.offer.findUniqueOrThrow({ where: { id: challenge.offerId }, include: { brand: true } });
+  const cfg = challenge.config as { newDiscountPercent: number };
+  const enrollments = await prisma.creatorOfferEnrollment.findMany({
+    where: { offerId: challenge.offerId, status: "ACTIVE" },
+    include: { creator: true },
+  });
+
+  for (const enrollment of enrollments) {
+    await setEnrollmentDiscountValue(enrollment, offer.brand, cfg.newDiscountPercent, challenge.name, "subir");
+  }
+
+  await prisma.challenge.update({ where: { id: challenge.id }, data: { discountBoostActive: true } });
+}
+
+async function revertDiscountBoost(challenge: { id: string; offerId: string; name: string }) {
+  const offer = await prisma.offer.findUniqueOrThrow({ where: { id: challenge.offerId }, include: { brand: true } });
+  const enrollments = await prisma.creatorOfferEnrollment.findMany({
+    where: { offerId: challenge.offerId, status: "ACTIVE" },
+    include: { creator: true },
+  });
+
+  for (const enrollment of enrollments) {
+    // El % "normal" al que hay que devolverlo no se guardó aparte — se
+    // recalcula igual que en todos lados (override del creador, si no el de
+    // la oferta), porque esa sigue siendo la única fuente de verdad.
+    const normalPercent = Number(enrollment.discountPercentOverride ?? offer.defaultDiscountPercent);
+    await setEnrollmentDiscountValue(enrollment, offer.brand, normalPercent, challenge.name, "devolver a su valor normal");
+  }
+
+  await prisma.challenge.update({
+    where: { id: challenge.id },
+    data: { discountBoostActive: false, status: "ENDED" },
+  });
+}
+
+/// Corre a diario (ver /api/cron/pagos-diarios): prende el descuento
+/// elevado de las campañas que ya arrancaron y todavía no se aplicó, y lo
+/// devuelve a su valor normal en las que ya terminaron y seguía aplicado.
+/// Cubre los casos que la activación/reversión inmediata (en createChallenge
+/// y endChallenge) no alcanza a cubrir — sobre todo campañas programadas
+/// para arrancar en una fecha futura.
+///
+/// LIMITACIÓN CONOCIDA: un creador que se une a la oferta a mitad de una
+/// campaña activa recibe su código nuevo con el % normal (ver
+/// provisionDiscountCodeForEnrollment en attribution-service.ts, que no
+/// consulta campañas) — el cron del día siguiente no lo corrige porque para
+/// esa campaña discountBoostActive ya es true. En la práctica es un caso
+/// raro (unirse justo en medio de una ventana de días), pero queda anotado.
+export async function syncDiscountBoosts() {
+  const now = new Date();
+
+  const toActivate = await prisma.challenge.findMany({
+    where: {
+      type: "TEMP_DISCOUNT_BOOST",
+      status: "ACTIVE",
+      discountBoostActive: false,
+      startDate: { lte: now },
+      endDate: { gt: now },
+    },
+  });
+  for (const challenge of toActivate) {
+    await applyDiscountBoost(challenge);
+  }
+
+  const toRevert = await prisma.challenge.findMany({
+    where: { type: "TEMP_DISCOUNT_BOOST", status: "ACTIVE", discountBoostActive: true, endDate: { lte: now } },
+  });
+  for (const challenge of toRevert) {
+    await revertDiscountBoost(challenge);
+  }
+
+  return { activatedCount: toActivate.length, revertedCount: toRevert.length };
 }
 
 // ----------------------------------------------------------------------------

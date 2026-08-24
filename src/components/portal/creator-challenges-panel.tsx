@@ -10,6 +10,7 @@ const typeLabel: Record<ChallengeType, string> = {
   LEADERBOARD: "Leaderboard",
   WELCOME_BONUS: "Bono de bienvenida",
   CONTENT_CHALLENGE: "Campaña de contenido",
+  TEMP_DISCOUNT_BOOST: "Descuento especial temporal",
 };
 
 const rewardStatusLabel: Record<string, string> = {
@@ -126,6 +127,14 @@ export function CreatorChallengesPanel({ activeChallenges }: { activeChallenges:
               tus ventas pagan{" "}
               <span className="text-brand-accent font-mono">{String(challenge.config.newCommissionPercent)}%</span>{" "}
               en vez de tu comisión normal.
+            </p>
+          )}
+
+          {challenge.type === "TEMP_DISCOUNT_BOOST" && (
+            <p className="text-sm text-brand-ink-soft">
+              Tu código tiene ahora{" "}
+              <span className="text-brand-accent font-mono">{String(challenge.config.newDiscountPercent)}% de descuento</span>{" "}
+              para quien compre con él — más de lo normal, mientras dure la campaña. Buen momento para contarlo.
             </p>
           )}
 

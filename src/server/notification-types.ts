@@ -312,6 +312,14 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "accion,codigo,creador,marca",
   },
   {
+    key: "DISCOUNT_BOOST_FAILED_ADMIN",
+    label: "Falla al subir/bajar un descuento por campaña",
+    audience: "ADMIN",
+    messageTemplate:
+      "No se pudo {accion} el % de descuento del código {codigo} de {creador} en la tienda de {marca} (campaña \"{campana}\") — revísalo manualmente en la tienda.",
+    placeholders: "accion,codigo,creador,marca,campana",
+  },
+  {
     key: "FRAUD_FLAG_ADMIN",
     label: "Alerta de fraude",
     audience: "ADMIN",

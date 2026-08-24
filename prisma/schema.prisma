@@ -508,6 +508,7 @@ model CreatorOfferEnrollment {
 enum ChallengeType {
   GOAL_BONUS // Bono por meta de ventas
   TEMP_COMMISSION_BOOST // Comisión temporal elevada
+  TEMP_DISCOUNT_BOOST // Descuento especial temporal (para el comprador)
   LEADERBOARD // Leaderboard con premio al Top N
   WELCOME_BONUS // Bono de bienvenida (primeros N cupos)
   CONTENT_CHALLENGE // Reto de contenido (verificación manual)
@@ -533,10 +534,21 @@ model Challenge {
   /// Configuración flexible según el tipo de reto:
   /// GOAL_BONUS            -> { goalAmount, bonusAmount }
   /// TEMP_COMMISSION_BOOST  -> { newCommissionPercent }
+  /// TEMP_DISCOUNT_BOOST    -> { newDiscountPercent }
   /// LEADERBOARD            -> { winnersCount, prizes: [amount, ...] }
   /// WELCOME_BONUS          -> { slotsCount, bonusPerSlot }
   /// CONTENT_CHALLENGE      -> { instructions, bonusAmount }
   config Json
+
+  /// Solo para TEMP_DISCOUNT_BOOST: a diferencia de la comisión (que se
+  /// calcula al vuelo, sin tocar nada externo), el descuento sí vive en la
+  /// tienda real de la marca — así que subirlo y devolverlo es una acción
+  /// con efecto externo que hay que recordar si ya se hizo o no. true =
+  /// el código de cada creador de esta oferta está ahora mismo con el
+  /// valor elevado en Shopify/WooCommerce; el cron diario (syncDiscountBoosts
+  /// en challenge-service.ts) lo prende al llegar startDate y lo apaga
+  /// (vuelve al % normal) al pasar endDate.
+  discountBoostActive Boolean @default(false)
 
   rewards       ChallengeReward[]
   urgencyPings  ChallengeUrgencyPing[]

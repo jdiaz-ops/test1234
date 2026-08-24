@@ -12,6 +12,7 @@ const typeLabel: Record<ChallengeType, string> = {
   LEADERBOARD: "Leaderboard",
   WELCOME_BONUS: "Bono de bienvenida",
   CONTENT_CHALLENGE: "Campaña de contenido",
+  TEMP_DISCOUNT_BOOST: "Descuento especial temporal",
 };
 
 const rewardStatusLabel: Record<string, string> = {
@@ -42,6 +43,11 @@ interface Challenge {
   endDate: string;
   offer: { name: string };
   rewards: Reward[];
+  /// Solo tiene sentido para TEMP_DISCOUNT_BOOST — si el % elevado ya está
+  /// puesto de verdad en la tienda (true) o todavía no le tocaba/ya se
+  /// devolvió a la normal (false). Ver syncDiscountBoosts en
+  /// challenge-service.ts.
+  discountBoostActive: boolean;
 }
 
 interface Submission {
@@ -93,7 +99,7 @@ export function ChallengesPanel({
   challenges,
   submissions,
 }: {
-  offers: { id: string; name: string; defaultCommissionPercent: number }[];
+  offers: { id: string; name: string; defaultCommissionPercent: number; defaultDiscountPercent: number }[];
   challenges: Challenge[];
   submissions: Submission[];
 }) {
@@ -153,8 +159,9 @@ export function ChallengesPanel({
 
       {!creating && offers.length > 0 && (
         <ChallengeTemplates
-          templates={buildChallengeTemplates(offers[0].defaultCommissionPercent)}
+          templates={buildChallengeTemplates(offers[0].defaultCommissionPercent, offers[0].defaultDiscountPercent)}
           defaultCommissionPercent={offers[0].defaultCommissionPercent}
+          defaultDiscountPercent={offers[0].defaultDiscountPercent}
           onUseTemplate={useTemplate}
         />
       )}
@@ -201,6 +208,15 @@ export function ChallengesPanel({
                     <p className="text-xs font-mono text-brand-ink-soft mt-1">
                       {new Date(c.startDate).toLocaleDateString("es-CO")} — {new Date(c.endDate).toLocaleDateString("es-CO")}
                     </p>
+                    {c.type === "TEMP_DISCOUNT_BOOST" && c.status === "ACTIVE" && (
+                      <p className="text-xs mt-1">
+                        {c.discountBoostActive ? (
+                          <span className="text-emerald-600">● Descuento elevado activo en tu tienda</span>
+                        ) : (
+                          <span className="text-brand-ink-soft">○ Todavía no se aplica en tu tienda</span>
+                        )}
+                      </p>
+                    )}
                   </div>
                   {c.status === "ACTIVE" && (
                     <button onClick={() => handleEnd(c.id)} className="text-xs text-brand-ink-soft hover:underline shrink-0">

@@ -13,6 +13,7 @@ import {
   approveEligibleChallengeRewards,
   closeEndedLeaderboards,
   sendChallengeUrgencyReminders,
+  syncDiscountBoosts,
 } from "@/server/services/challenge-service";
 import { evaluateCreatorBadges } from "@/server/services/creator-badge-service";
 import { sendOnboardingReminders } from "@/server/services/creator-onboarding-service";
@@ -35,6 +36,8 @@ import { sendOnboardingReminders } from "@/server/services/creator-onboarding-se
 /// atribuir) los cortes OVERDUE cuyo plazo de desactivación ya venció,
 /// 7) manda avisos de urgencia a creadores con un reto por cerrar (3
 /// días/1 día antes) en el que pueden participar y no han completado,
+/// 7.5) prende/apaga el % de descuento real en la tienda de las campañas
+/// de descuento especial temporal que arrancan o terminan hoy,
 /// 8) otorga las insignias nuevas que ya se ganaron los creadores,
 /// 9) manda recordatorios de onboarding a creadores (3 y 7 días de
 /// registrados) que todavía no completaron su perfil, 10) si hoy es el
@@ -53,6 +56,7 @@ async function runDailyJob() {
   const deactivationReminders = await sendDeactivationReminders();
   const deactivated = await deactivateOverdueBrands();
   const challengeUrgency = await sendChallengeUrgencyReminders();
+  const discountBoosts = await syncDiscountBoosts();
   const badges = await evaluateCreatorBadges();
   const onboardingReminders = await sendOnboardingReminders();
 
@@ -69,6 +73,8 @@ async function runDailyJob() {
     deactivationRemindersSent: deactivationReminders.sentCount,
     brandsDeactivated: deactivated.deactivatedCount,
     challengeUrgencyPingsSent: challengeUrgency.sentCount,
+    discountBoostsActivated: discountBoosts.activatedCount,
+    discountBoostsReverted: discountBoosts.revertedCount,
     badgesAwarded: badges.awardedCount,
     onboardingRemindersSent: onboardingReminders.sentCount,
     brandCharges: chargeResults.length,
