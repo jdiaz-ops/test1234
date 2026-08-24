@@ -198,11 +198,30 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
   },
   {
     key: "BRAND_LOCKED",
-    label: "Marca bloqueada por falta de pago",
+    label: "Cuenta inhabilitada por falta de pago (Nivel 2)",
     audience: "BRAND",
+    channelEmail: true,
     messageTemplate:
-      "Tu marca quedó oculta del marketplace por falta de pago verificado — sube tu comprobante en Cuenta → Pago para reactivarla.",
-    placeholders: "",
+      "Tu cuenta quedó temporalmente inhabilitada por falta de pago verificado — sigues visible en el marketplace y los códigos de tus creadores siguen funcionando, pero no tienes acceso al panel. Sube tu comprobante en Cuenta → Pago para reactivarla. Si no se regulariza antes de {fecha}, tu servicio se desactiva por completo.",
+    placeholders: "fecha",
+  },
+  {
+    key: "BRAND_DEACTIVATION_REMINDER",
+    label: "Recordatorio antes de desactivar el servicio (Nivel 2 → 3)",
+    audience: "BRAND",
+    channelEmail: true,
+    messageTemplate:
+      "Última alerta: si no regularizas tu pago antes de {fecha}, tu servicio se desactiva por completo — desapareces del marketplace y los códigos de tus creadores dejan de funcionar. Sube tu comprobante en Cuenta → Pago.",
+    placeholders: "fecha",
+  },
+  {
+    key: "BRAND_DEACTIVATED",
+    label: "Servicio desactivado por falta de pago (Nivel 3)",
+    audience: "BRAND",
+    channelEmail: true,
+    messageTemplate:
+      "Tu servicio quedó desactivado por falta de pago: desapareciste del marketplace y los códigos de tus creadores ya no atribuyen ventas. Sigues debiendo {monto}. Sube tu comprobante en Cuenta → Pago — apenas lo verifiquemos, se reactiva todo automáticamente.",
+    placeholders: "monto",
   },
   {
     key: "BRAND_APPROVED",
@@ -253,6 +272,13 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     label: "Comprobante de pago subido por una marca",
     audience: "ADMIN",
     messageTemplate: "{marca} subió un comprobante de pago por {monto} — revísalo en Facturas.",
+    placeholders: "marca,monto",
+  },
+  {
+    key: "BRAND_DEACTIVATED_ADMIN",
+    label: "Marca con servicio desactivado (Nivel 3)",
+    audience: "ADMIN",
+    messageTemplate: "{marca} llegó al Nivel 3: servicio desactivado por falta de pago. Debe {monto}.",
     placeholders: "marca,monto",
   },
   {

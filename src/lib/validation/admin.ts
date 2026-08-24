@@ -29,6 +29,7 @@ export const platformConfigSchema = z.object({
   instantPayoutFeePercent: z.number().min(0).max(100),
   paymentInstructions: z.string().max(2000).optional().or(z.literal("")),
   paymentGraceHours: z.number().int().min(1).max(24 * 30),
+  deactivationGraceHours: z.number().int().min(1).max(24 * 30),
 });
 
 export const verifyChargeSchema = z.object({

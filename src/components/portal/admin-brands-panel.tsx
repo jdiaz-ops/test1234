@@ -16,7 +16,11 @@ type Brand = {
   _count: { offers: number };
   // El query que llena esto ya filtra status != PAID — el tipo incluye PAID
   // solo porque así lo infiere Prisma, nunca llega ese valor en la práctica.
-  openCharge: { id: string; status: "PENDING" | "PROOF_SUBMITTED" | "OVERDUE" | "PAID"; totalAmount: number } | null;
+  openCharge: {
+    id: string;
+    status: "PENDING" | "PROOF_SUBMITTED" | "OVERDUE" | "DEACTIVATED" | "PAID";
+    totalAmount: number;
+  } | null;
 };
 
 const statusLabel: Record<string, string> = {
@@ -36,7 +40,8 @@ const statusColor: Record<string, string> = {
 const chargeStatusLabel: Record<string, string> = {
   PENDING: "esperando pago",
   PROOF_SUBMITTED: "comprobante en revisión",
-  OVERDUE: "vencido — bloqueada",
+  OVERDUE: "vencido — cuenta inhabilitada",
+  DEACTIVATED: "vencido — servicio desactivado",
 };
 
 function AddBrandForm({ onDone }: { onDone: () => void }) {
@@ -189,6 +194,17 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
     router.refresh();
   }
 
+  async function simulateDeactivated(brandId: string) {
+    setLoadingId(brandId);
+    await fetch("/api/admin/marcas/prueba/desactivada", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandId }),
+    });
+    setLoadingId(null);
+    router.refresh();
+  }
+
   async function removeTestCharge(brandId: string, chargeId: string) {
     setLoadingId(brandId);
     await fetch("/api/admin/marcas/prueba/moroso/quitar", {
@@ -331,13 +347,22 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
                           Quitar corte de prueba
                         </button>
                       ) : (
-                        <button
-                          onClick={() => simulateOverdue(b.id)}
-                          disabled={loadingId === b.id}
-                          className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
-                        >
-                          Simular corte vencido
-                        </button>
+                        <>
+                          <button
+                            onClick={() => simulateOverdue(b.id)}
+                            disabled={loadingId === b.id}
+                            className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+                          >
+                            Simular Nivel 2
+                          </button>
+                          <button
+                            onClick={() => simulateDeactivated(b.id)}
+                            disabled={loadingId === b.id}
+                            className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+                          >
+                            Simular Nivel 3
+                          </button>
+                        </>
                       )}
                     </>
                   )}

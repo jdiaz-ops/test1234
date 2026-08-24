@@ -7,7 +7,8 @@ type Charge = {
   id: string;
   totalAmount: number;
   dueAt: string; // ISO
-  status: "PENDING" | "PROOF_SUBMITTED" | "PAID" | "OVERDUE";
+  deactivationDueAt: string | null; // ISO — solo relevante en OVERDUE (Nivel 2)
+  status: "PENDING" | "PROOF_SUBMITTED" | "PAID" | "OVERDUE" | "DEACTIVATED";
   pdfUrl: string | null;
   proofSubmittedAt: string | null;
   proofRejectedAt: string | null;
@@ -58,8 +59,10 @@ export function ChargePaymentBox({
       (!charge.proofRejectedAt || new Date(charge.proofRejectedAt) < new Date(charge.proofSubmittedAt!))
   );
 
-  const locked = charge.status === "OVERDUE";
+  const locked = charge.status === "OVERDUE" || charge.status === "DEACTIVATED";
+  const deactivated = charge.status === "DEACTIVATED";
   const dueAtLabel = formatDueAt(charge.dueAt);
+  const deactivationDueAtLabel = charge.deactivationDueAt ? formatDueAt(charge.deactivationDueAt) : null;
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -96,22 +99,35 @@ export function ChargePaymentBox({
           }`}
         >
           <span className={`w-1.5 h-1.5 rounded-full ${locked ? "bg-red-600" : "bg-amber-700"}`} />
-          {locked ? "Cuenta inhabilitada" : "Pago pendiente"}
+          {deactivated ? "Servicio desactivado" : locked ? "Cuenta inhabilitada" : "Pago pendiente"}
         </span>
         <h2 className="font-display text-lg font-semibold text-brand-ink mb-1.5">
-          {locked ? "Tu cuenta está temporalmente inhabilitada" : "Tu cuenta sigue activa — por ahora"}
+          {deactivated
+            ? "Tu servicio está desactivado por falta de pago"
+            : locked
+              ? "Tu cuenta está temporalmente inhabilitada"
+              : "Tu cuenta sigue activa — por ahora"}
         </h2>
         <p className="text-sm text-brand-ink-soft leading-relaxed">
-          {locked ? (
+          {deactivated ? (
             <>
-              Desde el <strong className="text-brand-ink">{dueAtLabel}</strong> no tienes acceso al panel ni
-              visibilidad para los creadores. Se reactiva todo automático en cuanto confirmemos tu comprobante.
+              Desde el <strong className="text-brand-ink">{dueAtLabel}</strong> desapareciste del marketplace y los
+              códigos de tus creadores dejaron de atribuir ventas — sigues debiendo lo acumulado. Se reactiva todo
+              automático (panel, marketplace y códigos) en cuanto confirmemos tu comprobante.
+            </>
+          ) : locked ? (
+            <>
+              Desde el <strong className="text-brand-ink">{dueAtLabel}</strong> no tienes acceso al panel — pero el
+              servicio sigue funcionando: sigues en el marketplace y los códigos de tus creadores siguen
+              atribuyendo ventas. Tienes hasta el{" "}
+              <strong className="text-brand-ink">{deactivationDueAtLabel}</strong> para regularizar; si no llega a
+              tiempo, ahí sí se desactiva todo. Se reactiva automático en cuanto confirmemos tu comprobante.
             </>
           ) : (
             <>
               Tienes hasta el <strong className="text-brand-ink">{dueAtLabel}</strong> para confirmar tu pago. Si no
-              llega a tiempo, tu cuenta queda temporalmente inhabilitada: sin acceso al panel y sin visibilidad
-              para los creadores, hasta que regularices.
+              llega a tiempo, tu cuenta queda temporalmente inhabilitada: sin acceso al panel, aunque el servicio
+              sigue funcionando (marketplace y códigos) hasta que se cumpla un segundo plazo.
             </>
           )}
         </p>
@@ -123,8 +139,12 @@ export function ChargePaymentBox({
           <p className="font-display text-2xl font-semibold text-brand-ink">{formatCOP(charge.totalAmount)}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-brand-ink-soft mb-1">{locked ? "Vencido desde" : "Vence"}</p>
-          <p className={`text-sm font-mono ${locked ? "text-red-600" : "text-brand-ink"}`}>{dueAtLabel}</p>
+          <p className="text-xs text-brand-ink-soft mb-1">
+            {deactivated ? "Desactivado desde" : locked ? "Se desactiva el" : "Vence"}
+          </p>
+          <p className={`text-sm font-mono ${locked ? "text-red-600" : "text-brand-ink"}`}>
+            {deactivated ? (deactivationDueAtLabel ?? dueAtLabel) : locked ? deactivationDueAtLabel : dueAtLabel}
+          </p>
         </div>
       </div>
 

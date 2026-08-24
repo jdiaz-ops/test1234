@@ -57,10 +57,14 @@ export async function listActiveOffers(filters: { categorySlug?: string; search?
             ],
             storeConnectionStatus: "CONNECTED",
             billingAcknowledgedAt: { not: null },
-            // Igual que isBrandPaymentLocked en payment-service.ts: bloqueada
-            // si hay un corte sin pagar cuyo plazo ya venció (no depende de
-            // que el cron ya haya puesto el status en OVERDUE).
-            charges: { none: { status: { not: "PAID" }, dueAt: { lt: new Date() } } },
+            // Nivel 2 (OVERDUE) NO oculta del marketplace — solo el panel se
+            // bloquea (ver isBrandPaymentLocked en payment-service.ts); el
+            // servicio "sigue funcionando" hasta Nivel 3. Solo DEACTIVATED
+            // (Nivel 3, puesto por deactivateOverdueBrands) saca a la marca
+            // de aquí — y en cuanto se verifica el pago (status vuelve a
+            // PAID), esta misma condición deja de matchear sola, sin ningún
+            // paso extra de "reactivar".
+            charges: { none: { status: "DEACTIVATED" } },
           },
         ],
         // Filtro opcional del wizard de onboarding de creador — ofertas de

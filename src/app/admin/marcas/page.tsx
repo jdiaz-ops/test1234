@@ -20,14 +20,18 @@ export default async function AdminMarcasPage() {
       {pendingCount === 0 && <div className="mb-6" />}
 
       <AdminBrandsPanel
-        brands={brands.map((b) => ({
+        brands={brands.map(({ charges, ...b }) => ({
           ...b,
           platformFeePercentOverride: b.platformFeePercentOverride
             ? Number(b.platformFeePercentOverride)
             : null,
           marketplaceVisibilityOverride: b.marketplaceVisibilityOverride,
-          openCharge: b.charges[0]
-            ? { id: b.charges[0].id, status: b.charges[0].status, totalAmount: Number(b.charges[0].totalAmount) }
+          // `charges` (crudo, con Decimal) queda afuera del spread a propósito
+          // — un Server Component no puede mandarle un Decimal tal cual a un
+          // Client Component (ver AdminBrandsPanel, "use client"); openCharge
+          // ya lo resume con los campos que sí hacen falta, ya convertidos.
+          openCharge: charges[0]
+            ? { id: charges[0].id, status: charges[0].status, totalAmount: Number(charges[0].totalAmount) }
             : null,
         }))}
         isOwner={isOwner(session!.user.adminRole)}

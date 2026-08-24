@@ -9,7 +9,8 @@ const statusLabel: Record<string, string> = {
   PENDING: "Esperando pago",
   PROOF_SUBMITTED: "Comprobante en revisión",
   PAID: "Pagado",
-  OVERDUE: "Vencido — marca bloqueada",
+  OVERDUE: "Vencido — cuenta inhabilitada",
+  DEACTIVATED: "Vencido — servicio desactivado",
 };
 
 export default async function AdminFacturacionPage() {
@@ -23,7 +24,7 @@ export default async function AdminFacturacionPage() {
       orderBy: { proofSubmittedAt: "asc" },
     }),
     prisma.brandCharge.findMany({
-      where: { status: { in: ["PAID", "OVERDUE"] } },
+      where: { status: { in: ["PAID", "OVERDUE", "DEACTIVATED"] } },
       include: { brand: true },
       orderBy: { createdAt: "desc" },
       take: 20,

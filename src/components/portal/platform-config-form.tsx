@@ -12,6 +12,7 @@ type Config = {
   instantPayoutFeePercent: number;
   paymentInstructions: string;
   paymentGraceHours: number;
+  deactivationGraceHours: number;
 };
 
 export function PlatformConfigForm({ initial, readOnly }: { initial: Config; readOnly: boolean }) {
@@ -69,7 +70,12 @@ export function PlatformConfigForm({ initial, readOnly }: { initial: Config; rea
       {field("Día de pago a creadores", "payoutDayOfMonth", "del mes")}
       {field("Días de espera por reembolsos", "refundHoldDays", "días")}
       {field("Fee de cobro anticipado", "instantPayoutFeePercent")}
-      {field("Plazo antes del bloqueo por impago", "paymentGraceHours", "horas")}
+      {field("Plazo antes del bloqueo por impago (Nivel 1 → 2)", "paymentGraceHours", "horas hábiles")}
+      {field("Plazo antes de desactivar el servicio (Nivel 2 → 3)", "deactivationGraceHours", "horas hábiles")}
+      <p className="text-xs text-brand-ink-soft -mt-2">
+        Los plazos cuentan solo días hábiles colombianos (sin sábados, domingos ni festivos) — 72h son 3 días
+        hábiles completos, no 72 horas de reloj.
+      </p>
 
       <div>
         <label className="block text-sm text-brand-ink mb-1">Instrucciones de pago (QR/Bre-B, cuenta, etc.)</label>

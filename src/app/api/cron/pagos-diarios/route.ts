@@ -6,6 +6,8 @@ import {
   runCreatorPayouts,
   markOverdueCharges,
   sendUpcomingDueReminders,
+  sendDeactivationReminders,
+  deactivateOverdueBrands,
 } from "@/server/services/payment-service";
 import {
   approveEligibleChallengeRewards,
@@ -25,14 +27,19 @@ import { sendOnboardingReminders } from "@/server/services/creator-onboarding-se
 /// Cada día: 1) levanta la espera de 15 días de comisiones y premios de
 /// retos vencidos, 2) cierra los leaderboards que ya terminaron, 3) manda
 /// recordatorios a las marcas con un corte por vencer (48h/24h antes),
-/// 4) marca como OVERDUE (y bloquea) los cortes cuyo plazo de pago ya
-/// venció sin comprobante verificado, 5) manda avisos de urgencia a
-/// creadores con un reto por cerrar (3 días/1 día antes) en el que pueden
-/// participar y no han completado, 6) otorga las insignias nuevas que ya se
-/// ganaron los creadores, 7) manda recordatorios de onboarding a creadores
-/// (3 y 7 días de registrados) que todavía no completaron su perfil,
-/// 8) si hoy es el día de corte configurado, genera el aviso de cobro a
-/// las marcas, 9) si hoy es el día de pago configurado, paga a los
+/// 4) marca como OVERDUE (Nivel 2: panel bloqueado, marketplace y códigos
+/// siguen funcionando) los cortes cuyo plazo de pago ya venció sin
+/// comprobante verificado, 5) manda el aviso de "se te va a desactivar el
+/// servicio" a las marcas OVERDUE cerca de su fecha de desactivación,
+/// 6) pasa a DEACTIVATED (Nivel 3: fuera del marketplace, códigos dejan de
+/// atribuir) los cortes OVERDUE cuyo plazo de desactivación ya venció,
+/// 7) manda avisos de urgencia a creadores con un reto por cerrar (3
+/// días/1 día antes) en el que pueden participar y no han completado,
+/// 8) otorga las insignias nuevas que ya se ganaron los creadores,
+/// 9) manda recordatorios de onboarding a creadores (3 y 7 días de
+/// registrados) que todavía no completaron su perfil, 10) si hoy es el
+/// día de corte configurado, genera el aviso de cobro a las marcas
+/// (Nivel 1), 11) si hoy es el día de pago configurado, paga a los
 /// creadores — sin importar el estado de pago de sus marcas.
 async function runDailyJob() {
   const config = await prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } });
@@ -43,6 +50,8 @@ async function runDailyJob() {
   const approvedRewards = await approveEligibleChallengeRewards();
   const reminders = await sendUpcomingDueReminders();
   const overdue = await markOverdueCharges();
+  const deactivationReminders = await sendDeactivationReminders();
+  const deactivated = await deactivateOverdueBrands();
   const challengeUrgency = await sendChallengeUrgencyReminders();
   const badges = await evaluateCreatorBadges();
   const onboardingReminders = await sendOnboardingReminders();
@@ -57,6 +66,8 @@ async function runDailyJob() {
     rewardsApproved: approvedRewards.approvedCount,
     remindersSent: reminders.sentCount,
     brandsLocked: overdue.lockedCount,
+    deactivationRemindersSent: deactivationReminders.sentCount,
+    brandsDeactivated: deactivated.deactivatedCount,
     challengeUrgencyPingsSent: challengeUrgency.sentCount,
     badgesAwarded: badges.awardedCount,
     onboardingRemindersSent: onboardingReminders.sentCount,

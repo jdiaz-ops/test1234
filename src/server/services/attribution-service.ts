@@ -7,6 +7,7 @@ import { createCommissionForTransaction, reverseCommissionForTransaction } from 
 import { checkGoalBonusProgress } from "@/server/services/challenge-service";
 import { createNotification } from "@/server/services/notification-service";
 import { flagPotentialFraud } from "@/server/services/admin-fraud-service";
+import { isBrandServiceDeactivated } from "@/server/services/payment-service";
 
 export class AttributionError extends Error {}
 
@@ -147,6 +148,16 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
   const enrollment = await findEnrollmentByDiscountCode(params.brandId, params.discountCode);
   if (!enrollment) {
     return { transaction: null, created: false as const, reason: "CODIGO_NO_ENCONTRADO" as const };
+  }
+
+  // Nivel 3 (BrandCharge.status === "DEACTIVATED"): el código existe y el
+  // enrollment es válido, pero el servicio de la marca está desactivado por
+  // falta de pago — sus códigos dejan de atribuir ventas hasta que se
+  // regularice (ver deactivateOverdueBrands en payment-service.ts). Nivel 2
+  // (OVERDUE, panel bloqueado) no cae aquí — ahí los códigos siguen
+  // funcionando normal.
+  if (await isBrandServiceDeactivated(params.brandId)) {
+    return { transaction: null, created: false as const, reason: "MARCA_DESACTIVADA" as const };
   }
 
   const transaction = await prisma.transaction.create({

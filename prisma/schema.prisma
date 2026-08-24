@@ -801,7 +801,8 @@ enum BrandChargeStatus {
   PENDING // corte generado, esperando comprobante — el contador de dueAt está corriendo
   PROOF_SUBMITTED // la marca subió comprobante, esperando verificación del admin
   PAID // el admin verificó el comprobante
-  OVERDUE // pasó dueAt sin comprobante verificado — la marca queda bloqueada (ver isBrandPaymentLocked)
+  OVERDUE // pasó dueAt sin comprobante verificado — la marca queda bloqueada (ver isBrandPaymentLocked) pero sigue en marketplace y los códigos de creadores siguen funcionando (Nivel 2)
+  DEACTIVATED // pasó deactivationDueAt sin comprobante verificado — desaparece del marketplace y sus códigos dejan de atribuir ventas (Nivel 3), además de seguir bloqueada como en OVERDUE
 }
 
 /// Corte del día 1: cubre comisiones + tarifa de plataforma + IVA del
@@ -844,6 +845,16 @@ model BrandCharge {
   /// reenviarlo cada vez que corre el cron mientras el corte siga abierto.
   reminder48SentAt DateTime?
   reminder24SentAt DateTime?
+
+  /// Fecha límite (Nivel 2 → Nivel 3): cuando pasa OVERDUE sin comprobante
+  /// verificado, se calcula sumando PlatformConfig.deactivationGraceHours en
+  /// horas hábiles colombianas (ver addBusinessHours) desde el momento en
+  /// que quedó OVERDUE. Si se llega sin pagar, el corte pasa a DEACTIVATED.
+  deactivationDueAt DateTime?
+
+  /// Marca si ya se mandó el aviso de "tu servicio se va a desactivar" —
+  /// para no reenviarlo cada corrida del cron mientras siga OVERDUE.
+  deactivationReminderSentAt DateTime?
 
   paidAt           DateTime?
   verifiedByUserId String? // userId del admin que verificó el comprobante
@@ -922,9 +933,16 @@ model PlatformConfig {
   paymentInstructions String?
   paymentQrImageUrl   String?
 
-  /// Horas desde que se genera el corte hasta que, sin comprobante
-  /// verificado, la marca queda bloqueada.
+  /// Horas hábiles desde que se genera el corte (Nivel 1) hasta que, sin
+  /// comprobante verificado, la marca queda temporalmente inhabilitada
+  /// (Nivel 2) — ver addBusinessHours en lib/colombian-business-days.ts.
   paymentGraceHours Int @default(72)
+
+  /// Horas hábiles desde que la marca queda inhabilitada (Nivel 2) hasta
+  /// que, sin comprobante verificado, el servicio se desactiva del todo
+  /// (Nivel 3): desaparece del marketplace y sus códigos dejan de
+  /// atribuir ventas.
+  deactivationGraceHours Int @default(72)
 
   updatedAt DateTime @updatedAt
 }

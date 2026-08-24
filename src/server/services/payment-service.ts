@@ -6,6 +6,7 @@ import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { generateBrandChargeDoc } from "@/lib/billing-pdf";
 import { uploadFile } from "@/lib/file-upload";
 import { sendBrandChargeEmail, sendBrandPaymentVerifiedEmail, sendBrandChargeReminderEmail } from "@/lib/email";
+import { addBusinessHours } from "@/lib/colombian-business-days";
 
 export class PaymentError extends Error {}
 
@@ -27,10 +28,10 @@ export async function chargeBrandForPeriod(brandId: string) {
   const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId }, include: { user: true } });
 
   // Nunca se generan dos cortes abiertos a la vez — mientras uno esté sin
-  // verificar (o vencido), lo pendiente del mes siguiente se junta con el
-  // mismo corte hasta que se regularice.
+  // verificar (vencido, inhabilitado o desactivado), lo pendiente del mes
+  // siguiente se junta con el mismo corte hasta que se regularice.
   const openCharge = await prisma.brandCharge.findFirst({
-    where: { brandId, status: { in: ["PENDING", "PROOF_SUBMITTED", "OVERDUE"] } },
+    where: { brandId, status: { in: ["PENDING", "PROOF_SUBMITTED", "OVERDUE", "DEACTIVATED"] } },
   });
   if (openCharge) return null;
 
@@ -66,7 +67,7 @@ export async function chargeBrandForPeriod(brandId: string) {
   const periodEnd = new Date(Math.max(...occurredDates));
 
   const config = await getPlatformConfig();
-  const dueAt = new Date(Date.now() + config.paymentGraceHours * 60 * 60 * 1000);
+  const dueAt = addBusinessHours(new Date(), config.paymentGraceHours);
 
   const charge = await prisma.brandCharge.create({
     data: { brandId, periodStart, periodEnd, totalAmount: new Prisma.Decimal(totalAmount), status: "PENDING", dueAt },
@@ -197,15 +198,21 @@ export async function verifyBrandPayment(chargeId: string, adminUserId: string) 
 }
 
 /// El admin rechaza el comprobante (no corresponde, monto distinto, etc.)
-/// — el corte vuelve a PENDING (o queda/vuelve a OVERDUE si ya pasó la
-/// fecha límite) para que la marca suba uno correcto.
+/// — el corte vuelve a PENDING, o queda/vuelve a OVERDUE o DEACTIVATED
+/// según qué plazo ya haya pasado, para que la marca suba uno correcto.
 export async function rejectPaymentProof(chargeId: string, adminUserId: string, reason: string) {
   const charge = await prisma.brandCharge.findUniqueOrThrow({
     where: { id: chargeId },
     include: { brand: true },
   });
 
-  const status = charge.dueAt < new Date() ? "OVERDUE" : "PENDING";
+  const now = new Date();
+  const status =
+    charge.deactivationDueAt && charge.deactivationDueAt < now
+      ? "DEACTIVATED"
+      : charge.dueAt < now
+        ? "OVERDUE"
+        : "PENDING";
 
   await prisma.brandCharge.update({
     where: { id: chargeId },
@@ -271,20 +278,102 @@ export async function sendUpcomingDueReminders() {
 }
 
 /// Corre a diario: los cortes cuyo plazo ya venció sin comprobante
-/// verificado quedan OVERDUE — eso es lo único que isBrandPaymentLocked
-/// mira para bloquear la plataforma.
+/// verificado pasan a OVERDUE (Nivel 2) — panel bloqueado (ver
+/// isBrandPaymentLocked), pero el marketplace y los códigos de los
+/// creadores siguen funcionando. De una vez se calcula deactivationDueAt
+/// (Nivel 2 → 3, en horas hábiles colombianas) para que
+/// deactivateOverdueBrands sepa cuándo desactivar el servicio del todo si
+/// tampoco se regulariza a tiempo.
 export async function markOverdueCharges() {
+  const config = await getPlatformConfig();
+  const now = new Date();
+
   const overdue = await prisma.brandCharge.findMany({
-    where: { status: { in: ["PENDING", "PROOF_SUBMITTED"] }, dueAt: { lt: new Date() } },
+    where: { status: { in: ["PENDING", "PROOF_SUBMITTED"] }, dueAt: { lt: now } },
     include: { brand: true },
   });
 
   for (const charge of overdue) {
-    await prisma.brandCharge.update({ where: { id: charge.id }, data: { status: "OVERDUE" } });
-    await createNotification(charge.brand.userId, "BRAND_LOCKED", {});
+    const deactivationDueAt = addBusinessHours(now, config.deactivationGraceHours);
+    await prisma.brandCharge.update({ where: { id: charge.id }, data: { status: "OVERDUE", deactivationDueAt } });
+    await createNotification(charge.brand.userId, "BRAND_LOCKED", {
+      fecha: deactivationDueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" }),
+    });
   }
 
   return { lockedCount: overdue.length };
+}
+
+/// Corre a diario: manda un solo aviso (correo + notificación) a las marcas
+/// OVERDUE cuya fecha de desactivación está a menos de 24h — mismo patrón
+/// que sendUpcomingDueReminders, marcado en deactivationReminderSentAt para
+/// no repetirlo cada corrida del cron.
+export async function sendDeactivationReminders() {
+  const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const upcoming = await prisma.brandCharge.findMany({
+    where: {
+      status: "OVERDUE",
+      deactivationDueAt: { not: null, gt: now, lte: in24h },
+      deactivationReminderSentAt: null,
+    },
+    include: { brand: { include: { user: true } } },
+  });
+
+  for (const charge of upcoming) {
+    const fecha = charge.deactivationDueAt!.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" });
+    await createNotification(charge.brand.userId, "BRAND_DEACTIVATION_REMINDER", { fecha });
+    await prisma.brandCharge.update({ where: { id: charge.id }, data: { deactivationReminderSentAt: now } });
+  }
+
+  return { sentCount: upcoming.length };
+}
+
+/// Corre a diario: los cortes OVERDUE cuya deactivationDueAt ya pasó sin
+/// comprobante verificado quedan DEACTIVATED (Nivel 3) — desde ahí,
+/// listActiveOffers (marketplace-service.ts) deja de mostrar la marca y
+/// recordOrderFromWebhook (attribution-service.ts) deja de atribuir ventas
+/// a sus códigos. La deuda acumulada se queda tal cual, no se perdona.
+export async function deactivateOverdueBrands() {
+  const now = new Date();
+
+  const toDeactivate = await prisma.brandCharge.findMany({
+    where: { status: "OVERDUE", deactivationDueAt: { lt: now } },
+    include: { brand: { include: { user: true } } },
+  });
+
+  for (const charge of toDeactivate) {
+    await prisma.brandCharge.update({ where: { id: charge.id }, data: { status: "DEACTIVATED" } });
+
+    await createNotification(charge.brand.userId, "BRAND_DEACTIVATED", {
+      monto: formatCOP(Number(charge.totalAmount)),
+    });
+
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN", adminRole: { in: ["OWNER", "FINANCE"] } },
+      select: { id: true },
+    });
+    await Promise.all(
+      admins.map((admin) =>
+        createNotification(admin.id, "BRAND_DEACTIVATED_ADMIN", {
+          marca: charge.brand.companyName,
+          monto: formatCOP(Number(charge.totalAmount)),
+        })
+      )
+    );
+  }
+
+  return { deactivatedCount: toDeactivate.length };
+}
+
+/// Si el servicio de la marca está desactivado del todo (Nivel 3) — lo mira
+/// recordOrderFromWebhook (attribution-service.ts) para dejar de atribuir
+/// ventas a sus códigos. Apenas se verifique el pago (verifyBrandPayment
+/// pone el corte en PAID), esto vuelve a dar false solo.
+export async function isBrandServiceDeactivated(brandId: string) {
+  const charge = await prisma.brandCharge.findFirst({ where: { brandId, status: "DEACTIVATED" } });
+  return Boolean(charge);
 }
 
 /// SOLO PARA PRUEBAS — crea de una vez un corte ya vencido (OVERDUE) para
@@ -296,20 +385,29 @@ export async function createTestOverdueCharge(brandId: string) {
   const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId } });
 
   const openCharge = await prisma.brandCharge.findFirst({
-    where: { brandId, status: { in: ["PENDING", "PROOF_SUBMITTED", "OVERDUE"] } },
+    where: { brandId, status: { in: ["PENDING", "PROOF_SUBMITTED", "OVERDUE", "DEACTIVATED"] } },
   });
   if (openCharge) return openCharge;
 
   const periodEnd = new Date();
   const periodStart = new Date(periodEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
   const dueAt = new Date(Date.now() - 2 * 60 * 60 * 1000); // vencido hace 2 horas
+  const deactivationDueAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // Nivel 3 en 72h de reloj, sin lógica de días hábiles — es solo para la demo
   const commissionsTotal = 200_000;
   const platformFeeTotal = 37_800;
   const vatTotal = 7_200;
   const totalAmount = commissionsTotal + platformFeeTotal + vatTotal;
 
   const charge = await prisma.brandCharge.create({
-    data: { brandId, periodStart, periodEnd, totalAmount: new Prisma.Decimal(totalAmount), status: "OVERDUE", dueAt },
+    data: {
+      brandId,
+      periodStart,
+      periodEnd,
+      totalAmount: new Prisma.Decimal(totalAmount),
+      status: "OVERDUE",
+      dueAt,
+      deactivationDueAt,
+    },
   });
 
   try {
@@ -334,7 +432,46 @@ export async function createTestOverdueCharge(brandId: string) {
     console.error(`[pagos] no se pudo generar el aviso de cobro de prueba de ${brand.companyName}:`, err);
   }
 
-  await createNotification(brand.userId, "BRAND_LOCKED", {});
+  await createNotification(brand.userId, "BRAND_LOCKED", {
+    fecha: deactivationDueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" }),
+  });
+
+  return charge;
+}
+
+/// SOLO PARA PRUEBAS — igual que createTestOverdueCharge pero directo en
+/// Nivel 3 (DEACTIVATED), para ver la desaparición del marketplace y el
+/// corte de códigos sin esperar los dos ciclos reales de 72h hábiles.
+export async function createTestDeactivatedCharge(brandId: string) {
+  const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId } });
+
+  const openCharge = await prisma.brandCharge.findFirst({
+    where: { brandId, status: { in: ["PENDING", "PROOF_SUBMITTED", "OVERDUE", "DEACTIVATED"] } },
+  });
+  if (openCharge) return openCharge;
+
+  const periodEnd = new Date();
+  const periodStart = new Date(periodEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const dueAt = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000); // vencido hace 8 días
+  const deactivationDueAt = new Date(Date.now() - 2 * 60 * 60 * 1000); // Nivel 3 hace 2 horas
+  const commissionsTotal = 200_000;
+  const platformFeeTotal = 37_800;
+  const vatTotal = 7_200;
+  const totalAmount = commissionsTotal + platformFeeTotal + vatTotal;
+
+  const charge = await prisma.brandCharge.create({
+    data: {
+      brandId,
+      periodStart,
+      periodEnd,
+      totalAmount: new Prisma.Decimal(totalAmount),
+      status: "DEACTIVATED",
+      dueAt,
+      deactivationDueAt,
+    },
+  });
+
+  await createNotification(brand.userId, "BRAND_DEACTIVATED", { monto: formatCOP(totalAmount) });
 
   return charge;
 }
@@ -362,12 +499,16 @@ export async function countPendingBillingVerifications() {
   });
 }
 
-/// La marca está bloqueada si tiene un corte sin pagar cuyo plazo ya pasó
-/// — se calcula directo contra `dueAt`, no contra el status OVERDUE (que
-/// solo lo pone markOverdueCharges una vez al día, para el panel admin y
-/// las notificaciones). Así, si la marca sube un comprobante después de
-/// vencido el plazo, sigue bloqueada hasta que un admin lo verifique
-/// (status PAID) — subir el comprobante no la destraba por sí solo.
+/// La marca tiene el panel bloqueado (Nivel 2 o Nivel 3) si tiene un corte
+/// sin pagar cuyo plazo ya pasó — se calcula directo contra `dueAt`, no
+/// contra el status OVERDUE/DEACTIVATED (que solo los pone el cron una vez
+/// al día, para el panel admin y las notificaciones). Así, si la marca sube
+/// un comprobante después de vencido el plazo, sigue bloqueada hasta que un
+/// admin lo verifique (status PAID) — subir el comprobante no la destraba
+/// por sí solo. No distingue Nivel 2 de Nivel 3 a propósito: el panel se ve
+/// igual de bloqueado en los dos — lo que sí cambia entre niveles es la
+/// visibilidad en marketplace y los códigos (ver marketplace-service.ts y
+/// attribution-service.ts, que sí miran status === "DEACTIVATED").
 export async function isBrandPaymentLocked(brandId: string) {
   return prisma.brandCharge.findFirst({
     where: { brandId, status: { not: "PAID" }, dueAt: { lt: new Date() } },

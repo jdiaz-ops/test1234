@@ -19,9 +19,12 @@ export default async function MarcaLayout({ children }: { children: React.ReactN
     countUnreadNotifications(session.user.id),
   ]);
 
-  // Bloqueo total — mientras haya un corte OVERDUE, no se ve nada del
-  // portal salvo este aviso (ver payment-service.ts para el ciclo
-  // completo: corte, comprobante, verificación).
+  // Bloqueo total del panel — mientras haya un corte OVERDUE o DEACTIVATED
+  // (Nivel 2 o 3), no se ve nada del portal salvo este aviso (ver
+  // payment-service.ts para el ciclo completo: corte, comprobante,
+  // verificación). El marketplace y los códigos de los creadores NO pasan
+  // por aquí — esos se rigen aparte por marketplace-service.ts y
+  // attribution-service.ts, y solo se cortan en Nivel 3.
   const lockedCharge = await isBrandPaymentLocked(profile.id);
   if (lockedCharge) {
     const platformConfig = await getPlatformConfig();
@@ -31,6 +34,7 @@ export default async function MarcaLayout({ children }: { children: React.ReactN
           id: lockedCharge.id,
           totalAmount: Number(lockedCharge.totalAmount),
           dueAt: lockedCharge.dueAt.toISOString(),
+          deactivationDueAt: lockedCharge.deactivationDueAt?.toISOString() ?? null,
           status: lockedCharge.status,
           pdfUrl: lockedCharge.pdfUrl,
           proofSubmittedAt: lockedCharge.proofSubmittedAt?.toISOString() ?? null,

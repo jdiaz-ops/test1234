@@ -27,7 +27,8 @@ const chargeStatusLabel: Record<string, string> = {
   PENDING: "Esperando pago",
   PROOF_SUBMITTED: "Comprobante en revisión",
   PAID: "Pagado",
-  OVERDUE: "Vencido — marca bloqueada",
+  OVERDUE: "Vencido — cuenta inhabilitada",
+  DEACTIVATED: "Vencido — servicio desactivado",
 };
 
 export default async function MarcaCuentaPage() {
@@ -81,6 +82,7 @@ export default async function MarcaCuentaPage() {
             id: openCharge.id,
             totalAmount: Number(openCharge.totalAmount),
             dueAt: openCharge.dueAt.toISOString(),
+            deactivationDueAt: openCharge.deactivationDueAt?.toISOString() ?? null,
             status: openCharge.status,
             pdfUrl: openCharge.pdfUrl,
             proofSubmittedAt: openCharge.proofSubmittedAt?.toISOString() ?? null,

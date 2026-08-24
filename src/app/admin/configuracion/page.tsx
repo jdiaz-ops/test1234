@@ -27,6 +27,7 @@ export default async function AdminConfiguracionPage() {
             instantPayoutFeePercent: Number(config.instantPayoutFeePercent),
             paymentInstructions: config.paymentInstructions ?? "",
             paymentGraceHours: config.paymentGraceHours,
+            deactivationGraceHours: config.deactivationGraceHours,
           }}
           readOnly={readOnly}
         />

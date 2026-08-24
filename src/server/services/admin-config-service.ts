@@ -13,6 +13,7 @@ export async function updatePlatformConfig(data: {
   instantPayoutFeePercent: number;
   paymentInstructions?: string;
   paymentGraceHours?: number;
+  deactivationGraceHours?: number;
 }) {
   return prisma.platformConfig.update({ where: { id: "singleton" }, data });
 }
