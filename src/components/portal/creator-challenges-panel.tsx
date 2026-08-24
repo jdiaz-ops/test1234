@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ChallengeType } from "@/lib/challenge-types";
+import { getBogotaDateTimeParts } from "@/lib/colombian-business-days";
 
 const typeLabel: Record<ChallengeType, string> = {
   GOAL_BONUS: "Misión",
@@ -102,7 +103,10 @@ export function CreatorChallengesPanel({ activeChallenges }: { activeChallenges:
         <div key={challenge.id} className="rounded-2xl border border-brand-line bg-brand-surface p-6">
           <p className="text-xs text-brand-ink-soft mb-1">
             {challenge.offer.brand.companyName} · {typeLabel[challenge.type]} · Termina{" "}
-            {new Date(challenge.endDate).toLocaleDateString("es-CO")}
+            {(() => {
+              const p = getBogotaDateTimeParts(new Date(challenge.endDate));
+              return `${p.day} ${p.monthShort}, ${p.hour12}:${p.minute} ${p.ampm}`;
+            })()}
           </p>
           <p className="font-display font-semibold text-brand-ink mb-3">{challenge.name}</p>
 

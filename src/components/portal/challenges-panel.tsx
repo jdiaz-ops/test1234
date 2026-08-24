@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChallengeForm } from "./challenge-form";
 import type { ChallengeType } from "@/lib/challenge-types";
+import { getBogotaDateTimeParts } from "@/lib/colombian-business-days";
 
 const typeLabel: Record<ChallengeType, string> = {
   GOAL_BONUS: "Misión",
@@ -24,6 +25,11 @@ function configSummary(type: ChallengeType, config: Record<string, unknown>): st
   if (config.newCommissionPercent != null) parts.push(`Comisión → ${config.newCommissionPercent}%`);
   if (config.newDiscountPercent != null) parts.push(`Descuento → ${config.newDiscountPercent}%`);
   return parts.join(" · ");
+}
+
+function formatDateTime(iso: string) {
+  const p = getBogotaDateTimeParts(new Date(iso));
+  return `${p.day} ${p.monthShort}, ${p.hour12}:${p.minute} ${p.ampm}`;
 }
 
 const rewardStatusLabel: Record<string, string> = {
@@ -106,6 +112,61 @@ function ReviewSubmissionButtons({ rewardId }: { rewardId: string }) {
   );
 }
 
+function ChallengeCard({ c, onEnd }: { c: Challenge; onEnd: (id: string) => void }) {
+  const totalAwarded = c.rewards.reduce((sum, r) => sum + r.amount, 0);
+  return (
+    <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <p className="text-xs text-brand-ink-soft mb-1">
+            {c.offer.name} · {typeLabel[c.type]} ·{" "}
+            <span className={c.status === "ACTIVE" ? "text-brand-accent" : ""}>
+              {c.status === "ACTIVE" ? "Activo" : "Terminado"}
+            </span>
+          </p>
+          <p className="font-display font-semibold text-brand-ink">{c.name}</p>
+          <p className="text-xs font-mono text-brand-ink-soft mt-1">
+            {formatDateTime(c.startDate)} — {formatDateTime(c.endDate)}
+          </p>
+          <p className="text-xs text-brand-ink-soft mt-1">{configSummary(c.type, c.config)}</p>
+          {(c.type === "FLASH_SALE" || c.type === "MIX") && c.status === "ACTIVE" && c.config.newDiscountPercent != null && (
+            <p className="text-xs mt-1">
+              {c.discountBoostActive ? (
+                <span className="text-emerald-600">● Descuento elevado activo en tu tienda</span>
+              ) : (
+                <span className="text-brand-ink-soft">○ Todavía no se aplica en tu tienda</span>
+              )}
+            </p>
+          )}
+        </div>
+        {c.status === "ACTIVE" && (
+          <button onClick={() => onEnd(c.id)} className="text-xs text-brand-ink-soft hover:underline shrink-0">
+            Terminar ahora
+          </button>
+        )}
+      </div>
+
+      {c.rewards.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-brand-line">
+          <p className="text-xs text-brand-ink-soft mb-2">
+            {c.rewards.length} premio(s) otorgado(s) · {formatCOP(totalAwarded)} en total
+          </p>
+          <div className="space-y-1">
+            {c.rewards.map((r) => (
+              <div key={r.id} className="flex justify-between text-xs font-mono">
+                <span className="text-brand-ink">{r.creator.displayName}</span>
+                <span className="text-brand-ink-soft">
+                  {formatCOP(r.amount)} · {rewardStatusLabel[r.status]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChallengesPanel({
   offers,
   challenges,
@@ -116,11 +177,6 @@ export function ChallengesPanel({
   submissions: Submission[];
 }) {
   const router = useRouter();
-  const [creating, setCreating] = useState(false);
-
-  function closeForm() {
-    setCreating(false);
-  }
 
   async function handleEnd(challengeId: string) {
     await fetch("/api/marca/retos", {
@@ -130,6 +186,9 @@ export function ChallengesPanel({
     });
     router.refresh();
   }
+
+  const active = challenges.filter((c) => c.status === "ACTIVE");
+  const ended = challenges.filter((c) => c.status === "ENDED");
 
   return (
     <div>
@@ -162,88 +221,36 @@ export function ChallengesPanel({
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display font-semibold text-brand-ink">Tus campañas ({challenges.length})</h2>
-        {!creating && offers.length > 0 && (
-          <button
-            onClick={() => setCreating(true)}
-            className="bg-brand-accent text-white text-sm font-medium rounded-full px-5 py-2 hover:opacity-90"
-          >
-            Crear una nueva campaña desde cero
-          </button>
-        )}
-      </div>
-
-      {offers.length === 0 && (
+      {offers.length === 0 ? (
         <p className="text-sm text-brand-ink-soft mb-6">Crea primero una oferta para poder lanzar campañas sobre ella.</p>
-      )}
-
-      {creating && (
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 mb-6">
-          <ChallengeForm offers={offers} onDone={closeForm} />
+      ) : (
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 mb-8">
+          <h2 className="font-display font-semibold text-brand-ink mb-4">Crear una campaña</h2>
+          <ChallengeForm offers={offers} />
         </div>
       )}
 
-      {challenges.length === 0 ? (
-        <p className="text-sm text-brand-ink-soft">Todavía no has creado ninguna campaña.</p>
-      ) : (
-        <div className="space-y-4">
-          {challenges.map((c) => {
-            const totalAwarded = c.rewards.reduce((sum, r) => sum + r.amount, 0);
-            return (
-              <div key={c.id} className="rounded-2xl border border-brand-line bg-brand-surface p-6">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="text-xs text-brand-ink-soft mb-1">
-                      {c.offer.name} · {typeLabel[c.type]} ·{" "}
-                      <span className={c.status === "ACTIVE" ? "text-brand-accent" : ""}>
-                        {c.status === "ACTIVE" ? "Activo" : "Terminado"}
-                      </span>
-                    </p>
-                    <p className="font-display font-semibold text-brand-ink">{c.name}</p>
-                    <p className="text-xs font-mono text-brand-ink-soft mt-1">
-                      {new Date(c.startDate).toLocaleDateString("es-CO")} — {new Date(c.endDate).toLocaleDateString("es-CO")}
-                    </p>
-                    <p className="text-xs text-brand-ink-soft mt-1">{configSummary(c.type, c.config)}</p>
-                    {(c.type === "FLASH_SALE" || c.type === "MIX") &&
-                      c.status === "ACTIVE" &&
-                      c.config.newDiscountPercent != null && (
-                        <p className="text-xs mt-1">
-                          {c.discountBoostActive ? (
-                            <span className="text-emerald-600">● Descuento elevado activo en tu tienda</span>
-                          ) : (
-                            <span className="text-brand-ink-soft">○ Todavía no se aplica en tu tienda</span>
-                          )}
-                        </p>
-                      )}
-                  </div>
-                  {c.status === "ACTIVE" && (
-                    <button onClick={() => handleEnd(c.id)} className="text-xs text-brand-ink-soft hover:underline shrink-0">
-                      Terminar ahora
-                    </button>
-                  )}
-                </div>
+      <div className="mb-8">
+        <h2 className="font-display font-semibold text-brand-ink mb-4">Campañas activas ({active.length})</h2>
+        {active.length === 0 ? (
+          <p className="text-sm text-brand-ink-soft">No tienes ninguna campaña activa ahora mismo.</p>
+        ) : (
+          <div className="space-y-4">
+            {active.map((c) => (
+              <ChallengeCard key={c.id} c={c} onEnd={handleEnd} />
+            ))}
+          </div>
+        )}
+      </div>
 
-                {c.rewards.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-brand-line">
-                    <p className="text-xs text-brand-ink-soft mb-2">
-                      {c.rewards.length} premio(s) otorgado(s) · {formatCOP(totalAwarded)} en total
-                    </p>
-                    <div className="space-y-1">
-                      {c.rewards.map((r) => (
-                        <div key={r.id} className="flex justify-between text-xs font-mono">
-                          <span className="text-brand-ink">{r.creator.displayName}</span>
-                          <span className="text-brand-ink-soft">
-                            {formatCOP(r.amount)} · {rewardStatusLabel[r.status]}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      {ended.length > 0 && (
+        <div>
+          <h2 className="font-display font-semibold text-brand-ink mb-4">Campañas terminadas ({ended.length})</h2>
+          <div className="space-y-4">
+            {ended.map((c) => (
+              <ChallengeCard key={c.id} c={c} onEnd={handleEnd} />
+            ))}
+          </div>
         </div>
       )}
     </div>

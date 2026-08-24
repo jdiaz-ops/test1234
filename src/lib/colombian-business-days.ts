@@ -143,3 +143,30 @@ export function atDeadlineHour(date: Date): Date {
 export function businessDeadline(start: Date, hours: number): Date {
   return atDeadlineHour(addBusinessHours(start, hours));
 }
+
+const MONTHS_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const MONTHS_LONG = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+/// Día/mes/hora en Colombia, calculados a mano (nunca con
+/// Intl.DateTimeFormat) para que un mismo componente cliente renderizado
+/// primero en el server y después hidratado en el navegador produzca
+/// siempre el mismo texto — Intl con hour12 puede insertar un espacio
+/// distinto antes de "a. m."/"p. m." según la versión de ICU de cada
+/// runtime (se ven idénticos a simple vista, pero son códigos Unicode
+/// distintos), y React lo marca como mismatch de hidratación. Esto es
+/// 100% determinístico en cualquier runtime — mismo resultado siempre.
+export function getBogotaDateTimeParts(date: Date) {
+  const bogota = new Date(date.getTime() - BOGOTA_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+  const hour24 = bogota.getUTCHours();
+  return {
+    day: bogota.getUTCDate(),
+    monthShort: MONTHS_SHORT[bogota.getUTCMonth()],
+    monthLong: MONTHS_LONG[bogota.getUTCMonth()],
+    hour12: hour24 % 12 || 12,
+    minute: String(bogota.getUTCMinutes()).padStart(2, "0"),
+    ampm: hour24 >= 12 ? "p. m." : "a. m.",
+  };
+}

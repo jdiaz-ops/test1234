@@ -2,18 +2,41 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { VISIBLE_CHALLENGE_TYPES, type ChallengeType, type ChallengeTemplate } from "@/lib/challenge-types";
+import type { ChallengeType } from "@/lib/challenge-types";
 import { CurrencyInput } from "@/components/portal/currency-input";
 
-function toDateInput(date: Date) {
-  return date.toISOString().slice(0, 10);
+type Offer = { id: string; name: string; defaultCommissionPercent: number; defaultDiscountPercent: number };
+
+function formatCOP(amount: number) {
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amount);
 }
 
-// Las 3 que la marca puede elegir (ver VISIBLE_CHALLENGE_TYPES) — con
-// nombre corto para la tarjeta y una explicación de una línea. Los tipos
-// ocultos (LEADERBOARD, WELCOME_BONUS, CONTENT_CHALLENGE) no tienen tarjeta
-// — solo quedan por si se reactivan más adelante (ver typeLabel/typeHint
-// más abajo, que sí los cubren para no romper el resto del formulario).
+const MONTHS_LONG = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+/// Ojo: distinto de getBogotaDateTimeParts (usado en las tarjetas) — ahí
+/// el valor de entrada es un timestamp UTC real que viene de la base de
+/// datos, así que hay que restarle 5 horas para mostrar la hora Colombia.
+/// Acá el valor es el string crudo de un <input type="datetime-local">, que
+/// ya representa la hora tal cual la escribió la marca en su propio
+/// navegador — no hay ningún corrimiento de zona que aplicar, solo se lee
+/// con los getters locales normales. Nunca se renderiza en el servidor
+/// (el resumen empieza en null y solo aparece después de que la marca
+/// escribe algo), así que tampoco hay riesgo de mismatch de hidratación.
+function formatDateTimeEs(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const day = date.getDate();
+  const month = MONTHS_LONG[date.getMonth()];
+  const hour24 = date.getHours();
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  const ampm = hour24 >= 12 ? "p. m." : "a. m.";
+  const hour12 = hour24 % 12 || 12;
+  return `${day} de ${month} a las ${hour12}:${minute} ${ampm}`;
+}
+
 const PICKER_CARDS: { type: ChallengeType; title: string; description: string }[] = [
   {
     type: "GOAL_BONUS",
@@ -32,96 +55,98 @@ const PICKER_CARDS: { type: ChallengeType; title: string; description: string }[
   },
 ];
 
-const typeLabel: Record<ChallengeType, string> = {
-  GOAL_BONUS: "Misión",
-  FLASH_SALE: "Flash Sale",
-  MIX: "Mix (Misión + Flash Sale)",
-  LEADERBOARD: "Leaderboard con premio al Top N",
-  WELCOME_BONUS: "Bono de bienvenida (primeros N cupos)",
-  CONTENT_CHALLENGE: "Campaña de contenido (revisión manual)",
-};
+// Sin valor por defecto para las fechas — calcular "ahora" al cargar el
+// módulo generaría un mismatch de hidratación (el server y el navegador
+// leen el reloj en momentos distintos, así que el HTML que manda el
+// servidor no coincidiría con lo que React espera renderizar en el
+// navegador). La marca las llena a mano, igual que ya pasaba antes de
+// tener plantillas.
+function emptyState() {
+  return {
+    name: "",
+    type: "GOAL_BONUS" as ChallengeType,
+    startDate: "",
+    endDate: "",
+    goalAmount: "",
+    bonusAmount: "",
+    commissionEnabled: false,
+    newCommissionPercent: "",
+    discountEnabled: false,
+    newDiscountPercent: "",
+    confirmed: false,
+  };
+}
 
-const typeHint: Record<ChallengeType, string> = {
-  GOAL_BONUS:
-    "Cada creador que llegue a la meta gana el bono — no solo el primero, todos los que la alcancen. Es un pago adicional, aparte de su comisión normal por esas ventas.",
-  FLASH_SALE:
-    "Puedes subir la comisión del creador, el descuento del comprador, o los dos — elige al menos uno. La comisión se calcula al vuelo; el descuento se actualiza directo en la tienda real y vuelve solo al valor normal cuando termine.",
-  MIX: "Combina una Misión (meta + bono) con un Flash Sale (comisión y/o descuento elevados) en una sola campaña, con un solo nombre y un solo rango de fechas.",
-  LEADERBOARD: "Al terminar el período, los N creadores con más ventas se llevan el premio correspondiente a su puesto.",
-  WELCOME_BONUS: "Los primeros N creadores que se unan a la oferta durante el período ganan el bono, sin esperar ventas.",
-  CONTENT_CHALLENGE: "El creador manda un link como evidencia; tú lo revisas y decides si aprobar el bono.",
-};
-
-export function ChallengeForm({
-  offers,
-  template,
-  onDone,
-}: {
-  offers: { id: string; name: string }[];
-  template?: ChallengeTemplate;
-  onDone: () => void;
-}) {
+export function ChallengeForm({ offers, onCreated }: { offers: Offer[]; onCreated?: () => void }) {
   const router = useRouter();
   const [offerId, setOfferId] = useState(offers[0]?.id ?? "");
-  const [name, setName] = useState(template?.name ?? "");
-  const [type, setType] = useState<ChallengeType>(template?.type ?? "GOAL_BONUS");
-  const [startDate, setStartDate] = useState(template?.startDate ?? (template ? toDateInput(new Date()) : ""));
-  const [endDate, setEndDate] = useState(
-    template?.endDate ??
-      (template
-        ? toDateInput(new Date(Date.now() + (template.durationDays ?? 7) * 24 * 60 * 60 * 1000))
-        : "")
-  );
-  const [goalAmount, setGoalAmount] = useState(template?.goalAmount ? String(template.goalAmount) : "");
-  const [bonusAmount, setBonusAmount] = useState(template?.bonusAmount ? String(template.bonusAmount) : "");
-  const [commissionEnabled, setCommissionEnabled] = useState(Boolean(template?.newCommissionPercent));
-  const [newCommissionPercent, setNewCommissionPercent] = useState(
-    template?.newCommissionPercent ? String(template.newCommissionPercent) : ""
-  );
-  const [discountEnabled, setDiscountEnabled] = useState(Boolean(template?.newDiscountPercent));
-  const [newDiscountPercent, setNewDiscountPercent] = useState(
-    template?.newDiscountPercent ? String(template.newDiscountPercent) : ""
-  );
-  const [winnersCount, setWinnersCount] = useState("3");
-  const [prizes, setPrizes] = useState("");
-  const [slotsCount, setSlotsCount] = useState("");
-  const [bonusPerSlot, setBonusPerSlot] = useState("");
-  const [instructions, setInstructions] = useState("");
+  const [form, setForm] = useState(emptyState());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // FLASH_SALE y MIX comparten estas dos casillas opcionales — se arma acá
-  // una sola vez para no repetir la lógica en buildConfig().
-  function flashSaleFields() {
-    return {
-      newCommissionPercent: commissionEnabled && newCommissionPercent ? Number(newCommissionPercent) : undefined,
-      newDiscountPercent: discountEnabled && newDiscountPercent ? Number(newDiscountPercent) : undefined,
-    };
+  const selectedOffer = offers.find((o) => o.id === offerId);
+  const { name, type, startDate, endDate, goalAmount, bonusAmount, commissionEnabled, newCommissionPercent, discountEnabled, newDiscountPercent, confirmed } = form;
+
+  function set<K extends keyof ReturnType<typeof emptyState>>(key: K, value: ReturnType<typeof emptyState>[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
   }
 
   function buildConfig(): Record<string, unknown> {
+    const flashSaleFields = {
+      newCommissionPercent: commissionEnabled && newCommissionPercent ? Number(newCommissionPercent) : undefined,
+      newDiscountPercent: discountEnabled && newDiscountPercent ? Number(newDiscountPercent) : undefined,
+    };
     switch (type) {
       case "GOAL_BONUS":
         return { type, goalAmount: Number(goalAmount), bonusAmount: Number(bonusAmount) };
       case "FLASH_SALE":
-        return { type, ...flashSaleFields() };
+        return { type, ...flashSaleFields };
       case "MIX":
-        return { type, goalAmount: Number(goalAmount), bonusAmount: Number(bonusAmount), ...flashSaleFields() };
-      case "LEADERBOARD":
-        return {
-          type,
-          winnersCount: Number(winnersCount),
-          prizes: prizes.split(",").map((p) => Number(p.trim())).filter((n) => !Number.isNaN(n)),
-        };
-      case "WELCOME_BONUS":
-        return { type, slotsCount: Number(slotsCount), bonusPerSlot: Number(bonusPerSlot) };
-      case "CONTENT_CHALLENGE":
-        return { type, instructions, bonusAmount: Number(bonusAmount) };
+        return { type, goalAmount: Number(goalAmount), bonusAmount: Number(bonusAmount), ...flashSaleFields };
+      default:
+        return { type };
     }
   }
 
   const needsFlashSaleLever = type === "FLASH_SALE" || type === "MIX";
   const flashSaleLeverMissing = needsFlashSaleLever && !commissionEnabled && !discountEnabled;
+
+  /// La frase que va justo antes de aprobar — se arma en vivo con lo que ya
+  /// se llenó, y solo se muestra cuando alcanza para una frase completa (sin
+  /// piezas a medio llenar tipo "undefined%"), para que la marca vea
+  /// exactamente qué va a activar antes de confirmarlo.
+  function buildSummary(): string | null {
+    if (!name || !startDate || !endDate) return null;
+    const startText = formatDateTimeEs(startDate);
+    const endText = formatDateTimeEs(endDate);
+    if (!startText || !endText) return null;
+
+    const pieces: string[] = [];
+    if (type === "GOAL_BONUS" || type === "MIX") {
+      if (!goalAmount || !bonusAmount) return null;
+      pieces.push(
+        `cada creador que llegue a ${formatCOP(Number(goalAmount))} en ventas gana ${formatCOP(Number(bonusAmount))} de bono adicional a su comisión normal`
+      );
+    }
+    if (type === "FLASH_SALE" || type === "MIX") {
+      if (!commissionEnabled && !discountEnabled) return null;
+      if (commissionEnabled) {
+        if (!newCommissionPercent) return null;
+        pieces.push(`la comisión del creador sube a ${newCommissionPercent}%`);
+      }
+      if (discountEnabled) {
+        if (!newDiscountPercent) return null;
+        pieces.push(`el descuento del comprador sube a ${newDiscountPercent}%`);
+      }
+    }
+    if (pieces.length === 0) return null;
+
+    const detail = pieces.join(", y ");
+    const offerText = selectedOffer ? ` en ${selectedOffer.name}` : "";
+    return `Según la información que ingresaste, se va a activar "${name}"${offerText}, que empieza el ${startText} y termina el ${endText}. ${detail.charAt(0).toUpperCase()}${detail.slice(1)}.`;
+  }
+
+  const summary = buildSummary();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,13 +154,32 @@ export function ChallengeForm({
       setError("Sube la comisión, el descuento, o ambos.");
       return;
     }
+    if (!summary) {
+      setError("Completa la campaña para poder revisarla antes de crearla.");
+      return;
+    }
+    if (!confirmed) {
+      setError("Marca la casilla de aprobación antes de crear la campaña.");
+      return;
+    }
     setSaving(true);
     setError(null);
 
+    // new Date(startDate) acá se interpreta con la zona horaria real del
+    // navegador de la marca (correcto) — mandar el string crudo del
+    // datetime-local tal cual, sin este paso, dejaría que el servidor (que
+    // corre en UTC) lo reinterprete como si esas horas fueran UTC, corriendo
+    // cada campaña 5 horas de la hora que la marca realmente escribió.
     const res = await fetch("/api/marca/retos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ offerId, name, startDate, endDate, config: buildConfig() }),
+      body: JSON.stringify({
+        offerId,
+        name,
+        startDate: new Date(startDate).toISOString(),
+        endDate: new Date(endDate).toISOString(),
+        config: buildConfig(),
+      }),
     });
 
     setSaving(false);
@@ -146,22 +190,31 @@ export function ChallengeForm({
       return;
     }
 
+    setForm(emptyState());
     router.refresh();
-    onDone();
+    onCreated?.();
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">Oferta</label>
-        <select value={offerId} onChange={(e) => setOfferId(e.target.value)} className="input">
-          {offers.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {offers.length > 1 ? (
+        <div>
+          <label className="block text-sm text-brand-ink mb-1">¿Para cuál de tus programas?</label>
+          <select value={offerId} onChange={(e) => setOfferId(e.target.value)} className="input">
+            {offers.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        selectedOffer && (
+          <p className="text-xs text-brand-ink-soft">
+            Esta campaña aplica a tu programa: <span className="text-brand-ink font-medium">{selectedOffer.name}</span>
+          </p>
+        )
+      )}
 
       <div>
         <label className="block text-sm text-brand-ink mb-2">Tipo de campaña</label>
@@ -170,7 +223,7 @@ export function ChallengeForm({
             <button
               key={card.type}
               type="button"
-              onClick={() => setType(card.type)}
+              onClick={() => set("type", card.type)}
               className={`text-left rounded-xl border p-3 transition-colors ${
                 type === card.type ? "border-brand-accent ring-2 ring-brand-accent bg-brand-accent-soft/30" : "border-brand-line hover:border-brand-accent-soft"
               }`}
@@ -184,17 +237,17 @@ export function ChallengeForm({
 
       <div>
         <label className="block text-sm text-brand-ink mb-1">Nombre de la campaña</label>
-        <input required value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="Campaña de verano" />
+        <input required value={name} onChange={(e) => set("name", e.target.value)} className="input" placeholder="Campaña de verano" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm text-brand-ink mb-1">Inicio</label>
-          <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input" />
+          <input required type="datetime-local" value={startDate} onChange={(e) => set("startDate", e.target.value)} className="input" />
         </div>
         <div>
           <label className="block text-sm text-brand-ink mb-1">Fin</label>
-          <input required type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input" />
+          <input required type="datetime-local" value={endDate} onChange={(e) => set("endDate", e.target.value)} className="input" />
         </div>
       </div>
 
@@ -202,11 +255,11 @@ export function ChallengeForm({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-brand-ink mb-1">Meta de ventas por creador</label>
-            <CurrencyInput value={goalAmount} onChange={setGoalAmount} placeholder="2.000.000" />
+            <CurrencyInput value={goalAmount} onChange={(v) => set("goalAmount", v)} placeholder="2.000.000" />
           </div>
           <div>
             <label className="block text-sm text-brand-ink mb-1">Bono</label>
-            <CurrencyInput value={bonusAmount} onChange={setBonusAmount} placeholder="150.000" />
+            <CurrencyInput value={bonusAmount} onChange={(v) => set("bonusAmount", v)} placeholder="150.000" />
           </div>
         </div>
       )}
@@ -217,40 +270,54 @@ export function ChallengeForm({
 
           <div>
             <label className="flex items-center gap-2 text-sm text-brand-ink mb-1">
-              <input type="checkbox" checked={commissionEnabled} onChange={(e) => setCommissionEnabled(e.target.checked)} />
+              <input type="checkbox" checked={commissionEnabled} onChange={(e) => set("commissionEnabled", e.target.checked)} />
               Subir la comisión del creador
             </label>
             {commissionEnabled && (
-              <input
-                required
-                type="number"
-                min="0"
-                max="100"
-                value={newCommissionPercent}
-                onChange={(e) => setNewCommissionPercent(e.target.value)}
-                placeholder="Nueva comisión (%)"
-                className="input"
-              />
-            )}
-          </div>
-
-          <div>
-            <label className="flex items-center gap-2 text-sm text-brand-ink mb-1">
-              <input type="checkbox" checked={discountEnabled} onChange={(e) => setDiscountEnabled(e.target.checked)} />
-              Subir el descuento del comprador
-            </label>
-            {discountEnabled && (
-              <>
+              <div className="flex items-center gap-2">
+                {selectedOffer && (
+                  <span className="text-xs font-mono text-brand-ink-soft shrink-0 whitespace-nowrap">
+                    Actual: {selectedOffer.defaultCommissionPercent}% →
+                  </span>
+                )}
                 <input
                   required
                   type="number"
                   min="0"
                   max="100"
-                  value={newDiscountPercent}
-                  onChange={(e) => setNewDiscountPercent(e.target.value)}
-                  placeholder="Nuevo % de descuento"
+                  value={newCommissionPercent}
+                  onChange={(e) => set("newCommissionPercent", e.target.value)}
+                  placeholder="Nueva comisión (%)"
                   className="input"
                 />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm text-brand-ink mb-1">
+              <input type="checkbox" checked={discountEnabled} onChange={(e) => set("discountEnabled", e.target.checked)} />
+              Subir el descuento del comprador
+            </label>
+            {discountEnabled && (
+              <>
+                <div className="flex items-center gap-2">
+                  {selectedOffer && (
+                    <span className="text-xs font-mono text-brand-ink-soft shrink-0 whitespace-nowrap">
+                      Actual: {selectedOffer.defaultDiscountPercent}% →
+                    </span>
+                  )}
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newDiscountPercent}
+                    onChange={(e) => set("newDiscountPercent", e.target.value)}
+                    placeholder="Nuevo % de descuento"
+                    className="input"
+                  />
+                </div>
                 <p className="text-xs text-brand-ink-soft mt-1">
                   Se sube directo en tu tienda — puede tardar unos minutos en reflejarse.
                 </p>
@@ -262,49 +329,13 @@ export function ChallengeForm({
         </div>
       )}
 
-      {type === "LEADERBOARD" && (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm text-brand-ink mb-1">N° de ganadores</label>
-            <input required type="number" min="1" max="20" value={winnersCount} onChange={(e) => setWinnersCount(e.target.value)} className="input" />
-          </div>
-          <div>
-            <label className="block text-sm text-brand-ink mb-1">Premios (COP, separados por coma)</label>
-            <input required value={prizes} onChange={(e) => setPrizes(e.target.value)} placeholder="300000, 150000, 50000" className="input" />
-          </div>
-        </div>
-      )}
-
-      {type === "WELCOME_BONUS" && (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm text-brand-ink mb-1">Cupos disponibles</label>
-            <input required type="number" min="1" value={slotsCount} onChange={(e) => setSlotsCount(e.target.value)} className="input" />
-          </div>
-          <div>
-            <label className="block text-sm text-brand-ink mb-1">Bono por cupo</label>
-            <CurrencyInput value={bonusPerSlot} onChange={setBonusPerSlot} placeholder="50.000" />
-          </div>
-        </div>
-      )}
-
-      {type === "CONTENT_CHALLENGE" && (
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm text-brand-ink mb-1">Instrucciones para el creador</label>
-            <textarea
-              required
-              value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
-              className="input"
-              rows={3}
-              placeholder="Publica un reel usando tu código y mándanos el link"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-brand-ink mb-1">Bono</label>
-            <CurrencyInput value={bonusAmount} onChange={setBonusAmount} placeholder="150.000" />
-          </div>
+      {summary && (
+        <div className="rounded-xl border-2 border-brand-accent bg-brand-accent-soft/30 p-4">
+          <p className="text-sm text-brand-ink leading-relaxed">{summary}</p>
+          <label className="flex items-center gap-2 text-sm font-medium text-brand-ink mt-3">
+            <input type="checkbox" checked={confirmed} onChange={(e) => set("confirmed", e.target.checked)} />
+            Revisé la información y apruebo crear esta campaña
+          </label>
         </div>
       )}
 
@@ -313,22 +344,15 @@ export function ChallengeForm({
       <div className="flex gap-3">
         <button
           type="submit"
-          disabled={saving || !offerId}
+          disabled={saving || !offerId || !summary || !confirmed}
           className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
         >
           {saving ? "Creando..." : "Crear campaña"}
         </button>
-        <button type="button" onClick={onDone} className="text-sm text-brand-ink-soft hover:underline">
-          Cancelar
+        <button type="button" onClick={() => setForm(emptyState())} className="text-sm text-brand-ink-soft hover:underline">
+          Limpiar
         </button>
       </div>
     </form>
   );
 }
-
-// Se mantienen exportados por si algún día se vuelve a usar el listado
-// completo (ej. VISIBLE_CHALLENGE_TYPES incluye hoy solo Misión/Flash
-// Sale/Mix — LEADERBOARD/WELCOME_BONUS/CONTENT_CHALLENGE siguen ocultos).
-void typeLabel;
-void typeHint;
-void VISIBLE_CHALLENGE_TYPES;
