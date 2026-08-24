@@ -253,7 +253,7 @@ export default async function PublicStorefrontPage({
                         className="text-[10px] font-semibold text-center rounded-full py-1.5"
                         style={{ background: palette.accentSoft, color: palette.accent }}
                       >
-                        Comprar →
+                        Ver en tienda →
                       </p>
                     </div>
                   </a>

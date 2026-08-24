@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-type Product = {
+export type Product = {
   id: string;
   name: string;
   imageUrl: string | null;
@@ -12,8 +12,8 @@ type Product = {
   brand: { companyName: string };
 };
 
-type CollectionItem = { product: Product };
-type Collection = {
+export type CollectionItem = { product: Product };
+export type Collection = {
   id: string;
   name: string;
   description: string | null;

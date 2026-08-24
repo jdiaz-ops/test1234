@@ -3,7 +3,6 @@ import { getCreatorProfileByUserId } from "@/server/services/creator-profile-ser
 import { getEnrollmentsForCreator } from "@/server/services/marketplace-service";
 import { listCollectionsForCreator } from "@/server/services/collection-service";
 import { CreatorStorefrontStep } from "@/components/portal/creator-storefront-step";
-import { CollectionsManager } from "@/components/portal/collections-manager";
 
 export default async function StorefrontSettingsPage() {
   const session = await auth();
@@ -24,12 +23,7 @@ export default async function StorefrontSettingsPage() {
   return (
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">MI VITRINA</p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Tu vitrina pública</h1>
-      <p className="text-sm text-brand-ink-soft mb-8 max-w-xl">
-        Este es el único link que necesitas compartir — reúne todas tus marcas activas y tus
-        colecciones en una sola página. Ponlo en tu bio de Instagram o TikTok, en tus historias, en tus
-        correos — donde sea que esté tu audiencia.
-      </p>
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-6">Tu vitrina pública</h1>
 
       <CreatorStorefrontStep
         displayName={profile.displayName}
@@ -51,43 +45,27 @@ export default async function StorefrontSettingsPage() {
             discountPercent: Number(e.discountPercentOverride ?? e.offer.defaultDiscountPercent),
             discountCode: e.discountCode,
           }))}
-        // Solo las visibles y con al menos un producto — mismo criterio que
-        // ve la audiencia real en /c/[slug]/page.tsx.
-        collections={collections
-          .filter((c) => c.visible && c.items.length > 0)
-          .map((c) => ({
-            id: c.id,
-            name: c.name,
-            items: c.items.map((it) => ({
+        // Forma completa (para CollectionsManager, que vive adentro de este
+        // componente ahora) — la vista previa en vivo se queda con el
+        // subconjunto liviano que ya necesitaba (ver LivePreviewCollection).
+        collections={collections.map((c) => ({
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          visible: c.visible,
+          items: c.items.map((it) => ({
+            product: {
               id: it.product.id,
               name: it.product.name,
               imageUrl: it.product.imageUrl,
-              brandName: it.product.brand.companyName,
-            })),
-          }))}
+              price: Number(it.product.price),
+              currency: it.product.currency,
+              brand: { companyName: it.product.brand.companyName },
+            },
+          })),
+        }))}
         publicUrl={publicUrl}
       />
-
-      <div className="mt-10">
-        <CollectionsManager
-          collections={collections.map((c) => ({
-            id: c.id,
-            name: c.name,
-            description: c.description,
-            visible: c.visible,
-            items: c.items.map((it) => ({
-              product: {
-                id: it.product.id,
-                name: it.product.name,
-                imageUrl: it.product.imageUrl,
-                price: Number(it.product.price),
-                currency: it.product.currency,
-                brand: { companyName: it.product.brand.companyName },
-              },
-            })),
-          }))}
-        />
-      </div>
     </div>
   );
 }
