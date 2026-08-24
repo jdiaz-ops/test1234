@@ -69,6 +69,36 @@ export async function createShopifyDiscountCode(params: {
   return { priceRuleId: String(priceRuleId) };
 }
 
+/// Apaga (o vuelve a prender) un código de descuento en la tienda real,
+/// sin borrar la price rule — así que reactivar es tan simple como volver
+/// a llamar esto con `active: true`. Se usa cuando una marca cae en Nivel 3
+/// (deactivateOverdueBrands en payment-service.ts) para que el código deje
+/// de aplicar el descuento en el checkout real, y de vuelta cuando se
+/// verifica el pago (verifyBrandPayment). `ends_at` en el pasado es el
+/// mecanismo que documenta Shopify para esto — no existe un campo
+/// "enabled" aparte en Price Rules.
+export async function setShopifyDiscountCodeActive(params: {
+  storeUrl: string;
+  accessToken: string;
+  priceRuleId: string;
+  active: boolean;
+}): Promise<void> {
+  const res = await fetch(adminApiUrl(params.storeUrl, `price_rules/${params.priceRuleId}.json`), {
+    method: "PUT",
+    headers: {
+      "X-Shopify-Access-Token": params.accessToken,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      price_rule: { ends_at: params.active ? null : new Date(Date.now() - 60_000).toISOString() },
+    }),
+  });
+
+  if (!res.ok) {
+    throw new ShopifyApiError(`No se pudo ${params.active ? "reactivar" : "desactivar"} la regla de precio (${res.status})`);
+  }
+}
+
 /// Forma reducida de un producto tal como lo devuelve products.json — solo
 /// los campos que de verdad usamos.
 export interface ShopifyProduct {

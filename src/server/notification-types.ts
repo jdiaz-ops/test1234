@@ -149,6 +149,21 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     messageTemplate: "{marca} no aprobó tu solicitud para unirte a su programa esta vez.",
     placeholders: "marca",
   },
+  {
+    key: "BRAND_PAUSED_CREATOR",
+    label: "Marca temporalmente no disponible (Nivel 3)",
+    audience: "CREATOR",
+    messageTemplate:
+      "{marca} está temporalmente no disponible — tu código no está generando ventas por ahora. Te avisamos apenas vuelva.",
+    placeholders: "marca",
+  },
+  {
+    key: "BRAND_RESUMED_CREATOR",
+    label: "Marca disponible de nuevo",
+    audience: "CREATOR",
+    messageTemplate: "¡{marca} ya está disponible de nuevo! Tu código vuelve a funcionar normal.",
+    placeholders: "marca",
+  },
 
   // ---------------------------------------------------------------- MARCA
   {
@@ -287,6 +302,14 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     audience: "ADMIN",
     messageTemplate: "No se pudo crear el código de descuento en la tienda de {marca} — la conexión falló. Revísalo en Marcas → Tienda.",
     placeholders: "marca",
+  },
+  {
+    key: "DISCOUNT_CODE_TOGGLE_FAILED_ADMIN",
+    label: "Falla al apagar/prender un código por Nivel 3",
+    audience: "ADMIN",
+    messageTemplate:
+      "No se pudo {accion} el código {codigo} de {creador} en la tienda de {marca} — revísalo manualmente en la tienda.",
+    placeholders: "accion,codigo,creador,marca",
   },
   {
     key: "FRAUD_FLAG_ADMIN",

@@ -51,6 +51,35 @@ export async function createWooCommerceCoupon(params: {
   return { couponId: String(body.id) };
 }
 
+/// Apaga (o vuelve a prender) un cupón en la tienda real, sin borrarlo —
+/// así que reactivar es tan simple como volver a llamar esto con
+/// `active: true`. Se usa cuando una marca cae en Nivel 3
+/// (deactivateOverdueBrands en payment-service.ts) para que el cupón deje
+/// de aplicar el descuento en el checkout real, y de vuelta cuando se
+/// verifica el pago (verifyBrandPayment). WooCommerce solo aplica cupones
+/// en estado "publish" — "draft" lo deja inválido en el checkout sin
+/// borrarlo.
+export async function setWooCommerceCouponActive(params: {
+  storeUrl: string;
+  consumerKey: string;
+  consumerSecret: string;
+  couponId: string;
+  active: boolean;
+}): Promise<void> {
+  const res = await fetch(restApiUrl(params.storeUrl, `coupons/${params.couponId}`), {
+    method: "PUT",
+    headers: {
+      Authorization: basicAuthHeader(params.consumerKey, params.consumerSecret),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ status: params.active ? "publish" : "draft" }),
+  });
+
+  if (!res.ok) {
+    throw new WooCommerceApiError(`No se pudo ${params.active ? "reactivar" : "desactivar"} el cupón (${res.status})`);
+  }
+}
+
 /// Forma reducida de un producto tal como lo devuelve /products — solo los
 /// campos que de verdad usamos. `permalink` ya es la URL real y completa
 /// del producto en la tienda, tal como WooCommerce la arma según sus

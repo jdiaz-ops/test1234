@@ -43,14 +43,31 @@ export default async function CodigosPage() {
             const commission = e.commissionPercentOverride ?? e.offer.defaultCommissionPercent;
             const discount = e.discountPercentOverride ?? e.offer.defaultDiscountPercent;
             const { brand } = e.offer;
+            const paused = brand.charges.length > 0;
             const storeLink = buildBrandStoreLink(brand, e.discountCode);
             const linkHasCode = brand.storeType === "SHOPIFY" && Boolean(brand.storeUrl);
             return (
-              <div key={e.id} className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
-                <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
-                  <p className="font-display font-semibold text-brand-ink">{brand.companyName}</p>
+              <div
+                key={e.id}
+                className={`rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5 ${paused ? "opacity-60" : ""}`}
+              >
+                <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
+                  <div className="flex items-center gap-2">
+                    <p className="font-display font-semibold text-brand-ink">{brand.companyName}</p>
+                    {paused && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-700 px-2 py-0.5 text-[10.5px] font-mono font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-700" />
+                        Temporalmente no disponible
+                      </span>
+                    )}
+                  </div>
                   <LeaveOfferButton enrollmentId={e.id} />
                 </div>
+                {paused && (
+                  <p className="text-xs text-brand-ink-soft mb-3">
+                    Tu código no está generando ventas por ahora — te avisamos apenas vuelva a estar disponible.
+                  </p>
+                )}
 
                 {/* Código y link van juntos, en un mismo bloque — son las dos
                     piezas de lo mismo (compartir), no dos cosas separadas. */}

@@ -93,7 +93,16 @@ export async function listActiveOffers(filters: { categorySlug?: string; search?
 export async function getEnrollmentsForCreator(creatorId: string) {
   return prisma.creatorOfferEnrollment.findMany({
     where: { creatorId },
-    include: { offer: { include: { brand: true } } },
+    include: {
+      offer: {
+        include: {
+          // Solo para que el creador vea si la marca está en Nivel 3
+          // (ver Mis Códigos y Links) — un array vacío significa que no
+          // está desactivada.
+          brand: { include: { charges: { where: { status: "DEACTIVATED" }, select: { id: true } } } },
+        },
+      },
+    },
   });
 }
 

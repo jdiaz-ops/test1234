@@ -65,7 +65,26 @@ export default async function PublicStorefrontPage({
   const palette = getPalette(profile.storefrontPalette);
   const font = getFont(profile.storefrontFont);
 
-  const visibleEnrollments = profile.enrollments.filter((e) => e.storefrontVisible);
+  // Nivel 3 (BrandChargeStatus.DEACTIVATED): la marca no debe seguir
+  // beneficiándose de la promoción de un creador ni el comprador seguir
+  // recibiendo el descuento mientras no pague — así que se oculta de la
+  // vitrina pública igual que ya se oculta del marketplace (ver
+  // listActiveOffers en marketplace-service.ts). El código real en la
+  // tienda además queda apagado aparte (ver setBrandDiscountCodesActive
+  // en payment-service.ts) — esto es lo que evita que el link siga
+  // circulando de cara al comprador.
+  const deactivatedBrandIds = new Set(
+    (
+      await prisma.brandCharge.findMany({
+        where: { status: "DEACTIVATED", brandId: { in: profile.enrollments.map((e) => e.offer.brandId) } },
+        select: { brandId: true },
+      })
+    ).map((c) => c.brandId)
+  );
+
+  const visibleEnrollments = profile.enrollments.filter(
+    (e) => e.storefrontVisible && !deactivatedBrandIds.has(e.offer.brandId)
+  );
   // Código del creador para cada marca — lo necesitan las tarjetas de
   // producto de las colecciones para armar su link (con o sin descuento
   // aplicado, según la plataforma — ver buildProductLink).
@@ -109,7 +128,14 @@ export default async function PublicStorefrontPage({
           )}
         </div>
 
-        {profile.collections.map((collection) => (
+        {profile.collections.map((collection) => {
+          // Mismo criterio que arriba — un producto de una marca en Nivel 3
+          // no se muestra, aunque el creador ya lo haya agregado a esta
+          // colección. Si eso deja la colección vacía, se salta entera en
+          // vez de mostrar el título sin nada debajo.
+          const visibleItems = collection.items.filter((item) => !deactivatedBrandIds.has(item.product.brandId));
+          if (visibleItems.length === 0) return null;
+          return (
           <div key={collection.id} className="mb-10">
             <h2 className="font-display text-base font-semibold mb-1" style={{ color: palette.ink }}>
               {collection.name}
@@ -120,7 +146,7 @@ export default async function PublicStorefrontPage({
               </p>
             )}
             <div className="grid grid-cols-2 gap-3">
-              {collection.items.map((item) => {
+              {visibleItems.map((item) => {
                 const code = codeByBrandId.get(item.product.brandId);
                 const productLink = code
                   ? buildProductLink(item.product.brand, item.product, code)
@@ -175,7 +201,8 @@ export default async function PublicStorefrontPage({
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
 
         <div className="space-y-4">
           {visibleEnrollments.length === 0 ? (

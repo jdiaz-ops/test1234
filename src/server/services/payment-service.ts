@@ -1,6 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { payoutToCreatorBank } from "@/server/integrations/epayco-client";
+import { setShopifyDiscountCodeActive, ShopifyApiError } from "@/server/integrations/shopify-client";
+import { setWooCommerceCouponActive, WooCommerceApiError } from "@/server/integrations/woocommerce-client";
 import { createNotification } from "@/server/services/notification-service";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { generateBrandChargeDoc } from "@/lib/billing-pdf";
@@ -12,6 +14,85 @@ export class PaymentError extends Error {}
 
 function round2(n: number) {
   return Math.round(n * 100) / 100;
+}
+
+/// Apaga (Nivel 3) o vuelve a prender (al verificar el pago) los códigos
+/// de descuento reales de una marca en su tienda Shopify/WooCommerce — no
+/// solo el control interno de Marcolini (ver isBrandServiceDeactivated en
+/// attribution-service.ts), sino el código de verdad, para que deje de
+/// aplicar el descuento en el checkout real mientras la marca no pague.
+/// Sin tienda conectada (StoreType.OTHER, o sin credenciales) no hay nada
+/// que apagar del lado de la tienda — el control interno sigue siendo la
+/// única barrera para esas marcas. Nunca tumba el flujo de
+/// deactivateOverdueBrands/verifyBrandPayment si falla — solo avisa al
+/// admin para que lo revise a mano.
+async function setBrandDiscountCodesActive(brandId: string, active: boolean) {
+  const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId } });
+  const enrollments = await prisma.creatorOfferEnrollment.findMany({
+    where: { status: "ACTIVE", offer: { brandId } },
+    include: { creator: true },
+  });
+
+  for (const enrollment of enrollments) {
+    try {
+      if (brand.storeType === "SHOPIFY" && brand.storeUrl && brand.shopifyAccessToken && enrollment.shopifyPriceRuleId) {
+        await setShopifyDiscountCodeActive({
+          storeUrl: brand.storeUrl,
+          accessToken: brand.shopifyAccessToken,
+          priceRuleId: enrollment.shopifyPriceRuleId,
+          active,
+        });
+      } else if (
+        brand.storeType === "WOOCOMMERCE" &&
+        brand.storeUrl &&
+        brand.wooConsumerKey &&
+        brand.wooConsumerSecret &&
+        enrollment.wooCouponId
+      ) {
+        await setWooCommerceCouponActive({
+          storeUrl: brand.storeUrl,
+          consumerKey: brand.wooConsumerKey,
+          consumerSecret: brand.wooConsumerSecret,
+          couponId: enrollment.wooCouponId,
+          active,
+        });
+      }
+    } catch (err) {
+      const isKnownApiError = err instanceof ShopifyApiError || err instanceof WooCommerceApiError;
+      console.error(
+        `[pagos] no se pudo ${active ? "reactivar" : "desactivar"} el código "${enrollment.discountCode}" de ${brand.companyName}:`,
+        isKnownApiError ? err.message : err
+      );
+
+      const admins = await prisma.user.findMany({ where: { role: "ADMIN", adminRole: "OWNER" }, select: { id: true } });
+      await Promise.all(
+        admins.map((admin) =>
+          createNotification(admin.id, "DISCOUNT_CODE_TOGGLE_FAILED_ADMIN", {
+            accion: active ? "reactivar" : "desactivar",
+            codigo: enrollment.discountCode,
+            creador: enrollment.creator.displayName,
+            marca: brand.companyName,
+          })
+        )
+      );
+    }
+  }
+}
+
+/// Avisa a cada creador con inscripción activa en esta marca — al caer en
+/// Nivel 3 (deactivated: true) o al volver a estar disponible (false).
+async function notifyCreatorsBrandPaused(brandId: string, brandName: string, deactivated: boolean) {
+  const enrollments = await prisma.creatorOfferEnrollment.findMany({
+    where: { status: "ACTIVE", offer: { brandId } },
+    include: { creator: true },
+  });
+  await Promise.all(
+    enrollments.map((e) =>
+      createNotification(e.creator.userId, deactivated ? "BRAND_PAUSED_CREATOR" : "BRAND_RESUMED_CREATOR", {
+        marca: brandName,
+      })
+    )
+  );
 }
 
 /// Corte del día 1: junta todo lo que esa marca debe (comisiones de
@@ -192,6 +273,15 @@ export async function verifyBrandPayment(chargeId: string, adminUserId: string) 
     data: { status: "PAID", paidAt: new Date(), verifiedByUserId: adminUserId },
   });
 
+  // Si venía de Nivel 3, prende de vuelta el código real en la tienda (si
+  // hay una conectada) y le avisa a cada creador vinculado que ya puede
+  // volver a promocionar — el resto (panel, marketplace, atribución) se
+  // destraba solo con el cambio de status a PAID, sin nada extra que hacer.
+  if (charge.status === "DEACTIVATED") {
+    await setBrandDiscountCodesActive(charge.brandId, true);
+    await notifyCreatorsBrandPaused(charge.brandId, charge.brand.companyName, false);
+  }
+
   await createNotification(charge.brand.userId, "BRAND_PAYMENT_VERIFIED", {}, () =>
     sendBrandPaymentVerifiedEmail(charge.brand.user.email, charge.brand.companyName)
   );
@@ -345,6 +435,12 @@ export async function deactivateOverdueBrands() {
 
   for (const charge of toDeactivate) {
     await prisma.brandCharge.update({ where: { id: charge.id }, data: { status: "DEACTIVATED", deactivatedAt: now } });
+
+    // Apaga el código de verdad en la tienda (si hay una conectada) y le
+    // avisa a cada creador vinculado — así nadie sigue promocionando ni
+    // beneficiándose de un código que ya no le genera nada a nadie.
+    await setBrandDiscountCodesActive(charge.brandId, false);
+    await notifyCreatorsBrandPaused(charge.brandId, charge.brand.companyName, true);
 
     await createNotification(charge.brand.userId, "BRAND_DEACTIVATED", {
       monto: formatCOP(Number(charge.totalAmount)),
