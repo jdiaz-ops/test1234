@@ -39,8 +39,32 @@ export function CreatorStorefrontStep({
   const router = useRouter();
   const [form, setForm] = useState(initial);
   const [items, setItems] = useState<EnrollmentItem[]>(enrollments);
+  const [name, setName] = useState(displayName);
+  const [currentPhotoUrl, setCurrentPhotoUrl] = useState(photoUrl);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    setError(null);
+
+    const body = new FormData();
+    body.set("file", file);
+    const res = await fetch("/api/creador/perfil/subir", { method: "POST", body });
+    setUploadingPhoto(false);
+
+    if (!res.ok) {
+      const b = await res.json();
+      setError(b.error ?? "No se pudo subir la foto.");
+      return;
+    }
+    const b = await res.json();
+    setCurrentPhotoUrl(b.url);
+    router.refresh();
+  }
 
   function toggleVisible(id: string) {
     setItems((cur) => cur.map((it) => (it.id === id ? { ...it, visible: !it.visible } : it)));
@@ -62,7 +86,7 @@ export function CreatorStorefrontStep({
     setSaving(true);
     setError(null);
 
-    const [vitrinaRes, marcasRes] = await Promise.all([
+    const [vitrinaRes, marcasRes, perfilRes] = await Promise.all([
       fetch("/api/creador/vitrina", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -75,11 +99,16 @@ export function CreatorStorefrontStep({
           items: items.map((it, i) => ({ enrollmentId: it.id, storefrontVisible: it.visible, storefrontOrder: i })),
         }),
       }),
+      fetch("/api/creador/perfil", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName: name }),
+      }),
     ]);
 
     setSaving(false);
 
-    if (!vitrinaRes.ok || !marcasRes.ok) {
+    if (!vitrinaRes.ok || !marcasRes.ok || !perfilRes.ok) {
       setError("No se pudo guardar.");
       return;
     }
@@ -89,16 +118,46 @@ export function CreatorStorefrontStep({
   }
 
   return (
-    <div className="grid lg:grid-cols-[1fr_300px] gap-8 items-start max-w-4xl">
+    <div className="grid lg:grid-cols-[1fr_240px] gap-8 items-start max-w-4xl">
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="rounded-2xl border-2 border-brand-accent bg-brand-accent-soft p-5">
           <p className="text-sm font-medium text-brand-ink mb-1">
-            Tu link — ponlo en tu bio de Instagram/TikTok o compártelo por WhatsApp/correo
+            Tu link — ponlo en tu bio de Instagram o TikTok, en tus historias, por WhatsApp o correo — donde
+            sea que esté tu audiencia
           </p>
           <div className="flex items-center gap-3 mt-2">
             <span className="font-mono text-brand-accent text-lg">{publicUrl}</span>
             <CopyButton value={`https://${publicUrl}`} />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm text-brand-ink mb-2">Foto y username</label>
+          <div className="flex items-center gap-3 mb-3">
+            {currentPhotoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- foto subida por el creador
+              <img src={currentPhotoUrl} alt="" className="w-14 h-14 rounded-full object-cover border border-brand-line shrink-0" />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-brand-accent-soft shrink-0" />
+            )}
+            <label className="text-xs border border-brand-line rounded-full px-4 py-1.5 cursor-pointer hover:bg-brand-accent-soft shrink-0">
+              {uploadingPhoto ? "Subiendo..." : "Cambiar foto"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handlePhotoChange}
+                disabled={uploadingPhoto}
+                className="hidden"
+              />
+            </label>
+          </div>
+          <input
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="ej. dani15"
+            className="input"
+          />
         </div>
 
         <div>
@@ -216,8 +275,8 @@ export function CreatorStorefrontStep({
       </form>
 
       <VitrinaLivePreview
-        displayName={displayName}
-        photoUrl={photoUrl}
+        displayName={name}
+        photoUrl={currentPhotoUrl}
         palette={form.storefrontPalette}
         font={form.storefrontFont}
         headline={form.storefrontHeadline}

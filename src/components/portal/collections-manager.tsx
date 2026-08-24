@@ -335,7 +335,7 @@ export function CollectionsManager({ collections }: { collections: Collection[] 
         <h2 className="font-display font-semibold text-brand-ink">Tus colecciones</h2>
       </div>
       <p className="text-sm text-brand-ink-soft mb-1">
-        Agrupa productos por tema — se muestran en tu vitrina, arriba de tus marcas.
+        Agrupa productos por tema — se muestran en tu vitrina, debajo de tus marcas.
       </p>
       {collections.length === 0 && (
         <p className="text-xs text-brand-ink-soft mb-5">

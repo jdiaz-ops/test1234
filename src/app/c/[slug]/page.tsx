@@ -128,6 +128,66 @@ export default async function PublicStorefrontPage({
           )}
         </div>
 
+        <div className="space-y-4 mb-10">
+          {visibleEnrollments.length === 0 ? (
+            <p className="text-center text-sm" style={{ color: palette.inkSoft }}>
+              Próximamente más marcas por aquí.
+            </p>
+          ) : (
+            visibleEnrollments.map((e) => {
+              const discountPercent = Number(e.discountPercentOverride ?? e.offer.defaultDiscountPercent);
+              // Mismo link para el logo y el botón — con el código ya
+              // aplicado si la tienda es Shopify (soporte nativo), o el
+              // link normal de la tienda si no (ver buildBrandStoreLink).
+              const storeLink = buildBrandStoreLink(e.offer.brand, e.discountCode);
+              return (
+                <div
+                  key={e.id}
+                  className="rounded-2xl p-5"
+                  style={{ background: palette.surface, border: `1px solid ${palette.accentSoft}` }}
+                >
+                  <a
+                    href={storeLink ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 mb-3"
+                  >
+                    {e.offer.brand.logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- logo subido por la marca
+                      <img src={e.offer.brand.logoUrl} alt={e.offer.brand.companyName} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div
+                        className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-display font-semibold text-sm"
+                        style={{ background: palette.accentSoft, color: palette.accent }}
+                      >
+                        {e.offer.brand.companyName[0]?.toUpperCase()}
+                      </div>
+                    )}
+                    <p className="font-display font-semibold" style={{ color: palette.ink }}>
+                      {e.offer.brand.companyName}
+                    </p>
+                  </a>
+                  <p className="text-sm mb-4" style={{ color: palette.inkSoft }}>
+                    Obtén {discountPercent}% de descuento con esta marca usando mi código{" "}
+                    <span className="font-mono font-medium" style={{ color: palette.accent }}>
+                      {e.discountCode}
+                    </span>
+                  </p>
+                  <a
+                    href={storeLink ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-center rounded-full px-5 py-2.5 text-sm font-semibold text-white"
+                    style={{ background: palette.accent }}
+                  >
+                    Ir a la tienda →
+                  </a>
+                </div>
+              );
+            })
+          )}
+        </div>
+
         {profile.collections.map((collection) => {
           // Mismo criterio que arriba — un producto de una marca en Nivel 3
           // no se muestra, aunque el creador ya lo haya agregado a esta
@@ -203,66 +263,6 @@ export default async function PublicStorefrontPage({
           </div>
           );
         })}
-
-        <div className="space-y-4">
-          {visibleEnrollments.length === 0 ? (
-            <p className="text-center text-sm" style={{ color: palette.inkSoft }}>
-              Próximamente más marcas por aquí.
-            </p>
-          ) : (
-            visibleEnrollments.map((e) => {
-              const discountPercent = Number(e.discountPercentOverride ?? e.offer.defaultDiscountPercent);
-              // Mismo link para el logo y el botón — con el código ya
-              // aplicado si la tienda es Shopify (soporte nativo), o el
-              // link normal de la tienda si no (ver buildBrandStoreLink).
-              const storeLink = buildBrandStoreLink(e.offer.brand, e.discountCode);
-              return (
-                <div
-                  key={e.id}
-                  className="rounded-2xl p-5"
-                  style={{ background: palette.surface, border: `1px solid ${palette.accentSoft}` }}
-                >
-                  <a
-                    href={storeLink ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 mb-3"
-                  >
-                    {e.offer.brand.logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- logo subido por la marca
-                      <img src={e.offer.brand.logoUrl} alt={e.offer.brand.companyName} className="w-10 h-10 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <div
-                        className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-display font-semibold text-sm"
-                        style={{ background: palette.accentSoft, color: palette.accent }}
-                      >
-                        {e.offer.brand.companyName[0]?.toUpperCase()}
-                      </div>
-                    )}
-                    <p className="font-display font-semibold" style={{ color: palette.ink }}>
-                      {e.offer.brand.companyName}
-                    </p>
-                  </a>
-                  <p className="text-sm mb-4" style={{ color: palette.inkSoft }}>
-                    Obtén {discountPercent}% de descuento con esta marca usando mi código{" "}
-                    <span className="font-mono font-medium" style={{ color: palette.accent }}>
-                      {e.discountCode}
-                    </span>
-                  </p>
-                  <a
-                    href={storeLink ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-center rounded-full px-5 py-2.5 text-sm font-semibold text-white"
-                    style={{ background: palette.accent }}
-                  >
-                    Ir a la tienda →
-                  </a>
-                </div>
-              );
-            })
-          )}
-        </div>
 
         <div className="text-center mt-14">
           <p className="font-mono text-xs mb-3" style={{ color: palette.inkSoft }}>
