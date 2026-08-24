@@ -9,6 +9,7 @@ import {
   ShopifyOAuthError,
 } from "@/server/integrations/shopify-oauth";
 import { connectShopifyViaOAuth } from "@/server/services/brand-profile-service";
+import { syncProductsForBrand } from "@/server/services/product-sync-service";
 
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 
@@ -57,6 +58,15 @@ export async function GET(req: Request) {
     // Si esto falla, la tienda ya quedó conectada — solo no se detectarían
     // ventas automáticamente hasta que se reintente (no bloqueamos por esto).
     await registerWebhooks(shop, accessToken, profile.id);
+    // Primer traído del catálogo, ya — la marca sigue al siguiente paso del
+    // onboarding sin tener que esperar ni pedirlo aparte. Si falla, no
+    // interrumpe la conexión: los webhooks de producto y el cron diario lo
+    // vuelven a intentar solos.
+    try {
+      await syncProductsForBrand(profile.id);
+    } catch (syncErr) {
+      console.error(`[onboarding] No se pudo sincronizar el catálogo inicial de ${profile.id}:`, syncErr);
+    }
   } catch (err) {
     const message = err instanceof ShopifyOAuthError ? err.message : "No se pudo completar la conexión con Shopify.";
     return failureRedirect(returnTo, message);

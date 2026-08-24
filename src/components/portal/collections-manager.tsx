@@ -25,6 +25,23 @@ function formatPrice(amount: number, currency: string) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
 }
 
+/// Ideas para inspirar al creador a armar su primera colección — se
+/// muestran como chips clicables solo mientras el nombre está vacío, para
+/// empujarlo a activar la función en vez de dejarlo frente a un campo en
+/// blanco.
+const NAME_SUGGESTIONS = [
+  "En mi mesa de trabajo",
+  "Mis 5 must-haves",
+  "Lo que uso todos los días",
+  "Mi kit de viaje",
+  "Para principiantes",
+  "Lo que recomiendo a mis clientas",
+  "Regalos bajo $50.000",
+  "Antes y después",
+  "Combo perfecto",
+  "Novedades del mes",
+];
+
 /// Editor de una colección — crea o edita (mismo componente, `collection`
 /// null = nueva). Trae el catálogo de las marcas del creador para elegir
 /// productos, con una franja aparte para lo que cada marca destacó.
@@ -40,23 +57,34 @@ function CollectionEditor({
   const [description, setDescription] = useState(collection?.description ?? "");
   const [selected, setSelected] = useState<Product[]>(collection?.items.map((i) => i.product) ?? []);
   const [search, setSearch] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [results, setResults] = useState<Product[]>([]);
   const [suggested, setSuggested] = useState<Product[]>([]);
+  const [filterOptions, setFilterOptions] = useState<{ brands: { id: string; companyName: string }[]; categories: string[] }>({
+    brands: [],
+    categories: [],
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProducts = useCallback(async (q: string) => {
-    const res = await fetch(`/api/creador/productos?q=${encodeURIComponent(q)}`);
+  const fetchProducts = useCallback(async (q: string, brandId: string, category: string) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (brandId) params.set("marca", brandId);
+    if (category) params.set("categoria", category);
+    const res = await fetch(`/api/creador/productos?${params.toString()}`);
     if (!res.ok) return;
     const body = await res.json();
     setResults(body.products);
     setSuggested(body.suggested);
+    setFilterOptions(body.filterOptions);
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => fetchProducts(search), 250);
+    const t = setTimeout(() => fetchProducts(search, brandFilter, categoryFilter), 250);
     return () => clearTimeout(t);
-  }, [search, fetchProducts]);
+  }, [search, brandFilter, categoryFilter, fetchProducts]);
 
   function toggleProduct(product: Product) {
     setSelected((cur) =>
@@ -123,8 +151,22 @@ function CollectionEditor({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="ej. En mi mesa de trabajo"
-            className="input mb-4"
+            className="input mb-2"
           />
+          {!name && (
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {NAME_SUGGESTIONS.slice(0, 4).map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => setName(suggestion)}
+                  className="text-[11px] text-brand-accent border border-brand-accent-soft bg-brand-accent-soft rounded-full px-2.5 py-1 hover:border-brand-accent"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
           <label className="block text-sm text-brand-ink mb-1">Descripción (opcional)</label>
           <textarea
             maxLength={160}
@@ -162,8 +204,40 @@ function CollectionEditor({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar producto en tus marcas..."
-            className="input mb-3"
+            className="input mb-2"
           />
+          {(filterOptions.brands.length > 1 || filterOptions.categories.length > 0) && (
+            <div className="flex gap-2 mb-3">
+              {filterOptions.brands.length > 1 && (
+                <select
+                  value={brandFilter}
+                  onChange={(e) => setBrandFilter(e.target.value)}
+                  className="input py-1.5 text-xs flex-1"
+                >
+                  <option value="">Todas las marcas</option>
+                  {filterOptions.brands.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.companyName}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {filterOptions.categories.length > 0 && (
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="input py-1.5 text-xs flex-1"
+                >
+                  <option value="">Todas las categorías</option>
+                  {filterOptions.categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
 
           {suggestedToShow.length > 0 && (
             <div className="rounded-xl bg-brand-accent-soft border border-dashed border-brand-accent p-3 mb-3">
@@ -288,9 +362,17 @@ export function CollectionsManager({ collections }: { collections: Collection[] 
       <div className="flex items-center justify-between mb-1">
         <h2 className="font-display font-semibold text-brand-ink">Tus colecciones</h2>
       </div>
-      <p className="text-sm text-brand-ink-soft mb-5">
+      <p className="text-sm text-brand-ink-soft mb-1">
         Agrupa productos por tema — se muestran en tu vitrina, arriba de tus marcas.
       </p>
+      {collections.length === 0 && (
+        <p className="text-xs text-brand-ink-soft mb-5">
+          Ideas: <span className="text-brand-ink">&quot;En mi mesa de trabajo&quot;</span>,{" "}
+          <span className="text-brand-ink">&quot;Mis 5 must-haves&quot;</span>,{" "}
+          <span className="text-brand-ink">&quot;Mi kit de viaje&quot;</span>...
+        </p>
+      )}
+      {collections.length > 0 && <div className="mb-4" />}
 
       {collections.length > 0 && (
         <div className="space-y-2 mb-4">

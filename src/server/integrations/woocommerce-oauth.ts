@@ -116,7 +116,15 @@ export async function verifyCredentials(storeUrl: string, consumerKey: string, c
 export async function registerWebhooks(storeUrl: string, consumerKey: string, consumerSecret: string, brandId: string, webhookSecret: string) {
   const auth = "Basic " + Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
   const deliveryUrl = `${APP_URL}/api/webhooks/woocommerce/${brandId}`;
-  const topics = ["order.created", "order.updated"];
+  const topics = [
+    "order.created",
+    "order.updated",
+    // Con esto el catálogo se mantiene al día solo, sin que la marca tenga
+    // que volver a sincronizar a mano cada vez que sube/cambia/borra algo.
+    "product.created",
+    "product.updated",
+    "product.deleted",
+  ];
 
   const results = await Promise.allSettled(
     topics.map((topic) =>

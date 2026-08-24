@@ -1085,7 +1085,10 @@ model Product {
   name     String
   imageUrl String?
   price    Decimal @db.Decimal(12, 2)
-  currency String  @default("COP")
+  /// Precio "antes" — Shopify: compare_at_price, WooCommerce: regular_price
+  /// (cuando hay sale_price). Null si no está en oferta.
+  compareAtPrice Decimal? @db.Decimal(12, 2)
+  currency       String   @default("COP")
 
   /// URL real del producto en la tienda — en Shopify se arma como
   /// `{dominio}/products/{handle}`, en WooCommerce es el `permalink` que
@@ -1093,6 +1096,13 @@ model Product {
   /// marca) se arma el link con o sin código — ver buildProductLink en
   /// src/lib/brand-store-link.ts.
   url String
+
+  /// Categoría de la tienda a la que pertenece — solo se sincroniza para
+  /// WooCommerce por ahora (viene directo en su API de productos). En
+  /// Shopify las "colecciones" son una llamada aparte por colección, más
+  /// costosa de sincronizar — queda para una fase futura, por eso este
+  /// campo queda null ahí.
+  category String?
 
   /// false cuando ya no aparece en la sincronización más reciente (se quitó
   /// de la tienda, o se despublicó) — no se borra la fila para no romper

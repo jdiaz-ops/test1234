@@ -10,7 +10,7 @@ export class ShopifyOAuthError extends Error {}
 
 const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
 const CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET;
-const SCOPES = "write_price_rules,read_orders";
+const SCOPES = "write_price_rules,read_orders,read_products";
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 
 function requireCredentials() {
@@ -123,7 +123,16 @@ export async function exchangeCodeForToken(shop: string, code: string): Promise<
 /// quedó guardado) — simplemente esa venta no se detectaría sola.
 export async function registerWebhooks(shop: string, accessToken: string, brandId: string) {
   const address = `${APP_URL}/api/webhooks/shopify/${brandId}`;
-  const topics = ["orders/create", "orders/updated", "refunds/create"];
+  const topics = [
+    "orders/create",
+    "orders/updated",
+    "refunds/create",
+    // Con esto el catálogo se mantiene al día solo, sin que la marca tenga
+    // que volver a sincronizar a mano cada vez que sube/cambia/borra algo.
+    "products/create",
+    "products/update",
+    "products/delete",
+  ];
 
   const results = await Promise.allSettled(
     topics.map((topic) =>

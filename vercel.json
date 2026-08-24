@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/pagos-diarios",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/sincronizar-productos",
+      "schedule": "0 6 * * *"
     }
   ]
 }

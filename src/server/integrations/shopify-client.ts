@@ -77,7 +77,14 @@ export interface ShopifyProduct {
   title: string;
   status: string; // "active" | "draft" | "archived"
   images: { src: string }[];
-  variants: { price: string }[];
+  variants: {
+    price: string;
+    compare_at_price: string | null;
+    /// null = Shopify no rastrea inventario para esta variante (siempre
+    /// disponible); si lo rastrea, el número real de unidades.
+    inventory_management: string | null;
+    inventory_quantity: number;
+  }[];
 }
 
 /// Trae hasta 250 productos activos de la tienda — suficiente para el

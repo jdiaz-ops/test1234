@@ -5,6 +5,7 @@ import {
   type WooCommerceOrderWebhookPayload,
 } from "@/server/integrations/woocommerce-client";
 import { recordOrderFromWebhook, recordRefundFromWebhook } from "@/server/services/attribution-service";
+import { syncProductsForBrand } from "@/server/services/product-sync-service";
 
 /// Estados de WooCommerce que cuentan como venta real (pagada) — un pedido
 /// "pending"/"on-hold"/"cancelled"/"failed" todavía no es una venta
@@ -30,6 +31,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ brandId
   }
 
   const topic = req.headers.get("x-wc-webhook-topic");
+
+  if (topic === "product.created" || topic === "product.updated" || topic === "product.deleted") {
+    // El catálogo es chico — resincronizar todo entero es más simple y
+    // seguro que tratar de parchar un solo producto suelto del payload, y
+    // queda igual de al día.
+    try {
+      await syncProductsForBrand(brandId);
+    } catch (err) {
+      console.error(`[webhook woocommerce] No se pudo resincronizar productos de ${brandId}:`, err);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   if (topic !== "order.created" && topic !== "order.updated") {
     return NextResponse.json({ ok: true, ignored: true });
   }

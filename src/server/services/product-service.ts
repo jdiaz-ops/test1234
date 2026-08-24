@@ -29,21 +29,30 @@ export async function setProductFeatured(brandId: string, productId: string, fea
 }
 
 /// Productos disponibles de las marcas a las que el creador está ACTIVE —
-/// es el universo del que puede elegir al armar una colección. `search`
-/// filtra por nombre o marca (insensible a mayúsculas).
-export async function listProductsForCreator(creatorId: string, search?: string) {
+/// es el universo del que puede elegir al armar una colección, nunca de
+/// marcas a las que no se ha unido. `search` filtra por nombre o marca;
+/// `brandId`/`category` acotan más — `category` solo tiene datos para
+/// marcas WooCommerce por ahora (ver product-sync-service.ts).
+export async function listProductsForCreator(
+  creatorId: string,
+  filters?: { search?: string; brandId?: string; category?: string }
+) {
   const brandIds = await activeBrandIdsForCreator(creatorId);
   if (brandIds.length === 0) return [];
+  // El filtro de marca nunca puede salirse del universo de marcas a las que
+  // el creador está unido, aunque venga manipulado desde el cliente.
+  if (filters?.brandId && !brandIds.includes(filters.brandId)) return [];
 
   return prisma.product.findMany({
     where: {
-      brandId: { in: brandIds },
+      brandId: filters?.brandId ? filters.brandId : { in: brandIds },
       available: true,
-      ...(search
+      ...(filters?.category ? { category: filters.category } : {}),
+      ...(filters?.search
         ? {
             OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { brand: { companyName: { contains: search, mode: "insensitive" } } },
+              { name: { contains: filters.search, mode: "insensitive" } },
+              { brand: { companyName: { contains: filters.search, mode: "insensitive" } } },
             ],
           }
         : {}),
@@ -52,6 +61,32 @@ export async function listProductsForCreator(creatorId: string, search?: string)
     orderBy: [{ featured: "desc" }, { name: "asc" }],
     take: 60,
   });
+}
+
+/// Marcas y categorías disponibles para los filtros del buscador — solo de
+/// las marcas a las que el creador ya está unido.
+export async function listProductFiltersForCreator(creatorId: string) {
+  const brandIds = await activeBrandIdsForCreator(creatorId);
+  if (brandIds.length === 0) return { brands: [], categories: [] };
+
+  const [brands, categories] = await Promise.all([
+    prisma.brandProfile.findMany({
+      where: { id: { in: brandIds } },
+      select: { id: true, companyName: true },
+      orderBy: { companyName: "asc" },
+    }),
+    prisma.product.findMany({
+      where: { brandId: { in: brandIds }, available: true, category: { not: null } },
+      select: { category: true },
+      distinct: ["category"],
+      orderBy: { category: "asc" },
+    }),
+  ]);
+
+  return {
+    brands,
+    categories: categories.map((c) => c.category!).filter(Boolean),
+  };
 }
 
 /// Los productos destacados por las marcas del creador — se muestran como

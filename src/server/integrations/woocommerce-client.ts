@@ -61,8 +61,12 @@ export interface WooCommerceProduct {
   slug: string;
   status: string; // "publish" | "draft" | ...
   price: string;
+  regular_price: string;
+  sale_price: string;
+  stock_status: string; // "instock" | "outofstock" | "onbackorder"
   permalink: string;
   images: { src: string }[];
+  categories: { id: number; name: string; slug: string }[];
 }
 
 /// Trae hasta 100 productos publicados por página, hasta 5 páginas (500

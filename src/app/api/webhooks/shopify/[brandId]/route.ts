@@ -6,6 +6,7 @@ import {
   type ShopifyRefundWebhookPayload,
 } from "@/server/integrations/shopify-client";
 import { recordOrderFromWebhook, recordRefundFromWebhook } from "@/server/services/attribution-service";
+import { syncProductsForBrand } from "@/server/services/product-sync-service";
 
 /// Shopify avisa qué evento es en el header `X-Shopify-Topic`
 /// (ej. "orders/create", "refunds/create").
@@ -65,6 +66,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ brandId
       refundedAt: new Date(),
     });
     return NextResponse.json({ ok: true, ...result });
+  }
+
+  if (topic === "products/create" || topic === "products/update" || topic === "products/delete") {
+    // El catálogo es chico — resincronizar todo entero es más simple y
+    // seguro que tratar de parchar un solo producto suelto del payload, y
+    // queda igual de al día.
+    try {
+      await syncProductsForBrand(brandId);
+    } catch (err) {
+      console.error(`[webhook shopify] No se pudo resincronizar productos de ${brandId}:`, err);
+    }
+    return NextResponse.json({ ok: true });
   }
 
   // Otros topics (ej. app/uninstalled) — los reconocemos pero no hacemos nada.

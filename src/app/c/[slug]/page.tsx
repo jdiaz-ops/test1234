@@ -125,13 +125,19 @@ export default async function PublicStorefrontPage({
                 const productLink = code
                   ? buildProductLink(item.product.brand, item.product, code)
                   : item.product.url;
+                const formatPrice = (amount: number) =>
+                  new Intl.NumberFormat("es-CO", {
+                    style: "currency",
+                    currency: item.product.currency,
+                    maximumFractionDigits: 0,
+                  }).format(amount);
                 return (
                   <a
                     key={item.product.id}
                     href={productLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-2xl overflow-hidden"
+                    className="rounded-2xl overflow-hidden block"
                     style={{ background: palette.surface, border: `1px solid ${palette.accentSoft}` }}
                   >
                     {item.product.imageUrl ? (
@@ -141,15 +147,27 @@ export default async function PublicStorefrontPage({
                       <div className="w-full aspect-square" style={{ background: palette.accentSoft }} />
                     )}
                     <div className="p-2.5">
+                      <p className="text-[10px] mb-0.5" style={{ color: palette.inkSoft }}>
+                        {item.product.brand.companyName}
+                      </p>
                       <p className="text-xs font-medium leading-snug mb-1" style={{ color: palette.ink }}>
                         {item.product.name}
                       </p>
-                      <p className="font-mono text-xs" style={{ color: palette.accent }}>
-                        {new Intl.NumberFormat("es-CO", {
-                          style: "currency",
-                          currency: item.product.currency,
-                          maximumFractionDigits: 0,
-                        }).format(Number(item.product.price))}
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <p className="font-mono text-xs font-semibold" style={{ color: palette.accent }}>
+                          {formatPrice(Number(item.product.price))}
+                        </p>
+                        {item.product.compareAtPrice && (
+                          <p className="font-mono text-[10px] line-through" style={{ color: palette.inkSoft }}>
+                            {formatPrice(Number(item.product.compareAtPrice))}
+                          </p>
+                        )}
+                      </div>
+                      <p
+                        className="text-[10px] font-semibold text-center rounded-full py-1.5"
+                        style={{ background: palette.accentSoft, color: palette.accent }}
+                      >
+                        Ver en la tienda →
                       </p>
                     </div>
                   </a>

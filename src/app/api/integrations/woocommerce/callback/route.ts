@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyOAuthState, verifyCredentials, registerWebhooks, WooCommerceOAuthError } from "@/server/integrations/woocommerce-oauth";
 import { connectWooCommerceViaOAuth } from "@/server/services/brand-profile-service";
+import { syncProductsForBrand } from "@/server/services/product-sync-service";
 
 /// A diferencia del callback de Shopify, WooCommerce llama a esto
 /// servidor-a-servidor apenas la marca aprueba el acceso en su wp-admin —
@@ -43,6 +44,14 @@ export async function POST(req: Request) {
   // ventas automáticamente hasta que se reintente (no bloqueamos por esto).
   if (brand.webhookSecret) {
     await registerWebhooks(storeUrl, consumerKey, consumerSecret, brandId, brand.webhookSecret);
+  }
+
+  // Primer traído del catálogo, ya — la marca sigue al siguiente paso del
+  // onboarding sin tener que esperar ni pedirlo aparte.
+  try {
+    await syncProductsForBrand(brandId);
+  } catch (syncErr) {
+    console.error(`[onboarding] No se pudo sincronizar el catálogo inicial de ${brandId}:`, syncErr);
   }
 
   return NextResponse.json({ ok: true });
