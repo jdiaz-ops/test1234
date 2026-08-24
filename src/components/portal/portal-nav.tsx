@@ -18,6 +18,7 @@ const flatItems = [
   { href: "/creador/storefront", label: "Mi vitrina" },
   { href: "/creador/codigos", label: "Mis Códigos y Links" },
   { href: "/creador/transacciones", label: "Transacciones" },
+  { href: "/creador/referidos", label: "Invita y gana" },
 ];
 
 const cuentaSubItems = [

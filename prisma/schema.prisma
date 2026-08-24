@@ -245,6 +245,11 @@ model CreatorProfile {
   challengeUrgencyPings ChallengeUrgencyPing[]
   collections           Collection[]
 
+  /// Programa de referidos — a quiénes invitó este creador (referrer) y,
+  /// como mucho, por quién fue invitado él mismo (referred, único).
+  referralsMade CreatorReferral[] @relation("ReferralsMade")
+  referredBy    CreatorReferral?  @relation("ReferralsReceived")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -608,6 +613,37 @@ model ChallengeReward {
   createdAt DateTime @default(now())
 
   @@unique([challengeId, creatorId])
+}
+
+enum ReferralStatus {
+  PENDING // el referido ya se registró, todavía no hizo su primera venta
+  QUALIFIED // el referido ya vendió por primera vez — bono listo para pagar
+  PAID // el admin ya transfirió el bono al que invitó
+}
+
+/// Programa de referidos entre creadores: un creador ya activo invita a otro
+/// con su propio baseCode (ej. "LAURA30") — si el nuevo creador se registra
+/// con ese código y genera su primera venta, quien invitó gana un bono fijo
+/// de $20.000 COP. El pago del bono es manual, igual que un corte de marca
+/// o un pago a creador — el admin lo marca pagado desde /admin/referidos
+/// (ver referral-service.ts).
+model CreatorReferral {
+  id String @id @default(cuid())
+
+  referrerId String
+  referrer   CreatorProfile @relation("ReferralsMade", fields: [referrerId], references: [id])
+
+  /// Único — un creador solo puede haber sido invitado por una persona.
+  referredId String         @unique
+  referred   CreatorProfile @relation("ReferralsReceived", fields: [referredId], references: [id])
+
+  bonusAmount Decimal        @default(20000) @db.Decimal(12, 2)
+  status      ReferralStatus @default(PENDING)
+
+  qualifiedAt DateTime?
+  paidAt      DateTime?
+
+  createdAt DateTime @default(now())
 }
 
 // ----------------------------------------------------------------------------

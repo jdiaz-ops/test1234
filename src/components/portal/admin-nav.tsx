@@ -11,6 +11,7 @@ const items = [
   { href: "/admin/finanzas", label: "Finanzas" },
   { href: "/admin/cobros", label: "Cobros" },
   { href: "/admin/pagos-creadores", label: "Pagos" },
+  { href: "/admin/referidos", label: "Referidos" },
   { href: "/admin/facturas", label: "Facturas" },
   { href: "/admin/fraude", label: "Antifraude" },
   { href: "/admin/configuracion", label: "Configuración" },

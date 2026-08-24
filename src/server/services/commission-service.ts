@@ -1,11 +1,49 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getActiveCommissionBoost } from "@/server/services/challenge-service";
+import { createNotification } from "@/server/services/notification-service";
+import { checkReferralQualification } from "@/server/services/referral-service";
 
 export class CommissionError extends Error {}
 
 function round2(n: number) {
   return Math.round(n * 100) / 100;
+}
+
+function formatCOP(amount: number) {
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amount);
+}
+
+/// Notificación instantánea al creador que vendió y a los admins con
+/// visibilidad financiera (OWNER/FINANCE) — se dispara una sola vez, justo
+/// cuando nace la Commission (nunca en el branch idempotente ni si la venta
+/// no calificó), y de paso revisa si esta fue la primera venta de un
+/// creador referido (ver referral-service.ts).
+async function notifyOnSale(
+  transaction: { creatorId: string; creator: { userId: string; displayName: string }; brand: { companyName: string } },
+  amounts: { creatorCommissionAmount: number; platformFeeAmount: number }
+) {
+  await createNotification(
+    transaction.creator.userId,
+    "SALE_COMMISSION",
+    `¡Alguien compró con tu código en ${transaction.brand.companyName}! Ganaste ${formatCOP(amounts.creatorCommissionAmount)} de comisión.`
+  );
+
+  const admins = await prisma.user.findMany({
+    where: { role: "ADMIN", adminRole: { in: ["OWNER", "FINANCE"] } },
+    select: { id: true },
+  });
+  await Promise.all(
+    admins.map((admin) =>
+      createNotification(
+        admin.id,
+        "SALE_ADMIN",
+        `${transaction.creator.displayName} generó una venta para ${transaction.brand.companyName} — ganaste ${formatCOP(amounts.platformFeeAmount)} de comisión.`
+      )
+    )
+  );
+
+  await checkReferralQualification(transaction.creatorId);
 }
 
 function addDays(date: Date, days: number) {
@@ -34,7 +72,7 @@ export async function createCommissionForTransaction(transactionId: string) {
 
   const transaction = await prisma.transaction.findUniqueOrThrow({
     where: { id: transactionId },
-    include: { enrollment: true, offer: true, brand: true },
+    include: { enrollment: true, offer: true, brand: true, creator: true },
   });
 
   if (transaction.status !== "COMPLETED") {
@@ -65,7 +103,7 @@ export async function createCommissionForTransaction(transactionId: string) {
   const platformFeeAmount = round2(netAmount * (platformFeePercent / 100));
   const platformFeeVatAmount = round2(platformFeeAmount * (vatPercent / 100));
 
-  return prisma.commission.create({
+  const commission = await prisma.commission.create({
     data: {
       transactionId: transaction.id,
       creatorProfileId: transaction.creatorId,
@@ -76,6 +114,10 @@ export async function createCommissionForTransaction(transactionId: string) {
       holdUntil: addDays(transaction.occurredAt, config.refundHoldDays),
     },
   });
+
+  await notifyOnSale(transaction, { creatorCommissionAmount, platformFeeAmount });
+
+  return commission;
 }
 
 /// Se llama cuando el Motor de Atribución marca una Transaction como

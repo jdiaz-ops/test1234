@@ -6,6 +6,7 @@ import {
   generateUniqueBaseCode,
   generateUniqueStorefrontSlug,
 } from "@/lib/creator-identity";
+import { createReferralFromCode } from "@/server/services/referral-service";
 
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 
@@ -20,6 +21,7 @@ export async function registerCreator(input: {
   password: string;
   displayName: string;
   termsAccepted: boolean;
+  refCode?: string;
 }) {
   if (!input.termsAccepted) {
     throw new AuthServiceError("Debes aceptar los Términos y Condiciones para registrarte.");
@@ -52,6 +54,13 @@ export async function registerCreator(input: {
     },
     include: { creatorProfile: true },
   });
+
+  // Programa de referidos — si vino con un código de invitación, se
+  // registra la relación acá; nunca bloquea el registro si el código no
+  // sirve (ver createReferralFromCode).
+  if (input.refCode) {
+    await createReferralFromCode(input.refCode, user.creatorProfile!.id);
+  }
 
   await sendVerificationForUser(user.email);
 

@@ -1,16 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function RegistroCreadorPage() {
+  return (
+    <Suspense>
+      <RegistroCreadorForm />
+    </Suspense>
+  );
+}
+
+function RegistroCreadorForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Si llegó desde el link de invitación de otro creador (ej.
+  // marcolini.co/registro/creador?ref=LAURA30), se precarga acá — el campo
+  // sigue siendo editable por si alguien prefiere escribirlo a mano.
   const [form, setForm] = useState({
     displayName: "",
     email: "",
     password: "",
     termsAccepted: false,
+    refCode: searchParams.get("ref") ?? "",
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -91,6 +104,14 @@ export default function RegistroCreadorPage() {
             minLength={8}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
+            className="input"
+          />
+        </Field>
+        <Field label="Código de invitación (opcional)">
+          <input
+            value={form.refCode}
+            onChange={(e) => setForm({ ...form, refCode: e.target.value })}
+            placeholder="ej. LAURA30"
             className="input"
           />
         </Field>

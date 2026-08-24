@@ -11,6 +11,9 @@ export const registerCreatorSchema = z.object({
   termsAccepted: z.literal(true, {
     message: "Debes aceptar los Términos y Condiciones",
   }),
+  // Código de quien lo invitó (programa de referidos) — opcional, nunca
+  // bloquea el registro si viene vacío o mal escrito.
+  refCode: z.string().optional(),
 });
 
 export const registerBrandSchema = z.object({
