@@ -23,15 +23,7 @@ export function BillingLockScreen({ charge, paymentInstructions, paymentQrImageU
   return (
     <div className="min-h-screen flex items-center justify-center bg-brand-bg px-6 py-12">
       <div className="w-full max-w-lg space-y-6">
-        <div className="text-center">
-          <p className="font-mono text-sm font-medium text-brand-accent tracking-wide mb-4">MARCOLINI</p>
-          <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Tu marca está bloqueada</h1>
-          <p className="text-sm text-brand-ink-soft">
-            No verificamos tu pago del corte del {new Date(charge.dueAt).toLocaleDateString("es-CO")} a
-            tiempo — tu marca quedó oculta del marketplace y el resto del portal no está disponible hasta
-            regularizar la situación. Sube tu comprobante abajo y te reactivamos apenas lo verifiquemos.
-          </p>
-        </div>
+        <p className="text-center font-mono text-sm font-medium text-brand-accent tracking-wide">MARCOLINI</p>
 
         <ChargePaymentBox charge={charge} paymentInstructions={paymentInstructions} paymentQrImageUrl={paymentQrImageUrl} />
 

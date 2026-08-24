@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Charge = {
@@ -18,32 +18,24 @@ function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amount);
 }
 
-function useCountdown(dueAt: string) {
-  const [remaining, setRemaining] = useState(() => new Date(dueAt).getTime() - Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setRemaining(new Date(dueAt).getTime() - Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [dueAt]);
-  return remaining;
-}
-
-function CountdownLabel({ dueAt }: { dueAt: string }) {
-  const remaining = useCountdown(dueAt);
-  if (remaining <= 0) return <span className="text-red-600 font-medium">Plazo vencido</span>;
-  const hours = Math.floor(remaining / 3_600_000);
-  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
-  const seconds = Math.floor((remaining % 60_000) / 1000);
-  return (
-    <span className="font-mono">
-      {hours}h {String(minutes).padStart(2, "0")}m {String(seconds).padStart(2, "0")}s
-    </span>
-  );
+// Fecha y hora por separado, unidas con una coma fija, en formato 24h —
+// tanto el conector del formateador combinado (dateStyle+timeStyle, "a
+// las") como el espacio angosto que mete "a. m./p. m." varían entre el
+// Node del servidor y el navegador y rompen la hidratación; 24h evita el
+// segundo problema, y separar fecha/hora evita el primero.
+function formatDueAt(dueAt: string) {
+  const d = new Date(dueAt);
+  const datePart = d.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+  const timePart = d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return `${datePart}, ${timePart}`;
 }
 
 /// Muestra el corte activo (monto, plazo, instrucciones de pago) y el
 /// formulario para subir el comprobante — todo dentro de la plataforma, sin
-/// canales aparte. Se usa tanto en Cuenta → Pago como en la pantalla de
-/// bloqueo de la marca.
+/// canales aparte. Se usa tanto en Cuenta → Pago (la marca todavía tiene
+/// acceso normal) como en la pantalla de bloqueo (ya está OVERDUE) — es
+/// literalmente el mismo componente en los dos momentos: el estado del
+/// corte decide la etiqueta, el título y la frase, todo lo demás es igual.
 export function ChargePaymentBox({
   charge,
   paymentInstructions,
@@ -65,6 +57,9 @@ export function ChargePaymentBox({
     Boolean(charge.proofSubmittedAt) &&
       (!charge.proofRejectedAt || new Date(charge.proofRejectedAt) < new Date(charge.proofSubmittedAt!))
   );
+
+  const locked = charge.status === "OVERDUE";
+  const dueAtLabel = formatDueAt(charge.dueAt);
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -94,22 +89,42 @@ export function ChargePaymentBox({
 
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 space-y-5">
-      <div className="flex items-start justify-between gap-4">
+      <div>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10.5px] font-mono font-medium mb-3 ${
+            locked ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700"
+          }`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${locked ? "bg-red-600" : "bg-amber-700"}`} />
+          {locked ? "Cuenta inhabilitada" : "Pago pendiente"}
+        </span>
+        <h2 className="font-display text-lg font-semibold text-brand-ink mb-1.5">
+          {locked ? "Tu cuenta está temporalmente inhabilitada" : "Tu cuenta sigue activa — por ahora"}
+        </h2>
+        <p className="text-sm text-brand-ink-soft leading-relaxed">
+          {locked ? (
+            <>
+              Desde el <strong className="text-brand-ink">{dueAtLabel}</strong> no tienes acceso al panel ni
+              visibilidad para los creadores. Se reactiva todo automático en cuanto confirmemos tu comprobante.
+            </>
+          ) : (
+            <>
+              Tienes hasta el <strong className="text-brand-ink">{dueAtLabel}</strong> para confirmar tu pago. Si no
+              llega a tiempo, tu cuenta queda temporalmente inhabilitada: sin acceso al panel y sin visibilidad
+              para los creadores, hasta que regularices.
+            </>
+          )}
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 border-t border-brand-line pt-4">
         <div>
           <p className="text-xs text-brand-ink-soft mb-1">Total a pagar</p>
           <p className="font-display text-2xl font-semibold text-brand-ink">{formatCOP(charge.totalAmount)}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-brand-ink-soft mb-1">
-            {charge.status === "OVERDUE" ? "Bloqueada — vencido el" : "Vence en"}
-          </p>
-          {charge.status === "OVERDUE" ? (
-            <p className="text-sm font-mono text-red-600">
-              {new Date(charge.dueAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}
-            </p>
-          ) : (
-            <CountdownLabel dueAt={charge.dueAt} />
-          )}
+          <p className="text-xs text-brand-ink-soft mb-1">{locked ? "Vencido desde" : "Vence"}</p>
+          <p className={`text-sm font-mono ${locked ? "text-red-600" : "text-brand-ink"}`}>{dueAtLabel}</p>
         </div>
       </div>
 
@@ -121,15 +136,21 @@ export function ChargePaymentBox({
 
       <div className="border-t border-brand-line pt-4 space-y-3">
         <p className="text-sm font-medium text-brand-ink">Cómo pagar</p>
-        {paymentInstructions ? (
-          <p className="text-sm text-brand-ink-soft whitespace-pre-line">{paymentInstructions}</p>
-        ) : (
-          <p className="text-sm text-brand-ink-soft">Contacta a Marcolini para tus datos de pago.</p>
-        )}
-        {paymentQrImageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element -- imagen subida por el admin, no optimizable por next/image sin configurar el dominio
-          <img src={paymentQrImageUrl} alt="Código QR para pagar" className="w-36 h-36 rounded-lg border border-brand-line" />
-        )}
+        <div className="rounded-xl bg-brand-accent-soft p-4 flex items-center gap-4">
+          {paymentQrImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- imagen subida por el admin, no optimizable por next/image sin configurar el dominio
+            <img
+              src={paymentQrImageUrl}
+              alt="Código QR para pagar"
+              className="w-20 h-20 rounded-lg border-2 border-brand-surface shrink-0"
+            />
+          )}
+          {paymentInstructions ? (
+            <p className="text-sm text-brand-ink whitespace-pre-line">{paymentInstructions}</p>
+          ) : (
+            <p className="text-sm text-brand-ink-soft">Contacta a Marcolini para tus datos de pago.</p>
+          )}
+        </div>
         {charge.pdfUrl && (
           <a href={charge.pdfUrl} target="_blank" rel="noreferrer" className="block text-xs text-brand-accent font-medium hover:underline">
             Ver aviso de cobro (PDF)
@@ -143,7 +164,7 @@ export function ChargePaymentBox({
         </p>
         {submitted && (
           <p className="text-xs text-brand-ink-soft">
-            Lo revisamos y apenas lo verifiquemos tu marca queda reactivada. Si necesitas corregirlo, puedes
+            Lo revisamos y apenas lo verifiquemos tu cuenta queda reactivada. Si necesitas corregirlo, puedes
             subir uno nuevo.
           </p>
         )}
@@ -159,7 +180,7 @@ export function ChargePaymentBox({
           disabled={uploading}
           className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
         >
-          {uploading ? "Subiendo..." : submitted ? "Subir otro comprobante" : "Subir comprobante"}
+          {uploading ? "Subiendo..." : submitted ? "Subir otro comprobante" : "Enviar comprobante"}
         </button>
       </form>
     </div>
