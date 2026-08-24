@@ -54,6 +54,25 @@ export const updateStorefrontSchema = z.object({
   bio: z.string().max(160, "Máximo 160 caracteres").optional().or(z.literal("")),
 });
 
+export const createCollectionSchema = z.object({
+  name: z.string().min(2, "Ingresa un nombre para la colección").max(60, "Máximo 60 caracteres"),
+  description: z.string().max(160, "Máximo 160 caracteres").optional().or(z.literal("")),
+});
+
+export const updateCollectionSchema = z.object({
+  name: z.string().min(2, "Ingresa un nombre para la colección").max(60, "Máximo 60 caracteres").optional(),
+  description: z.string().max(160, "Máximo 160 caracteres").optional().or(z.literal("")),
+  visible: z.boolean().optional(),
+});
+
+export const moveCollectionSchema = z.object({
+  direction: z.union([z.literal(-1), z.literal(1)]),
+});
+
+export const setCollectionProductsSchema = z.object({
+  productIds: z.array(z.string().min(1)).max(30, "Máximo 30 productos por colección"),
+});
+
 export const updateEnrollmentDisplaySchema = z.object({
   items: z
     .array(

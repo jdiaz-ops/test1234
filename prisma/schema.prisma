@@ -243,6 +243,7 @@ model CreatorProfile {
   conversations         Conversation[]
   badges                CreatorBadge[]
   challengeUrgencyPings ChallengeUrgencyPing[]
+  collections           Collection[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -394,6 +395,7 @@ model BrandProfile {
   charges      BrandCharge[]
   invoices     BrandInvoice[]
   transactions Transaction[]
+  products     Product[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1062,4 +1064,85 @@ model ProductShipment {
   deliveredAt DateTime?
 
   createdAt DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// CATÁLOGO DE PRODUCTOS Y COLECCIONES CURADAS
+// (importado de Shopify/WooCommerce — ver product-sync-service.ts — para que
+// el creador pueda armar "colecciones" temáticas de productos puntuales en
+// su vitrina, en vez de solo listar las marcas a las que está unido)
+// ----------------------------------------------------------------------------
+
+model Product {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  /// ID del producto en la tienda real (Shopify/WooCommerce) — la clave para
+  /// no duplicarlo en cada sincronización (ver @@unique abajo).
+  externalId String
+
+  name     String
+  imageUrl String?
+  price    Decimal @db.Decimal(12, 2)
+  currency String  @default("COP")
+
+  /// URL real del producto en la tienda — en Shopify se arma como
+  /// `{dominio}/products/{handle}`, en WooCommerce es el `permalink` que
+  /// devuelve su propia API tal cual. A partir de esto (y el storeType de la
+  /// marca) se arma el link con o sin código — ver buildProductLink en
+  /// src/lib/brand-store-link.ts.
+  url String
+
+  /// false cuando ya no aparece en la sincronización más reciente (se quitó
+  /// de la tienda, o se despublicó) — no se borra la fila para no romper
+  /// colecciones de creadores que ya lo habían agregado; solo deja de
+  /// ofrecerse para agregar productos nuevos.
+  available Boolean @default(true)
+
+  /// Hasta 3 por marca — lo hace cumplir setProductFeatured en
+  /// product-service.ts. Aparecen primero como "sugeridos" cuando un
+  /// creador arma una colección.
+  featured Boolean @default(false)
+
+  collectionItems CollectionProduct[]
+
+  lastSyncedAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([brandId, externalId])
+  @@index([brandId, featured])
+}
+
+/// Mini-catálogo curado por el creador — ej. "En mi mesa de trabajo", "Mis
+/// must-haves" — se muestra como sección en su vitrina pública, arriba de
+/// la lista de marcas (ver src/app/c/[slug]/page.tsx).
+model Collection {
+  id        String         @id @default(cuid())
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  order       Int     @default(0)
+  visible     Boolean @default(true)
+
+  items CollectionProduct[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CollectionProduct {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order        Int        @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([collectionId, productId])
 }

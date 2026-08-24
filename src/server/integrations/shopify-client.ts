@@ -69,6 +69,31 @@ export async function createShopifyDiscountCode(params: {
   return { priceRuleId: String(priceRuleId) };
 }
 
+/// Forma reducida de un producto tal como lo devuelve products.json — solo
+/// los campos que de verdad usamos.
+export interface ShopifyProduct {
+  id: number | string;
+  handle: string;
+  title: string;
+  status: string; // "active" | "draft" | "archived"
+  images: { src: string }[];
+  variants: { price: string }[];
+}
+
+/// Trae hasta 250 productos activos de la tienda — suficiente para el
+/// catálogo de una marca chica/mediana en esta fase. Si más adelante hace
+/// falta paginar más allá, Shopify usa cursores (Link header), no offset.
+export async function fetchShopifyProducts(params: { storeUrl: string; accessToken: string }): Promise<ShopifyProduct[]> {
+  const res = await fetch(adminApiUrl(params.storeUrl, "products.json?limit=250"), {
+    headers: { "X-Shopify-Access-Token": params.accessToken },
+  });
+  if (!res.ok) {
+    throw new ShopifyApiError(`No se pudieron traer los productos (${res.status})`);
+  }
+  const body = await res.json();
+  return body.products ?? [];
+}
+
 /// Verifica que un webhook realmente venga de Shopify (firma HMAC-SHA256
 /// sobre el cuerpo crudo de la petición, comparada con el secreto guardado
 /// para esa marca) — sin esto, cualquiera podría inventarse ventas falsas.

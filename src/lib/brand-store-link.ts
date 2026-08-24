@@ -21,3 +21,27 @@ export function buildBrandStoreLink(
   }
   return brand.storeUrl || brand.websiteUrl || null;
 }
+
+/// Misma idea que buildBrandStoreLink, pero apuntando a un producto puntual
+/// en vez de la tienda en general — para las tarjetas de producto de las
+/// colecciones y del catálogo. En Shopify usa el parámetro `redirect` del
+/// mismo link nativo de descuento, así llega directo al producto CON el
+/// código ya aplicado. En el resto, es el link real del producto, sin
+/// código (igual que buildBrandStoreLink para esos casos).
+export function buildProductLink(
+  brand: { storeType: string },
+  product: { url: string },
+  discountCode: string
+): string {
+  if (brand.storeType === "SHOPIFY") {
+    try {
+      const target = new URL(product.url);
+      return `https://${target.host}/discount/${encodeURIComponent(discountCode)}?redirect=${encodeURIComponent(
+        target.pathname
+      )}`;
+    } catch {
+      return product.url;
+    }
+  }
+  return product.url;
+}

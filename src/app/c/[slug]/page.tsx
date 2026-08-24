@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { getPalette, getFont } from "@/lib/creator-storefront-themes";
-import { buildBrandStoreLink } from "@/lib/brand-store-link";
+import { buildBrandStoreLink, buildProductLink } from "@/lib/brand-store-link";
 
 /// El título/descripción de acá + la imagen de opengraph-image.tsx (mismo
 /// folder, Next.js la detecta sola por convención) son lo que se ve cuando
@@ -39,10 +39,23 @@ export default async function PublicStorefrontPage({
   const profile = await prisma.creatorProfile.findUnique({
     where: { storefrontSlug: slug },
     include: {
+      // Sin filtrar por storefrontVisible acá — hace falta el código de
+      // TODAS las marcas activas para armar los links de las colecciones,
+      // aunque esa marca esté oculta de la lista de "Marcas" de abajo.
       enrollments: {
-        where: { status: "ACTIVE", storefrontVisible: true },
+        where: { status: "ACTIVE" },
         include: { offer: { include: { brand: true } } },
         orderBy: { storefrontOrder: "asc" },
+      },
+      collections: {
+        where: { visible: true },
+        orderBy: { order: "asc" },
+        include: {
+          items: {
+            orderBy: { order: "asc" },
+            include: { product: { include: { brand: true } } },
+          },
+        },
       },
     },
   });
@@ -51,6 +64,12 @@ export default async function PublicStorefrontPage({
 
   const palette = getPalette(profile.storefrontPalette);
   const font = getFont(profile.storefrontFont);
+
+  const visibleEnrollments = profile.enrollments.filter((e) => e.storefrontVisible);
+  // Código del creador para cada marca — lo necesitan las tarjetas de
+  // producto de las colecciones para armar su link (con o sin descuento
+  // aplicado, según la plataforma — ver buildProductLink).
+  const codeByBrandId = new Map(profile.enrollments.map((e) => [e.offer.brandId, e.discountCode]));
 
   return (
     <div
@@ -90,13 +109,63 @@ export default async function PublicStorefrontPage({
           )}
         </div>
 
+        {profile.collections.map((collection) => (
+          <div key={collection.id} className="mb-10">
+            <h2 className="font-display text-base font-semibold mb-1" style={{ color: palette.ink }}>
+              {collection.name}
+            </h2>
+            {collection.description && (
+              <p className="text-xs mb-3" style={{ color: palette.inkSoft }}>
+                {collection.description}
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              {collection.items.map((item) => {
+                const code = codeByBrandId.get(item.product.brandId);
+                const productLink = code
+                  ? buildProductLink(item.product.brand, item.product, code)
+                  : item.product.url;
+                return (
+                  <a
+                    key={item.product.id}
+                    href={productLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-2xl overflow-hidden"
+                    style={{ background: palette.surface, border: `1px solid ${palette.accentSoft}` }}
+                  >
+                    {item.product.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- foto sincronizada desde la tienda de la marca
+                      <img src={item.product.imageUrl} alt={item.product.name} className="w-full aspect-square object-cover" />
+                    ) : (
+                      <div className="w-full aspect-square" style={{ background: palette.accentSoft }} />
+                    )}
+                    <div className="p-2.5">
+                      <p className="text-xs font-medium leading-snug mb-1" style={{ color: palette.ink }}>
+                        {item.product.name}
+                      </p>
+                      <p className="font-mono text-xs" style={{ color: palette.accent }}>
+                        {new Intl.NumberFormat("es-CO", {
+                          style: "currency",
+                          currency: item.product.currency,
+                          maximumFractionDigits: 0,
+                        }).format(Number(item.product.price))}
+                      </p>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
         <div className="space-y-4">
-          {profile.enrollments.length === 0 ? (
+          {visibleEnrollments.length === 0 ? (
             <p className="text-center text-sm" style={{ color: palette.inkSoft }}>
               Próximamente más marcas por aquí.
             </p>
           ) : (
-            profile.enrollments.map((e) => {
+            visibleEnrollments.map((e) => {
               const discountPercent = Number(e.discountPercentOverride ?? e.offer.defaultDiscountPercent);
               // Mismo link para el logo y el botón — con el código ya
               // aplicado si la tienda es Shopify (soporte nativo), o el

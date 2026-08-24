@@ -1,12 +1,17 @@
 import { auth } from "@/auth";
 import { getCreatorProfileByUserId } from "@/server/services/creator-profile-service";
 import { getEnrollmentsForCreator } from "@/server/services/marketplace-service";
+import { listCollectionsForCreator } from "@/server/services/collection-service";
 import { CreatorStorefrontStep } from "@/components/portal/creator-storefront-step";
+import { CollectionsManager } from "@/components/portal/collections-manager";
 
 export default async function StorefrontSettingsPage() {
   const session = await auth();
   const profile = await getCreatorProfileByUserId(session!.user.id);
-  const enrollments = await getEnrollmentsForCreator(profile.id);
+  const [enrollments, collections] = await Promise.all([
+    getEnrollmentsForCreator(profile.id),
+    listCollectionsForCreator(profile.id),
+  ]);
 
   // Domino real del entorno actual (variable APP_URL — misma fuente única de
   // verdad que usan los correos y los webhooks, ver docs/cambiar-dominio.md).
@@ -24,6 +29,25 @@ export default async function StorefrontSettingsPage() {
         Este es el único link que necesitas compartir — reúne todas tus marcas activas en una sola
         página, con la paleta y fuente que elijas. Ponlo en tu bio de Instagram o TikTok.
       </p>
+
+      <CollectionsManager
+        collections={collections.map((c) => ({
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          visible: c.visible,
+          items: c.items.map((it) => ({
+            product: {
+              id: it.product.id,
+              name: it.product.name,
+              imageUrl: it.product.imageUrl,
+              price: Number(it.product.price),
+              currency: it.product.currency,
+              brand: { companyName: it.product.brand.companyName },
+            },
+          })),
+        }))}
+      />
 
       <CreatorStorefrontStep
         displayName={profile.displayName}

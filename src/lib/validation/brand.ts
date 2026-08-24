@@ -16,6 +16,11 @@ export const updateBrandProfileSchema = z.object({
   tiktokHandle: z.string().optional().or(z.literal("")),
 });
 
+export const setProductFeaturedSchema = z.object({
+  productId: z.string().min(1),
+  featured: z.boolean(),
+});
+
 export const updateStoreSchema = z.object({
   storeType: z.enum(["SHOPIFY", "WOOCOMMERCE", "OTHER"]),
   storeUrl: z.string().url("Ingresa una URL válida (https://...)"),

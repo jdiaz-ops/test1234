@@ -51,6 +51,44 @@ export async function createWooCommerceCoupon(params: {
   return { couponId: String(body.id) };
 }
 
+/// Forma reducida de un producto tal como lo devuelve /products — solo los
+/// campos que de verdad usamos. `permalink` ya es la URL real y completa
+/// del producto en la tienda, tal como WooCommerce la arma según sus
+/// permalinks configurados — no hay que reconstruirla a mano.
+export interface WooCommerceProduct {
+  id: number | string;
+  name: string;
+  slug: string;
+  status: string; // "publish" | "draft" | ...
+  price: string;
+  permalink: string;
+  images: { src: string }[];
+}
+
+/// Trae hasta 100 productos publicados por página, hasta 5 páginas (500
+/// productos) — tope simple para no dejar un ciclo corriendo indefinidamente
+/// contra un catálogo enorme en esta primera versión.
+export async function fetchWooCommerceProducts(params: {
+  storeUrl: string;
+  consumerKey: string;
+  consumerSecret: string;
+}): Promise<WooCommerceProduct[]> {
+  const products: WooCommerceProduct[] = [];
+  for (let page = 1; page <= 5; page++) {
+    const res = await fetch(
+      restApiUrl(params.storeUrl, `products?per_page=100&page=${page}&status=publish`),
+      { headers: { Authorization: basicAuthHeader(params.consumerKey, params.consumerSecret) } }
+    );
+    if (!res.ok) {
+      throw new WooCommerceApiError(`No se pudieron traer los productos (${res.status})`);
+    }
+    const body: WooCommerceProduct[] = await res.json();
+    products.push(...body);
+    if (body.length < 100) break;
+  }
+  return products;
+}
+
 /// Verifica que un webhook realmente venga de WooCommerce (firma
 /// HMAC-SHA256 sobre el cuerpo crudo, codificada en base64, comparada con
 /// el secreto guardado para esa marca) — sin esto, cualquiera podría
