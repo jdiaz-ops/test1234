@@ -30,25 +30,6 @@ export default async function StorefrontSettingsPage() {
         página, con la paleta y fuente que elijas. Ponlo en tu bio de Instagram o TikTok.
       </p>
 
-      <CollectionsManager
-        collections={collections.map((c) => ({
-          id: c.id,
-          name: c.name,
-          description: c.description,
-          visible: c.visible,
-          items: c.items.map((it) => ({
-            product: {
-              id: it.product.id,
-              name: it.product.name,
-              imageUrl: it.product.imageUrl,
-              price: Number(it.product.price),
-              currency: it.product.currency,
-              brand: { companyName: it.product.brand.companyName },
-            },
-          })),
-        }))}
-      />
-
       <CreatorStorefrontStep
         displayName={profile.displayName}
         photoUrl={profile.photoUrl}
@@ -69,8 +50,43 @@ export default async function StorefrontSettingsPage() {
             discountPercent: Number(e.discountPercentOverride ?? e.offer.defaultDiscountPercent),
             discountCode: e.discountCode,
           }))}
+        // Solo las visibles y con al menos un producto — mismo criterio que
+        // ve la audiencia real en /c/[slug]/page.tsx.
+        collections={collections
+          .filter((c) => c.visible && c.items.length > 0)
+          .map((c) => ({
+            id: c.id,
+            name: c.name,
+            items: c.items.map((it) => ({
+              id: it.product.id,
+              name: it.product.name,
+              imageUrl: it.product.imageUrl,
+              brandName: it.product.brand.companyName,
+            })),
+          }))}
         publicUrl={publicUrl}
       />
+
+      <div className="mt-10">
+        <CollectionsManager
+          collections={collections.map((c) => ({
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            visible: c.visible,
+            items: c.items.map((it) => ({
+              product: {
+                id: it.product.id,
+                name: it.product.name,
+                imageUrl: it.product.imageUrl,
+                price: Number(it.product.price),
+                currency: it.product.currency,
+                brand: { companyName: it.product.brand.companyName },
+              },
+            })),
+          }))}
+        />
+      </div>
     </div>
   );
 }

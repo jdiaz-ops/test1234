@@ -29,6 +29,62 @@ export default async function MarketplacePage({
     enrollments.filter((e) => e.status === "ACTIVE" || e.status === "PENDING_APPROVAL").map((e) => [e.offerId, e])
   );
 
+  // Arriba las marcas a las que ya está unido (para verlas de una, sin
+  // tener que buscarlas entre el resto), abajo las que puede explorar.
+  const joinedOffers = offers.filter((o) => enrollmentByOffer.has(o.id));
+  const exploreOffers = offers.filter((o) => !enrollmentByOffer.has(o.id));
+
+  function OfferCard({ offer }: { offer: (typeof offers)[number] }) {
+    const enrollment = enrollmentByOffer.get(offer.id);
+    return (
+      <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 flex flex-col">
+        <BrandMiniProfile
+          companyName={offer.brand.companyName}
+          logoUrl={offer.brand.logoUrl}
+          description={offer.brand.description}
+          websiteUrl={offer.brand.websiteUrl}
+        />
+
+        <div className="grid grid-cols-2 gap-2 my-4">
+          <div className="rounded-xl bg-brand-bg px-2.5 py-2">
+            <p className="font-mono text-base font-medium text-brand-ink leading-tight">
+              {Number(offer.defaultDiscountPercent)}%
+            </p>
+            <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Descuento para tu comunidad</p>
+          </div>
+          <div className="rounded-xl bg-brand-accent-soft px-2.5 py-2">
+            <p className="font-mono text-base font-medium text-brand-accent leading-tight">
+              {Number(offer.defaultCommissionPercent)}%
+            </p>
+            <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Tu comisión por venta</p>
+          </div>
+        </div>
+
+        <div className="mt-auto">
+          {enrollment ? (
+            <div className="text-center space-y-1.5">
+              <p
+                className={`text-sm font-medium ${
+                  enrollment.status === "ACTIVE" ? "text-brand-accent" : "text-brand-ink-soft"
+                }`}
+              >
+                {enrollment.status === "ACTIVE" ? "Ya estás unido ✓" : "Esperando aprobación"}
+              </p>
+              <LeaveOfferButton enrollmentId={enrollment.id} />
+            </div>
+          ) : (
+            <JoinOfferButton
+              offerId={offer.id}
+              joinMode={offer.joinMode}
+              suggestedCode={profile.baseCode}
+              fullWidth
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">MARKETPLACE DE MARCAS</p>
@@ -62,56 +118,33 @@ export default async function MarketplacePage({
       {offers.length === 0 ? (
         <p className="text-sm text-brand-ink-soft">No hay ofertas disponibles con ese filtro.</p>
       ) : (
-        <div className="space-y-4">
-          {offers.map((offer) => {
-            const enrollment = enrollmentByOffer.get(offer.id);
-            return (
-              <div key={offer.id} className="rounded-2xl border border-brand-line bg-brand-surface p-5">
-                <BrandMiniProfile
-                  companyName={offer.brand.companyName}
-                  logoUrl={offer.brand.logoUrl}
-                  description={offer.brand.description}
-                  websiteUrl={offer.brand.websiteUrl}
-                />
-
-                <div className="grid grid-cols-2 gap-2.5 mb-4 mt-4">
-                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
-                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">
-                      {Number(offer.defaultDiscountPercent)}%
-                    </p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Código de descuento para tu comunidad</p>
-                  </div>
-                  <div className="rounded-xl bg-brand-accent-soft px-3 py-2.5">
-                    <p className="font-mono text-lg font-medium text-brand-accent leading-tight">
-                      {Number(offer.defaultCommissionPercent)}%
-                    </p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Tu comisión por cada venta con tu código</p>
-                  </div>
-                </div>
-
-                {enrollment ? (
-                  <div className="text-center space-y-1.5">
-                    <p
-                      className={`text-sm font-medium ${
-                        enrollment.status === "ACTIVE" ? "text-brand-accent" : "text-brand-ink-soft"
-                      }`}
-                    >
-                      {enrollment.status === "ACTIVE" ? "Ya estás unido ✓" : "Esperando aprobación"}
-                    </p>
-                    <LeaveOfferButton enrollmentId={enrollment.id} />
-                  </div>
-                ) : (
-                  <JoinOfferButton
-                    offerId={offer.id}
-                    joinMode={offer.joinMode}
-                    suggestedCode={profile.baseCode}
-                    fullWidth
-                  />
-                )}
+        <>
+          {joinedOffers.length > 0 && (
+            <div className="mb-10">
+              <h2 className="font-display font-semibold text-brand-ink mb-4">Tus marcas ({joinedOffers.length})</h2>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {joinedOffers.map((offer) => (
+                  <OfferCard key={offer.id} offer={offer} />
+                ))}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
+
+          <div>
+            {joinedOffers.length > 0 && (
+              <h2 className="font-display font-semibold text-brand-ink mb-4">Explorar marcas ({exploreOffers.length})</h2>
+            )}
+            {exploreOffers.length === 0 ? (
+              <p className="text-sm text-brand-ink-soft">Ya estás unido a todas las marcas disponibles con ese filtro.</p>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {exploreOffers.map((offer) => (
+                  <OfferCard key={offer.id} offer={offer} />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

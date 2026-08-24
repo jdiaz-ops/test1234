@@ -60,7 +60,6 @@ function CollectionEditor({
   const [brandFilter, setBrandFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [results, setResults] = useState<Product[]>([]);
-  const [suggested, setSuggested] = useState<Product[]>([]);
   const [filterOptions, setFilterOptions] = useState<{ brands: { id: string; companyName: string }[]; categories: string[] }>({
     brands: [],
     categories: [],
@@ -77,7 +76,6 @@ function CollectionEditor({
     if (!res.ok) return;
     const body = await res.json();
     setResults(body.products);
-    setSuggested(body.suggested);
     setFilterOptions(body.filterOptions);
   }, []);
 
@@ -140,8 +138,6 @@ function CollectionEditor({
     onDone();
   }
 
-  const suggestedToShow = suggested.filter((p) => !selected.some((s) => s.id === p.id));
-
   return (
     <div className="rounded-2xl border-2 border-brand-accent bg-brand-accent-soft/30 p-5 mb-4">
       <div className="grid lg:grid-cols-[260px_1fr] gap-6">
@@ -192,6 +188,7 @@ function CollectionEditor({
                 ) : (
                   <div className="w-full aspect-square rounded-lg bg-brand-accent-soft mb-1" />
                 )}
+                <p className="text-[10px] text-brand-ink-soft truncate">{p.brand.companyName}</p>
                 <p className="text-[11px] font-medium text-brand-ink truncate">{p.name}</p>
               </div>
             ))}
@@ -239,32 +236,6 @@ function CollectionEditor({
             </div>
           )}
 
-          {suggestedToShow.length > 0 && (
-            <div className="rounded-xl bg-brand-accent-soft border border-dashed border-brand-accent p-3 mb-3">
-              <p className="font-mono text-[11px] font-bold text-brand-accent uppercase tracking-wide mb-2">
-                Sugeridos por tus marcas
-              </p>
-              <div className="flex gap-2 overflow-x-auto">
-                {suggestedToShow.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => toggleProduct(p)}
-                    className="rounded-xl border border-brand-line bg-brand-surface p-2 text-left shrink-0 w-28"
-                  >
-                    {p.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- foto sincronizada desde la tienda de la marca
-                      <img src={p.imageUrl} alt="" className="w-full aspect-square rounded-lg object-cover mb-1" />
-                    ) : (
-                      <div className="w-full aspect-square rounded-lg bg-brand-accent-soft mb-1" />
-                    )}
-                    <p className="text-[11px] font-medium text-brand-ink truncate">{p.name}</p>
-                    <p className="text-[10px] text-brand-ink-soft truncate">{p.brand.companyName}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-72 overflow-y-auto">
             {results.map((p) => {
               const isSelected = selected.some((s) => s.id === p.id);
@@ -289,6 +260,7 @@ function CollectionEditor({
                   ) : (
                     <div className="w-full aspect-square rounded-lg bg-brand-accent-soft mb-1" />
                   )}
+                  <p className="text-[10px] text-brand-ink-soft truncate">{p.brand.companyName}</p>
                   <p className="text-[11px] font-medium text-brand-ink truncate">{p.name}</p>
                   <p className="text-[10px] font-mono text-brand-ink-soft">{formatPrice(p.price, p.currency)}</p>
                 </button>

@@ -9,6 +9,12 @@ export type LivePreviewItem = {
   discountCode: string;
 };
 
+export type LivePreviewCollection = {
+  id: string;
+  name: string;
+  items: { id: string; name: string; imageUrl: string | null; brandName: string }[];
+};
+
 /// Espejo compacto de /c/[slug]/page.tsx — mismo sistema de paleta/fuente,
 /// para que lo que el creador ve acá sea exactamente lo que ve su
 /// audiencia. Puramente presentacional: recibe el estado EN VIVO del
@@ -22,6 +28,7 @@ export function VitrinaLivePreview({
   headline,
   bio,
   items,
+  collections = [],
 }: {
   displayName: string;
   photoUrl: string | null;
@@ -30,6 +37,7 @@ export function VitrinaLivePreview({
   headline: string;
   bio: string;
   items: LivePreviewItem[];
+  collections?: LivePreviewCollection[];
 }) {
   const palette = getPalette(paletteKey);
   const font = getFont(fontKey);
@@ -77,6 +85,45 @@ export function VitrinaLivePreview({
             <p className="text-xs mt-1.5" style={{ color: palette.inkSoft }}>
               {bio}
             </p>
+          )}
+
+          {/* Mismo orden que /c/[slug]/page.tsx: colecciones primero, marcas
+              al final — así la vista previa nunca desalinea al creador
+              sobre qué va a ver primero su audiencia. */}
+          {collections.filter((c) => c.items.length > 0).length > 0 && (
+            <div className="space-y-4 mt-5 text-left">
+              {collections
+                .filter((c) => c.items.length > 0)
+                .map((c) => (
+                  <div key={c.id}>
+                    <p className="text-xs font-semibold mb-1.5" style={{ color: palette.ink }}>
+                      {c.name}
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {c.items.slice(0, 4).map((item) => (
+                        <div
+                          key={item.id}
+                          className="rounded-lg overflow-hidden"
+                          style={{ background: palette.surface, border: `1px solid ${palette.accentSoft}` }}
+                        >
+                          {item.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- vista previa, misma foto del producto real
+                            <img src={item.imageUrl} alt="" className="w-full aspect-square object-cover" />
+                          ) : (
+                            <div className="w-full aspect-square" style={{ background: palette.accentSoft }} />
+                          )}
+                          <p className="text-[9px] px-1.5 pt-1 truncate" style={{ color: palette.inkSoft }}>
+                            {item.brandName}
+                          </p>
+                          <p className="text-[10px] px-1.5 pb-1.5 font-medium truncate" style={{ color: palette.ink }}>
+                            {item.name}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+            </div>
           )}
 
           <div className="space-y-2.5 mt-5 text-left">

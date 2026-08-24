@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { STOREFRONT_PALETTES, STOREFRONT_FONTS } from "@/lib/creator-storefront-themes";
 import { CopyButton } from "@/components/portal/copy-button";
-import { VitrinaLivePreview } from "@/components/portal/vitrina-live-preview";
+import { VitrinaLivePreview, type LivePreviewCollection } from "@/components/portal/vitrina-live-preview";
 
 type EnrollmentItem = {
   id: string;
@@ -20,6 +20,7 @@ export function CreatorStorefrontStep({
   photoUrl,
   initial,
   enrollments,
+  collections = [],
   publicUrl,
   onSaved,
 }: {
@@ -27,6 +28,11 @@ export function CreatorStorefrontStep({
   photoUrl: string | null;
   initial: { storefrontPalette: string; storefrontFont: string; storefrontHeadline: string; bio: string };
   enrollments: EnrollmentItem[];
+  // Solo de lectura acá — se editan en CollectionsManager; se pasa tal
+  // cual a la vista previa para que un cambio ahí (crear/editar/ocultar
+  // una colección) se refleje al instante, sin que este formulario tenga
+  // que saber nada de colecciones.
+  collections?: LivePreviewCollection[];
   publicUrl: string;
   onSaved?: () => void;
 }) {
@@ -217,6 +223,7 @@ export function CreatorStorefrontStep({
         headline={form.storefrontHeadline}
         bio={form.bio}
         items={items}
+        collections={collections}
       />
     </div>
   );

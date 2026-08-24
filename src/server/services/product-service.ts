@@ -90,9 +90,9 @@ export async function listProductsForBrand(brandId: string) {
   });
 }
 
-/// Hasta 3 productos destacados por marca — aparecen primero como
-/// "sugeridos" cuando un creador arma una colección con productos de esta
-/// marca (ver listSuggestedProductsForCreator).
+/// Hasta 3 productos destacados por marca — aparecen primero (antes que el
+/// resto, alfabético) en el buscador de productos del creador al armar una
+/// colección (ver listProductsForCreator).
 export async function setProductFeatured(brandId: string, productId: string, featured: boolean) {
   const product = await prisma.product.findFirst({ where: { id: productId, brandId } });
   if (!product) throw new ProductError("Producto no encontrado.");
@@ -166,19 +166,6 @@ export async function listProductFiltersForCreator(creatorId: string) {
     brands,
     categories: categories.map((c) => c.category!).filter(Boolean),
   };
-}
-
-/// Los productos destacados por las marcas del creador — se muestran como
-/// franja "Sugeridos" arriba del buscador al armar una colección.
-export async function listSuggestedProductsForCreator(creatorId: string) {
-  const brandIds = await activeBrandIdsForCreator(creatorId);
-  if (brandIds.length === 0) return [];
-
-  return prisma.product.findMany({
-    where: { brandId: { in: brandIds }, available: true, featured: true },
-    include: { brand: { select: { companyName: true, storeType: true } } },
-    orderBy: { name: "asc" },
-  });
 }
 
 async function activeBrandIdsForCreator(creatorId: string) {
