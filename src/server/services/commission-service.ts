@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getActiveCommissionBoost } from "@/server/services/challenge-service";
 import { createNotification } from "@/server/services/notification-service";
 import { checkReferralQualification } from "@/server/services/referral-service";
+import { flagPotentialFraud } from "@/server/services/admin-fraud-service";
 
 export class CommissionError extends Error {}
 
@@ -135,10 +136,58 @@ export async function reverseCommissionForTransaction(transactionId: string) {
     return commission;
   }
 
-  return prisma.commission.update({
+  const reversed = await prisma.commission.update({
     where: { id: commission.id },
     data: { status: "REVERSED", reversedAt: new Date() },
   });
+
+  if (commission.creatorProfileId) {
+    await checkAbnormalRefundRate(commission.creatorProfileId, transactionId);
+  }
+
+  return reversed;
+}
+
+const REFUND_RATE_WINDOW_DAYS = 30;
+const REFUND_RATE_MIN_SAMPLE = 3;
+const REFUND_RATE_THRESHOLD = 0.4;
+
+/// Detector de fraude: un creador cuyas ventas se reembolsan muchísimo más
+/// que lo normal — patrón típico de "comprar con el propio código para
+/// inflar métricas/comisión y después devolver". Corre en cada reembolso;
+/// necesita al menos REFUND_RATE_MIN_SAMPLE ventas en la ventana para no
+/// disparar con muestras chiquitas (1 de 1 reembolsada no dice nada).
+async function checkAbnormalRefundRate(creatorId: string, transactionId: string) {
+  const since = new Date(Date.now() - REFUND_RATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const [total, refunded] = await Promise.all([
+    prisma.transaction.count({ where: { creatorId, occurredAt: { gte: since } } }),
+    prisma.transaction.count({ where: { creatorId, occurredAt: { gte: since }, status: "REFUNDED" } }),
+  ]);
+  if (total < REFUND_RATE_MIN_SAMPLE) return;
+
+  const rate = refunded / total;
+  if (rate < REFUND_RATE_THRESHOLD) return;
+
+  // Un solo flag por racha, igual que el detector de pico de órdenes — sin
+  // esto, cada reembolso nuevo del mismo creador generaría otro flag.
+  const recentTxIds = await prisma.transaction.findMany({
+    where: { creatorId, occurredAt: { gte: since } },
+    select: { id: true },
+  });
+  const alreadyFlagged = await prisma.fraudFlag.findFirst({
+    where: {
+      status: "PENDING_REVIEW",
+      transactionId: { in: recentTxIds.map((t) => t.id) },
+      reason: { startsWith: "Tasa de reembolso anormal" },
+    },
+  });
+  if (alreadyFlagged) return;
+
+  const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: creatorId } });
+  await flagPotentialFraud(
+    transactionId,
+    `Tasa de reembolso anormal: ${refunded} de ${total} ventas (${Math.round(rate * 100)}%) de ${creator.displayName} se reembolsaron en los últimos ${REFUND_RATE_WINDOW_DAYS} días`
+  );
 }
 
 /// Levanta la espera de 15 días: toda comisión PENDING cuyo holdUntil ya

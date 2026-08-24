@@ -1089,8 +1089,11 @@ enum FraudFlagStatus {
 }
 
 model FraudFlag {
-  id            String @id @default(cuid())
-  transactionId String
+  id String @id @default(cuid())
+  /// Sin relación real en el schema (id suelto) — no todos los detectores
+  /// tienen una venta puntual de la cual colgarse (ej. cuentas duplicadas).
+  /// Null cuando la señal no viene de una transacción específica.
+  transactionId String?
   reason        String // ej. "email comprador = email creador", "pico anormal de órdenes con este código"
 
   status FraudFlagStatus @default(PENDING_REVIEW)

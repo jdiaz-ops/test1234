@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 type Flag = {
   id: string;
-  transactionId: string;
+  transactionId: string | null;
   reason: string;
   status: "PENDING_REVIEW" | "CLEARED" | "CONFIRMED_FRAUD";
   createdAt: string;

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/server/services/notification-service";
+import { flagPotentialFraud } from "@/server/services/admin-fraud-service";
 
 export class ReferralError extends Error {}
 
@@ -72,6 +73,44 @@ export async function checkReferralQualification(creatorId: string) {
         monto: formatCOP(Number(updated.bonusAmount)),
       })
     )
+  );
+
+  await checkSuspiciousReferralQualification(referral.id, creatorId);
+}
+
+const MIN_QUALIFYING_SALE = 5000;
+const FAST_QUALIFY_MINUTES = 10;
+
+/// Detector de fraude: un bono de referido calificando con una venta
+/// sospechosamente chica o sospechosamente rápida después del registro —
+/// patrón típico de crear una cuenta "referida" solo para cobrar el bono.
+/// Nunca bloquea el bono (sigue calificando igual), solo lo deja marcado
+/// para que el admin lo revise antes de marcarlo pagado.
+async function checkSuspiciousReferralQualification(referralId: string, referredCreatorId: string) {
+  const qualifyingCommission = await prisma.commission.findFirst({
+    where: { creatorProfileId: referredCreatorId },
+    include: { transaction: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!qualifyingCommission) return;
+
+  const referred = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: referredCreatorId } });
+  const netAmount = Number(qualifyingCommission.transaction.netAmount);
+  const minutesSinceRegistration =
+    (qualifyingCommission.transaction.occurredAt.getTime() - referred.createdAt.getTime()) / 60000;
+
+  const tooSmall = netAmount < MIN_QUALIFYING_SALE;
+  const tooFast = minutesSinceRegistration >= 0 && minutesSinceRegistration < FAST_QUALIFY_MINUTES;
+  if (!tooSmall && !tooFast) return;
+
+  const reasonParts = [
+    tooSmall ? `venta de solo ${formatCOP(netAmount)}` : null,
+    tooFast ? `${Math.max(0, Math.round(minutesSinceRegistration))} minutos después de registrarse` : null,
+  ].filter(Boolean);
+
+  await flagPotentialFraud(
+    qualifyingCommission.transactionId,
+    `Posible bono de referido de mentira: ${referred.displayName} calificó el bono con ${reasonParts.join(" y ")} (referral ${referralId})`
   );
 }
 

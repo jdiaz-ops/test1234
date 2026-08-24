@@ -171,8 +171,16 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
   await checkGoalBonusProgress(enrollment.offerId, enrollment.creatorId);
   await checkAbnormalOrderSpike(enrollment.id);
   await checkBuyerIsCreator(enrollment.id, transaction.id, transaction.customerEmail);
+  await checkDiscountMismatch(transaction.id, enrollment, params.grossAmount, params.discountAmount);
+  if (params.source === "MANUAL") {
+    await checkDuplicateManualSale(enrollment.id, transaction.id, params.grossAmount, params.occurredAt);
+  }
 
   return { transaction, created: true as const };
+}
+
+function formatCOP(amount: number) {
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amount);
 }
 
 /// Detector de fraude #2 (el segundo de los que documenta el schema en
@@ -192,6 +200,58 @@ async function checkBuyerIsCreator(enrollmentId: string, transactionId: string, 
   await flagPotentialFraud(
     transactionId,
     `El comprador usó el mismo correo que el creador ${enrollment.creator.displayName} (${customerEmail}) en ${enrollment.offer.brand.companyName}`
+  );
+}
+
+const DISCOUNT_TOLERANCE_PERCENT = 5;
+
+/// Detector de fraude: el % de descuento realmente aplicado en el pedido
+/// no cuadra con el % configurado para ese creador en esa oferta — podría
+/// ser un cupón combinado con otro, o datos manipulados en una venta
+/// manual mal reportada. Tolera unos puntos de diferencia por redondeos.
+async function checkDiscountMismatch(
+  transactionId: string,
+  enrollment: { discountPercentOverride: Prisma.Decimal | null; offer: { defaultDiscountPercent: Prisma.Decimal } },
+  grossAmount: number,
+  discountAmount: number
+) {
+  if (grossAmount <= 0) return;
+
+  const expectedPercent = Number(enrollment.discountPercentOverride ?? enrollment.offer.defaultDiscountPercent);
+  const actualPercent = (discountAmount / grossAmount) * 100;
+  if (Math.abs(actualPercent - expectedPercent) <= DISCOUNT_TOLERANCE_PERCENT) return;
+
+  await flagPotentialFraud(
+    transactionId,
+    `Descuento no cuadra: se esperaba ~${expectedPercent}% y la venta aplicó ${actualPercent.toFixed(1)}% — podría haber cupones combinados o datos manipulados`
+  );
+}
+
+const DUPLICATE_SALE_WINDOW_HOURS = 24;
+
+/// Detector de fraude: la misma marca reportando (por error o a propósito)
+/// el mismo pedido manual dos veces — mismo código, mismo monto exacto, en
+/// menos de 24 horas. Solo aplica a source MANUAL: Shopify/WooCommerce ya
+/// están protegidos por el externalOrderId único.
+async function checkDuplicateManualSale(enrollmentId: string, transactionId: string, grossAmount: number, occurredAt: Date) {
+  const since = new Date(occurredAt.getTime() - DUPLICATE_SALE_WINDOW_HOURS * 60 * 60 * 1000);
+  const until = new Date(occurredAt.getTime() + DUPLICATE_SALE_WINDOW_HOURS * 60 * 60 * 1000);
+
+  const duplicate = await prisma.transaction.findFirst({
+    where: {
+      enrollmentId,
+      source: "MANUAL",
+      id: { not: transactionId },
+      grossAmount: new Prisma.Decimal(grossAmount),
+      status: { not: "REFUNDED" },
+      occurredAt: { gte: since, lte: until },
+    },
+  });
+  if (!duplicate) return;
+
+  await flagPotentialFraud(
+    transactionId,
+    `Posible venta manual duplicada: mismo código y mismo monto (${formatCOP(grossAmount)}) reportado dos veces en menos de 24 horas`
   );
 }
 

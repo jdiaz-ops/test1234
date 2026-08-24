@@ -12,12 +12,15 @@ export async function reviewFraudFlag(flagId: string, status: "CLEARED" | "CONFI
   });
 }
 
-/// Único lugar donde nace un FraudFlag — cualquier detector nuevo que se
-/// agregue (hoy solo el pico anormal de órdenes en recordOrderFromWebhook,
-/// ver attribution-service.ts) pasa por acá para que quede en la cola de
-/// Antifraude Y avise al Propietario, sin tener que repetir la notificación
-/// en cada detector.
-export async function flagPotentialFraud(transactionId: string, reason: string) {
+/// Único lugar donde nace un FraudFlag — cada detector (pico de órdenes,
+/// comprador = creador, descuento que no cuadra, venta manual duplicada,
+/// tasa de reembolso anormal, bono de referido sospechoso, cuenta
+/// duplicada — ver attribution-service.ts, commission-service.ts y
+/// referral-service.ts) pasa por acá para que quede en la cola de
+/// Antifraude Y avise al Propietario, sin repetir la notificación en cada
+/// uno. `transactionId` es null cuando la señal no viene de una venta
+/// puntual (ej. cuentas duplicadas).
+export async function flagPotentialFraud(transactionId: string | null, reason: string) {
   const flag = await prisma.fraudFlag.create({ data: { transactionId, reason } });
 
   const admins = await prisma.user.findMany({ where: { role: "ADMIN", adminRole: "OWNER" }, select: { id: true } });

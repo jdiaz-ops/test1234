@@ -8,10 +8,42 @@ import {
 } from "@/lib/creator-identity";
 import { createReferralFromCode } from "@/server/services/referral-service";
 import { createNotification } from "@/server/services/notification-service";
+import { flagPotentialFraud } from "@/server/services/admin-fraud-service";
 
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 
 export class AuthServiceError extends Error {}
+
+/// Quita el "+algo" antes del @ (ej. "laura+2@gmail.com" -> "laura@gmail.com")
+/// — la variante de correo más común para abrir varias cuentas con el
+/// mismo correo real. No detecta todas las formas posibles (ej. puntos en
+/// Gmail), pero cubre la más usada sin tener que adivinar reglas por
+/// proveedor.
+function normalizeEmailForDedup(email: string) {
+  const [local, domain] = email.toLowerCase().split("@");
+  if (!domain) return email.toLowerCase();
+  return `${local.split("+")[0]}@${domain}`;
+}
+
+/// Detector de fraude: alguien abriendo una segunda cuenta de creador con
+/// una variante del mismo correo (ej. para autoreferirse el bono de
+/// $20.000, o inflar rachas/insignias). Corre en cada registro; nunca lo
+/// bloquea, solo lo deja marcado para revisión — puede ser coincidencia
+/// legítima (ej. una agencia con varias cuentas reales).
+async function checkDuplicateCreatorAccount(newUserId: string, email: string) {
+  const normalized = normalizeEmailForDedup(email);
+  const otherCreators = await prisma.user.findMany({
+    where: { role: "CREATOR", id: { not: newUserId } },
+    select: { email: true },
+  });
+  const duplicate = otherCreators.find((u) => normalizeEmailForDedup(u.email) === normalized);
+  if (!duplicate) return;
+
+  await flagPotentialFraud(
+    null,
+    `Posible cuenta duplicada: ${email} parece ser la misma persona que ${duplicate.email} (variante del mismo correo)`
+  );
+}
 
 // --------------------------------------------------------------------------
 // Registro de CREADOR
@@ -62,6 +94,8 @@ export async function registerCreator(input: {
   if (input.refCode) {
     await createReferralFromCode(input.refCode, user.creatorProfile!.id);
   }
+
+  await checkDuplicateCreatorAccount(user.id, input.email);
 
   await sendVerificationForUser(user.email);
 
