@@ -57,11 +57,11 @@ export async function generateBrandChargeDoc(params: {
 
   line("Fecha límite de pago", { size: 12, f: bold, dy: 20 });
   line(
-    `${params.dueAt.toLocaleDateString("es-CO")}, ${params.dueAt.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}`,
+    `${params.dueAt.toLocaleDateString("es-CO", { timeZone: "America/Bogota" })}, ${params.dueAt.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" })}`,
     { dy: 16 }
   );
   line(
-    "Si no se verifica el pago antes de esta fecha, tu marca se oculta del marketplace hasta regularizar la situación.",
+    "Si no se verifica el pago antes de esta fecha, tu cuenta queda temporalmente inhabilitada (sin acceso al panel) hasta regularizar — el servicio, marketplace y códigos de tus creadores siguen funcionando.",
     { size: 9, color: soft, dy: 28 }
   );
 

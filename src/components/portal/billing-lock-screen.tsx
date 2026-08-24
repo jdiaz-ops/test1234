@@ -6,6 +6,7 @@ type Charge = {
   totalAmount: number;
   dueAt: string;
   deactivationDueAt: string | null;
+  deactivatedAt: string | null;
   status: "PENDING" | "PROOF_SUBMITTED" | "PAID" | "OVERDUE" | "DEACTIVATED";
   pdfUrl: string | null;
   proofSubmittedAt: string | null;

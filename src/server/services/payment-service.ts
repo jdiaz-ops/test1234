@@ -6,7 +6,7 @@ import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { generateBrandChargeDoc } from "@/lib/billing-pdf";
 import { uploadFile } from "@/lib/file-upload";
 import { sendBrandChargeEmail, sendBrandPaymentVerifiedEmail, sendBrandChargeReminderEmail } from "@/lib/email";
-import { addBusinessHours } from "@/lib/colombian-business-days";
+import { businessDeadline, atDeadlineHour } from "@/lib/colombian-business-days";
 
 export class PaymentError extends Error {}
 
@@ -67,7 +67,7 @@ export async function chargeBrandForPeriod(brandId: string) {
   const periodEnd = new Date(Math.max(...occurredDates));
 
   const config = await getPlatformConfig();
-  const dueAt = addBusinessHours(new Date(), config.paymentGraceHours);
+  const dueAt = businessDeadline(new Date(), config.paymentGraceHours);
 
   const charge = await prisma.brandCharge.create({
     data: { brandId, periodStart, periodEnd, totalAmount: new Prisma.Decimal(totalAmount), status: "PENDING", dueAt },
@@ -108,7 +108,7 @@ export async function chargeBrandForPeriod(brandId: string) {
   }
 
   const itemCount = pending.length + pendingRewards.length;
-  const dueAtLabel = dueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" });
+  const dueAtLabel = dueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" });
 
   await createNotification(
     brand.userId,
@@ -251,7 +251,7 @@ export async function sendUpcomingDueReminders() {
     if (window === "48" && charge.reminder48SentAt) continue;
 
     const totalAmount = formatCOP(Number(charge.totalAmount));
-    const dueAtLabel = charge.dueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" });
+    const dueAtLabel = charge.dueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" });
     const hoursLabel = window === "24" ? "24 horas" : "48 horas";
 
     await createNotification(
@@ -294,10 +294,10 @@ export async function markOverdueCharges() {
   });
 
   for (const charge of overdue) {
-    const deactivationDueAt = addBusinessHours(now, config.deactivationGraceHours);
+    const deactivationDueAt = businessDeadline(now, config.deactivationGraceHours);
     await prisma.brandCharge.update({ where: { id: charge.id }, data: { status: "OVERDUE", deactivationDueAt } });
     await createNotification(charge.brand.userId, "BRAND_LOCKED", {
-      fecha: deactivationDueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" }),
+      fecha: deactivationDueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" }),
     });
   }
 
@@ -322,7 +322,7 @@ export async function sendDeactivationReminders() {
   });
 
   for (const charge of upcoming) {
-    const fecha = charge.deactivationDueAt!.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" });
+    const fecha = charge.deactivationDueAt!.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" });
     await createNotification(charge.brand.userId, "BRAND_DEACTIVATION_REMINDER", { fecha });
     await prisma.brandCharge.update({ where: { id: charge.id }, data: { deactivationReminderSentAt: now } });
   }
@@ -344,7 +344,7 @@ export async function deactivateOverdueBrands() {
   });
 
   for (const charge of toDeactivate) {
-    await prisma.brandCharge.update({ where: { id: charge.id }, data: { status: "DEACTIVATED" } });
+    await prisma.brandCharge.update({ where: { id: charge.id }, data: { status: "DEACTIVATED", deactivatedAt: now } });
 
     await createNotification(charge.brand.userId, "BRAND_DEACTIVATED", {
       monto: formatCOP(Number(charge.totalAmount)),
@@ -394,7 +394,7 @@ export async function createTestPendingCharge(brandId: string) {
   const config = await getPlatformConfig();
   const periodEnd = new Date();
   const periodStart = new Date(periodEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const dueAt = addBusinessHours(new Date(), config.paymentGraceHours);
+  const dueAt = businessDeadline(new Date(), config.paymentGraceHours);
   const commissionsTotal = 200_000;
   const platformFeeTotal = 37_800;
   const vatTotal = 7_200;
@@ -425,7 +425,7 @@ export async function createTestPendingCharge(brandId: string) {
     console.error(`[pagos] no se pudo generar el aviso de cobro de prueba de ${brand.companyName}:`, err);
   }
 
-  const dueAtLabel = dueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" });
+  const dueAtLabel = dueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" });
   await createNotification(
     brand.userId,
     "BRAND_CHARGE",
@@ -458,7 +458,10 @@ export async function createTestOverdueCharge(brandId: string) {
   const periodEnd = new Date();
   const periodStart = new Date(periodEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
   const dueAt = new Date(Date.now() - 2 * 60 * 60 * 1000); // vencido hace 2 horas
-  const deactivationDueAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // Nivel 3 en 72h de reloj, sin lógica de días hábiles — es solo para la demo
+  // Nivel 3 en 72h de reloj (sin lógica de días hábiles, es solo para la
+  // demo), pero igual aterrizado a las 3pm — así se ve tal cual como en el
+  // flujo real, no a una hora "rara" que dependa de cuándo se dio el click.
+  const deactivationDueAt = atDeadlineHour(new Date(Date.now() + 72 * 60 * 60 * 1000));
   const commissionsTotal = 200_000;
   const platformFeeTotal = 37_800;
   const vatTotal = 7_200;
@@ -499,7 +502,7 @@ export async function createTestOverdueCharge(brandId: string) {
   }
 
   await createNotification(brand.userId, "BRAND_LOCKED", {
-    fecha: deactivationDueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" }),
+    fecha: deactivationDueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" }),
   });
 
   return charge;
@@ -519,7 +522,8 @@ export async function createTestDeactivatedCharge(brandId: string) {
   const periodEnd = new Date();
   const periodStart = new Date(periodEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
   const dueAt = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000); // vencido hace 8 días
-  const deactivationDueAt = new Date(Date.now() - 2 * 60 * 60 * 1000); // Nivel 3 hace 2 horas
+  const deactivationDueAt = atDeadlineHour(new Date(Date.now() - 2 * 60 * 60 * 1000)); // el plazo (redondeado a 3pm) que ya se venció
+  const deactivatedAt = new Date(Date.now() - 2 * 60 * 60 * 1000); // el momento exacto en que "pasó" a Nivel 3, sin redondear
   const commissionsTotal = 200_000;
   const platformFeeTotal = 37_800;
   const vatTotal = 7_200;
@@ -534,6 +538,7 @@ export async function createTestDeactivatedCharge(brandId: string) {
       status: "DEACTIVATED",
       dueAt,
       deactivationDueAt,
+      deactivatedAt,
     },
   });
 

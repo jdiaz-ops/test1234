@@ -40,6 +40,7 @@ export default async function MarcaLayout({ children }: { children: React.ReactN
             totalAmount: Number(lockedCharge.totalAmount),
             dueAt: lockedCharge.dueAt.toISOString(),
             deactivationDueAt: lockedCharge.deactivationDueAt?.toISOString() ?? null,
+            deactivatedAt: lockedCharge.deactivatedAt?.toISOString() ?? null,
             status: lockedCharge.status,
             pdfUrl: lockedCharge.pdfUrl,
             proofSubmittedAt: lockedCharge.proofSubmittedAt?.toISOString() ?? null,

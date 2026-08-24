@@ -7,7 +7,8 @@ type Charge = {
   id: string;
   totalAmount: number;
   dueAt: string; // ISO
-  deactivationDueAt: string | null; // ISO — solo relevante en OVERDUE (Nivel 2)
+  deactivationDueAt: string | null; // ISO — plazo (Nivel 2 → 3), solo relevante en OVERDUE
+  deactivatedAt: string | null; // ISO — momento exacto en que pasó a DEACTIVATED (Nivel 3)
   status: "PENDING" | "PROOF_SUBMITTED" | "PAID" | "OVERDUE" | "DEACTIVATED";
   pdfUrl: string | null;
   proofSubmittedAt: string | null;
@@ -19,15 +20,20 @@ function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amount);
 }
 
-// Fecha y hora por separado, unidas con una coma fija, en formato 24h —
-// tanto el conector del formateador combinado (dateStyle+timeStyle, "a
-// las") como el espacio angosto que mete "a. m./p. m." varían entre el
-// Node del servidor y el navegador y rompen la hidratación; 24h evita el
-// segundo problema, y separar fecha/hora evita el primero.
+// Fecha y hora por separado, unidas con una coma fija, en formato 24h,
+// siempre en hora Colombia — tanto el conector del formateador combinado
+// (dateStyle+timeStyle, "a las") como el espacio angosto que mete "a.
+// m./p. m." varían entre el Node del servidor y el navegador y rompen la
+// hidratación; 24h evita el segundo problema y separar fecha/hora evita
+// el primero. Fijar timeZone además evita un tercer problema: sin esto,
+// cada lado usa su propia zona horaria local (la del servidor puede no
+// ser la del navegador de quien lo ve) — con Marcolini operando solo en
+// Colombia, siempre debe verse en esa hora, sin importar dónde corra cada
+// lado.
 function formatDueAt(dueAt: string) {
   const d = new Date(dueAt);
-  const datePart = d.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
-  const timePart = d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const datePart = d.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric", timeZone: "America/Bogota" });
+  const timePart = d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" });
   return `${datePart}, ${timePart}`;
 }
 
@@ -63,6 +69,10 @@ export function ChargePaymentBox({
   const deactivated = charge.status === "DEACTIVATED";
   const dueAtLabel = formatDueAt(charge.dueAt);
   const deactivationDueAtLabel = charge.deactivationDueAt ? formatDueAt(charge.deactivationDueAt) : null;
+  // deactivatedAt (no deactivationDueAt) porque en Nivel 3 sí se muestra la
+  // hora exacta a la que pasó — a diferencia de los plazos de Nivel 1/2,
+  // que siempre se redondean a las 3pm (ver businessDeadline).
+  const deactivatedAtLabel = charge.deactivatedAt ? formatDueAt(charge.deactivatedAt) : deactivationDueAtLabel;
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -111,23 +121,24 @@ export function ChargePaymentBox({
         <p className="text-sm text-brand-ink-soft leading-relaxed">
           {deactivated ? (
             <>
-              Desde el <strong className="text-brand-ink">{dueAtLabel}</strong> desapareciste del marketplace y los
-              códigos de tus creadores dejaron de atribuir ventas — sigues debiendo lo acumulado. Se reactiva todo
-              automático (panel, marketplace y códigos) en cuanto confirmemos tu comprobante.
+              Desde el <strong className="text-brand-ink">{deactivatedAtLabel}</strong> tu servicio quedó
+              desactivado: ya no apareces en el marketplace y los códigos de tus creadores dejaron de atribuir
+              ventas. Lo que debes sigue igual hasta que verifiquemos tu pago. Se reactiva todo automático —
+              panel, marketplace y códigos — en cuanto confirmemos tu comprobante.
             </>
           ) : locked ? (
             <>
-              Desde el <strong className="text-brand-ink">{dueAtLabel}</strong> no tienes acceso al panel — pero el
-              servicio sigue funcionando: sigues en el marketplace y los códigos de tus creadores siguen
-              atribuyendo ventas. Tienes hasta el{" "}
-              <strong className="text-brand-ink">{deactivationDueAtLabel}</strong> para regularizar; si no llega a
-              tiempo, ahí sí se desactiva todo. Se reactiva automático en cuanto confirmemos tu comprobante.
+              No tienes acceso al panel, pero el servicio sigue funcionando: sigues en el marketplace y los
+              códigos de tus creadores siguen atribuyendo ventas. Tienes hasta el{" "}
+              <strong className="text-brand-ink">{deactivationDueAtLabel}</strong> para regularizar tu pago — si no
+              llega a tiempo, el servicio se desactiva por completo. Se reactiva todo automático en cuanto
+              confirmemos tu comprobante.
             </>
           ) : (
             <>
               Tienes hasta el <strong className="text-brand-ink">{dueAtLabel}</strong> para confirmar tu pago. Si no
               llega a tiempo, tu cuenta queda temporalmente inhabilitada: sin acceso al panel, aunque el servicio
-              sigue funcionando (marketplace y códigos) hasta que se cumpla un segundo plazo.
+              sigue funcionando (marketplace y códigos).
             </>
           )}
         </p>
@@ -143,7 +154,7 @@ export function ChargePaymentBox({
             {deactivated ? "Desactivado desde" : locked ? "Se desactiva el" : "Vence"}
           </p>
           <p className={`text-sm font-mono ${locked ? "text-red-600" : "text-brand-ink"}`}>
-            {deactivated ? (deactivationDueAtLabel ?? dueAtLabel) : locked ? deactivationDueAtLabel : dueAtLabel}
+            {deactivated ? deactivatedAtLabel : locked ? deactivationDueAtLabel : dueAtLabel}
           </p>
         </div>
       </div>
@@ -156,21 +167,31 @@ export function ChargePaymentBox({
 
       <div className="border-t border-brand-line pt-4 space-y-3">
         <p className="text-sm font-medium text-brand-ink">Cómo pagar</p>
-        <div className="rounded-xl bg-brand-accent-soft p-4 flex items-center gap-4">
+        <div className="rounded-2xl bg-brand-accent-soft p-5 flex flex-col sm:flex-row items-center gap-5">
           {paymentQrImageUrl && (
             // eslint-disable-next-line @next/next/no-img-element -- imagen subida por el admin, no optimizable por next/image sin configurar el dominio
             <img
               src={paymentQrImageUrl}
               alt="Código QR para pagar"
-              className="w-20 h-20 rounded-lg border-2 border-brand-surface shrink-0"
+              className="w-36 h-36 rounded-xl border-4 border-brand-surface shadow-sm shrink-0 bg-brand-surface"
             />
           )}
           {paymentInstructions ? (
-            <p className="text-sm text-brand-ink whitespace-pre-line">{paymentInstructions}</p>
+            <p className="text-sm text-brand-ink whitespace-pre-line leading-relaxed font-medium text-center sm:text-left">
+              {paymentInstructions}
+            </p>
           ) : (
             <p className="text-sm text-brand-ink-soft">Contacta a Marcolini para tus datos de pago.</p>
           )}
         </div>
+
+        <div className="rounded-lg border border-brand-accent/30 bg-brand-accent-soft/50 px-3.5 py-2.5">
+          <p className="text-xs text-brand-ink leading-relaxed">
+            <strong>Importante:</strong> después de pagar, sube tu comprobante abajo y espera a que lo
+            aprobemos — la cuenta se reactiva apenas lo verifiquemos, no de inmediato al subirlo.
+          </p>
+        </div>
+
         {charge.pdfUrl && (
           <a href={charge.pdfUrl} target="_blank" rel="noreferrer" className="block text-xs text-brand-accent font-medium hover:underline">
             Ver aviso de cobro (PDF)

@@ -116,3 +116,30 @@ export function addBusinessHours(start: Date, hours: number): Date {
   }
   return result;
 }
+
+// Colombia no tiene horario de verano — UTC-5 fijo todo el año.
+const BOGOTA_UTC_OFFSET_HOURS = 5;
+
+/// Hora estándar a la que vencen los plazos de pago — 3:00pm hora Colombia
+/// — para que la marca nunca vea un plazo a una hora "rara" (ej. 10:33)
+/// que dependa de a qué hora exacta se generó el corte anterior.
+const DEADLINE_HOUR_BOGOTA = 15;
+
+/// Aterriza una fecha a la hora estándar de plazo (3pm Colombia), sin
+/// tocar el día — para plazos calculados con lógica ad-hoc (ej. las
+/// fechas de prueba de createTestOverdueCharge) que igual deben mostrarse
+/// con la misma hora "limpia" que el flujo real.
+export function atDeadlineHour(date: Date): Date {
+  const result = new Date(date);
+  result.setUTCHours(DEADLINE_HOUR_BOGOTA + BOGOTA_UTC_OFFSET_HOURS, 0, 0, 0);
+  return result;
+}
+
+/// Igual que addBusinessHours, pero el resultado siempre aterriza a las
+/// 3pm hora Colombia del día hábil que le corresponda, en vez de a la
+/// hora exacta en que arrancó a correr el plazo — es lo que usa
+/// chargeBrandForPeriod/markOverdueCharges para las fechas límite reales
+/// que ve la marca (dueAt, deactivationDueAt).
+export function businessDeadline(start: Date, hours: number): Date {
+  return atDeadlineHour(addBusinessHours(start, hours));
+}

@@ -856,6 +856,12 @@ model BrandCharge {
   /// para no reenviarlo cada corrida del cron mientras siga OVERDUE.
   deactivationReminderSentAt DateTime?
 
+  /// El momento real en que el corte pasó a DEACTIVATED (lo pone
+  /// deactivateOverdueBrands) — a diferencia de deactivationDueAt (el
+  /// plazo límite, redondeado a las 3pm), esto es la hora exacta en que
+  /// pasó, para mostrarla tal cual en la pantalla de Nivel 3.
+  deactivatedAt DateTime?
+
   paidAt           DateTime?
   verifiedByUserId String? // userId del admin que verificó el comprobante
 

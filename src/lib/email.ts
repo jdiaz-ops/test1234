@@ -78,7 +78,8 @@ export async function sendBrandChargeEmail(
      <p>Este mes te corresponde pagar <strong>${params.totalAmount}</strong> (comisión de tus creadores de
      contenido + tarifa de Marcolini).</p>
      <p><strong>Fecha límite: ${params.dueAt}</strong> Si no verificamos tu pago antes de esa fecha, tu
-     marca se oculta del marketplace hasta que regularices la situación.</p>
+     cuenta queda temporalmente inhabilitada (sin acceso al panel) hasta que regularices — el servicio,
+     marketplace y códigos de tus creadores siguen funcionando.</p>
      ${params.paymentInstructions ? `<p>${params.paymentInstructions.replace(/\n/g, "<br/>")}</p>` : ""}
      <p>Entra a tu portal de Marcolini, en Cuenta → Pago, para ver el desglose completo y subir tu
      comprobante una vez pagues.</p>`
@@ -99,7 +100,8 @@ export async function sendBrandChargeReminderEmail(
      <p>Recordatorio: tienes un corte pendiente de <strong>${params.totalAmount}</strong> — el plazo vence
      el <strong>${params.dueAt}</strong>.</p>
      <p>Si ya pagaste, sube tu comprobante en Cuenta → Pago para que lo verifiquemos. Si no verificamos tu
-     pago antes de esa fecha, tu marca se oculta del marketplace hasta que regularices la situación.</p>`
+     pago antes de esa fecha, tu cuenta queda temporalmente inhabilitada (sin acceso al panel) hasta que
+     regularices — el servicio, marketplace y códigos de tus creadores siguen funcionando.</p>`
   );
 }
 

@@ -83,6 +83,7 @@ export default async function MarcaCuentaPage() {
             totalAmount: Number(openCharge.totalAmount),
             dueAt: openCharge.dueAt.toISOString(),
             deactivationDueAt: openCharge.deactivationDueAt?.toISOString() ?? null,
+            deactivatedAt: openCharge.deactivatedAt?.toISOString() ?? null,
             status: openCharge.status,
             pdfUrl: openCharge.pdfUrl,
             proofSubmittedAt: openCharge.proofSubmittedAt?.toISOString() ?? null,
