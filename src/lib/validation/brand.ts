@@ -59,8 +59,17 @@ const money = z.number().positive("Debe ser mayor a 0");
 
 const challengeConfigSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("GOAL_BONUS"), goalAmount: money, bonusAmount: money }),
-  z.object({ type: z.literal("TEMP_COMMISSION_BOOST"), newCommissionPercent: percent }),
-  z.object({ type: z.literal("TEMP_DISCOUNT_BOOST"), newDiscountPercent: percent }),
+  // FLASH_SALE y MIX traen los dos campos como opcionales — la validación de
+  // "al menos uno de los dos" va en los .refine() de abajo, porque
+  // discriminatedUnion necesita que cada rama sea un z.object() plano.
+  z.object({ type: z.literal("FLASH_SALE"), newCommissionPercent: percent.optional(), newDiscountPercent: percent.optional() }),
+  z.object({
+    type: z.literal("MIX"),
+    goalAmount: money,
+    bonusAmount: money,
+    newCommissionPercent: percent.optional(),
+    newDiscountPercent: percent.optional(),
+  }),
   z.object({
     type: z.literal("LEADERBOARD"),
     winnersCount: z.number().int().min(1).max(20),
@@ -89,6 +98,13 @@ export const challengeSchema = z
   .refine(
     (data) => data.config.type !== "LEADERBOARD" || data.config.prizes.length === data.config.winnersCount,
     { message: "Debes poner un premio por cada ganador", path: ["config"] }
+  )
+  .refine(
+    (data) =>
+      (data.config.type !== "FLASH_SALE" && data.config.type !== "MIX") ||
+      data.config.newCommissionPercent != null ||
+      data.config.newDiscountPercent != null,
+    { message: "Sube la comisión, el descuento, o ambos", path: ["config"] }
   );
 
 export const reviewSubmissionSchema = z.object({

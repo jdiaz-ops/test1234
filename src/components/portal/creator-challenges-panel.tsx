@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import type { ChallengeType } from "@/lib/challenge-types";
 
 const typeLabel: Record<ChallengeType, string> = {
-  GOAL_BONUS: "Bono por ventas generadas",
-  TEMP_COMMISSION_BOOST: "Comisión elevada temporal",
+  GOAL_BONUS: "Misión",
+  FLASH_SALE: "Flash Sale",
+  MIX: "Mix",
   LEADERBOARD: "Leaderboard",
   WELCOME_BONUS: "Bono de bienvenida",
   CONTENT_CHALLENGE: "Campaña de contenido",
-  TEMP_DISCOUNT_BOOST: "Descuento especial temporal",
 };
 
 const rewardStatusLabel: Record<string, string> = {
@@ -106,8 +106,8 @@ export function CreatorChallengesPanel({ activeChallenges }: { activeChallenges:
           </p>
           <p className="font-display font-semibold text-brand-ink mb-3">{challenge.name}</p>
 
-          {challenge.type === "GOAL_BONUS" && progress && (
-            <div>
+          {(challenge.type === "GOAL_BONUS" || challenge.type === "MIX") && progress && (
+            <div className="mb-2">
               <div className="h-2 rounded-full bg-brand-bg overflow-hidden mb-2">
                 <div
                   className="h-full bg-brand-accent"
@@ -121,21 +121,24 @@ export function CreatorChallengesPanel({ activeChallenges }: { activeChallenges:
             </div>
           )}
 
-          {challenge.type === "TEMP_COMMISSION_BOOST" && (
-            <p className="text-sm text-brand-ink-soft">
-              Comisión especial activa para <strong>todos</strong> los creadores de esta oferta: mientras dure,
-              tus ventas pagan{" "}
-              <span className="text-brand-accent font-mono">{String(challenge.config.newCommissionPercent)}%</span>{" "}
-              en vez de tu comisión normal.
-            </p>
-          )}
-
-          {challenge.type === "TEMP_DISCOUNT_BOOST" && (
-            <p className="text-sm text-brand-ink-soft">
-              Tu código tiene ahora{" "}
-              <span className="text-brand-accent font-mono">{String(challenge.config.newDiscountPercent)}% de descuento</span>{" "}
-              para quien compre con él — más de lo normal, mientras dure la campaña. Buen momento para contarlo.
-            </p>
+          {(challenge.type === "FLASH_SALE" || challenge.type === "MIX") && (
+            <div className="space-y-1">
+              {challenge.config.newCommissionPercent != null && (
+                <p className="text-sm text-brand-ink-soft">
+                  Comisión especial activa para <strong>todos</strong> los creadores de esta oferta: mientras dure,
+                  tus ventas pagan{" "}
+                  <span className="text-brand-accent font-mono">{String(challenge.config.newCommissionPercent)}%</span>{" "}
+                  en vez de tu comisión normal.
+                </p>
+              )}
+              {challenge.config.newDiscountPercent != null && (
+                <p className="text-sm text-brand-ink-soft">
+                  Tu código tiene ahora{" "}
+                  <span className="text-brand-accent font-mono">{String(challenge.config.newDiscountPercent)}% de descuento</span>{" "}
+                  para quien compre con él — más de lo normal, mientras dure la campaña. Buen momento para contarlo.
+                </p>
+              )}
+            </div>
           )}
 
           {challenge.type === "LEADERBOARD" && (

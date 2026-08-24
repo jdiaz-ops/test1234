@@ -506,12 +506,21 @@ model CreatorOfferEnrollment {
 // ----------------------------------------------------------------------------
 
 enum ChallengeType {
-  GOAL_BONUS // Bono por meta de ventas
-  TEMP_COMMISSION_BOOST // Comisión temporal elevada
-  TEMP_DISCOUNT_BOOST // Descuento especial temporal (para el comprador)
+  GOAL_BONUS // Misión: bono por meta de ventas
+  FLASH_SALE // Comisión elevada y/o descuento elevado, uno u otro o los dos
+  MIX // Misión + Flash Sale juntos en una sola campaña
   LEADERBOARD // Leaderboard con premio al Top N
   WELCOME_BONUS // Bono de bienvenida (primeros N cupos)
   CONTENT_CHALLENGE // Reto de contenido (verificación manual)
+
+  // Retirados de la app (ver lib/challenge-types.ts) — se fusionaron en
+  // FLASH_SALE. Se dejan declarados acá porque Postgres no permite quitar
+  // un valor de un enum sin recrear el tipo entero, y no vale la pena ese
+  // riesgo solo por prolijidad. Cualquier fila vieja con estos tipos se
+  // migra a FLASH_SALE en la migración que agrega este comentario — así que
+  // en la práctica nunca deberían volver a aparecer.
+  TEMP_COMMISSION_BOOST
+  TEMP_DISCOUNT_BOOST
 }
 
 enum ChallengeStatus {
@@ -532,12 +541,12 @@ model Challenge {
   endDate   DateTime
 
   /// Configuración flexible según el tipo de reto:
-  /// GOAL_BONUS            -> { goalAmount, bonusAmount }
-  /// TEMP_COMMISSION_BOOST  -> { newCommissionPercent }
-  /// TEMP_DISCOUNT_BOOST    -> { newDiscountPercent }
-  /// LEADERBOARD            -> { winnersCount, prizes: [amount, ...] }
-  /// WELCOME_BONUS          -> { slotsCount, bonusPerSlot }
-  /// CONTENT_CHALLENGE      -> { instructions, bonusAmount }
+  /// GOAL_BONUS   -> { goalAmount, bonusAmount }
+  /// FLASH_SALE   -> { newCommissionPercent?, newDiscountPercent? } — al menos uno de los dos
+  /// MIX          -> { goalAmount, bonusAmount, newCommissionPercent?, newDiscountPercent? } — Misión + Flash Sale
+  /// LEADERBOARD  -> { winnersCount, prizes: [amount, ...] }
+  /// WELCOME_BONUS -> { slotsCount, bonusPerSlot }
+  /// CONTENT_CHALLENGE -> { instructions, bonusAmount }
   config Json
 
   /// Solo para TEMP_DISCOUNT_BOOST: a diferencia de la comisión (que se

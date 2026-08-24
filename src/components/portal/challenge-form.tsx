@@ -9,10 +9,33 @@ function toDateInput(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+// Las 3 que la marca puede elegir (ver VISIBLE_CHALLENGE_TYPES) — con
+// nombre corto para la tarjeta y una explicación de una línea. Los tipos
+// ocultos (LEADERBOARD, WELCOME_BONUS, CONTENT_CHALLENGE) no tienen tarjeta
+// — solo quedan por si se reactivan más adelante (ver typeLabel/typeHint
+// más abajo, que sí los cubren para no romper el resto del formulario).
+const PICKER_CARDS: { type: ChallengeType; title: string; description: string }[] = [
+  {
+    type: "GOAL_BONUS",
+    title: "Misión",
+    description: "Si un creador llega a una meta de ventas en el período, gana un bono fijo — además de su comisión normal.",
+  },
+  {
+    type: "FLASH_SALE",
+    title: "Flash Sale",
+    description: "Sube la comisión del creador, el descuento del comprador, o ambos, por un tiempo limitado.",
+  },
+  {
+    type: "MIX",
+    title: "Mix",
+    description: "Misión + Flash Sale en una sola campaña — meta con bono, y comisión y/o descuento elevados a la vez.",
+  },
+];
+
 const typeLabel: Record<ChallengeType, string> = {
-  GOAL_BONUS: "Bono por ventas generadas",
-  TEMP_COMMISSION_BOOST: "Comisión temporal elevada (para todos los creadores)",
-  TEMP_DISCOUNT_BOOST: "Descuento especial temporal (para el comprador)",
+  GOAL_BONUS: "Misión",
+  FLASH_SALE: "Flash Sale",
+  MIX: "Mix (Misión + Flash Sale)",
   LEADERBOARD: "Leaderboard con premio al Top N",
   WELCOME_BONUS: "Bono de bienvenida (primeros N cupos)",
   CONTENT_CHALLENGE: "Campaña de contenido (revisión manual)",
@@ -21,10 +44,9 @@ const typeLabel: Record<ChallengeType, string> = {
 const typeHint: Record<ChallengeType, string> = {
   GOAL_BONUS:
     "Cada creador que llegue a la meta gana el bono — no solo el primero, todos los que la alcancen. Es un pago adicional, aparte de su comisión normal por esas ventas.",
-  TEMP_COMMISSION_BOOST:
-    "Sube la comisión para TODOS los creadores vinculados a esta oferta durante el período, sin excepción — reemplaza la comisión normal de cada uno mientras dure, sin importar lo que tengan configurado individualmente.",
-  TEMP_DISCOUNT_BOOST:
-    "Sube el % de descuento que recibe el COMPRADOR en el checkout real, con el código de cada creador vinculado a esta oferta — no cambia lo que gana el creador, solo lo que paga quien compra. Se actualiza directo en tu tienda y vuelve sola al valor normal cuando termine el período.",
+  FLASH_SALE:
+    "Puedes subir la comisión del creador, el descuento del comprador, o los dos — elige al menos uno. La comisión se calcula al vuelo; el descuento se actualiza directo en la tienda real y vuelve solo al valor normal cuando termine.",
+  MIX: "Combina una Misión (meta + bono) con un Flash Sale (comisión y/o descuento elevados) en una sola campaña, con un solo nombre y un solo rango de fechas.",
   LEADERBOARD: "Al terminar el período, los N creadores con más ventas se llevan el premio correspondiente a su puesto.",
   WELCOME_BONUS: "Los primeros N creadores que se unan a la oferta durante el período ganan el bono, sin esperar ventas.",
   CONTENT_CHALLENGE: "El creador manda un link como evidencia; tú lo revisas y decides si aprobar el bono.",
@@ -52,9 +74,11 @@ export function ChallengeForm({
   );
   const [goalAmount, setGoalAmount] = useState(template?.goalAmount ? String(template.goalAmount) : "");
   const [bonusAmount, setBonusAmount] = useState(template?.bonusAmount ? String(template.bonusAmount) : "");
+  const [commissionEnabled, setCommissionEnabled] = useState(Boolean(template?.newCommissionPercent));
   const [newCommissionPercent, setNewCommissionPercent] = useState(
     template?.newCommissionPercent ? String(template.newCommissionPercent) : ""
   );
+  const [discountEnabled, setDiscountEnabled] = useState(Boolean(template?.newDiscountPercent));
   const [newDiscountPercent, setNewDiscountPercent] = useState(
     template?.newDiscountPercent ? String(template.newDiscountPercent) : ""
   );
@@ -66,14 +90,23 @@ export function ChallengeForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // FLASH_SALE y MIX comparten estas dos casillas opcionales — se arma acá
+  // una sola vez para no repetir la lógica en buildConfig().
+  function flashSaleFields() {
+    return {
+      newCommissionPercent: commissionEnabled && newCommissionPercent ? Number(newCommissionPercent) : undefined,
+      newDiscountPercent: discountEnabled && newDiscountPercent ? Number(newDiscountPercent) : undefined,
+    };
+  }
+
   function buildConfig(): Record<string, unknown> {
     switch (type) {
       case "GOAL_BONUS":
         return { type, goalAmount: Number(goalAmount), bonusAmount: Number(bonusAmount) };
-      case "TEMP_COMMISSION_BOOST":
-        return { type, newCommissionPercent: Number(newCommissionPercent) };
-      case "TEMP_DISCOUNT_BOOST":
-        return { type, newDiscountPercent: Number(newDiscountPercent) };
+      case "FLASH_SALE":
+        return { type, ...flashSaleFields() };
+      case "MIX":
+        return { type, goalAmount: Number(goalAmount), bonusAmount: Number(bonusAmount), ...flashSaleFields() };
       case "LEADERBOARD":
         return {
           type,
@@ -87,8 +120,15 @@ export function ChallengeForm({
     }
   }
 
+  const needsFlashSaleLever = type === "FLASH_SALE" || type === "MIX";
+  const flashSaleLeverMissing = needsFlashSaleLever && !commissionEnabled && !discountEnabled;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (flashSaleLeverMissing) {
+      setError("Sube la comisión, el descuento, o ambos.");
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -124,20 +164,27 @@ export function ChallengeForm({
       </div>
 
       <div>
-        <label className="block text-sm text-brand-ink mb-1">Nombre de la campaña</label>
-        <input required value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="Campaña de verano" />
+        <label className="block text-sm text-brand-ink mb-2">Tipo de campaña</label>
+        <div className="grid sm:grid-cols-3 gap-2">
+          {PICKER_CARDS.map((card) => (
+            <button
+              key={card.type}
+              type="button"
+              onClick={() => setType(card.type)}
+              className={`text-left rounded-xl border p-3 transition-colors ${
+                type === card.type ? "border-brand-accent ring-2 ring-brand-accent bg-brand-accent-soft/30" : "border-brand-line hover:border-brand-accent-soft"
+              }`}
+            >
+              <p className="font-display font-semibold text-sm text-brand-ink mb-1">{card.title}</p>
+              <p className="text-xs text-brand-ink-soft leading-snug">{card.description}</p>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div>
-        <label className="block text-sm text-brand-ink mb-1">Tipo de campaña</label>
-        <select value={type} onChange={(e) => setType(e.target.value as ChallengeType)} className="input">
-          {VISIBLE_CHALLENGE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {typeLabel[t]}
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-brand-ink-soft mt-1">{typeHint[type]}</p>
+        <label className="block text-sm text-brand-ink mb-1">Nombre de la campaña</label>
+        <input required value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="Campaña de verano" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -151,7 +198,7 @@ export function ChallengeForm({
         </div>
       </div>
 
-      {type === "GOAL_BONUS" && (
+      {(type === "GOAL_BONUS" || type === "MIX") && (
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-brand-ink mb-1">Meta de ventas por creador</label>
@@ -164,36 +211,54 @@ export function ChallengeForm({
         </div>
       )}
 
-      {type === "TEMP_COMMISSION_BOOST" && (
-        <div>
-          <label className="block text-sm text-brand-ink mb-1">Nueva comisión (%)</label>
-          <input
-            required
-            type="number"
-            min="0"
-            max="100"
-            value={newCommissionPercent}
-            onChange={(e) => setNewCommissionPercent(e.target.value)}
-            className="input"
-          />
-        </div>
-      )}
+      {needsFlashSaleLever && (
+        <div className="space-y-3 rounded-xl border border-brand-line p-3">
+          <p className="text-xs text-brand-ink-soft">Elige al menos una de las dos:</p>
 
-      {type === "TEMP_DISCOUNT_BOOST" && (
-        <div>
-          <label className="block text-sm text-brand-ink mb-1">Nuevo % de descuento para el comprador</label>
-          <input
-            required
-            type="number"
-            min="0"
-            max="100"
-            value={newDiscountPercent}
-            onChange={(e) => setNewDiscountPercent(e.target.value)}
-            className="input"
-          />
-          <p className="text-xs text-brand-ink-soft mt-1">
-            Se sube directo en tu tienda — puede tardar unos minutos en reflejarse.
-          </p>
+          <div>
+            <label className="flex items-center gap-2 text-sm text-brand-ink mb-1">
+              <input type="checkbox" checked={commissionEnabled} onChange={(e) => setCommissionEnabled(e.target.checked)} />
+              Subir la comisión del creador
+            </label>
+            {commissionEnabled && (
+              <input
+                required
+                type="number"
+                min="0"
+                max="100"
+                value={newCommissionPercent}
+                onChange={(e) => setNewCommissionPercent(e.target.value)}
+                placeholder="Nueva comisión (%)"
+                className="input"
+              />
+            )}
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm text-brand-ink mb-1">
+              <input type="checkbox" checked={discountEnabled} onChange={(e) => setDiscountEnabled(e.target.checked)} />
+              Subir el descuento del comprador
+            </label>
+            {discountEnabled && (
+              <>
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={newDiscountPercent}
+                  onChange={(e) => setNewDiscountPercent(e.target.value)}
+                  placeholder="Nuevo % de descuento"
+                  className="input"
+                />
+                <p className="text-xs text-brand-ink-soft mt-1">
+                  Se sube directo en tu tienda — puede tardar unos minutos en reflejarse.
+                </p>
+              </>
+            )}
+          </div>
+
+          {flashSaleLeverMissing && <p className="text-xs text-red-600">Sube la comisión, el descuento, o ambos.</p>}
         </div>
       )}
 
@@ -260,3 +325,10 @@ export function ChallengeForm({
     </form>
   );
 }
+
+// Se mantienen exportados por si algún día se vuelve a usar el listado
+// completo (ej. VISIBLE_CHALLENGE_TYPES incluye hoy solo Misión/Flash
+// Sale/Mix — LEADERBOARD/WELCOME_BONUS/CONTENT_CHALLENGE siguen ocultos).
+void typeLabel;
+void typeHint;
+void VISIBLE_CHALLENGE_TYPES;

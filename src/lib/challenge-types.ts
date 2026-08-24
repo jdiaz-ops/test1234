@@ -1,7 +1,7 @@
 export type ChallengeType =
   | "GOAL_BONUS"
-  | "TEMP_COMMISSION_BOOST"
-  | "TEMP_DISCOUNT_BOOST"
+  | "FLASH_SALE"
+  | "MIX"
   | "LEADERBOARD"
   | "WELCOME_BONUS"
   | "CONTENT_CHALLENGE";
@@ -11,15 +11,12 @@ export type ChallengeType =
 /// vuelvan a activar aquí).
 export const HIDDEN_CHALLENGE_TYPES: ChallengeType[] = ["LEADERBOARD", "WELCOME_BONUS", "CONTENT_CHALLENGE"];
 
+/// Los 3 tipos que la marca ve — Misión (GOAL_BONUS), Flash Sale y Mix
+/// (los dos juntos). Esto es a propósito lo único que el formulario de
+/// creación ofrece hoy (ver challenge-form.tsx) — la marca nunca tiene que
+/// entender la arquitectura interna, solo elige entre 3 tarjetas.
 export const VISIBLE_CHALLENGE_TYPES: ChallengeType[] = (
-  [
-    "GOAL_BONUS",
-    "TEMP_COMMISSION_BOOST",
-    "TEMP_DISCOUNT_BOOST",
-    "LEADERBOARD",
-    "WELCOME_BONUS",
-    "CONTENT_CHALLENGE",
-  ] as ChallengeType[]
+  ["GOAL_BONUS", "FLASH_SALE", "MIX", "LEADERBOARD", "WELCOME_BONUS", "CONTENT_CHALLENGE"] as ChallengeType[]
 ).filter((t) => !HIDDEN_CHALLENGE_TYPES.includes(t));
 
 /// Plantilla de reto lista para usar — la marca solo tiene que revisar/tocar

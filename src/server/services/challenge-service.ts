@@ -35,8 +35,8 @@ export async function listChallengesForBrand(brandId: string) {
 
 type ChallengeConfig =
   | { type: "GOAL_BONUS"; goalAmount: number; bonusAmount: number }
-  | { type: "TEMP_COMMISSION_BOOST"; newCommissionPercent: number }
-  | { type: "TEMP_DISCOUNT_BOOST"; newDiscountPercent: number }
+  | { type: "FLASH_SALE"; newCommissionPercent?: number; newDiscountPercent?: number }
+  | { type: "MIX"; goalAmount: number; bonusAmount: number; newCommissionPercent?: number; newDiscountPercent?: number }
   | { type: "LEADERBOARD"; winnersCount: number; prizes: number[] }
   | { type: "WELCOME_BONUS"; slotsCount: number; bonusPerSlot: number }
   | { type: "CONTENT_CHALLENGE"; instructions: string; bonusAmount: number };
@@ -48,6 +48,13 @@ export async function createChallenge(
   const offer = await prisma.offer.findFirst({ where: { id: data.offerId, brandId } });
   if (!offer) throw new ChallengeError("Oferta no encontrada.");
   if (data.endDate <= data.startDate) throw new ChallengeError("La fecha de fin debe ser después del inicio.");
+  if (
+    (data.config.type === "FLASH_SALE" || data.config.type === "MIX") &&
+    data.config.newCommissionPercent == null &&
+    data.config.newDiscountPercent == null
+  ) {
+    throw new ChallengeError("Sube la comisión, el descuento, o ambos.");
+  }
 
   const { type, ...config } = data.config;
 
@@ -62,12 +69,13 @@ export async function createChallenge(
     },
   });
 
-  // TEMP_COMMISSION_BOOST no necesita nada más — se calcula al vuelo en cada
-  // venta (ver getActiveCommissionBoost). TEMP_DISCOUNT_BOOST sí tiene que
+  // El lado de comisión no necesita nada más — se calcula al vuelo en cada
+  // venta (ver getActiveCommissionBoost). El lado de descuento sí tiene que
   // tocar la tienda real, y si la campaña ya arranca hoy no puede esperar al
   // cron de mañana (una campaña relámpago de 48h no puede perder medio día
-  // sin el descuento realmente activo en el checkout).
-  if (type === "TEMP_DISCOUNT_BOOST" && data.startDate <= new Date()) {
+  // sin el descuento realmente activo en el checkout). applyDiscountBoost
+  // no hace nada si esta campaña en particular no tocó el descuento.
+  if ((type === "FLASH_SALE" || type === "MIX") && data.startDate <= new Date()) {
     await applyDiscountBoost(challenge);
   }
 
@@ -83,7 +91,7 @@ export async function endChallenge(brandId: string, challengeId: string) {
   }
   // La marca terminó la campaña antes de tiempo — el descuento elevado
   // tiene que bajar ya, no esperar a que endDate llegue solo.
-  if (challenge.type === "TEMP_DISCOUNT_BOOST" && challenge.discountBoostActive) {
+  if ((challenge.type === "FLASH_SALE" || challenge.type === "MIX") && challenge.discountBoostActive) {
     await revertDiscountBoost(challenge);
   }
 }
@@ -132,7 +140,7 @@ async function grantReward(
 /// esa oferta.
 export async function checkGoalBonusProgress(offerId: string, creatorId: string) {
   const challenges = await prisma.challenge.findMany({
-    where: { offerId, type: "GOAL_BONUS", status: "ACTIVE" },
+    where: { offerId, type: { in: ["GOAL_BONUS", "MIX"] }, status: "ACTIVE" },
   });
   if (challenges.length === 0) return;
 
@@ -165,7 +173,7 @@ export async function checkGoalBonusProgress(offerId: string, creatorId: string)
 /// oferta en la que está inscrito — para mostrarle su progreso.
 export async function getGoalBonusProgress(offerId: string, creatorId: string) {
   const challenges = await prisma.challenge.findMany({
-    where: { offerId, type: "GOAL_BONUS", status: "ACTIVE" },
+    where: { offerId, type: { in: ["GOAL_BONUS", "MIX"] }, status: "ACTIVE" },
   });
 
   const progress = [];
@@ -191,36 +199,41 @@ export async function getGoalBonusProgress(offerId: string, creatorId: string) {
 }
 
 // ----------------------------------------------------------------------------
-// TEMP_COMMISSION_BOOST — lo consulta el Motor de Comisiones al calcular
-// cada venta, no crea ChallengeReward propios.
+// FLASH_SALE / MIX — lado comisión: lo consulta el Motor de Comisiones al
+// calcular cada venta, no crea ChallengeReward propios.
 // ----------------------------------------------------------------------------
 
-/// Si hay un TEMP_COMMISSION_BOOST activo para esa oferta cubriendo la
-/// fecha de la venta, devuelve el % elevado; si no, null (se usa el % normal).
+/// Si hay un FLASH_SALE o MIX activo para esa oferta cubriendo la fecha de
+/// la venta Y con el lado de comisión configurado (es opcional — una
+/// campaña puede subir solo el descuento y dejar la comisión intacta),
+/// devuelve el % elevado; si no, null (se usa el % normal).
 export async function getActiveCommissionBoost(offerId: string, occurredAt: Date): Promise<number | null> {
-  const boost = await prisma.challenge.findFirst({
+  const candidates = await prisma.challenge.findMany({
     where: {
       offerId,
-      type: "TEMP_COMMISSION_BOOST",
+      type: { in: ["FLASH_SALE", "MIX"] },
       status: "ACTIVE",
       startDate: { lte: occurredAt },
       endDate: { gte: occurredAt },
     },
   });
-  if (!boost) return null;
-  const cfg = boost.config as { newCommissionPercent: number };
-  return cfg.newCommissionPercent;
+  for (const boost of candidates) {
+    const cfg = boost.config as { newCommissionPercent?: number };
+    if (cfg.newCommissionPercent != null) return cfg.newCommissionPercent;
+  }
+  return null;
 }
 
 // ----------------------------------------------------------------------------
-// TEMP_DISCOUNT_BOOST — a diferencia de la comisión (que se calcula al
-// vuelo, sin tocar nada externo), el % que ve el comprador SÍ vive en la
-// tienda real de la marca — así que esta campaña tiene que llamar la API de
-// Shopify/WooCommerce para subirlo al arrancar y devolverlo al terminar.
-// syncDiscountBoosts() es lo que hace ambas cosas, y corre a diario junto
-// con el resto de tareas del cron (ver /api/cron/pagos-diarios) — más la
-// activación inmediata en createChallenge y la reversión inmediata en
-// endChallenge, para no depender de esperar al cron de mañana.
+// FLASH_SALE / MIX — lado descuento: a diferencia de la comisión (que se
+// calcula al vuelo, sin tocar nada externo), el % que ve el comprador SÍ
+// vive en la tienda real de la marca — así que este lado tiene que llamar
+// la API de Shopify/WooCommerce para subirlo al arrancar y devolverlo al
+// terminar. syncDiscountBoosts() es lo que hace ambas cosas, y corre a
+// diario junto con el resto de tareas del cron (ver
+// /api/cron/pagos-diarios) — más la activación inmediata en createChallenge
+// y la reversión inmediata en endChallenge, para no depender de esperar al
+// cron de mañana.
 // ----------------------------------------------------------------------------
 
 type DiscountEnrollment = {
@@ -297,8 +310,14 @@ async function setEnrollmentDiscountValue(
 }
 
 async function applyDiscountBoost(challenge: { id: string; offerId: string; name: string; config: Prisma.JsonValue }) {
+  const cfg = challenge.config as { newDiscountPercent?: number };
+  // Esta campaña (FLASH_SALE o MIX) puede solo tener el lado de comisión
+  // configurado, sin tocar el descuento — en ese caso no hay nada que subir
+  // en la tienda real, así que no se marca discountBoostActive ni se llama
+  // ninguna API externa.
+  if (cfg.newDiscountPercent == null) return;
+
   const offer = await prisma.offer.findUniqueOrThrow({ where: { id: challenge.offerId }, include: { brand: true } });
-  const cfg = challenge.config as { newDiscountPercent: number };
   const enrollments = await prisma.creatorOfferEnrollment.findMany({
     where: { offerId: challenge.offerId, status: "ACTIVE" },
     include: { creator: true },
@@ -350,7 +369,7 @@ export async function syncDiscountBoosts() {
 
   const toActivate = await prisma.challenge.findMany({
     where: {
-      type: "TEMP_DISCOUNT_BOOST",
+      type: { in: ["FLASH_SALE", "MIX"] },
       status: "ACTIVE",
       discountBoostActive: false,
       startDate: { lte: now },
@@ -362,7 +381,7 @@ export async function syncDiscountBoosts() {
   }
 
   const toRevert = await prisma.challenge.findMany({
-    where: { type: "TEMP_DISCOUNT_BOOST", status: "ACTIVE", discountBoostActive: true, endDate: { lte: now } },
+    where: { type: { in: ["FLASH_SALE", "MIX"] }, status: "ACTIVE", discountBoostActive: true, endDate: { lte: now } },
   });
   for (const challenge of toRevert) {
     await revertDiscountBoost(challenge);
@@ -574,7 +593,7 @@ export async function listActiveChallengesForCreator(creatorId: string) {
   for (const challenge of challenges) {
     const myReward = challenge.rewards[0] ?? null;
 
-    if (challenge.type === "GOAL_BONUS") {
+    if (challenge.type === "GOAL_BONUS" || challenge.type === "MIX") {
       const cfg = challenge.config as { goalAmount: number; bonusAmount: number };
       const sum = await prisma.transaction.aggregate({
         where: {
@@ -635,7 +654,7 @@ export async function sendChallengeUrgencyReminders() {
       if (alreadyPinged) continue;
 
       let progressText = "";
-      if (challenge.type === "GOAL_BONUS") {
+      if (challenge.type === "GOAL_BONUS" || challenge.type === "MIX") {
         const cfg = challenge.config as { goalAmount: number; bonusAmount: number };
         const sum = await prisma.transaction.aggregate({
           where: {

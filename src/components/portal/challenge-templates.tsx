@@ -61,7 +61,7 @@ export function buildChallengeTemplates(
       description:
         "Sube la comisión durante una fecha fuerte para tu negocio — úsala para Black Friday, Día de la Madre, San Valentín, Navidad y Fin de Año, o cualquier otra que tengas en mente. Ajusta las fechas a la que quieras aprovechar.",
       name: "Comisión elevada — fecha especial",
-      type: "TEMP_COMMISSION_BOOST",
+      type: "FLASH_SALE",
       durationDays: 7,
       newCommissionPercent: boostedSmall,
     },
@@ -70,7 +70,7 @@ export function buildChallengeTemplates(
       title: "Campaña relámpago",
       description: "Solo 48 horas, para generar urgencia real — actívalo cuando quieras.",
       name: "Campaña relámpago",
-      type: "TEMP_COMMISSION_BOOST",
+      type: "FLASH_SALE",
       durationDays: 2,
       newCommissionPercent: boostedFlash,
     },
@@ -80,7 +80,7 @@ export function buildChallengeTemplates(
       description:
         "Dale al comprador una razón extra para comprar ya — sube el % de descuento del código de tus creadores durante la ventana. Útil para liquidar inventario o reforzar una fecha fuerte junto con una comisión elevada.",
       name: "Descuento especial",
-      type: "TEMP_DISCOUNT_BOOST",
+      type: "FLASH_SALE",
       durationDays: 7,
       newDiscountPercent: discountBoosted,
     },
@@ -100,7 +100,7 @@ function explainTemplate(
   if (t.type === "GOAL_BONUS") {
     return `Si un creador vende ${formatCOP(t.goalAmount!)} en total con su código durante los ${durationDays} días de la campaña, gana ${formatCOP(t.bonusAmount!)} de bono — adicional a su comisión normal por esas mismas ventas. Aplica a cada creador que llegue a la meta, no solo al primero.`;
   }
-  if (t.type === "TEMP_DISCOUNT_BOOST") {
+  if (t.type === "FLASH_SALE" && t.newDiscountPercent != null) {
     return `Durante los ${durationDays} días de la campaña, el código de cada creador vinculado a esta oferta pasa de ${defaultDiscountPercent}% a ${t.newDiscountPercent}% de descuento para quien compre — se actualiza directo en tu tienda y vuelve solo al valor normal al terminar. La comisión del creador no cambia.`;
   }
   return `Durante los ${durationDays} días de la campaña, la comisión de TODOS tus creadores vinculados a esta oferta sube de ${defaultCommissionPercent}% a ${t.newCommissionPercent}% — sin excepción, mientras dure.`;
@@ -148,7 +148,7 @@ export function ChallengeTemplates({
                     <span>·</span>
                     <span>Bono {formatCOP(t.bonusAmount!)}</span>
                   </>
-                ) : t.type === "TEMP_DISCOUNT_BOOST" ? (
+                ) : t.type === "FLASH_SALE" && t.newDiscountPercent != null ? (
                   <span>
                     Descuento {defaultDiscountPercent}% → {t.newDiscountPercent}%
                   </span>

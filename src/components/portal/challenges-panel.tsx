@@ -3,17 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChallengeForm } from "./challenge-form";
-import { ChallengeTemplates, buildChallengeTemplates } from "./challenge-templates";
-import type { ChallengeType, ChallengeTemplate } from "@/lib/challenge-types";
+import type { ChallengeType } from "@/lib/challenge-types";
 
 const typeLabel: Record<ChallengeType, string> = {
-  GOAL_BONUS: "Bono por ventas generadas",
-  TEMP_COMMISSION_BOOST: "Comisión temporal elevada (todos los creadores)",
+  GOAL_BONUS: "Misión",
+  FLASH_SALE: "Flash Sale",
+  MIX: "Mix",
   LEADERBOARD: "Leaderboard",
   WELCOME_BONUS: "Bono de bienvenida",
   CONTENT_CHALLENGE: "Campaña de contenido",
-  TEMP_DISCOUNT_BOOST: "Descuento especial temporal",
 };
+
+// Resumen de una línea con los valores reales de la campaña, para que se
+// entienda de un vistazo en la tarjeta sin tener que abrirla.
+function configSummary(type: ChallengeType, config: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (type === "GOAL_BONUS" || type === "MIX") {
+    parts.push(`Meta ${formatCOP(Number(config.goalAmount))} · Bono ${formatCOP(Number(config.bonusAmount))}`);
+  }
+  if (config.newCommissionPercent != null) parts.push(`Comisión → ${config.newCommissionPercent}%`);
+  if (config.newDiscountPercent != null) parts.push(`Descuento → ${config.newDiscountPercent}%`);
+  return parts.join(" · ");
+}
 
 const rewardStatusLabel: Record<string, string> = {
   PENDING_REVIEW: "En revisión",
@@ -43,10 +54,11 @@ interface Challenge {
   endDate: string;
   offer: { name: string };
   rewards: Reward[];
-  /// Solo tiene sentido para TEMP_DISCOUNT_BOOST — si el % elevado ya está
-  /// puesto de verdad en la tienda (true) o todavía no le tocaba/ya se
-  /// devolvió a la normal (false). Ver syncDiscountBoosts en
-  /// challenge-service.ts.
+  config: Record<string, unknown>;
+  /// Solo tiene sentido para FLASH_SALE/MIX con el lado de descuento
+  /// configurado — si el % elevado ya está puesto de verdad en la tienda
+  /// (true) o todavía no le tocaba/ya se devolvió a la normal (false). Ver
+  /// syncDiscountBoosts en challenge-service.ts.
   discountBoostActive: boolean;
 }
 
@@ -105,16 +117,9 @@ export function ChallengesPanel({
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
-  const [template, setTemplate] = useState<ChallengeTemplate | undefined>(undefined);
-
-  function useTemplate(t: ChallengeTemplate) {
-    setTemplate(t);
-    setCreating(true);
-  }
 
   function closeForm() {
     setCreating(false);
-    setTemplate(undefined);
   }
 
   async function handleEnd(challengeId: string) {
@@ -157,15 +162,6 @@ export function ChallengesPanel({
         </div>
       )}
 
-      {!creating && offers.length > 0 && (
-        <ChallengeTemplates
-          templates={buildChallengeTemplates(offers[0].defaultCommissionPercent, offers[0].defaultDiscountPercent)}
-          defaultCommissionPercent={offers[0].defaultCommissionPercent}
-          defaultDiscountPercent={offers[0].defaultDiscountPercent}
-          onUseTemplate={useTemplate}
-        />
-      )}
-
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-display font-semibold text-brand-ink">Tus campañas ({challenges.length})</h2>
         {!creating && offers.length > 0 && (
@@ -184,7 +180,7 @@ export function ChallengesPanel({
 
       {creating && (
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 mb-6">
-          <ChallengeForm offers={offers} template={template} onDone={closeForm} />
+          <ChallengeForm offers={offers} onDone={closeForm} />
         </div>
       )}
 
@@ -208,15 +204,18 @@ export function ChallengesPanel({
                     <p className="text-xs font-mono text-brand-ink-soft mt-1">
                       {new Date(c.startDate).toLocaleDateString("es-CO")} — {new Date(c.endDate).toLocaleDateString("es-CO")}
                     </p>
-                    {c.type === "TEMP_DISCOUNT_BOOST" && c.status === "ACTIVE" && (
-                      <p className="text-xs mt-1">
-                        {c.discountBoostActive ? (
-                          <span className="text-emerald-600">● Descuento elevado activo en tu tienda</span>
-                        ) : (
-                          <span className="text-brand-ink-soft">○ Todavía no se aplica en tu tienda</span>
-                        )}
-                      </p>
-                    )}
+                    <p className="text-xs text-brand-ink-soft mt-1">{configSummary(c.type, c.config)}</p>
+                    {(c.type === "FLASH_SALE" || c.type === "MIX") &&
+                      c.status === "ACTIVE" &&
+                      c.config.newDiscountPercent != null && (
+                        <p className="text-xs mt-1">
+                          {c.discountBoostActive ? (
+                            <span className="text-emerald-600">● Descuento elevado activo en tu tienda</span>
+                          ) : (
+                            <span className="text-brand-ink-soft">○ Todavía no se aplica en tu tienda</span>
+                          )}
+                        </p>
+                      )}
                   </div>
                   {c.status === "ACTIVE" && (
                     <button onClick={() => handleEnd(c.id)} className="text-xs text-brand-ink-soft hover:underline shrink-0">
