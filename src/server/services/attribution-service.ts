@@ -5,6 +5,8 @@ import { createShopifyDiscountCode, ShopifyApiError } from "@/server/integration
 import { createWooCommerceCoupon, WooCommerceApiError } from "@/server/integrations/woocommerce-client";
 import { createCommissionForTransaction, reverseCommissionForTransaction } from "@/server/services/commission-service";
 import { checkGoalBonusProgress } from "@/server/services/challenge-service";
+import { createNotification } from "@/server/services/notification-service";
+import { flagPotentialFraud } from "@/server/services/admin-fraud-service";
 
 export class AttributionError extends Error {}
 
@@ -93,6 +95,11 @@ export async function provisionDiscountCodeForEnrollment(enrollmentId: string) {
       where: { id: brand.id },
       data: { storeConnectionStatus: "ERROR" },
     });
+
+    const admins = await prisma.user.findMany({ where: { role: "ADMIN", adminRole: "OWNER" }, select: { id: true } });
+    await Promise.all(
+      admins.map((admin) => createNotification(admin.id, "STORE_CONNECTION_ERROR_ADMIN", { marca: brand.companyName }))
+    );
   }
 }
 
@@ -158,8 +165,46 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
 
   await createCommissionForTransaction(transaction.id);
   await checkGoalBonusProgress(enrollment.offerId, enrollment.creatorId);
+  await checkAbnormalOrderSpike(enrollment.id);
 
   return { transaction, created: true as const };
+}
+
+const SPIKE_WINDOW_MINUTES = 60;
+const SPIKE_THRESHOLD = 5;
+
+/// Detector de fraude #1 (de los dos que documenta el schema en
+/// FraudFlag.reason): un código de descuento generando muchas órdenes en
+/// poco tiempo — puede ser el creador compartiendo/vendiendo su código, o
+/// alguien abusando de un descuento. Corre en cada venta nueva; nunca
+/// bloquea la venta, solo la deja marcada para que el admin la revise.
+async function checkAbnormalOrderSpike(enrollmentId: string) {
+  const since = new Date(Date.now() - SPIKE_WINDOW_MINUTES * 60 * 1000);
+  const recentTransactions = await prisma.transaction.findMany({
+    where: { enrollmentId, status: { not: "REFUNDED" }, occurredAt: { gte: since } },
+    select: { id: true },
+    orderBy: { occurredAt: "desc" },
+  });
+  if (recentTransactions.length < SPIKE_THRESHOLD) return;
+
+  // Un solo flag por racha — si alguna de las ventas de esta ventana ya
+  // generó un flag sin revisar, no se duplica en cada venta nueva mientras
+  // dure el pico (FraudFlag.transactionId no tiene relación real en el
+  // schema — es un id suelto — por eso se busca por lista de ids).
+  const alreadyFlagged = await prisma.fraudFlag.findFirst({
+    where: { status: "PENDING_REVIEW", transactionId: { in: recentTransactions.map((t) => t.id) } },
+  });
+  if (alreadyFlagged) return;
+
+  const enrollment = await prisma.creatorOfferEnrollment.findUniqueOrThrow({
+    where: { id: enrollmentId },
+    include: { creator: true, offer: { include: { brand: true } } },
+  });
+
+  await flagPotentialFraud(
+    recentTransactions[0].id,
+    `Pico anormal de órdenes: ${recentTransactions.length} ventas con el código de ${enrollment.creator.displayName} en ${enrollment.offer.brand.companyName} en la última hora`
+  );
 }
 
 /// Procesa un reembolso (webhook `refunds/create` de Shopify o

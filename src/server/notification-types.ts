@@ -255,4 +255,18 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     messageTemplate: "{marca} subió un comprobante de pago por {monto} — revísalo en Facturas.",
     placeholders: "marca,monto",
   },
+  {
+    key: "STORE_CONNECTION_ERROR_ADMIN",
+    label: "Falla al conectar la tienda de una marca",
+    audience: "ADMIN",
+    messageTemplate: "No se pudo crear el código de descuento en la tienda de {marca} — la conexión falló. Revísalo en Marcas → Tienda.",
+    placeholders: "marca",
+  },
+  {
+    key: "FRAUD_FLAG_ADMIN",
+    label: "Alerta de fraude",
+    audience: "ADMIN",
+    messageTemplate: "Posible fraude: {razon}. Revísalo en Antifraude.",
+    placeholders: "razon",
+  },
 ];
