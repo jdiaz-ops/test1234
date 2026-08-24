@@ -37,7 +37,6 @@ export default async function CodigosPage() {
             const { brand } = e.offer;
             const paused = brand.charges.length > 0;
             const storeLink = buildBrandStoreLink(brand, e.discountCode);
-            const linkHasCode = brand.storeType === "SHOPIFY" && Boolean(brand.storeUrl);
             return (
               <div
                 key={e.id}
@@ -77,9 +76,7 @@ export default async function CodigosPage() {
                         <span className="text-xs font-mono text-brand-ink truncate">{storeLink}</span>
                         <CopyButton value={storeLink} />
                       </div>
-                      <p className="text-xs text-brand-ink-soft mt-0.5">
-                        {linkHasCode ? "Link de la tienda, con tu código ya aplicado" : "Link de la tienda para compartir"}
-                      </p>
+                      <p className="text-xs text-brand-ink-soft mt-0.5">Link de la tienda para compartir</p>
                     </div>
                   )}
                 </div>

@@ -57,8 +57,8 @@ export const CREATOR_BADGE_CATALOG: CreatorBadgeDef[] = [
   },
   {
     key: "ganador_reto",
-    label: "Ganador de reto",
-    description: "Ganaste un reto propuesto por una marca.",
+    label: "Campaña ganada",
+    description: "Ganaste una campaña propuesta por una marca.",
     icon: "IconTarget",
   },
 ];

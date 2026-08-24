@@ -22,7 +22,7 @@ export default async function RetosPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">RETOS</p>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CAMPAÑAS</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Motiva a tus creadores</h1>
       <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
         Lanza un bono por ventas generadas o sube la comisión de todos tus

@@ -76,7 +76,7 @@ const challengeConfigSchema = z.discriminatedUnion("type", [
 export const challengeSchema = z
   .object({
     offerId: z.string().min(1),
-    name: z.string().min(2, "Ingresa un nombre para el reto"),
+    name: z.string().min(2, "Ingresa un nombre para la campaña"),
     startDate: z.coerce.date(),
     endDate: z.coerce.date(),
     config: challengeConfigSchema,

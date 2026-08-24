@@ -29,10 +29,10 @@ export default async function CreadorRetosPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">RETOS</p>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CAMPAÑAS</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">Gana más</h1>
 
-      <h2 className="font-display font-semibold text-brand-ink mb-4">Retos activos</h2>
+      <h2 className="font-display font-semibold text-brand-ink mb-4">Campañas activas</h2>
       <CreatorChallengesPanel
         activeChallenges={active
           .filter((a) => !HIDDEN_CHALLENGE_TYPES.includes(a.challenge.type))

@@ -35,7 +35,7 @@ const beneficios = [
   {
     icon: IconGift,
     titulo: "Campañas y bonos",
-    texto: "Accede a retos e incentivos exclusivos activados por las marcas.",
+    texto: "Accede a campañas e incentivos exclusivos activados por las marcas.",
   },
   {
     icon: IconHeart,

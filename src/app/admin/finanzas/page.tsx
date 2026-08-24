@@ -86,7 +86,7 @@ export default async function AdminFinanzasPage() {
         <ApproveCommissionsButton eligibleNow={commissions.eligibleNow} />
       </div>
 
-      <h2 className="font-display font-semibold text-brand-ink mb-3">Premios de retos</h2>
+      <h2 className="font-display font-semibold text-brand-ink mb-3">Premios de campañas</h2>
       <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mb-8">
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
           <div>

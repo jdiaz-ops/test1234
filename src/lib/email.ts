@@ -143,8 +143,8 @@ export async function sendChallengeUrgencyEmail(
     to,
     `Marcolini — quedan ${params.daysLabel} para "${params.challengeName}"`,
     `<p>Hola ${params.displayName},</p>
-     <p>El reto <strong>${params.challengeName}</strong> cierra en ${params.daysLabel}.${params.progressText}</p>
-     <p>Revísalo en Retos antes de que se acabe el tiempo.</p>`
+     <p>La campaña <strong>${params.challengeName}</strong> cierra en ${params.daysLabel}.${params.progressText}</p>
+     <p>Revísala en Campañas antes de que se acabe el tiempo.</p>`
   );
 }
 

@@ -29,9 +29,9 @@ export function buildChallengeTemplates(defaultCommissionPercent: number, now = 
   return [
     {
       key: "lanzamiento",
-      title: "Reto de lanzamiento",
+      title: "Campaña de lanzamiento",
       description: "Impulsa las primeras semanas de un producto o campaña nueva.",
-      name: "Reto de lanzamiento",
+      name: "Campaña de lanzamiento",
       type: "GOAL_BONUS",
       durationDays: 15,
       goalAmount: 2000000,
@@ -59,9 +59,9 @@ export function buildChallengeTemplates(defaultCommissionPercent: number, now = 
     },
     {
       key: "relampago",
-      title: "Reto relámpago",
+      title: "Campaña relámpago",
       description: "Solo 48 horas, para generar urgencia real — actívalo cuando quieras.",
-      name: "Reto relámpago",
+      name: "Campaña relámpago",
       type: "TEMP_COMMISSION_BOOST",
       durationDays: 2,
       newCommissionPercent: boostedFlash,
@@ -75,9 +75,9 @@ export function buildChallengeTemplates(defaultCommissionPercent: number, now = 
 /// que si algún día cambian los montos, el texto sigue siendo cierto.
 function explainTemplate(t: ChallengeTemplate, defaultCommissionPercent: number, durationDays: number): string {
   if (t.type === "GOAL_BONUS") {
-    return `Si un creador vende ${formatCOP(t.goalAmount!)} en total con su código durante los ${durationDays} días del reto, gana ${formatCOP(t.bonusAmount!)} de bono — adicional a su comisión normal por esas mismas ventas. Aplica a cada creador que llegue a la meta, no solo al primero.`;
+    return `Si un creador vende ${formatCOP(t.goalAmount!)} en total con su código durante los ${durationDays} días de la campaña, gana ${formatCOP(t.bonusAmount!)} de bono — adicional a su comisión normal por esas mismas ventas. Aplica a cada creador que llegue a la meta, no solo al primero.`;
   }
-  return `Durante los ${durationDays} días del reto, la comisión de TODOS tus creadores vinculados a esta oferta sube de ${defaultCommissionPercent}% a ${t.newCommissionPercent}% — sin excepción, mientras dure.`;
+  return `Durante los ${durationDays} días de la campaña, la comisión de TODOS tus creadores vinculados a esta oferta sube de ${defaultCommissionPercent}% a ${t.newCommissionPercent}% — sin excepción, mientras dure.`;
 }
 
 function formatDateRange(startISO: string, endISO: string) {
@@ -98,7 +98,7 @@ export function ChallengeTemplates({
     <div className="mb-10">
       <h2 className="font-display font-semibold text-brand-ink mb-1">Plantillas listas para usar</h2>
       <p className="text-sm text-brand-ink-soft mb-4">
-        Elige una, revisa las fechas y montos, y actívala — o ajústalos a tu gusto antes de crear el reto.
+        Elige una, revisa las fechas y montos, y actívala — o ajústalos a tu gusto antes de crear la campaña.
       </p>
       <div className="grid sm:grid-cols-2 gap-4">
         {templates.map((t) => {

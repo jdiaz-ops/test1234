@@ -11,7 +11,7 @@ const items = [
   { href: "/marca", label: "Dashboard", exact: true },
   { href: "/marca/ofertas", label: "Oferta y comisión" },
   { href: "/marca/productos", label: "Productos" },
-  { href: "/marca/retos", label: "Retos" },
+  { href: "/marca/retos", label: "Campañas" },
   { href: "/marca/creadores", label: "Creadores vinculados" },
   { href: "/marca/transacciones", label: "Transacciones" },
   { href: "/marca/cuenta", label: "Cuenta" },

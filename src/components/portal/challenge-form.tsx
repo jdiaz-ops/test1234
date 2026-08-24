@@ -14,7 +14,7 @@ const typeLabel: Record<ChallengeType, string> = {
   TEMP_COMMISSION_BOOST: "Comisión temporal elevada (para todos los creadores)",
   LEADERBOARD: "Leaderboard con premio al Top N",
   WELCOME_BONUS: "Bono de bienvenida (primeros N cupos)",
-  CONTENT_CHALLENGE: "Reto de contenido (revisión manual)",
+  CONTENT_CHALLENGE: "Campaña de contenido (revisión manual)",
 };
 
 const typeHint: Record<ChallengeType, string> = {
@@ -94,7 +94,7 @@ export function ChallengeForm({
 
     if (!res.ok) {
       const body = await res.json();
-      setError(body.error ?? "No se pudo crear el reto.");
+      setError(body.error ?? "No se pudo crear la campaña.");
       return;
     }
 
@@ -116,12 +116,12 @@ export function ChallengeForm({
       </div>
 
       <div>
-        <label className="block text-sm text-brand-ink mb-1">Nombre del reto</label>
-        <input required value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="Reto de verano" />
+        <label className="block text-sm text-brand-ink mb-1">Nombre de la campaña</label>
+        <input required value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="Campaña de verano" />
       </div>
 
       <div>
-        <label className="block text-sm text-brand-ink mb-1">Tipo de reto</label>
+        <label className="block text-sm text-brand-ink mb-1">Tipo de campaña</label>
         <select value={type} onChange={(e) => setType(e.target.value as ChallengeType)} className="input">
           {VISIBLE_CHALLENGE_TYPES.map((t) => (
             <option key={t} value={t}>
@@ -225,7 +225,7 @@ export function ChallengeForm({
           disabled={saving || !offerId}
           className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
         >
-          {saving ? "Creando..." : "Crear reto"}
+          {saving ? "Creando..." : "Crear campaña"}
         </button>
         <button type="button" onClick={onDone} className="text-sm text-brand-ink-soft hover:underline">
           Cancelar

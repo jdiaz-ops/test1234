@@ -9,7 +9,7 @@ const typeLabel: Record<ChallengeType, string> = {
   TEMP_COMMISSION_BOOST: "Comisión elevada temporal",
   LEADERBOARD: "Leaderboard",
   WELCOME_BONUS: "Bono de bienvenida",
-  CONTENT_CHALLENGE: "Reto de contenido",
+  CONTENT_CHALLENGE: "Campaña de contenido",
 };
 
 const rewardStatusLabel: Record<string, string> = {
@@ -92,7 +92,7 @@ function ContentSubmissionForm({ challengeId }: { challengeId: string }) {
 
 export function CreatorChallengesPanel({ activeChallenges }: { activeChallenges: ActiveChallenge[] }) {
   if (activeChallenges.length === 0) {
-    return <p className="text-sm text-brand-ink-soft">Ninguna de tus marcas tiene un reto activo ahora mismo.</p>;
+    return <p className="text-sm text-brand-ink-soft">Ninguna de tus marcas tiene una campaña activa ahora mismo.</p>;
   }
 
   return (

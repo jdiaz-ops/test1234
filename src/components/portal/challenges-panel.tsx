@@ -11,7 +11,7 @@ const typeLabel: Record<ChallengeType, string> = {
   TEMP_COMMISSION_BOOST: "Comisión temporal elevada (todos los creadores)",
   LEADERBOARD: "Leaderboard",
   WELCOME_BONUS: "Bono de bienvenida",
-  CONTENT_CHALLENGE: "Reto de contenido",
+  CONTENT_CHALLENGE: "Campaña de contenido",
 };
 
 const rewardStatusLabel: Record<string, string> = {
@@ -160,19 +160,19 @@ export function ChallengesPanel({
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display font-semibold text-brand-ink">Tus retos ({challenges.length})</h2>
+        <h2 className="font-display font-semibold text-brand-ink">Tus campañas ({challenges.length})</h2>
         {!creating && offers.length > 0 && (
           <button
             onClick={() => setCreating(true)}
             className="bg-brand-accent text-white text-sm font-medium rounded-full px-5 py-2 hover:opacity-90"
           >
-            Crear un nuevo reto desde cero
+            Crear una nueva campaña desde cero
           </button>
         )}
       </div>
 
       {offers.length === 0 && (
-        <p className="text-sm text-brand-ink-soft mb-6">Crea primero una oferta para poder lanzar retos sobre ella.</p>
+        <p className="text-sm text-brand-ink-soft mb-6">Crea primero una oferta para poder lanzar campañas sobre ella.</p>
       )}
 
       {creating && (
@@ -182,7 +182,7 @@ export function ChallengesPanel({
       )}
 
       {challenges.length === 0 ? (
-        <p className="text-sm text-brand-ink-soft">Todavía no has creado ningún reto.</p>
+        <p className="text-sm text-brand-ink-soft">Todavía no has creado ninguna campaña.</p>
       ) : (
         <div className="space-y-4">
           {challenges.map((c) => {

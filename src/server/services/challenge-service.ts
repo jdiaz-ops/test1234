@@ -62,7 +62,7 @@ export async function createChallenge(
 
 export async function endChallenge(brandId: string, challengeId: string) {
   const challenge = await prisma.challenge.findFirst({ where: { id: challengeId, offer: { brandId } } });
-  if (!challenge) throw new ChallengeError("Reto no encontrado.");
+  if (!challenge) throw new ChallengeError("Campaña no encontrada.");
   await prisma.challenge.update({ where: { id: challengeId }, data: { status: "ENDED" } });
   if (challenge.type === "LEADERBOARD") {
     await closeLeaderboardChallenge(challenge.id);
@@ -273,7 +273,7 @@ export async function submitContentChallenge(
   const challenge = await prisma.challenge.findFirst({
     where: { id: challengeId, type: "CONTENT_CHALLENGE", status: "ACTIVE" },
   });
-  if (!challenge) throw new ChallengeError("Reto no encontrado o ya no está activo.");
+  if (!challenge) throw new ChallengeError("Campaña no encontrada o ya no está activa.");
 
   const enrollment = await prisma.creatorOfferEnrollment.findFirst({
     where: { creatorId, offerId: challenge.offerId, status: "ACTIVE" },
@@ -283,7 +283,7 @@ export async function submitContentChallenge(
   const existing = await prisma.challengeReward.findUnique({
     where: { challengeId_creatorId: { challengeId, creatorId } },
   });
-  if (existing) throw new ChallengeError("Ya enviaste tu participación en este reto.");
+  if (existing) throw new ChallengeError("Ya enviaste tu participación en esta campaña.");
 
   const cfg = challenge.config as { instructions: string; bonusAmount: number };
 
@@ -473,7 +473,7 @@ export async function sendChallengeUrgencyReminders() {
         progressText =
           remaining > 0
             ? ` Te faltan ${formatCOP(remaining)} para la meta y ganar ${formatCOP(cfg.bonusAmount)}.`
-            : ` ¡Ya llegaste a la meta! Se confirma en cuanto termine el reto.`;
+            : ` ¡Ya llegaste a la meta! Se confirma en cuanto termine la campaña.`;
       }
 
       await createNotification(
