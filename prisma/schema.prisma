@@ -549,15 +549,23 @@ model Challenge {
   /// CONTENT_CHALLENGE -> { instructions, bonusAmount }
   config Json
 
-  /// Solo para TEMP_DISCOUNT_BOOST: a diferencia de la comisión (que se
-  /// calcula al vuelo, sin tocar nada externo), el descuento sí vive en la
-  /// tienda real de la marca — así que subirlo y devolverlo es una acción
-  /// con efecto externo que hay que recordar si ya se hizo o no. true =
-  /// el código de cada creador de esta oferta está ahora mismo con el
-  /// valor elevado en Shopify/WooCommerce; el cron diario (syncDiscountBoosts
-  /// en challenge-service.ts) lo prende al llegar startDate y lo apaga
-  /// (vuelve al % normal) al pasar endDate.
+  /// Solo relevante si FLASH_SALE/MIX trae el lado de descuento configurado:
+  /// a diferencia de la comisión (que se calcula al vuelo, sin tocar nada
+  /// externo), el descuento sí vive en la tienda real de la marca — así que
+  /// subirlo y devolverlo es una acción con efecto externo que hay que
+  /// recordar si ya se hizo o no. true = el código de cada creador de esta
+  /// oferta está ahora mismo con el valor elevado en Shopify/WooCommerce; el
+  /// cron diario (syncDiscountBoosts en challenge-service.ts) lo prende al
+  /// llegar startDate y lo apaga (vuelve al % normal) al pasar endDate.
   discountBoostActive Boolean @default(false)
+
+  /// No hay opt-in del creador para participar en una campaña (Juan,
+  /// 2026-08-24) — en cambio, se le avisa apenas arranca, para que pueda
+  /// adaptar su comunicación (subir su comisión, contar el descuento
+  /// especial, o ir por la meta de una Misión). true = ya se le mandó ese
+  /// aviso a todos los creadores vinculados a la oferta en ese momento; ver
+  /// notifyCreatorsCampaignStarted en challenge-service.ts.
+  startNotificationSent Boolean @default(false)
 
   rewards       ChallengeReward[]
   urgencyPings  ChallengeUrgencyPing[]

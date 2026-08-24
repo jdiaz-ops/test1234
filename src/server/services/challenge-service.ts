@@ -79,6 +79,15 @@ export async function createChallenge(
     await applyDiscountBoost(challenge);
   }
 
+  // No hay opt-in para participar en una campaña — en cambio, se avisa a
+  // todos los creadores vinculados a la oferta apenas arranca, para que
+  // puedan adaptar su comunicación (ver notifyCreatorsCampaignStarted). Si
+  // la campaña arranca en el futuro, esto lo cubre el cron diario
+  // (notifyStartedCampaigns) cuando llegue esa fecha.
+  if (data.startDate <= new Date()) {
+    await notifyCreatorsCampaignStarted(challenge);
+  }
+
   return challenge;
 }
 
@@ -94,6 +103,77 @@ export async function endChallenge(brandId: string, challengeId: string) {
   if ((challenge.type === "FLASH_SALE" || challenge.type === "MIX") && challenge.discountBoostActive) {
     await revertDiscountBoost(challenge);
   }
+}
+
+// ----------------------------------------------------------------------------
+// Aviso de campaña nueva — sin opt-in, se notifica a todos los creadores
+// vinculados a la oferta apenas la campaña queda activa (ver createChallenge
+// y notifyStartedCampaigns). Un solo aviso por campaña, no por creador que
+// se una después — un creador que se vincula a mitad de una campaña ya
+// activa la ve directamente en su panel de Campañas, no hace falta
+// avisarle aparte.
+// ----------------------------------------------------------------------------
+
+/// El texto varía según qué trae la campaña — una Misión habla de meta y
+/// bono, un Flash Sale de comisión y/o descuento, un Mix de lo que aplique
+/// de las dos. Mismo criterio que configSummary en challenges-panel.tsx del
+/// lado marca, pero en tono "esto es para ti" para el creador.
+function campaignStartedDetail(type: string, cfg: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (type === "GOAL_BONUS" || type === "MIX") {
+    parts.push(`Vende ${formatCOP(Number(cfg.goalAmount))} en el período y gana ${formatCOP(Number(cfg.bonusAmount))} de bono.`);
+  }
+  if (cfg.newCommissionPercent != null) parts.push(`Tu comisión sube a ${cfg.newCommissionPercent}%.`);
+  if (cfg.newDiscountPercent != null) parts.push(`El descuento de tu código sube a ${cfg.newDiscountPercent}%.`);
+  return parts.join(" ");
+}
+
+async function notifyCreatorsCampaignStarted(challenge: {
+  id: string;
+  offerId: string;
+  name: string;
+  type: string;
+  config: Prisma.JsonValue;
+  endDate: Date;
+}) {
+  const offer = await prisma.offer.findUniqueOrThrow({ where: { id: challenge.offerId }, include: { brand: true } });
+  const enrollments = await prisma.creatorOfferEnrollment.findMany({
+    where: { offerId: challenge.offerId, status: "ACTIVE" },
+    include: { creator: true },
+  });
+
+  const detalle = campaignStartedDetail(challenge.type, challenge.config as Record<string, unknown>);
+  const fecha = challenge.endDate.toLocaleDateString("es-CO");
+
+  for (const enrollment of enrollments) {
+    await createNotification(enrollment.creator.userId, "CAMPAIGN_STARTED", {
+      marca: offer.brand.companyName,
+      campana: challenge.name,
+      detalle,
+      fecha,
+    });
+  }
+
+  await prisma.challenge.update({ where: { id: challenge.id }, data: { startNotificationSent: true } });
+}
+
+/// Corre a diario junto con el resto de tareas del cron — avisa las
+/// campañas cuya fecha de inicio ya llegó y todavía no se notificó a nadie
+/// (la inmediata en createChallenge ya cubre el caso normal de "arranca
+/// hoy"; esto es para las programadas a futuro).
+export async function notifyStartedCampaigns() {
+  const toNotify = await prisma.challenge.findMany({
+    where: {
+      type: { in: ["GOAL_BONUS", "FLASH_SALE", "MIX"] },
+      status: "ACTIVE",
+      startNotificationSent: false,
+      startDate: { lte: new Date() },
+    },
+  });
+  for (const challenge of toNotify) {
+    await notifyCreatorsCampaignStarted(challenge);
+  }
+  return { notifiedCount: toNotify.length };
 }
 
 // ----------------------------------------------------------------------------

@@ -55,6 +55,14 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "insignia,descripcion",
   },
   {
+    key: "CAMPAIGN_STARTED",
+    label: "Nueva campaña activa",
+    audience: "CREATOR",
+    channelEmail: true,
+    messageTemplate: '¡Nueva campaña en {marca}: "{campana}"! {detalle} Termina el {fecha} — buen momento para avisarle a tu audiencia.',
+    placeholders: "marca,campana,detalle,fecha",
+  },
+  {
     key: "CHALLENGE_REWARD",
     label: "Premio de campaña ganado",
     audience: "CREATOR",
