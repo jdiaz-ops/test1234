@@ -582,6 +582,19 @@ export async function isBrandPaymentLocked(brandId: string) {
   });
 }
 
+/// El corte abierto de la marca, sin importar el nivel — el mismo criterio
+/// que usa chargeBrandForPeriod para saber si ya hay uno en curso. A
+/// diferencia de isBrandPaymentLocked, esto SÍ incluye Nivel 1 (PENDING,
+/// todavía sin vencer, panel sin bloquear) — se usa para mostrar el aviso
+/// de cobro con instrucciones de pago en el Dashboard y en Cuenta → Pago
+/// (ver ChargePaymentBox), no para bloquear nada.
+export async function getOpenBrandCharge(brandId: string) {
+  return prisma.brandCharge.findFirst({
+    where: { brandId, status: { in: ["PENDING", "PROOF_SUBMITTED", "OVERDUE", "DEACTIVATED"] } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 /// Pago del día 15: junta las comisiones APPROVED de un creador (ya pasó
 /// su hold de reembolsos) y todavía no se pagaron, en un Payout. El pago en
 /// sí ya NO es automático (nunca hubo credenciales reales de ePayco para

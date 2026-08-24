@@ -6,6 +6,9 @@ import {
   getTopCreatorsForBrand,
   countPendingApprovalsForBrand,
 } from "@/server/services/brand-finance-service";
+import { getOpenBrandCharge } from "@/server/services/payment-service";
+import { getPlatformConfig } from "@/server/services/admin-config-service";
+import { ChargePaymentBox } from "@/components/portal/charge-payment-box";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
@@ -27,11 +30,17 @@ export default async function MarcaDashboardPage() {
   const profile = await prisma.brandProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },
   });
-  const [summary, topCreators, pendingApprovals] = await Promise.all([
+  const [summary, topCreators, pendingApprovals, openCharge] = await Promise.all([
     getBrandDashboardSummary(profile.id),
     getTopCreatorsForBrand(profile.id, 3),
     countPendingApprovalsForBrand(profile.id),
+    // Nivel 2/3 (OVERDUE/DEACTIVATED) nunca llegan hasta acá — el layout ya
+    // los intercepta con la pantalla de bloqueo (ver marca/layout.tsx) — así
+    // que si hay algo aquí, es Nivel 1 (PENDING) o un comprobante recién
+    // subido en revisión (PROOF_SUBMITTED), y el panel sigue sin bloquear.
+    getOpenBrandCharge(profile.id),
   ]);
+  const platformConfig = openCharge ? await getPlatformConfig() : null;
 
   const totalCost = summary.commissionPaidToCreators + summary.platformFeePaid;
   const roi = totalCost > 0 ? summary.gmv / totalCost : null;
@@ -41,6 +50,26 @@ export default async function MarcaDashboardPage() {
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">DASHBOARD</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">{profile.companyName}</h1>
+
+      {openCharge && platformConfig && (
+        <div className="mb-6">
+          <ChargePaymentBox
+            charge={{
+              id: openCharge.id,
+              totalAmount: Number(openCharge.totalAmount),
+              dueAt: openCharge.dueAt.toISOString(),
+              deactivationDueAt: openCharge.deactivationDueAt?.toISOString() ?? null,
+              status: openCharge.status,
+              pdfUrl: openCharge.pdfUrl,
+              proofSubmittedAt: openCharge.proofSubmittedAt?.toISOString() ?? null,
+              proofRejectedAt: openCharge.proofRejectedAt?.toISOString() ?? null,
+              proofRejectedReason: openCharge.proofRejectedReason,
+            }}
+            paymentInstructions={platformConfig.paymentInstructions}
+            paymentQrImageUrl={platformConfig.paymentQrImageUrl}
+          />
+        </div>
+      )}
 
       {pendingApprovals > 0 && (
         <Link
