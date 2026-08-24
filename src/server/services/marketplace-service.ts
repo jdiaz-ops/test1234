@@ -3,6 +3,7 @@ import { provisionDiscountCodeForEnrollment } from "@/server/services/attributio
 import { awardWelcomeBonusIfEligible } from "@/server/services/challenge-service";
 import { normalizeDiscountCode } from "@/lib/creator-identity";
 import { createNotification } from "@/server/services/notification-service";
+import { isBrandServiceDeactivated } from "@/server/services/payment-service";
 
 export class MarketplaceError extends Error {}
 
@@ -121,6 +122,15 @@ export async function joinOffer(creatorId: string, offerId: string, desiredCode?
 
   if (!offer || offer.status !== "ACTIVE" || offer.brand.status !== "APPROVED") {
     throw new MarketplaceError("Esta oferta ya no está disponible.");
+  }
+  // Nivel 3: aunque listActiveOffers ya la saca del marketplace, esto es
+  // la barrera de verdad — sin esto, alguien con el offerId de memoria (un
+  // link viejo, o llamando la API directo) podía seguir uniéndose y, si la
+  // oferta es OPEN, provisionDiscountCodeForEnrollment le crearía un
+  // código nuevo y activo en la tienda real, sin pasar por
+  // setBrandDiscountCodesActive — justo lo que Nivel 3 existe para evitar.
+  if (await isBrandServiceDeactivated(offer.brandId)) {
+    throw new MarketplaceError("Esta marca está temporalmente no disponible.");
   }
 
   // offerId_creatorId es único — un creador que se retiró (ver leaveOffer)
