@@ -65,6 +65,9 @@ const challengeConfigSchema = z.discriminatedUnion("type", [
     type: z.literal("CONTENT_CHALLENGE"),
     instructions: z.string().min(5, "Describe qué debe hacer el creador"),
     bonusAmount: money,
+    kitItems: z.array(z.string().min(1)).max(20).optional().default([]),
+    requirements: z.array(z.string().min(1)).max(20).optional().default([]),
+    deliverables: z.array(z.string().min(1)).max(20).optional().default([]),
   }),
 ]);
 

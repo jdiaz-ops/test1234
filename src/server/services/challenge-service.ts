@@ -35,7 +35,20 @@ type ChallengeConfig =
   | { type: "TEMP_COMMISSION_BOOST"; newCommissionPercent: number }
   | { type: "LEADERBOARD"; winnersCount: number; prizes: number[] }
   | { type: "WELCOME_BONUS"; slotsCount: number; bonusPerSlot: number }
-  | { type: "CONTENT_CHALLENGE"; instructions: string; bonusAmount: number };
+  | {
+      type: "CONTENT_CHALLENGE";
+      instructions: string;
+      bonusAmount: number;
+      /// Brief estructurado — opcional, para no romper retos ya creados
+      /// antes de que existieran estos campos. `kitItems` es lo que manda
+      /// la marca (o ya tiene acordado enviar); `requirements` es cómo debe
+      /// ser el contenido; `deliverables` es qué tiene que hacer el
+      /// creador aparte de publicar (etiquetar, mantenerlo activo, etc).
+      /// La fecha límite ya la cubre `endDate` del reto — no se repite acá.
+      kitItems?: string[];
+      requirements?: string[];
+      deliverables?: string[];
+    };
 
 export async function createChallenge(
   brandId: string,

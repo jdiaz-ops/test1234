@@ -56,9 +56,21 @@ export function ChallengeForm({
   const [prizes, setPrizes] = useState("");
   const [slotsCount, setSlotsCount] = useState("");
   const [bonusPerSlot, setBonusPerSlot] = useState("");
-  const [instructions, setInstructions] = useState("");
+  const [instructions, setInstructions] = useState(template?.instructions ?? "");
+  const [kitItems, setKitItems] = useState((template?.kitItems ?? []).join("\n"));
+  const [requirements, setRequirements] = useState((template?.requirements ?? []).join("\n"));
+  const [deliverables, setDeliverables] = useState((template?.deliverables ?? []).join("\n"));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Un ítem por línea — la marca escribe una cosa a la vez, sin comas ni
+  // formato especial. Líneas vacías se descartan.
+  function linesToList(value: string): string[] {
+    return value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
 
   function buildConfig(): Record<string, unknown> {
     switch (type) {
@@ -75,7 +87,14 @@ export function ChallengeForm({
       case "WELCOME_BONUS":
         return { type, slotsCount: Number(slotsCount), bonusPerSlot: Number(bonusPerSlot) };
       case "CONTENT_CHALLENGE":
-        return { type, instructions, bonusAmount: Number(bonusAmount) };
+        return {
+          type,
+          instructions,
+          bonusAmount: Number(bonusAmount),
+          kitItems: linesToList(kitItems),
+          requirements: linesToList(requirements),
+          deliverables: linesToList(deliverables),
+        };
     }
   }
 
@@ -210,9 +229,49 @@ export function ChallengeForm({
               placeholder="Publica un reel usando tu código y mándanos el link"
             />
           </div>
+
           <div>
-            <label className="block text-sm text-brand-ink mb-1">Bono</label>
-            <CurrencyInput value={bonusAmount} onChange={setBonusAmount} placeholder="150.000" />
+            <label className="block text-sm text-brand-ink mb-1">Kit que envías (opcional)</label>
+            <textarea
+              value={kitItems}
+              onChange={(e) => setKitItems(e.target.value)}
+              className="input"
+              rows={2}
+              placeholder={"Un producto por línea, ej:\n3 Rubber Base (tono a elección)\n1 Top Coat Crystal"}
+            />
+            <p className="text-xs text-brand-ink-soft mt-1">Se lo mostramos al creador cuando confirme su dirección de envío.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm text-brand-ink mb-1">Requisitos del contenido</label>
+              <textarea
+                value={requirements}
+                onChange={(e) => setRequirements(e.target.value)}
+                className="input"
+                rows={3}
+                placeholder={"Uno por línea, ej:\n1 Reel o TikTok (mín. 30 seg)\nMostrar antes y después\nMencionar la durabilidad"}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-brand-ink mb-1">Entregables</label>
+              <textarea
+                value={deliverables}
+                onChange={(e) => setDeliverables(e.target.value)}
+                className="input"
+                rows={3}
+                placeholder={"Uno por línea, ej:\nEtiquetar a tu marca\nMantenerlo publicado 30 días"}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">Bono por participación aprobada</label>
+            <CurrencyInput value={bonusAmount} onChange={setBonusAmount} placeholder="80.000" />
+            <p className="text-xs text-brand-ink-soft mt-1">
+              Aparte de esto, si el creador vende con su código durante el reto, gana su comisión normal como
+              cualquier venta.
+            </p>
           </div>
         </div>
       )}

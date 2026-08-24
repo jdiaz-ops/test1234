@@ -24,6 +24,29 @@ function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amount);
 }
 
+/// Retos creados antes de que existiera el brief estructurado no tienen
+/// estos campos en su config — siempre se lee como lista vacía, nunca como
+/// error.
+function asList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(String) : [];
+}
+
+function ChecklistBlock({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div className="mt-2">
+      <p className="text-xs font-medium text-brand-ink">{label}</p>
+      <ul className="mt-1 space-y-0.5">
+        {items.map((item, i) => (
+          <li key={i} className="text-xs text-brand-ink-soft flex gap-1.5">
+            <span className="text-brand-accent">·</span>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 interface ActiveChallenge {
   challenge: {
     id: string;
@@ -142,7 +165,18 @@ export function CreatorChallengesPanel({ activeChallenges }: { activeChallenges:
           {challenge.type === "CONTENT_CHALLENGE" && (
             <div>
               <p className="text-sm text-brand-ink-soft">{String(challenge.config.instructions)}</p>
-              <p className="text-xs font-mono text-brand-ink-soft mt-1">Bono: {formatCOP(Number(challenge.config.bonusAmount))}</p>
+
+              {asList(challenge.config.kitItems).length > 0 && (
+                <ChecklistBlock label="Kit que te envían" items={asList(challenge.config.kitItems)} />
+              )}
+              {asList(challenge.config.requirements).length > 0 && (
+                <ChecklistBlock label="Requisitos del contenido" items={asList(challenge.config.requirements)} />
+              )}
+              {asList(challenge.config.deliverables).length > 0 && (
+                <ChecklistBlock label="Entregables" items={asList(challenge.config.deliverables)} />
+              )}
+
+              <p className="text-xs font-mono text-brand-ink-soft mt-2">Bono: {formatCOP(Number(challenge.config.bonusAmount))}</p>
               {!myReward && <ContentSubmissionForm challengeId={challenge.id} />}
             </div>
           )}

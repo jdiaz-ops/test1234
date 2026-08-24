@@ -66,6 +66,20 @@ export function buildChallengeTemplates(defaultCommissionPercent: number, now = 
       durationDays: 2,
       newCommissionPercent: boostedFlash,
     },
+    {
+      key: "pr-gifting",
+      title: "Envío de producto (PR)",
+      description:
+        "Mándales un kit a un grupo de creadoras a cambio de contenido puntual — no es un envío suelto, queda atado al mismo código con el que también ganan su comisión si venden.",
+      name: "Campaña de producto nuevo",
+      type: "CONTENT_CHALLENGE",
+      durationDays: 15,
+      instructions: "Publica un Reel o TikTok mostrando el producto en uso y mándanos el link.",
+      bonusAmount: 80000,
+      kitItems: ["Producto principal (tono o variante a elección)", "1 producto complementario"],
+      requirements: ["1 Reel o TikTok (mín. 30 seg)", "Mostrar antes y después", "Mencionar el beneficio principal"],
+      deliverables: ["Etiquetar a tu marca", "Mantenerlo publicado 30 días"],
+    },
   ];
 }
 
@@ -76,6 +90,9 @@ export function buildChallengeTemplates(defaultCommissionPercent: number, now = 
 function explainTemplate(t: ChallengeTemplate, defaultCommissionPercent: number, durationDays: number): string {
   if (t.type === "GOAL_BONUS") {
     return `Si un creador vende ${formatCOP(t.goalAmount!)} en total con su código durante los ${durationDays} días del reto, gana ${formatCOP(t.bonusAmount!)} de bono — adicional a su comisión normal por esas mismas ventas. Aplica a cada creador que llegue a la meta, no solo al primero.`;
+  }
+  if (t.type === "CONTENT_CHALLENGE") {
+    return `Eliges a quién invitar, le mandas el kit y el brief. Si aprobás su contenido dentro de los ${durationDays} días, gana ${formatCOP(t.bonusAmount!)} de bono — y si además vende con su código, esa venta paga su comisión normal aparte.`;
   }
   return `Durante los ${durationDays} días del reto, la comisión de TODOS tus creadores vinculados a esta oferta sube de ${defaultCommissionPercent}% a ${t.newCommissionPercent}% — sin excepción, mientras dure.`;
 }
@@ -114,13 +131,21 @@ export function ChallengeTemplates({
               <p className="text-xs text-brand-ink-soft mb-3">{t.description}</p>
 
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono text-brand-ink-soft mb-3">
-                {t.type === "GOAL_BONUS" ? (
+                {t.type === "GOAL_BONUS" && (
                   <>
                     <span>Meta {formatCOP(t.goalAmount!)}</span>
                     <span>·</span>
                     <span>Bono {formatCOP(t.bonusAmount!)}</span>
                   </>
-                ) : (
+                )}
+                {t.type === "CONTENT_CHALLENGE" && (
+                  <>
+                    <span>Bono {formatCOP(t.bonusAmount!)}</span>
+                    <span>·</span>
+                    <span>{(t.kitItems ?? []).length} ítem(s) de kit</span>
+                  </>
+                )}
+                {t.type === "TEMP_COMMISSION_BOOST" && (
                   <span>
                     Comisión {defaultCommissionPercent}% → {t.newCommissionPercent}%
                   </span>
