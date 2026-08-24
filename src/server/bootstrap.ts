@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { NOTIFICATION_TYPE_DEFAULTS } from "@/server/notification-types";
 
 /// Datos base que la plataforma necesita para arrancar: configuración
 /// global, el vertical de lanzamiento "Uñas" con sus categorías, la cuenta
@@ -167,6 +168,25 @@ export async function seedPlatform(prisma: PrismaClient) {
       body: "Contenido pendiente — edítalo desde el Panel Admin (Configuración > Contenido legal).",
     },
   });
+
+  // Catálogo de tipos de notificación (Admin → Notificaciones →
+  // Configuración) — `update: {}` a propósito: si el admin ya editó un
+  // tipo (texto, canal, automático/manual), volver a sembrar nunca se lo
+  // pisa. Solo crea las filas que todavía no existen.
+  for (const def of NOTIFICATION_TYPE_DEFAULTS) {
+    await prisma.notificationTypeConfig.upsert({
+      where: { key: def.key },
+      update: {},
+      create: {
+        key: def.key,
+        label: def.label,
+        audience: def.audience,
+        channelEmail: def.channelEmail ?? false,
+        messageTemplate: def.messageTemplate,
+        placeholders: def.placeholders,
+      },
+    });
+  }
 
   return {
     adminEmail,

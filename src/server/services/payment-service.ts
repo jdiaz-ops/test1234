@@ -112,14 +112,15 @@ export async function chargeBrandForPeriod(brandId: string) {
   await createNotification(
     brand.userId,
     "BRAND_CHARGE",
-    `Nuevo corte: debes ${formatCOP(totalAmount)} (comisiones, tarifa y premios de retos). Fecha límite: ${dueAtLabel}`
+    { monto: formatCOP(totalAmount), fecha: dueAtLabel },
+    () =>
+      sendBrandChargeEmail(brand.user.email, {
+        companyName: brand.companyName,
+        totalAmount: formatCOP(totalAmount),
+        dueAt: dueAtLabel,
+        paymentInstructions: config.paymentInstructions,
+      })
   );
-  await sendBrandChargeEmail(brand.user.email, {
-    companyName: brand.companyName,
-    totalAmount: formatCOP(totalAmount),
-    dueAt: dueAtLabel,
-    paymentInstructions: config.paymentInstructions,
-  });
 
   return { charge, totalAmount, commissionCount: itemCount, status: "PENDING" as const };
 }
@@ -151,14 +152,29 @@ export async function runBrandCharges() {
 /// puede subir incluso si el corte ya venció (OVERDUE) — un pago tarde
 /// sigue destrabando la marca apenas se verifique.
 export async function submitPaymentProof(brandId: string, chargeId: string, proofUrl: string) {
-  const charge = await prisma.brandCharge.findFirst({ where: { id: chargeId, brandId } });
+  const charge = await prisma.brandCharge.findFirst({ where: { id: chargeId, brandId }, include: { brand: true } });
   if (!charge) throw new PaymentError("No se encontró ese corte.");
   if (charge.status === "PAID") throw new PaymentError("Este corte ya está pagado.");
 
-  return prisma.brandCharge.update({
+  const updated = await prisma.brandCharge.update({
     where: { id: chargeId },
     data: { status: "PROOF_SUBMITTED", proofUrl, proofSubmittedAt: new Date(), proofRejectedAt: null, proofRejectedReason: null },
   });
+
+  const admins = await prisma.user.findMany({
+    where: { role: "ADMIN", adminRole: { in: ["OWNER", "FINANCE"] } },
+    select: { id: true },
+  });
+  await Promise.all(
+    admins.map((admin) =>
+      createNotification(admin.id, "BRAND_PROOF_SUBMITTED_ADMIN", {
+        marca: charge.brand.companyName,
+        monto: formatCOP(Number(charge.totalAmount)),
+      })
+    )
+  );
+
+  return updated;
 }
 
 /// El admin confirma que el comprobante corresponde al pago — reactiva a
@@ -175,8 +191,9 @@ export async function verifyBrandPayment(chargeId: string, adminUserId: string) 
     data: { status: "PAID", paidAt: new Date(), verifiedByUserId: adminUserId },
   });
 
-  await createNotification(charge.brand.userId, "BRAND_PAYMENT_VERIFIED", "Verificamos tu pago — tu marca está activa de nuevo.");
-  await sendBrandPaymentVerifiedEmail(charge.brand.user.email, charge.brand.companyName);
+  await createNotification(charge.brand.userId, "BRAND_PAYMENT_VERIFIED", {}, () =>
+    sendBrandPaymentVerifiedEmail(charge.brand.user.email, charge.brand.companyName)
+  );
 }
 
 /// El admin rechaza el comprobante (no corresponde, monto distinto, etc.)
@@ -195,11 +212,7 @@ export async function rejectPaymentProof(chargeId: string, adminUserId: string, 
     data: { status, proofRejectedAt: new Date(), proofRejectedReason: reason },
   });
 
-  await createNotification(
-    charge.brand.userId,
-    "BRAND_PAYMENT_REJECTED",
-    `Tu comprobante no se pudo verificar: ${reason}. Sube uno nuevo desde Cuenta → Pago.`
-  );
+  await createNotification(charge.brand.userId, "BRAND_PAYMENT_REJECTED", { razon: reason });
   void adminUserId; // no se guarda por ahora — el registro relevante es el de la marca notificada
 }
 
@@ -237,14 +250,15 @@ export async function sendUpcomingDueReminders() {
     await createNotification(
       charge.brand.userId,
       "BRAND_CHARGE_REMINDER",
-      `Te quedan ${hoursLabel} para pagar tu corte de ${totalAmount} — vence ${dueAtLabel}`
+      { horas: hoursLabel, monto: totalAmount, fecha: dueAtLabel },
+      () =>
+        sendBrandChargeReminderEmail(charge.brand.user.email, {
+          companyName: charge.brand.companyName,
+          totalAmount,
+          dueAt: dueAtLabel,
+          hoursLabel,
+        })
     );
-    await sendBrandChargeReminderEmail(charge.brand.user.email, {
-      companyName: charge.brand.companyName,
-      totalAmount,
-      dueAt: dueAtLabel,
-      hoursLabel,
-    });
 
     await prisma.brandCharge.update({
       where: { id: charge.id },
@@ -267,11 +281,7 @@ export async function markOverdueCharges() {
 
   for (const charge of overdue) {
     await prisma.brandCharge.update({ where: { id: charge.id }, data: { status: "OVERDUE" } });
-    await createNotification(
-      charge.brand.userId,
-      "BRAND_LOCKED",
-      "Tu marca quedó oculta del marketplace por falta de pago verificado — sube tu comprobante en Cuenta → Pago para reactivarla."
-    );
+    await createNotification(charge.brand.userId, "BRAND_LOCKED", {});
   }
 
   return { lockedCount: overdue.length };
@@ -324,11 +334,7 @@ export async function createTestOverdueCharge(brandId: string) {
     console.error(`[pagos] no se pudo generar el aviso de cobro de prueba de ${brand.companyName}:`, err);
   }
 
-  await createNotification(
-    brand.userId,
-    "BRAND_LOCKED",
-    "[Prueba] Tu marca quedó oculta del marketplace por falta de pago verificado — sube tu comprobante en Cuenta → Pago para reactivarla."
-  );
+  await createNotification(brand.userId, "BRAND_LOCKED", {});
 
   return charge;
 }
@@ -436,11 +442,7 @@ export async function payoutCreator(creatorId: string) {
     }),
   ]);
 
-  await createNotification(
-    creator.userId,
-    "PAYOUT_PENDING",
-    `Tienes ${formatCOP(totalAmount)} en camino — lo transferimos manualmente en los próximos días.`
-  );
+  await createNotification(creator.userId, "PAYOUT_PENDING", { monto: formatCOP(totalAmount) });
 
   return { payout, totalAmount, commissionCount: itemCount, status: "PENDING" as const };
 }
@@ -459,11 +461,7 @@ export async function markPayoutPaid(payoutId: string) {
     prisma.challengeReward.updateMany({ where: { payoutId }, data: { status: "PAID" } }),
   ]);
 
-  await createNotification(
-    payout.creator.userId,
-    "PAYOUT_PAID",
-    `Te pagamos ${formatCOP(Number(payout.totalAmount))} — ya deberían verse en tu cuenta.`
-  );
+  await createNotification(payout.creator.userId, "PAYOUT_PAID", { monto: formatCOP(Number(payout.totalAmount)) });
 }
 
 /// Los pagos que el admin todavía tiene que transferir a mano — para la
@@ -566,11 +564,10 @@ export async function requestInstantPayout(creatorId: string) {
       }),
     ]);
 
-    await createNotification(
-      creator.userId,
-      "INSTANT_PAYOUT_PAID",
-      `Pago anticipado procesado: ${formatCOP(netAmount)} (se descontó ${formatCOP(feeAmount)} de fee por adelanto).`
-    );
+    await createNotification(creator.userId, "INSTANT_PAYOUT_PAID", {
+      neto: formatCOP(netAmount),
+      fee: formatCOP(feeAmount),
+    });
 
     void transactionRef; // referencia ya guardada implícitamente en el log del cliente ePayco
     return { request, amountRequested, feeAmount, netAmount, status: "PROCESSED" as const };

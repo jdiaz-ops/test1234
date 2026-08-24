@@ -167,6 +167,14 @@ export async function sendOnboardingReminderEmail(
   );
 }
 
+/// Correo genérico para los tipos de notificación (ver notification-service.ts
+/// + Admin → Notificaciones → Configuración) que tienen el canal "Correo"
+/// activado pero no tienen una plantilla de correo con diseño propio — usa
+/// el mismo texto que ya se ve en la notificación dentro de la app.
+export async function sendGenericNotificationEmail(to: string, message: string) {
+  await send(to, "Marcolini", `<p>${message}</p>`);
+}
+
 /// Comunicado del admin a todas las marcas o a todos los creadores — el
 /// cuerpo ya viene armado (texto simple, se envuelve en párrafos).
 export async function sendBroadcastEmail(to: string, subject: string, body: string) {

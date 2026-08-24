@@ -7,6 +7,7 @@ import {
   generateUniqueStorefrontSlug,
 } from "@/lib/creator-identity";
 import { createReferralFromCode } from "@/server/services/referral-service";
+import { createNotification } from "@/server/services/notification-service";
 
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 
@@ -104,6 +105,14 @@ export async function registerBrand(input: {
     },
     include: { brandProfile: true },
   });
+
+  const admins = await prisma.user.findMany({
+    where: { role: "ADMIN", adminRole: { in: ["OWNER", "BRAND_APPROVER"] } },
+    select: { id: true },
+  });
+  await Promise.all(
+    admins.map((admin) => createNotification(admin.id, "BRAND_PENDING_ADMIN", { marca: input.companyName }))
+  );
 
   await sendVerificationForUser(user.email);
 

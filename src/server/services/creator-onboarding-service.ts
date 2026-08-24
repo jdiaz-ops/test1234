@@ -107,16 +107,15 @@ async function processReminderRound(
 
     await createNotification(
       profile.userId,
-      "ONBOARDING_REMINDER",
-      round === 1
-        ? `Te faltan algunos pasos para completar tu perfil de creador — no es obligatorio, pero ayuda a que las marcas confíen más rápido.`
-        : `Todavía te falta terminar tu perfil de creador (${missingLabels.join(", ")}) — cuando quieras, está en "Empieza aquí".`
+      round === 1 ? "ONBOARDING_REMINDER_1" : "ONBOARDING_REMINDER_2",
+      { faltantes: missingLabels.join(", ") },
+      () =>
+        sendOnboardingReminderEmail(profile.user.email, {
+          displayName: profile.displayName,
+          missingLabels,
+          round,
+        })
     );
-    await sendOnboardingReminderEmail(profile.user.email, {
-      displayName: profile.displayName,
-      missingLabels,
-      round,
-    });
 
     await prisma.creatorProfile.update({ where: { id: profile.id }, data: { [field]: now } });
     sentCount++;

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { provisionDiscountCodeForEnrollment } from "@/server/services/attribution-service";
 import { awardWelcomeBonusIfEligible } from "@/server/services/challenge-service";
+import { createNotification } from "@/server/services/notification-service";
 
 export class EnrollmentManagementError extends Error {}
 
@@ -45,18 +46,27 @@ export async function approveEnrollment(brandId: string, enrollmentId: string) {
   const enrollment = await prisma.creatorOfferEnrollment.update({
     where: { id: enrollmentId },
     data: { status: "ACTIVE" },
+    include: { creator: true, offer: { include: { brand: true } } },
   });
   await provisionDiscountCodeForEnrollment(enrollment.id);
   await awardWelcomeBonusIfEligible(enrollment.offerId, enrollment.creatorId);
+  await createNotification(enrollment.creator.userId, "ENROLLMENT_APPROVED_CREATOR", {
+    marca: enrollment.offer.brand.companyName,
+  });
   return enrollment;
 }
 
 export async function rejectEnrollment(brandId: string, enrollmentId: string) {
   await assertBelongsToBrand(enrollmentId, brandId);
-  return prisma.creatorOfferEnrollment.update({
+  const enrollment = await prisma.creatorOfferEnrollment.update({
     where: { id: enrollmentId },
     data: { status: "REJECTED" },
+    include: { creator: true, offer: { include: { brand: true } } },
   });
+  await createNotification(enrollment.creator.userId, "ENROLLMENT_REJECTED_CREATOR", {
+    marca: enrollment.offer.brand.companyName,
+  });
+  return enrollment;
 }
 
 export async function setEnrollmentOverrides(

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendAccountInvite } from "@/server/services/auth-service";
+import { createNotification } from "@/server/services/notification-service";
 
 export class AdminBrandError extends Error {}
 
@@ -61,13 +62,7 @@ export async function approveBrand(brandId: string) {
     where: { id: brandId },
     data: { status: "APPROVED", approvedAt: new Date() },
   });
-  await prisma.notification.create({
-    data: {
-      userId: brand.userId,
-      type: "brand_approved",
-      message: "¡Tu marca fue aprobada! Ya apareces activa en el marketplace.",
-    },
-  });
+  await createNotification(brand.userId, "BRAND_APPROVED", {});
   return brand;
 }
 
@@ -76,13 +71,7 @@ export async function rejectBrand(brandId: string) {
     where: { id: brandId },
     data: { status: "REJECTED" },
   });
-  await prisma.notification.create({
-    data: {
-      userId: brand.userId,
-      type: "brand_rejected",
-      message: "Tu marca no fue aprobada esta vez.",
-    },
-  });
+  await createNotification(brand.userId, "BRAND_REJECTED", {});
   return brand;
 }
 

@@ -55,11 +55,10 @@ export async function checkReferralQualification(creatorId: string) {
     include: { referrer: true },
   });
 
-  await createNotification(
-    updated.referrer.userId,
-    "REFERRAL_QUALIFIED",
-    `¡${referral.referred.displayName} hizo su primera venta! Ganaste ${formatCOP(Number(updated.bonusAmount))} por invitarlo — te lo transferimos junto a tu próximo pago.`
-  );
+  await createNotification(updated.referrer.userId, "REFERRAL_QUALIFIED", {
+    referido: referral.referred.displayName,
+    monto: formatCOP(Number(updated.bonusAmount)),
+  });
 
   const admins = await prisma.user.findMany({
     where: { role: "ADMIN", adminRole: { in: ["OWNER", "FINANCE"] } },
@@ -67,11 +66,11 @@ export async function checkReferralQualification(creatorId: string) {
   });
   await Promise.all(
     admins.map((admin) =>
-      createNotification(
-        admin.id,
-        "REFERRAL_ADMIN",
-        `Bono de referido por pagar: ${updated.referrer.displayName} invitó a ${referral.referred.displayName} — ${formatCOP(Number(updated.bonusAmount))}.`
-      )
+      createNotification(admin.id, "REFERRAL_ADMIN", {
+        referidor: updated.referrer.displayName,
+        referido: referral.referred.displayName,
+        monto: formatCOP(Number(updated.bonusAmount)),
+      })
     )
   );
 }

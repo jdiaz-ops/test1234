@@ -77,12 +77,17 @@ export async function evaluateCreatorBadges() {
       if (!def) continue;
 
       await prisma.creatorBadge.create({ data: { creatorId: profile.id, badgeKey: key } });
-      await createNotification(profile.userId, "BADGE_EARNED", `¡Nueva insignia! ${def.label} — ${def.description}`);
-      await sendBadgeEarnedEmail(profile.user.email, {
-        displayName: profile.displayName,
-        label: def.label,
-        description: def.description,
-      });
+      await createNotification(
+        profile.userId,
+        "BADGE_EARNED",
+        { insignia: def.label, descripcion: def.description },
+        () =>
+          sendBadgeEarnedEmail(profile.user.email, {
+            displayName: profile.displayName,
+            label: def.label,
+            description: def.description,
+          })
+      );
       awardedCount++;
     }
   }

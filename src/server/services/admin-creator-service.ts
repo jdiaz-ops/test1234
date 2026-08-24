@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendAccountInvite } from "@/server/services/auth-service";
 import { generateUniqueBaseCode, generateUniqueStorefrontSlug } from "@/lib/creator-identity";
+import { createNotification } from "@/server/services/notification-service";
 
 export class AdminCreatorError extends Error {}
 
@@ -91,14 +92,6 @@ export async function setCreatorSuspended(creatorId: string, suspended: boolean)
     where: { id: creatorId },
     data: { suspended },
   });
-  await prisma.notification.create({
-    data: {
-      userId: creator.userId,
-      type: suspended ? "account_suspended" : "account_reactivated",
-      message: suspended
-        ? "Tu cuenta fue suspendida. Contáctanos si crees que es un error."
-        : "Tu cuenta fue reactivada.",
-    },
-  });
+  await createNotification(creator.userId, suspended ? "ACCOUNT_SUSPENDED" : "ACCOUNT_REACTIVATED", {});
   return creator;
 }

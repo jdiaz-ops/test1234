@@ -17,7 +17,8 @@ const items = [
   { href: "/admin/configuracion", label: "Configuración" },
   { href: "/admin/equipo", label: "Equipo" },
   { href: "/admin/comunicados", label: "Comunicados" },
-  { href: "/admin/notificaciones", label: "Notificaciones" },
+  { href: "/admin/notificaciones", label: "Notificaciones", exact: true },
+  { href: "/admin/notificaciones/configuracion", label: "Config. notificaciones" },
   { href: "/admin/cuenta", label: "Cuenta" },
 ];
 

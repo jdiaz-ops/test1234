@@ -97,18 +97,17 @@ export async function sendMessage(params: { enrollmentId: string; senderUserId: 
   });
 
   const isFromCreator = enrollment.creator.userId === params.senderUserId;
+  const preview = params.body.slice(0, 80);
   if (isFromCreator) {
-    await createNotification(
-      enrollment.offer.brand.userId,
-      "NEW_MESSAGE",
-      `${enrollment.creator.displayName} te escribió: "${params.body.slice(0, 80)}"`
-    );
+    await createNotification(enrollment.offer.brand.userId, "NEW_MESSAGE_BRAND", {
+      creador: enrollment.creator.displayName,
+      mensaje: preview,
+    });
   } else {
-    await createNotification(
-      enrollment.creator.userId,
-      "NEW_MESSAGE",
-      `${enrollment.offer.brand.companyName} te escribió: "${params.body.slice(0, 80)}"`
-    );
+    await createNotification(enrollment.creator.userId, "NEW_MESSAGE_CREATOR", {
+      marca: enrollment.offer.brand.companyName,
+      mensaje: preview,
+    });
   }
 
   return message;

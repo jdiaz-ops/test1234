@@ -100,11 +100,10 @@ async function grantReward(
   });
 
   const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: creatorId } });
-  await createNotification(
-    creator.userId,
-    "CHALLENGE_REWARD",
-    `¡Ganaste ${formatCOP(amount)} en un reto! ${skipHold ? "Ya está aprobado para tu próximo pago." : "Queda en espera por reembolsos, como cualquier venta."}`
-  );
+  await createNotification(creator.userId, "CHALLENGE_REWARD", {
+    monto: formatCOP(amount),
+    detalle: skipHold ? "Ya está aprobado para tu próximo pago." : "Queda en espera por reembolsos, como cualquier venta.",
+  });
 
   return reward;
 }
@@ -313,10 +312,13 @@ export async function reviewContentSubmission(
   if (!reward) throw new ChallengeError("Participación no encontrada.");
 
   if (decision === "REJECT") {
-    return prisma.challengeReward.update({
+    const rejected = await prisma.challengeReward.update({
       where: { id: reward.id },
       data: { status: "REJECTED", reviewedAt: new Date(), reviewedById: brandUserId },
     });
+    const rejectedCreator = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: reward.creatorId } });
+    await createNotification(rejectedCreator.userId, "CHALLENGE_CONTENT_REJECTED", { reto: reward.challenge.name });
+    return rejected;
   }
 
   const config = await prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } });
@@ -331,11 +333,10 @@ export async function reviewContentSubmission(
   });
 
   const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: reward.creatorId } });
-  await createNotification(
-    creator.userId,
-    "CHALLENGE_REWARD_APPROVED",
-    `Tu participación en "${reward.challenge.name}" fue aprobada — ${formatCOP(Number(reward.amount))} en camino.`
-  );
+  await createNotification(creator.userId, "CHALLENGE_REWARD_APPROVED", {
+    reto: reward.challenge.name,
+    monto: formatCOP(Number(reward.amount)),
+  });
 
   return updated;
 }
@@ -478,14 +479,15 @@ export async function sendChallengeUrgencyReminders() {
       await createNotification(
         enrollment.creator.userId,
         "CHALLENGE_URGENCY",
-        `Quedan ${daysLabel} para "${challenge.name}".${progressText}`
+        { dias: daysLabel, reto: challenge.name, progreso: progressText },
+        () =>
+          sendChallengeUrgencyEmail(enrollment.creator.user.email, {
+            displayName: enrollment.creator.displayName,
+            challengeName: challenge.name,
+            daysLabel,
+            progressText,
+          })
       );
-      await sendChallengeUrgencyEmail(enrollment.creator.user.email, {
-        displayName: enrollment.creator.displayName,
-        challengeName: challenge.name,
-        daysLabel,
-        progressText,
-      });
 
       await prisma.challengeUrgencyPing.create({ data: { challengeId: challenge.id, creatorId, window } });
       sentCount++;

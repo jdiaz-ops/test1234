@@ -971,10 +971,73 @@ model Notification {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  type    String // ej. "brand_approved", "sale_generated", "payout_processed", "fee_changed"
+  type    String // clave de NotificationTypeConfig — ej. "SALE_COMMISSION", "BRAND_APPROVED"
   message String
   read    Boolean @default(false)
 
+  /// SENT = ya se envió (comportamiento de siempre). PENDING_REVIEW = el
+  /// tipo está en modo Manual (ver NotificationTypeConfig) — existe pero
+  /// todavía no se mandó por push/correo, espera que un admin la apruebe
+  /// desde Admin → Notificaciones. DISCARDED = un admin la descartó.
+  status NotificationDeliveryStatus @default(SENT)
+
+  createdAt DateTime @default(now())
+}
+
+enum NotificationDeliveryStatus {
+  SENT
+  PENDING_REVIEW
+  DISCARDED
+}
+
+enum NotificationAudience {
+  CREATOR
+  BRAND
+  ADMIN
+}
+
+enum NotificationMode {
+  AUTOMATIC // se manda sola en el momento del evento
+  MANUAL // queda pendiente de aprobar en Admin → Notificaciones antes de salir
+}
+
+/// Un renglón por cada tipo de notificación que existe en la plataforma —
+/// es el catálogo editable desde Admin → Notificaciones (nueva pestaña):
+/// activarla o no, que sea automática o quede pendiente de aprobación, por
+/// qué canales sale, y el texto exacto (con {placeholders}) que se manda.
+/// `createNotification` (notification-service.ts) es el único lugar que la
+/// lee — cualquier tipo nuevo que se agregue al código y no tenga fila acá
+/// simplemente usa los valores por defecto (activo, automático, solo App).
+model NotificationTypeConfig {
+  id String @id @default(cuid())
+
+  /// Coincide 1 a 1 con el `type` que se guarda en Notification.
+  key   String               @unique
+  label String // nombre legible para el panel admin, ej. "Venta generada (creador)"
+  audience NotificationAudience
+
+  enabled Boolean      @default(true)
+  mode    NotificationMode @default(AUTOMATIC)
+
+  /// Canal "App": queda en su bandeja de Notificaciones dentro de Marcolini
+  /// + push (van juntos, es la misma tubería). Canal "Correo": además le
+  /// llega un correo aparte — para los tipos que ya tenían una plantilla de
+  /// correo propia (con su propio diseño), esta casilla solo prende/apaga
+  /// ESE correo; para los que no tenían, se manda un correo simple con este
+  /// mismo texto.
+  channelApp   Boolean @default(true)
+  channelEmail Boolean @default(false)
+
+  /// Texto editable — usa {nombreDeVariable} para los datos que cambian en
+  /// cada envío (ver `placeholders` para saber cuáles aplican acá).
+  messageTemplate String @db.Text
+
+  /// Lista separada por comas de los nombres de variable válidos para este
+  /// tipo (ej. "marca,monto") — solo informativo, para mostrarse como ayuda
+  /// en el editor del panel admin.
+  placeholders String @default("")
+
+  updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
 }
 

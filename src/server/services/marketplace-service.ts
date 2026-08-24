@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { provisionDiscountCodeForEnrollment } from "@/server/services/attribution-service";
 import { awardWelcomeBonusIfEligible } from "@/server/services/challenge-service";
 import { normalizeDiscountCode } from "@/lib/creator-identity";
+import { createNotification } from "@/server/services/notification-service";
 
 export class MarketplaceError extends Error {}
 
@@ -138,6 +139,11 @@ export async function joinOffer(creatorId: string, offerId: string, desiredCode?
   if (enrollment.status === "ACTIVE") {
     await provisionDiscountCodeForEnrollment(enrollment.id);
     await awardWelcomeBonusIfEligible(offerId, creatorId);
+  } else {
+    await createNotification(offer.brand.userId, "ENROLLMENT_REQUESTED_BRAND", {
+      creador: creator.displayName,
+      oferta: offer.name,
+    });
   }
 
   return enrollment;

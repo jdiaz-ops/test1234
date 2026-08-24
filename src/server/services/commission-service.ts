@@ -23,11 +23,10 @@ async function notifyOnSale(
   transaction: { creatorId: string; creator: { userId: string; displayName: string }; brand: { companyName: string } },
   amounts: { creatorCommissionAmount: number; platformFeeAmount: number }
 ) {
-  await createNotification(
-    transaction.creator.userId,
-    "SALE_COMMISSION",
-    `¡Alguien compró con tu código en ${transaction.brand.companyName}! Ganaste ${formatCOP(amounts.creatorCommissionAmount)} de comisión.`
-  );
+  await createNotification(transaction.creator.userId, "SALE_COMMISSION", {
+    marca: transaction.brand.companyName,
+    monto: formatCOP(amounts.creatorCommissionAmount),
+  });
 
   const admins = await prisma.user.findMany({
     where: { role: "ADMIN", adminRole: { in: ["OWNER", "FINANCE"] } },
@@ -35,11 +34,11 @@ async function notifyOnSale(
   });
   await Promise.all(
     admins.map((admin) =>
-      createNotification(
-        admin.id,
-        "SALE_ADMIN",
-        `${transaction.creator.displayName} generó una venta para ${transaction.brand.companyName} — ganaste ${formatCOP(amounts.platformFeeAmount)} de comisión.`
-      )
+      createNotification(admin.id, "SALE_ADMIN", {
+        creador: transaction.creator.displayName,
+        marca: transaction.brand.companyName,
+        monto: formatCOP(amounts.platformFeeAmount),
+      })
     )
   );
 

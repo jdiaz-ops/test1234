@@ -35,11 +35,10 @@ export async function requestProduct(params: {
     },
   });
 
-  await createNotification(
-    enrollment.offer.brand.userId,
-    "PRODUCT_REQUESTED",
-    `${enrollment.creator.displayName} pidió un producto: "${params.description}"`
-  );
+  await createNotification(enrollment.offer.brand.userId, "PRODUCT_REQUESTED", {
+    creador: enrollment.creator.displayName,
+    descripcion: params.description,
+  });
 
   return shipment;
 }
@@ -70,11 +69,11 @@ export async function brandSendProduct(params: {
     },
   });
 
-  await createNotification(
-    enrollment.creator.userId,
-    "PRODUCT_SENT",
-    `${enrollment.offer.brand.companyName} te envió: "${params.description}"${params.trackingNumber ? ` (guía ${params.trackingNumber})` : ""}`
-  );
+  await createNotification(enrollment.creator.userId, "PRODUCT_SENT", {
+    marca: enrollment.offer.brand.companyName,
+    descripcion: params.description,
+    guia: params.trackingNumber ? ` (guía ${params.trackingNumber})` : "",
+  });
 
   return shipment;
 }
@@ -99,11 +98,11 @@ export async function markShipmentSent(params: {
     data: { status: "SENT", carrier: params.carrier || null, trackingNumber: params.trackingNumber || null, sentAt: new Date() },
   });
 
-  await createNotification(
-    shipment.enrollment.creator.userId,
-    "PRODUCT_SENT",
-    `${shipment.enrollment.offer.brand.companyName} despachó tu producto: "${shipment.description}"${params.trackingNumber ? ` (guía ${params.trackingNumber})` : ""}`
-  );
+  await createNotification(shipment.enrollment.creator.userId, "PRODUCT_SENT", {
+    marca: shipment.enrollment.offer.brand.companyName,
+    descripcion: shipment.description,
+    guia: params.trackingNumber ? ` (guía ${params.trackingNumber})` : "",
+  });
 
   return updated;
 }
