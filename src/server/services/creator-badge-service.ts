@@ -11,6 +11,13 @@ const THRESHOLDS = {
   multimarca: 3,
 };
 
+// Por ahora ocultamos el tema de insignias (Juan, 2026-08-24) — ni se
+// otorgan nuevas ni se notifican. Se deja toda la lógica intacta (catálogo,
+// thresholds, cron) para poder prender esto de nuevo con solo este flag; lo
+// que ya se otorgó en el pasado sigue en la tabla, simplemente no se le
+// muestra a nadie mientras la tarjeta esté quitada del dashboard.
+const BADGES_ENABLED = false;
+
 async function getCreatorBadgeStats(profile: CreatorProfile) {
   const [onboarding, activeEnrollmentCount, salesCount, commissionSum, paidPayoutCount, challengeWinCount] =
     await Promise.all([
@@ -54,6 +61,8 @@ function earnedKeysFromStats(stats: Awaited<ReturnType<typeof getCreatorBadgeSta
 /// todavía no tiene. Avisa por notificación + correo cada vez que se otorga
 /// una insignia nueva.
 export async function evaluateCreatorBadges() {
+  if (!BADGES_ENABLED) return { awardedCount: 0 };
+
   const profiles = await prisma.creatorProfile.findMany({
     where: { suspended: false },
     include: { user: true },

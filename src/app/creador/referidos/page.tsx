@@ -32,7 +32,7 @@ export default async function ReferidosPage() {
       </h1>
       <p className="text-sm text-brand-ink-soft mb-8 max-w-xl">
         Comparte tu link con otro creador — cuando se registre y haga su primera venta, te
-        transferimos $20.000 junto a tu próximo pago. Sin límite de invitaciones.
+        transferimos $20.000 junto a tu próximo pago.
       </p>
 
       <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mb-6">

@@ -15,15 +15,7 @@ export default async function CodigosPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">MIS CÓDIGOS Y LINKS</p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
-        Un código por marca
-      </h1>
-      <p className="text-sm text-brand-ink-soft mb-8 max-w-xl">
-        Aquí tienes todos tus códigos en un solo lugar — útil para cuando necesitas escribirlo a mano (en
-        un live, respondiendo un DM, atención al cliente). Para compartir con tu audiencia, usa siempre tu
-        vitrina.
-      </p>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-6">MIS CÓDIGOS Y LINKS</p>
 
       {active.length === 0 ? (
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 text-sm text-brand-ink-soft">

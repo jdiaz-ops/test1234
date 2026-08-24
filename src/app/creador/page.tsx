@@ -1,8 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getCreatorDashboardSummary } from "@/server/services/creator-finance-service";
-import { getCreatorBadgeBoard } from "@/server/services/creator-badge-service";
-import { CreatorBadgesCard } from "@/components/portal/creator-badges-card";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
@@ -23,7 +21,6 @@ export default async function CreadorDashboardPage() {
     where: { userId: session!.user.id },
   });
   const summary = await getCreatorDashboardSummary(profile.id);
-  const badgeBoard = await getCreatorBadgeBoard(profile);
 
   return (
     <div>
@@ -56,33 +53,25 @@ export default async function CreadorDashboardPage() {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
-          <h2 className="font-display font-semibold text-brand-ink mb-4">Tus marcas top</h2>
-          {summary.topBrands.length === 0 ? (
-            <div className="text-sm text-brand-ink-soft">
-              <p className="mb-3">Todavía no tienes ventas registradas.</p>
-              <a href="/creador/marketplace" className="text-brand-accent font-medium hover:underline">
-                Explora el marketplace y únete a una marca →
-              </a>
-            </div>
-          ) : (
-            <ul className="divide-y divide-brand-line">
-              {summary.topBrands.map((b) => (
-                <li key={b.name} className="flex items-center justify-between py-2.5 text-sm">
-                  <span className="text-brand-ink">{b.name}</span>
-                  <span className="font-mono text-brand-ink-soft">{formatCOP(b.total)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <CreatorBadgesCard
-          earnedBadges={badgeBoard.earnedBadges}
-          nextHint={badgeBoard.nextHint}
-          totalCount={badgeBoard.totalCount}
-        />
+      <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 max-w-xl">
+        <h2 className="font-display font-semibold text-brand-ink mb-4">Tus marcas top</h2>
+        {summary.topBrands.length === 0 ? (
+          <div className="text-sm text-brand-ink-soft">
+            <p className="mb-3">Todavía no tienes ventas registradas.</p>
+            <a href="/creador/marketplace" className="text-brand-accent font-medium hover:underline">
+              Explora el marketplace y únete a una marca →
+            </a>
+          </div>
+        ) : (
+          <ul className="divide-y divide-brand-line">
+            {summary.topBrands.map((b) => (
+              <li key={b.name} className="flex items-center justify-between py-2.5 text-sm">
+                <span className="text-brand-ink">{b.name}</span>
+                <span className="font-mono text-brand-ink-soft">{formatCOP(b.total)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
