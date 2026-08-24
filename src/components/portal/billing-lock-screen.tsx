@@ -22,7 +22,7 @@ export function BillingLockScreen({ charge, paymentInstructions, paymentQrImageU
   paymentQrImageUrl: string | null;
 }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-bg px-6 py-12">
+    <div className="flex-1 flex items-center justify-center bg-brand-bg px-6 py-12">
       <div className="w-full max-w-lg space-y-6">
         <p className="text-center font-mono text-sm font-medium text-brand-accent tracking-wide">MARCOLINI</p>
 

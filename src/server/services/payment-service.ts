@@ -376,6 +376,72 @@ export async function isBrandServiceDeactivated(brandId: string) {
   return Boolean(charge);
 }
 
+/// SOLO PARA PRUEBAS — igual que chargeBrandForPeriod pero sin depender de
+/// que la marca tenga ventas/premios pendientes de facturar: crea de una
+/// vez un corte recién generado (PENDING, con el mismo plazo real —
+/// paymentGraceHours en horas hábiles) para que el Propietario vea en vivo
+/// el aviso de Nivel 1 (dashboard con instrucciones de pago, sin ningún
+/// bloqueo) sin esperar al día de cobro. Nunca se llama desde el flujo real
+/// de cobro. Respeta la misma regla de "un corte abierto a la vez".
+export async function createTestPendingCharge(brandId: string) {
+  const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId }, include: { user: true } });
+
+  const openCharge = await prisma.brandCharge.findFirst({
+    where: { brandId, status: { in: ["PENDING", "PROOF_SUBMITTED", "OVERDUE", "DEACTIVATED"] } },
+  });
+  if (openCharge) return openCharge;
+
+  const config = await getPlatformConfig();
+  const periodEnd = new Date();
+  const periodStart = new Date(periodEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const dueAt = addBusinessHours(new Date(), config.paymentGraceHours);
+  const commissionsTotal = 200_000;
+  const platformFeeTotal = 37_800;
+  const vatTotal = 7_200;
+  const totalAmount = commissionsTotal + platformFeeTotal + vatTotal;
+
+  const charge = await prisma.brandCharge.create({
+    data: { brandId, periodStart, periodEnd, totalAmount: new Prisma.Decimal(totalAmount), status: "PENDING", dueAt },
+  });
+
+  try {
+    const pdfBytes = await generateBrandChargeDoc({
+      brandName: brand.companyName,
+      periodStart,
+      periodEnd,
+      commissionsTotal,
+      platformFeeTotal,
+      vatTotal,
+      rewardsTotal: 0,
+      totalAmount,
+      dueAt,
+      paymentInstructions: config.paymentInstructions,
+      paymentQrImageUrl: config.paymentQrImageUrl,
+    });
+    const pdfFile = new File([new Uint8Array(pdfBytes)], "aviso-de-cobro.pdf", { type: "application/pdf" });
+    const pdfUrl = await uploadFile(pdfFile, `cortes/${brandId}`);
+    await prisma.brandCharge.update({ where: { id: charge.id }, data: { pdfUrl } });
+  } catch (err) {
+    console.error(`[pagos] no se pudo generar el aviso de cobro de prueba de ${brand.companyName}:`, err);
+  }
+
+  const dueAtLabel = dueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" });
+  await createNotification(
+    brand.userId,
+    "BRAND_CHARGE",
+    { monto: formatCOP(totalAmount), fecha: dueAtLabel },
+    () =>
+      sendBrandChargeEmail(brand.user.email, {
+        companyName: brand.companyName,
+        totalAmount: formatCOP(totalAmount),
+        dueAt: dueAtLabel,
+        paymentInstructions: config.paymentInstructions,
+      })
+  );
+
+  return charge;
+}
+
 /// SOLO PARA PRUEBAS — crea de una vez un corte ya vencido (OVERDUE) para
 /// que el Propietario pueda ver el aviso de bloqueo en vivo sin esperar un
 /// ciclo real de 72h. Nunca se llama desde el flujo real de cobro (ver

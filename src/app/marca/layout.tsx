@@ -29,21 +29,27 @@ export default async function MarcaLayout({ children }: { children: React.ReactN
   if (lockedCharge) {
     const platformConfig = await getPlatformConfig();
     return (
-      <BillingLockScreen
-        charge={{
-          id: lockedCharge.id,
-          totalAmount: Number(lockedCharge.totalAmount),
-          dueAt: lockedCharge.dueAt.toISOString(),
-          deactivationDueAt: lockedCharge.deactivationDueAt?.toISOString() ?? null,
-          status: lockedCharge.status,
-          pdfUrl: lockedCharge.pdfUrl,
-          proofSubmittedAt: lockedCharge.proofSubmittedAt?.toISOString() ?? null,
-          proofRejectedAt: lockedCharge.proofRejectedAt?.toISOString() ?? null,
-          proofRejectedReason: lockedCharge.proofRejectedReason,
-        }}
-        paymentInstructions={platformConfig.paymentInstructions}
-        paymentQrImageUrl={platformConfig.paymentQrImageUrl}
-      />
+      <div className="min-h-screen flex flex-col">
+        {/* Aunque el panel esté bloqueado, si es el admin viendo "como" esta
+            cuenta necesita poder volver sin cerrar sesión — si no, esta
+            pantalla lo deja atrapado (ver exit-impersonation-button.tsx). */}
+        {session.user.impersonated && <ImpersonationBanner />}
+        <BillingLockScreen
+          charge={{
+            id: lockedCharge.id,
+            totalAmount: Number(lockedCharge.totalAmount),
+            dueAt: lockedCharge.dueAt.toISOString(),
+            deactivationDueAt: lockedCharge.deactivationDueAt?.toISOString() ?? null,
+            status: lockedCharge.status,
+            pdfUrl: lockedCharge.pdfUrl,
+            proofSubmittedAt: lockedCharge.proofSubmittedAt?.toISOString() ?? null,
+            proofRejectedAt: lockedCharge.proofRejectedAt?.toISOString() ?? null,
+            proofRejectedReason: lockedCharge.proofRejectedReason,
+          }}
+          paymentInstructions={platformConfig.paymentInstructions}
+          paymentQrImageUrl={platformConfig.paymentQrImageUrl}
+        />
+      </div>
     );
   }
 

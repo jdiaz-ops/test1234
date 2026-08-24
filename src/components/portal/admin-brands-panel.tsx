@@ -183,6 +183,17 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
     router.refresh();
   }
 
+  async function simulatePending(brandId: string) {
+    setLoadingId(brandId);
+    await fetch("/api/admin/marcas/prueba/pendiente", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandId }),
+    });
+    setLoadingId(null);
+    router.refresh();
+  }
+
   async function simulateOverdue(brandId: string) {
     setLoadingId(brandId);
     await fetch("/api/admin/marcas/prueba/moroso", {
@@ -197,6 +208,17 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
   async function simulateDeactivated(brandId: string) {
     setLoadingId(brandId);
     await fetch("/api/admin/marcas/prueba/desactivada", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandId }),
+    });
+    setLoadingId(null);
+    router.refresh();
+  }
+
+  async function createTestProducts(brandId: string) {
+    setLoadingId(brandId);
+    await fetch("/api/admin/marcas/prueba/productos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ brandId }),
@@ -349,6 +371,13 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
                       ) : (
                         <>
                           <button
+                            onClick={() => simulatePending(b.id)}
+                            disabled={loadingId === b.id}
+                            className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+                          >
+                            Simular Nivel 1
+                          </button>
+                          <button
                             onClick={() => simulateOverdue(b.id)}
                             disabled={loadingId === b.id}
                             className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
@@ -364,6 +393,14 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
                           </button>
                         </>
                       )}
+                      <button
+                        onClick={() => createTestProducts(b.id)}
+                        disabled={loadingId === b.id}
+                        className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+                        title="Crea (o deja tal cual si ya existen) 12 productos de mentira para esta marca — para probar vitrina y colecciones sin tener una tienda real conectada."
+                      >
+                        Crear productos de prueba
+                      </button>
                     </>
                   )}
                   {isOwner && <EnterAsButton userId={b.userId} role="BRAND" />}
