@@ -308,15 +308,28 @@ export function CreatorStorefrontStep({
                       onClick={() => toggleVisible(it.id)}
                       aria-pressed={it.visible}
                       aria-label={it.visible ? "Ocultar de la vitrina" : "Mostrar en la vitrina"}
-                      className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${
-                        it.visible ? "bg-brand-accent" : "bg-brand-line"
-                      }`}
+                      className="flex items-center gap-2 shrink-0"
                     >
+                      {/* Texto explícito además del switch — un switch solo
+                          (rosado = on para las tres marcas por defecto) no
+                          se lee de un vistazo como control de mostrar/ocultar;
+                          el texto es el mismo "visible"/"oculta" que ya usa
+                          Tus colecciones más abajo, para no inventar un
+                          segundo lenguaje en la misma pantalla. */}
+                      <span className={`text-xs ${it.visible ? "text-brand-accent font-medium" : "text-brand-ink-soft"}`}>
+                        {it.visible ? "Visible" : "Oculta"}
+                      </span>
                       <span
-                        className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                          it.visible ? "translate-x-4" : "translate-x-0.5"
+                        className={`relative w-9 h-5 rounded-full transition-colors ${
+                          it.visible ? "bg-brand-accent" : "bg-brand-line"
                         }`}
-                      />
+                      >
+                        <span
+                          className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                            it.visible ? "translate-x-4" : "translate-x-0.5"
+                          }`}
+                        />
+                      </span>
                     </button>
                   </div>
                 ))}

@@ -139,8 +139,15 @@ function CollectionEditor({
   }
 
   return (
-    <div className="rounded-2xl border-2 border-brand-accent bg-brand-accent-soft/30 p-5 mb-4">
-      <div className="grid lg:grid-cols-[260px_1fr] gap-6">
+    // @container: este editor vive junto a la vista previa sticky (240px),
+    // así que su ancho real disponible NO es el del viewport — puede ser
+    // mucho más angosto que un "lg" de verdad. Antes el grid de abajo usaba
+    // lg:/sm: (breakpoints de viewport), y en desktop normal terminaba
+    // partiéndose en columnas de ~40px, ilegibles. Con @container, cada
+    // sección decide su propio layout según su ancho real, así que esto
+    // queda correcto sin importar dónde se monte este componente.
+    <div className="@container rounded-2xl border-2 border-brand-accent bg-brand-accent-soft/30 p-5 mb-4">
+      <div className="grid gap-6 @2xl:grid-cols-[260px_1fr]">
         <div>
           <label className="block text-sm text-brand-ink mb-1">Nombre de la colección</label>
           <input
@@ -236,7 +243,7 @@ function CollectionEditor({
             </div>
           )}
 
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-72 overflow-y-auto">
+          <div className="grid grid-cols-2 @sm:grid-cols-3 @lg:grid-cols-4 gap-2 max-h-72 overflow-y-auto">
             {results.map((p) => {
               const isSelected = selected.some((s) => s.id === p.id);
               return (
