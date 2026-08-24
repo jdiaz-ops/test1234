@@ -689,6 +689,13 @@ model Transaction {
   /// auditarla después. Null en ventas de Shopify/WooCommerce.
   note String?
 
+  /// Correo del comprador — cuando el webhook de la tienda lo manda (o la
+  /// marca lo escribe en una venta manual). Nunca se muestra en ningún
+  /// lado de la app; solo existe para el detector de fraude "comprador =
+  /// creador" (ver checkBuyerIsCreator en attribution-service.ts). Null si
+  /// no vino en el pedido.
+  customerEmail String?
+
   status TransactionStatus @default(COMPLETED)
 
   occurredAt DateTime

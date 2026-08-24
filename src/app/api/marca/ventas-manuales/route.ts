@@ -20,6 +20,7 @@ export async function POST(req: Request) {
       grossAmount: parsed.data.grossAmount,
       occurredAt: new Date(parsed.data.occurredAt),
       note: parsed.data.note || undefined,
+      customerEmail: parsed.data.customerEmail || undefined,
     });
     return NextResponse.json({ ok: true, transactionId: result.transaction?.id }, { status: 201 });
   } catch (err) {

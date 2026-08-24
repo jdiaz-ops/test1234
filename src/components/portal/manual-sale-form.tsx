@@ -17,6 +17,7 @@ export function ManualSaleForm({ codeOptions }: { codeOptions: CodeOption[] }) {
     grossAmount: "",
     occurredAt: todayInput(),
     note: "",
+    customerEmail: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,13 @@ export function ManualSaleForm({ codeOptions }: { codeOptions: CodeOption[] }) {
       return;
     }
 
-    setForm({ discountCode: codeOptions[0]?.discountCode ?? "", grossAmount: "", occurredAt: todayInput(), note: "" });
+    setForm({
+      discountCode: codeOptions[0]?.discountCode ?? "",
+      grossAmount: "",
+      occurredAt: todayInput(),
+      note: "",
+      customerEmail: "",
+    });
     setOpen(false);
     router.refresh();
   }
@@ -120,6 +127,17 @@ export function ManualSaleForm({ codeOptions }: { codeOptions: CodeOption[] }) {
           value={form.note}
           onChange={(e) => setForm({ ...form, note: e.target.value })}
           placeholder="ej. Pedido de Instagram #4521"
+          className="input"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-brand-ink mb-1">Correo del comprador (opcional)</label>
+        <input
+          type="email"
+          value={form.customerEmail}
+          onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
+          placeholder="si lo tienes — ayuda a detectar fraude"
           className="input"
         />
       </div>

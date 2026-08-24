@@ -29,6 +29,9 @@ interface RecordOrderParams {
   occurredAt: Date;
   /// Solo tiene sentido con source MANUAL — ver Transaction.note.
   note?: string;
+  /// Correo del comprador, si el webhook de la tienda lo trae (o la marca
+  /// lo escribió en una venta manual) — ver Transaction.customerEmail.
+  customerEmail?: string | null;
 }
 
 function normalizeCode(code: string) {
@@ -160,14 +163,36 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
       status: "COMPLETED",
       occurredAt: params.occurredAt,
       note: params.note,
+      customerEmail: params.customerEmail?.trim().toLowerCase() || null,
     },
   });
 
   await createCommissionForTransaction(transaction.id);
   await checkGoalBonusProgress(enrollment.offerId, enrollment.creatorId);
   await checkAbnormalOrderSpike(enrollment.id);
+  await checkBuyerIsCreator(enrollment.id, transaction.id, transaction.customerEmail);
 
   return { transaction, created: true as const };
+}
+
+/// Detector de fraude #2 (el segundo de los que documenta el schema en
+/// FraudFlag.reason): que el creador compre con su propio código para
+/// cobrarse su propia comisión. Solo puede correr cuando el pedido trajo
+/// el correo del comprador — ver Transaction.customerEmail.
+async function checkBuyerIsCreator(enrollmentId: string, transactionId: string, customerEmail: string | null) {
+  if (!customerEmail) return;
+
+  const enrollment = await prisma.creatorOfferEnrollment.findUniqueOrThrow({
+    where: { id: enrollmentId },
+    include: { creator: { include: { user: true } }, offer: { include: { brand: true } } },
+  });
+
+  if (enrollment.creator.user.email.toLowerCase() !== customerEmail) return;
+
+  await flagPotentialFraud(
+    transactionId,
+    `El comprador usó el mismo correo que el creador ${enrollment.creator.displayName} (${customerEmail}) en ${enrollment.offer.brand.companyName}`
+  );
 }
 
 const SPIKE_WINDOW_MINUTES = 60;
@@ -265,6 +290,7 @@ export async function recordManualSale(params: {
   grossAmount: number;
   occurredAt: Date;
   note?: string;
+  customerEmail?: string;
 }) {
   if (!(params.grossAmount > 0)) {
     throw new ManualSaleError("El monto debe ser mayor a cero.");
@@ -289,5 +315,6 @@ export async function recordManualSale(params: {
     netAmount,
     occurredAt: params.occurredAt,
     note: params.note,
+    customerEmail: params.customerEmail,
   });
 }

@@ -122,4 +122,8 @@ export interface WooCommerceOrderWebhookPayload {
   coupon_lines: { code: string; discount: string }[];
   date_created: string;
   date_modified: string;
+  /// Correo del comprador — WooCommerce lo manda en billing.email. Solo se
+  /// usa para el detector de fraude "comprador = creador" (ver
+  /// checkBuyerIsCreator en attribution-service.ts).
+  billing?: { email?: string | null };
 }

@@ -122,6 +122,11 @@ export interface ShopifyOrderWebhookPayload {
   total_discounts: string;
   discount_codes: { code: string; amount: string; type: string }[];
   created_at: string;
+  /// Correo del comprador — Shopify lo manda en el nivel raíz del pedido.
+  /// Solo se usa para el detector de fraude "comprador = creador" (ver
+  /// checkBuyerIsCreator en attribution-service.ts), nunca se muestra en
+  /// ningún lado de la app.
+  email?: string | null;
 }
 
 export interface ShopifyRefundWebhookPayload {

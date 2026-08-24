@@ -52,6 +52,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ brandId
       discountAmount: discount,
       netAmount: gross - discount,
       occurredAt: new Date(order.created_at),
+      customerEmail: order.email,
     });
 
     return NextResponse.json({ ok: true, ...result });

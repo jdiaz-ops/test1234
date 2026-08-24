@@ -129,4 +129,8 @@ export const recordManualSaleSchema = z.object({
       "La fecha es demasiado vieja — revisa que sea correcta"
     ),
   note: z.string().max(200, "Máximo 200 caracteres").optional().or(z.literal("")),
+  /// Opcional — si la marca lo sabe (ej. lo tiene en el pedido de
+  /// WhatsApp/Instagram), ayuda al detector de fraude "comprador =
+  /// creador" (ver checkBuyerIsCreator en attribution-service.ts).
+  customerEmail: z.string().email("Correo inválido").optional().or(z.literal("")),
 });
