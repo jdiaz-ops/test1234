@@ -7,7 +7,7 @@ import {
   IconCheck,
 } from "@/components/marketing/icons";
 
-const confianza = ["Solo pagas cuando vendes", "Sin mensualidad", "Ventas 100% trazables"];
+const confianza = ["Solo pagas por ventas confirmadas", "Sin mensualidades ni costos fijos", "ROI y ventas 100% trazables"];
 
 // Datos de ejemplo para las vistas previas de la sección "Así funciona en tu
 // panel" — la misma info y el mismo tratamiento visual (colores, tipos,
@@ -66,11 +66,11 @@ export default function ParaMarcasPage() {
               MARKETING DE INFLUENCIA SIMPLE Y MEDIBLE
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
-              Convierte a los creadores de contenido en tu mejor canal de ventas
+              Convierte a los creadores de contenido en un canal de ventas medible para tu marca
             </h1>
             <p className="text-brand-ink-soft text-lg sm:text-xl max-w-xl mx-auto mb-10 text-balance">
               Colabora con creadores de contenido especializados, lanza campañas con comisiones y
-              mide exactamente quién genera ventas para tu marca.
+              conoce exactamente quién vende, cuánto vende y el retorno de cada alianza.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10">
               <Link
