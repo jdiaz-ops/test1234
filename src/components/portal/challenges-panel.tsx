@@ -82,6 +82,15 @@ interface Reward {
   creator: { displayName: string };
 }
 
+interface ChallengeResults {
+  gmv: number;
+  orderCount: number;
+  totalCommission: number;
+  totalBonus: number;
+  creatorsReachedGoal: number;
+  creatorsSoldNotReached: number;
+}
+
 interface Challenge {
   id: string;
   name: string;
@@ -97,6 +106,9 @@ interface Challenge {
   /// (true) o todavía no le tocaba/ya se devolvió a la normal (false). Ver
   /// syncDiscountBoosts en challenge-service.ts.
   discountBoostActive: boolean;
+  /// Solo viene con datos para campañas ya ENDED (ver getChallengeResults en
+  /// challenge-service.ts) — null mientras está activa.
+  results: ChallengeResults | null;
 }
 
 interface Submission {
@@ -143,6 +155,42 @@ function ReviewSubmissionButtons({ rewardId }: { rewardId: string }) {
   );
 }
 
+function StatTile({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
+  return (
+    <div className="rounded-xl bg-brand-bg px-3 py-2.5">
+      <p className={`font-mono text-lg font-medium leading-tight ${accent ? "text-brand-accent" : "text-brand-ink"}`}>
+        {value}
+      </p>
+      <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+// El resumen de resultado de una campaña terminada — para que la marca vea
+// de un vistazo si le funcionó, sin tener que ir a Transacciones a sumar a
+// mano. Meta/bono solo tienen sentido para Misión y Mix; GMV, órdenes y
+// comisión aplican a cualquier tipo.
+function ChallengeResultsGrid({ type, results }: { type: ChallengeType; results: ChallengeResults }) {
+  const hasGoal = type === "GOAL_BONUS" || type === "MIX";
+  return (
+    <div>
+      <p className="text-xs text-brand-ink-soft mb-2">Resultado de la campaña</p>
+      <div className="grid grid-cols-2 gap-2">
+        {hasGoal && (
+          <>
+            <StatTile value={String(results.creatorsReachedGoal)} label="Creadores que lograron la meta" accent />
+            <StatTile value={String(results.creatorsSoldNotReached)} label="Vendieron, pero no llegaron" />
+          </>
+        )}
+        <StatTile value={formatCOP(results.gmv)} label="Ventas generadas (GMV)" />
+        <StatTile value={String(results.orderCount)} label="Órdenes" />
+        {hasGoal && <StatTile value={formatCOP(results.totalBonus)} label="Bono total otorgado" />}
+        <StatTile value={formatCOP(results.totalCommission)} label="Comisión total generada" />
+      </div>
+    </div>
+  );
+}
+
 function ChallengeCard({ c, onEnd }: { c: Challenge; onEnd: (id: string) => void }) {
   const totalAwarded = c.rewards.reduce((sum, r) => sum + r.amount, 0);
   const acceptedSentence = c.status === "ACTIVE" ? buildAcceptedSentence(c) : null;
@@ -170,21 +218,27 @@ function ChallengeCard({ c, onEnd }: { c: Challenge; onEnd: (id: string) => void
         )}
       </div>
 
-      {c.rewards.length > 0 && (
+      {(c.status === "ENDED" && c.results ? true : c.rewards.length > 0) && (
         <div className="mt-3 pt-3 border-t border-brand-line">
-          <p className="text-xs text-brand-ink-soft mb-2">
-            {c.rewards.length} premio(s) otorgado(s) · {formatCOP(totalAwarded)} en total
-          </p>
-          <div className="space-y-1">
-            {c.rewards.map((r) => (
-              <div key={r.id} className="flex justify-between text-xs font-mono">
-                <span className="text-brand-ink">{r.creator.displayName}</span>
-                <span className="text-brand-ink-soft">
-                  {formatCOP(r.amount)} · {rewardStatusLabel[r.status]}
-                </span>
+          {c.status === "ENDED" && c.results && <ChallengeResultsGrid type={c.type} results={c.results} />}
+
+          {c.rewards.length > 0 && (
+            <div className={c.status === "ENDED" && c.results ? "mt-3" : ""}>
+              <p className="text-xs text-brand-ink-soft mb-2">
+                {c.rewards.length} premio(s) otorgado(s) · {formatCOP(totalAwarded)} en total
+              </p>
+              <div className="space-y-1">
+                {c.rewards.map((r) => (
+                  <div key={r.id} className="flex justify-between text-xs font-mono">
+                    <span className="text-brand-ink">{r.creator.displayName}</span>
+                    <span className="text-brand-ink-soft">
+                      {formatCOP(r.amount)} · {rewardStatusLabel[r.status]}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -33,6 +33,65 @@ export async function listChallengesForBrand(brandId: string) {
   });
 }
 
+/// Resultado real de una campaña ya terminada — todo calculado a partir de
+/// datos que ya existen (Transaction + ChallengeReward + Commission), sin
+/// tracking nuevo. Se usa en las tarjetas de "Campañas terminadas" del
+/// portal de marca, para que la marca vea de un vistazo si le funcionó.
+///
+/// "Creadores que lograron la meta" cuenta los ChallengeReward de esta
+/// campaña — @@unique([challengeId, creatorId]) en grantReward ya garantiza
+/// uno por creador, así que el conteo es directo. "Vendieron pero no
+/// llegaron" son los que tienen al menos una venta de esta oferta dentro de
+/// la ventana de la campaña, pero no están entre los que llegaron. Bono y
+/// comisión son lo que se otorgó/generó, no necesariamente lo que ya salió
+/// pagado (siguen su espera normal de reembolsos).
+export async function getChallengeResults(challenge: {
+  id: string;
+  offerId: string;
+  type: string;
+  startDate: Date;
+  endDate: Date;
+}) {
+  const salesWhere = {
+    offerId: challenge.offerId,
+    status: { not: "REFUNDED" as const },
+    occurredAt: { gte: challenge.startDate, lte: challenge.endDate },
+  };
+
+  const [salesAgg, commissionAgg, rewards] = await Promise.all([
+    prisma.transaction.aggregate({ where: salesWhere, _sum: { netAmount: true }, _count: true }),
+    prisma.commission.aggregate({
+      where: { transaction: salesWhere },
+      _sum: { creatorCommissionAmount: true },
+    }),
+    prisma.challengeReward.findMany({ where: { challengeId: challenge.id }, select: { creatorId: true, amount: true } }),
+  ]);
+
+  const result = {
+    gmv: Number(salesAgg._sum.netAmount ?? 0),
+    orderCount: salesAgg._count,
+    totalCommission: Number(commissionAgg._sum.creatorCommissionAmount ?? 0),
+    totalBonus: 0,
+    creatorsReachedGoal: 0,
+    creatorsSoldNotReached: 0,
+  };
+
+  if (challenge.type === "GOAL_BONUS" || challenge.type === "MIX") {
+    const reachedIds = new Set(rewards.map((r) => r.creatorId));
+    result.creatorsReachedGoal = reachedIds.size;
+    result.totalBonus = rewards.reduce((sum, r) => sum + Number(r.amount), 0);
+
+    const sellers = await prisma.transaction.findMany({
+      where: salesWhere,
+      select: { creatorId: true },
+      distinct: ["creatorId"],
+    });
+    result.creatorsSoldNotReached = sellers.filter((s) => !reachedIds.has(s.creatorId)).length;
+  }
+
+  return result;
+}
+
 type ChallengeConfig =
   | { type: "GOAL_BONUS"; goalAmount: number; bonusAmount: number }
   | { type: "FLASH_SALE"; newCommissionPercent?: number; newDiscountPercent?: number }
