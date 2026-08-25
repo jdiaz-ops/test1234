@@ -141,9 +141,17 @@ export function ChallengeForm({ offers, onCreated }: { offers: Offer[]; onCreate
     }
     if (pieces.length === 0) return null;
 
-    const detail = pieces.join(", y ");
-    const offerText = selectedOffer ? ` en ${selectedOffer.name}` : "";
-    return `Según la información que ingresaste, se va a activar "${name}"${offerText}, que empieza el ${startText} y termina el ${endText}. ${detail.charAt(0).toUpperCase()}${detail.slice(1)}.`;
+    // "X, Y y Z" en vez de "X, y Y, y Z" — más natural con 2 o 3 piezas (Mix
+    // trae hasta 3: meta+bono, comisión, descuento).
+    const detail =
+      pieces.length === 1 ? pieces[0] : `${pieces.slice(0, -1).join(", ")} y ${pieces[pieces.length - 1]}`;
+
+    // Sin mencionar la oferta acá — con un solo programa (el caso normal)
+    // es información redundante que solo confunde ("Oferta de prueba" no le
+    // dice nada a la marca); ya queda claro arriba, en el texto de contexto
+    // del formulario. endText ya termina en "a. m."/"p. m." (con su propio
+    // punto), así que no hace falta agregar uno más antes del detalle.
+    return `Se va a activar tu campaña "${name}", que empieza el ${startText} y termina el ${endText} ${detail.charAt(0).toUpperCase()}${detail.slice(1)}.`;
   }
 
   const summary = buildSummary();
