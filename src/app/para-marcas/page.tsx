@@ -63,14 +63,14 @@ export default function ParaMarcasPage() {
           />
           <div className="relative max-w-3xl mx-auto px-6 pt-24 pb-20 text-center">
             <span className="inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-4 py-1.5 mb-7">
-              MARKETING DE INFLUENCIA SIMPLE Y MEDIBLE
+              PAGA POR RESULTADOS, NO POR PUBLICACIONES
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
               Convierte a los creadores de contenido en un canal de ventas medible para tu marca
             </h1>
             <p className="text-brand-ink-soft text-lg sm:text-xl max-w-xl mx-auto mb-10 text-balance">
-              Colabora con creadores de contenido especializados, lanza campañas con comisiones y
-              conoce exactamente quién vende, cuánto vende y el retorno de cada alianza.
+              Conecta tu marca con creadores especializados y trabaja bajo un modelo de comisiones:
+              tú defines cuánto pagar y solo inviertes cuando generan ventas reales.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10">
               <Link
@@ -166,9 +166,9 @@ export default function ParaMarcasPage() {
                   Accede a una red de creadores lista para vender tu marca
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Publica una campaña y comienza a recibir solicitudes de creadores especializados
-                  en uñas y belleza. Ellos eligen promocionar tu marca por una comisión, mientras
-                  tú descubres quién realmente genera ventas y escalas las mejores alianzas.
+                  Docenas de creadores de contenido especializados, con audiencias interesadas en
+                  tu categoría, eligen promocionar tu marca a cambio de una comisión. Tú descubres
+                  quién realmente genera ventas y escalas las alianzas que mejor funcionan.
                 </p>
               </div>
             </div>
@@ -330,9 +330,6 @@ export default function ParaMarcasPage() {
               className="pointer-events-none absolute -bottom-24 -left-24 h-[300px] w-[300px] rounded-full opacity-30 blur-3xl"
               style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
             />
-            <span className="relative inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-white/10 rounded-full px-4 py-1.5 mb-5">
-              5% SOBRE VENTAS GENERADAS
-            </span>
             <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-4 text-balance">
               Empieza gratis. Solo pagas cuando vendes.
             </h2>
