@@ -26,6 +26,11 @@ function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amount);
 }
 
+function formatEndDate(iso: string) {
+  const p = getBogotaDateTimeParts(new Date(iso));
+  return `${p.day} ${p.monthShort}, ${p.hour12}:${p.minute} ${p.ampm}`;
+}
+
 interface ActiveChallenge {
   challenge: {
     id: string;
@@ -37,6 +42,47 @@ interface ActiveChallenge {
   };
   myReward: { id: string; status: string; amount: number } | null;
   progress: { currentAmount: number; goalAmount: number; bonusAmount: number } | null;
+}
+
+// La frase que le explica al creador, en su propio lenguaje, cómo ganar con
+// esta campaña — una por palanca activa (meta+bono / comisión / descuento),
+// para que quede clarísimo qué tiene que pasar para que gane algo, sin tener
+// que interpretar números sueltos.
+function buildPitch(challenge: ActiveChallenge["challenge"]): string[] {
+  const pieces: string[] = [];
+  const { type, config } = challenge;
+
+  if (type === "GOAL_BONUS" || type === "MIX") {
+    const goalAmount = Number(config.goalAmount);
+    const bonusAmount = Number(config.bonusAmount);
+    if (goalAmount && bonusAmount) {
+      pieces.push(
+        `Vende ${formatCOP(goalAmount)} con tu código antes de que termine y ganas ${formatCOP(bonusAmount)} de bono — además de tu comisión normal en esas mismas ventas.`
+      );
+    }
+  }
+  if (type === "FLASH_SALE" || type === "MIX") {
+    if (config.newCommissionPercent != null) {
+      pieces.push(
+        `Tu comisión sube a ${String(config.newCommissionPercent)}% en todas tus ventas de esta oferta mientras dure la campaña.`
+      );
+    }
+    if (config.newDiscountPercent != null) {
+      pieces.push(
+        `Tu código tiene ahora ${String(config.newDiscountPercent)}% de descuento para quien compre con él — buen momento para contarlo.`
+      );
+    }
+  }
+  if (type === "LEADERBOARD") {
+    pieces.push(`Los ${String(config.winnersCount)} creadores con más ventas al terminar se llevan un premio.`);
+  }
+  if (type === "WELCOME_BONUS") {
+    pieces.push("Bono de bienvenida activo — cupos limitados.");
+  }
+  if (type === "CONTENT_CHALLENGE") {
+    pieces.push(String(config.instructions));
+  }
+  return pieces;
 }
 
 function ContentSubmissionForm({ challengeId }: { challengeId: string }) {
@@ -92,6 +138,72 @@ function ContentSubmissionForm({ challengeId }: { challengeId: string }) {
   );
 }
 
+function ChallengeCard({ challenge, myReward, progress }: ActiveChallenge) {
+  const pitch = buildPitch(challenge);
+  const goalReached = progress != null && progress.currentAmount >= progress.goalAmount;
+  const progressPct = progress ? Math.min(100, Math.round((progress.currentAmount / progress.goalAmount) * 100)) : 0;
+
+  return (
+    <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <p className="text-xs text-brand-ink-soft">{challenge.offer.brand.companyName}</p>
+        <span className="inline-flex items-center rounded-full bg-brand-accent-soft px-2.5 py-1 text-[11px] font-medium text-brand-accent">
+          {typeLabel[challenge.type]}
+        </span>
+      </div>
+
+      <p className="font-display text-lg font-semibold text-brand-ink mb-1">{challenge.name}</p>
+      <p className="text-xs font-mono text-brand-ink-soft mb-4">Termina el {formatEndDate(challenge.endDate)}</p>
+
+      {pitch.length > 0 && (
+        <div className="rounded-xl bg-brand-bg p-4 space-y-2 mb-4">
+          {pitch.map((line, i) => (
+            <p key={i} className="text-sm text-brand-ink">
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {(challenge.type === "GOAL_BONUS" || challenge.type === "MIX") && progress && (
+        <div className="mb-2">
+          <div className="h-2.5 rounded-full bg-brand-bg overflow-hidden mb-2">
+            <div
+              className={`h-full rounded-full ${goalReached ? "bg-brand-accent" : "bg-brand-accent/70"}`}
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+          {goalReached ? (
+            <p className="text-xs font-mono text-brand-accent font-medium">
+              ¡Meta alcanzada! {formatCOP(progress.bonusAmount)} de bono en camino.
+            </p>
+          ) : (
+            <p className="text-xs font-mono text-brand-ink-soft">
+              {formatCOP(progress.currentAmount)} de {formatCOP(progress.goalAmount)} ({progressPct}%) — ganas{" "}
+              {formatCOP(progress.bonusAmount)}
+            </p>
+          )}
+        </div>
+      )}
+
+      {challenge.type === "CONTENT_CHALLENGE" && (
+        <div>
+          <p className="text-xs font-mono text-brand-ink-soft mb-2">
+            Bono: {formatCOP(Number(challenge.config.bonusAmount))}
+          </p>
+          {!myReward && <ContentSubmissionForm challengeId={challenge.id} />}
+        </div>
+      )}
+
+      {myReward && (
+        <p className="text-xs font-mono text-brand-accent mt-3 pt-3 border-t border-brand-line">
+          ✓ {formatCOP(myReward.amount)} · {rewardStatusLabel[myReward.status]}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function CreatorChallengesPanel({ activeChallenges }: { activeChallenges: ActiveChallenge[] }) {
   if (activeChallenges.length === 0) {
     return <p className="text-sm text-brand-ink-soft">Ninguna de tus marcas tiene una campaña activa ahora mismo.</p>;
@@ -99,76 +211,8 @@ export function CreatorChallengesPanel({ activeChallenges }: { activeChallenges:
 
   return (
     <div className="space-y-4">
-      {activeChallenges.map(({ challenge, myReward, progress }) => (
-        <div key={challenge.id} className="rounded-2xl border border-brand-line bg-brand-surface p-6">
-          <p className="text-xs text-brand-ink-soft mb-1">
-            {challenge.offer.brand.companyName} · {typeLabel[challenge.type]} · Termina{" "}
-            {(() => {
-              const p = getBogotaDateTimeParts(new Date(challenge.endDate));
-              return `${p.day} ${p.monthShort}, ${p.hour12}:${p.minute} ${p.ampm}`;
-            })()}
-          </p>
-          <p className="font-display font-semibold text-brand-ink mb-3">{challenge.name}</p>
-
-          {(challenge.type === "GOAL_BONUS" || challenge.type === "MIX") && progress && (
-            <div className="mb-2">
-              <div className="h-2 rounded-full bg-brand-bg overflow-hidden mb-2">
-                <div
-                  className="h-full bg-brand-accent"
-                  style={{ width: `${Math.min(100, (progress.currentAmount / progress.goalAmount) * 100)}%` }}
-                />
-              </div>
-              <p className="text-xs font-mono text-brand-ink-soft">
-                {formatCOP(progress.currentAmount)} de {formatCOP(progress.goalAmount)} — ganas{" "}
-                {formatCOP(progress.bonusAmount)}
-              </p>
-            </div>
-          )}
-
-          {(challenge.type === "FLASH_SALE" || challenge.type === "MIX") && (
-            <div className="space-y-1">
-              {challenge.config.newCommissionPercent != null && (
-                <p className="text-sm text-brand-ink-soft">
-                  Comisión especial activa para <strong>todos</strong> los creadores de esta oferta: mientras dure,
-                  tus ventas pagan{" "}
-                  <span className="text-brand-accent font-mono">{String(challenge.config.newCommissionPercent)}%</span>{" "}
-                  en vez de tu comisión normal.
-                </p>
-              )}
-              {challenge.config.newDiscountPercent != null && (
-                <p className="text-sm text-brand-ink-soft">
-                  Tu código tiene ahora{" "}
-                  <span className="text-brand-accent font-mono">{String(challenge.config.newDiscountPercent)}% de descuento</span>{" "}
-                  para quien compre con él — más de lo normal, mientras dure la campaña. Buen momento para contarlo.
-                </p>
-              )}
-            </div>
-          )}
-
-          {challenge.type === "LEADERBOARD" && (
-            <p className="text-sm text-brand-ink-soft">
-              Los {String(challenge.config.winnersCount)} creadores con más ventas al terminar se llevan un premio.
-            </p>
-          )}
-
-          {challenge.type === "WELCOME_BONUS" && !myReward && (
-            <p className="text-sm text-brand-ink-soft">Bono de bienvenida activo — cupos limitados.</p>
-          )}
-
-          {challenge.type === "CONTENT_CHALLENGE" && (
-            <div>
-              <p className="text-sm text-brand-ink-soft">{String(challenge.config.instructions)}</p>
-              <p className="text-xs font-mono text-brand-ink-soft mt-1">Bono: {formatCOP(Number(challenge.config.bonusAmount))}</p>
-              {!myReward && <ContentSubmissionForm challengeId={challenge.id} />}
-            </div>
-          )}
-
-          {myReward && (
-            <p className="text-xs font-mono text-brand-accent mt-3 pt-3 border-t border-brand-line">
-              {formatCOP(myReward.amount)} · {rewardStatusLabel[myReward.status]}
-            </p>
-          )}
-        </div>
+      {activeChallenges.map((ac) => (
+        <ChallengeCard key={ac.challenge.id} {...ac} />
       ))}
     </div>
   );
