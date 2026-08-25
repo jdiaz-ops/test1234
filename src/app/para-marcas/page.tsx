@@ -114,12 +114,28 @@ const pasos = [
   },
 ];
 
-// Datos de ejemplo para las 3 vistas previas de la sección "Así funciona en
-// tu panel" — la misma info y el mismo tratamiento visual (colores, tipos,
+// Datos de ejemplo para las vistas previas de la sección "Así funciona en tu
+// panel" — la misma info y el mismo tratamiento visual (colores, tipos,
 // tiles) que ya existen de verdad en el portal de marca (ver
 // challenge-results-grid.tsx y challenges-panel.tsx), solo con cifras de
 // muestra. Nada inventado que la marca no tenga hoy: ni integraciones con
-// Google Analytics/Facebook Pixel ni nada por el estilo.
+// Google Analytics/Facebook Pixel ni nada por el estilo. "Red de creadores"
+// se describe como comunidad a la que se accede (así se describe también en
+// "Beneficios" más abajo) — Marcolini no tiene un buscador/directorio donde
+// la marca navega y elige creadores, son los creadores quienes descubren y
+// se unen a las marcas desde su propio marketplace.
+const previewIntegraciones = [
+  { nombre: "Shopify", conectada: true },
+  { nombre: "WooCommerce", conectada: false },
+];
+
+const previewRedCreadores = [
+  { name: "Valentina R.", especialidad: "Uñas" },
+  { name: "Camila M.", especialidad: "Skincare" },
+  { name: "Sofía T.", especialidad: "Maquillaje" },
+  { name: "Laura G.", especialidad: "Belleza" },
+];
+
 const previewCreadores = [
   { name: "Valentina R.", code: "VALE20", ventas: "32 ventas" },
   { name: "Camila M.", code: "CAMI20", ventas: "18 ventas" },
@@ -187,7 +203,7 @@ export default function ParaMarcasPage() {
           />
           <div className="relative max-w-3xl mx-auto px-6 pt-24 pb-20 text-center">
             <span className="inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-4 py-1.5 mb-7">
-              MARKETING DE INFLUENCIA MÁS SIMPLE E INTELIGENTE
+              MARKETING DE INFLUENCIA SIMPLE Y MEDIBLE
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
               Convierte a los creadores de contenido en tu mejor canal de ventas
@@ -261,7 +277,70 @@ export default function ParaMarcasPage() {
           </h2>
 
           <div className="space-y-20">
-            {/* 1 — código de descuento único por creador */}
+            {/* 1 — integración con Shopify/WooCommerce */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-xs text-brand-ink-soft mb-4">Conecta tu tienda</p>
+                <div className="space-y-3">
+                  {previewIntegraciones.map((p) => (
+                    <div key={p.nombre} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center shrink-0">
+                          <IconStore className="w-5 h-5" />
+                        </div>
+                        <span className="text-sm font-medium text-brand-ink">{p.nombre}</span>
+                      </div>
+                      {p.conectada ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-accent shrink-0">
+                          <IconCheck className="w-4 h-4" /> Conectada
+                        </span>
+                      ) : (
+                        <span className="text-xs text-brand-ink-soft shrink-0">Disponible</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Integración en minutos con Shopify o WooCommerce
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed">
+                  Sin desarrollos ni integraciones complejas — en cinco minutos tu tienda queda
+                  lista para recibir ventas de tus creadores, con cada orden atribuida
+                  automáticamente.
+                </p>
+              </div>
+            </div>
+
+            {/* 2 — red de creadores especializados */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-xs text-brand-ink-soft mb-4">Creadores especializados en tu categoría</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {previewRedCreadores.map((c) => (
+                    <div key={c.name} className="rounded-xl bg-brand-bg px-3 py-3 text-center">
+                      <div className="w-10 h-10 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center mx-auto mb-2">
+                        {c.name.split(" ").map((w) => w[0]).join("")}
+                      </div>
+                      <p className="text-xs font-medium text-brand-ink truncate">{c.name}</p>
+                      <p className="text-[11px] text-brand-ink-soft mt-0.5">{c.especialidad}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="lg:order-1">
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Una red de creadores especializados en belleza
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed">
+                  Accede a una comunidad de creadores enfocados en uñas y belleza — perfiles afines
+                  a tu marca, no una audiencia genérica.
+                </p>
+              </div>
+            </div>
+
+            {/* 3 — código de descuento único por creador */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Creadores de tu marca</p>
@@ -297,7 +376,7 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 2 — motivar creadores con campañas */}
+            {/* 4 — motivar creadores con campañas */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <div className="flex items-center justify-between mb-4">
@@ -336,7 +415,7 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 3 — medir el ROI */}
+            {/* 5 — medir el ROI */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-3">Resultado de la campaña</p>
