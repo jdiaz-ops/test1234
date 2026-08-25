@@ -103,7 +103,7 @@ export async function setShopifyDiscountCodeActive(params: {
 /// rule ya creada — a diferencia de setShopifyDiscountCodeActive (que solo
 /// prende/apaga sin tocar el valor), esto cambia cuánto descuento recibe el
 /// comprador en el checkout real. Se usa para las campañas de "descuento
-/// especial temporal" (TEMP_DISCOUNT_BOOST) — al terminar la campaña se
+/// especial temporal" (FLASH_SALE/MIX con la palanca de descuento) — al terminar la campaña se
 /// vuelve a llamar con el % normal del creador para devolverlo a como
 /// estaba.
 export async function setShopifyDiscountValue(params: {

@@ -48,6 +48,20 @@ export async function createChallenge(
   const offer = await prisma.offer.findFirst({ where: { id: data.offerId, brandId } });
   if (!offer) throw new ChallengeError("Oferta no encontrada.");
   if (data.endDate <= data.startDate) throw new ChallengeError("La fecha de fin debe ser después del inicio.");
+
+  // Límite temporal (mientras no exista un mecanismo claro para resolver
+  // campañas superpuestas — comisión ambigua, un descuento que pisa a otro):
+  // una marca solo puede tener una campaña activa a la vez, sin importar en
+  // qué oferta. Cuenta cualquier oferta de la marca, no solo esta.
+  const alreadyActive = await prisma.challenge.findFirst({
+    where: { offer: { brandId }, status: "ACTIVE" },
+  });
+  if (alreadyActive) {
+    throw new ChallengeError(
+      `Ya tienes una campaña activa ("${alreadyActive.name}") — termínala antes de crear otra. Por ahora solo se puede tener una campaña activa a la vez.`
+    );
+  }
+
   if (
     (data.config.type === "FLASH_SALE" || data.config.type === "MIX") &&
     data.config.newCommissionPercent == null &&

@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 export default function RegistroCreadorPage() {
   return (
@@ -13,7 +13,6 @@ export default function RegistroCreadorPage() {
 }
 
 function RegistroCreadorForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   // Si llegó desde el link de invitación de otro creador (ej.
   // marcolini.co/registro/creador?ref=LAURA30), se precarga acá — el campo

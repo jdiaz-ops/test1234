@@ -334,4 +334,13 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     messageTemplate: "Posible fraude: {razon}. Revísalo en Antifraude.",
     placeholders: "razon",
   },
+  {
+    key: "GDPR_DATA_REQUEST_ADMIN",
+    label: "Solicitud de datos de un comprador (Shopify)",
+    audience: "ADMIN",
+    channelEmail: true,
+    messageTemplate:
+      "Un comprador de {marca} pidió sus datos vía Shopify ({correo}). Encontramos {cantidad} venta(s) con ese correo — tienes 30 días para responderle a la tienda a mano.",
+    placeholders: "marca,correo,cantidad",
+  },
 ];

@@ -11,11 +11,10 @@ function VerificarEmailContent() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error");
-      setMessage("Falta el token de verificación en el link.");
-      return;
-    }
+    // Sin token no hay nada que sincronizar con el servidor — es un caso
+    // que se puede resolver directo en el render (ver más abajo), así que
+    // el efecto ni siquiera arranca el fetch.
+    if (!token) return;
 
     fetch("/api/verify-email", {
       method: "POST",
@@ -36,6 +35,18 @@ function VerificarEmailContent() {
         setMessage("Ocurrió un error inesperado.");
       });
   }, [token]);
+
+  // Sin token, el error es inmediato y no depende de nada asíncrono —
+  // se calcula directo acá en vez de pasar por el estado (ver el efecto
+  // de arriba), así nunca hay un setState disparado solo por montar.
+  if (!token) {
+    return (
+      <div className="text-center">
+        <h1 className="font-display text-lg font-semibold text-brand-ink mb-2">No pudimos verificarte</h1>
+        <p className="text-sm text-brand-ink-soft">Falta el token de verificación en el link.</p>
+      </div>
+    );
+  }
 
   if (status === "loading") {
     return <p className="text-center text-sm text-brand-ink-soft">Verificando tu correo...</p>;

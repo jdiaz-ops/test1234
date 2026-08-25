@@ -31,7 +31,8 @@ export default async function RetosPage() {
       <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
         Crea una Misión (meta con bono), un Flash Sale (comisión y/o
         descuento elevados), o un Mix de las dos — por un tiempo limitado,
-        para motivar a tus creadores a vender más.
+        para motivar a tus creadores a vender más. Por ahora solo puedes
+        tener una campaña activa a la vez.
       </p>
 
       <ChallengesPanel

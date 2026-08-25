@@ -247,9 +247,18 @@ export function ChallengesPanel({
 
       {offers.length === 0 ? (
         <p className="text-sm text-brand-ink-soft mb-6">Crea primero una oferta para poder lanzar campañas sobre ella.</p>
+      ) : active.length > 0 ? (
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 mb-8">
+          <h2 className="font-display font-semibold text-brand-ink mb-2">Crear una campaña</h2>
+          <p className="text-sm text-brand-ink-soft">
+            Por ahora solo puedes tener <strong>una campaña activa a la vez</strong>. Termina{" "}
+            <strong>&quot;{active[0].name}&quot;</strong> antes de crear otra.
+          </p>
+        </div>
       ) : (
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 mb-8">
-          <h2 className="font-display font-semibold text-brand-ink mb-4">Crear una campaña</h2>
+          <h2 className="font-display font-semibold text-brand-ink mb-1">Crear una campaña</h2>
+          <p className="text-xs text-brand-ink-soft mb-4">Por ahora solo puedes tener una campaña activa a la vez.</p>
           <ChallengeForm offers={offers} />
         </div>
       )}

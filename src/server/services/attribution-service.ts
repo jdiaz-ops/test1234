@@ -160,23 +160,47 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
     return { transaction: null, created: false as const, reason: "MARCA_DESACTIVADA" as const };
   }
 
-  const transaction = await prisma.transaction.create({
-    data: {
-      brandId: params.brandId,
-      offerId: enrollment.offerId,
-      creatorId: enrollment.creatorId,
-      enrollmentId: enrollment.id,
-      source: params.source,
-      externalOrderId: params.externalOrderId,
-      grossAmount: new Prisma.Decimal(params.grossAmount),
-      discountAmount: new Prisma.Decimal(params.discountAmount),
-      netAmount: new Prisma.Decimal(params.netAmount),
-      status: "COMPLETED",
-      occurredAt: params.occurredAt,
-      note: params.note,
-      customerEmail: params.customerEmail?.trim().toLowerCase() || null,
-    },
-  });
+  let transaction;
+  try {
+    transaction = await prisma.transaction.create({
+      data: {
+        brandId: params.brandId,
+        offerId: enrollment.offerId,
+        creatorId: enrollment.creatorId,
+        enrollmentId: enrollment.id,
+        source: params.source,
+        externalOrderId: params.externalOrderId,
+        grossAmount: new Prisma.Decimal(params.grossAmount),
+        discountAmount: new Prisma.Decimal(params.discountAmount),
+        netAmount: new Prisma.Decimal(params.netAmount),
+        status: "COMPLETED",
+        occurredAt: params.occurredAt,
+        note: params.note,
+        customerEmail: params.customerEmail?.trim().toLowerCase() || null,
+      },
+    });
+  } catch (err) {
+    // Carrera con otro webhook idéntico que llegó casi al mismo tiempo (muy
+    // común: Shopify/WooCommerce reintentan si no reciben 200 a tiempo) y
+    // ganó la carrera entre que se hizo el chequeo de arriba y este create —
+    // la restricción única de la base lo bloqueó. No es un error real: la
+    // venta ya quedó registrada por la otra petición, así que se trata
+    // exactamente igual que el `existing` de arriba, sin volver a correr
+    // comisión/detectores de fraude (esa petición ganadora ya los corrió).
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const raceWinner = await prisma.transaction.findUnique({
+        where: {
+          brandId_source_externalOrderId: {
+            brandId: params.brandId,
+            source: params.source,
+            externalOrderId: params.externalOrderId,
+          },
+        },
+      });
+      if (raceWinner) return { transaction: raceWinner, created: false as const };
+    }
+    throw err;
+  }
 
   await createCommissionForTransaction(transaction.id);
   await checkGoalBonusProgress(enrollment.offerId, enrollment.creatorId);

@@ -4,6 +4,21 @@ import { notFound } from "next/navigation";
 import { getPalette, getFont } from "@/lib/creator-storefront-themes";
 import { buildBrandStoreLink, buildProductLink } from "@/lib/brand-store-link";
 
+/// Envuelve en <a> solo si hay un link real a dónde ir — si la marca
+/// todavía no tiene tienda ni sitio web configurado, se muestra el mismo
+/// contenido pero sin envolver en nada clickeable, para no dejar un botón
+/// que en apariencia funciona pero no lleva a ningún lado.
+function BrandHeaderOrLink({ storeLink, children }: { storeLink: string | null; children: React.ReactNode }) {
+  if (!storeLink) {
+    return <div className="flex items-center gap-3 mb-3">{children}</div>;
+  }
+  return (
+    <a href={storeLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 mb-3">
+      {children}
+    </a>
+  );
+}
+
 /// El título/descripción de acá + la imagen de opengraph-image.tsx (mismo
 /// folder, Next.js la detecta sola por convención) son lo que se ve cuando
 /// un creador pega su link en WhatsApp/Instagram/etc.
@@ -146,12 +161,10 @@ export default async function PublicStorefrontPage({
                   className="rounded-2xl p-5"
                   style={{ background: palette.surface, border: `1px solid ${palette.accentSoft}` }}
                 >
-                  <a
-                    href={storeLink ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 mb-3"
-                  >
+                  {/* Sin link real (marca sin tienda ni sitio web todavía) — se
+                      muestra igual, pero sin envolver en <a>, para nunca dejar un
+                      botón que no lleva a ningún lado en una vitrina pública. */}
+                  <BrandHeaderOrLink storeLink={storeLink}>
                     {e.offer.brand.logoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- logo subido por la marca
                       <img src={e.offer.brand.logoUrl} alt={e.offer.brand.companyName} className="w-10 h-10 rounded-full object-cover shrink-0" />
@@ -166,22 +179,31 @@ export default async function PublicStorefrontPage({
                     <p className="font-display font-semibold" style={{ color: palette.ink }}>
                       {e.offer.brand.companyName}
                     </p>
-                  </a>
+                  </BrandHeaderOrLink>
                   <p className="text-sm mb-4" style={{ color: palette.inkSoft }}>
                     Obtén {discountPercent}% de descuento con esta marca usando mi código{" "}
                     <span className="font-mono font-medium" style={{ color: palette.accent }}>
                       {e.discountCode}
                     </span>
                   </p>
-                  <a
-                    href={storeLink ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-center rounded-full px-5 py-2.5 text-sm font-semibold text-white"
-                    style={{ background: palette.accent }}
-                  >
-                    Ir a la tienda →
-                  </a>
+                  {storeLink ? (
+                    <a
+                      href={storeLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-center rounded-full px-5 py-2.5 text-sm font-semibold text-white"
+                      style={{ background: palette.accent }}
+                    >
+                      Ir a la tienda →
+                    </a>
+                  ) : (
+                    <p
+                      className="block text-center rounded-full px-5 py-2.5 text-sm font-semibold"
+                      style={{ background: palette.accentSoft, color: palette.inkSoft }}
+                    >
+                      Tienda próximamente
+                    </p>
+                  )}
                 </div>
               );
             })
