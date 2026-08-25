@@ -104,6 +104,23 @@ const pasos = [
   },
 ];
 
+// Datos de ejemplo para las 3 vistas previas de la sección "Así funciona en
+// tu panel" — la misma info y el mismo tratamiento visual (colores, tipos,
+// tiles) que ya existen de verdad en el portal de marca (ver
+// challenge-results-grid.tsx y challenges-panel.tsx), solo con cifras de
+// muestra. Nada inventado que la marca no tenga hoy: ni integraciones con
+// Google Analytics/Facebook Pixel ni nada por el estilo.
+const previewCreadores = [
+  { name: "Valentina R.", code: "VALE20", ventas: "32 ventas" },
+  { name: "Camila M.", code: "CAMI20", ventas: "18 ventas" },
+  { name: "Sofía T.", code: "SOFIA20", ventas: "9 ventas" },
+];
+
+const previewParticipantes = [
+  { name: "Valentina R.", status: "Logró la meta", ok: true },
+  { name: "Camila M.", status: "En camino", ok: false },
+];
+
 const cambioMercado = [
   {
     icon: IconWallet,
@@ -137,7 +154,7 @@ export default function ParaMarcasPage() {
           />
           <div className="relative max-w-3xl mx-auto px-6 pt-24 pb-20 text-center">
             <span className="inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-4 py-1.5 mb-7">
-              PARA MARCAS
+              MARKETING DE INFLUENCIA MÁS SIMPLE E INTELIGENTE
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
               Convierte a los creadores de contenido en tu mejor canal de ventas
@@ -235,6 +252,139 @@ export default function ParaMarcasPage() {
                 <p className="text-sm text-brand-ink-soft leading-relaxed max-w-[200px] mx-auto">{p.texto}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Así funciona en tu panel — adaptado de páginas como UpPromote
+            (códigos por creador, motivar creadores con campañas, medir
+            resultados), pero con el look real del portal de Marcolini y
+            solo capacidades que ya existen hoy. */}
+        <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
+          <p className="font-mono text-xs text-brand-accent tracking-widest text-center mb-3">
+            ASÍ FUNCIONA EN TU PANEL
+          </p>
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-16 max-w-2xl mx-auto text-balance">
+            Todo lo que necesitas para vender a través de creadores, en un solo lugar
+          </h2>
+
+          <div className="space-y-20">
+            {/* 1 — código de descuento único por creador */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-xs text-brand-ink-soft mb-4">Creadores de tu marca</p>
+                <div className="space-y-3">
+                  {previewCreadores.map((c) => (
+                    <div key={c.code} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center shrink-0">
+                          {c.name.split(" ").map((w) => w[0]).join("")}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-brand-ink truncate">{c.name}</p>
+                          <p className="text-xs text-brand-ink-soft">{c.ventas}</p>
+                        </div>
+                      </div>
+                      <span className="font-mono text-xs font-medium text-brand-accent bg-brand-accent-soft rounded-lg px-2.5 py-1 shrink-0">
+                        {c.code}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Un código de descuento único para cada creador
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed">
+                  Apenas un creador se une a tu marca, genera automáticamente su propio código. Cada
+                  venta hecha con ese código queda atribuida a él — sabes exactamente quién vendió,
+                  cuánto vendió y cuánto le debes pagar, sin hacer seguimiento a mano.
+                </p>
+              </div>
+            </div>
+
+            {/* 2 — motivar creadores con campañas */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-3 py-1">
+                    MISIÓN
+                  </span>
+                  <span className="text-xs text-brand-accent font-medium">Activa</span>
+                </div>
+                <p className="font-display font-semibold text-brand-ink mb-1">Meta de agosto</p>
+                <p className="text-xs text-brand-ink-soft mb-4">Meta $2.000.000 · Bono $150.000</p>
+                <div className="h-2 rounded-full bg-brand-bg overflow-hidden mb-2">
+                  <div className="h-full rounded-full bg-brand-accent" style={{ width: "68%" }} />
+                </div>
+                <div className="flex items-center justify-between text-xs text-brand-ink-soft mb-5">
+                  <span>$1.360.000 vendidos</span>
+                  <span>68%</span>
+                </div>
+                <div className="space-y-2">
+                  {previewParticipantes.map((r) => (
+                    <div key={r.name} className="flex items-center justify-between text-xs">
+                      <span className="text-brand-ink">{r.name}</span>
+                      <span className={r.ok ? "text-brand-accent font-medium" : "text-brand-ink-soft"}>{r.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="lg:order-1">
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Motiva a tus creadores con campañas por tiempo limitado
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed">
+                  Lanza una Misión con meta y bono, un Flash Sale que sube la comisión por unos días,
+                  o un Mix de ambos. Tú defines las reglas; Marcolini calcula quién llegó a la meta y
+                  paga el bono automáticamente.
+                </p>
+              </div>
+            </div>
+
+            {/* 3 — medir el ROI */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-xs text-brand-ink-soft mb-3">Resultado de la campaña</p>
+                <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-3">
+                  <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                    <p className="font-display text-2xl font-bold text-brand-accent">3.8x</p>
+                    <p className="text-xs text-brand-ink-soft">por cada $1 invertido, generaste 3.8x en ventas</p>
+                  </div>
+                  <p className="text-sm text-brand-ink font-medium mt-1.5">
+                    Esta campaña rindió bien — vale la pena repetirla.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$4.200.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Ventas generadas (GMV)</p>
+                  </div>
+                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">54</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
+                  </div>
+                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$150.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
+                  </div>
+                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$630.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Mide el retorno real de cada campaña
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed">
+                  Ventas generadas, órdenes, comisiones pagadas y cuántas veces recuperaste lo
+                  invertido — calculado automáticamente al terminar cada campaña, sin hojas de cálculo
+                  ni reportes manuales.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
