@@ -2,80 +2,12 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import {
-  IconTarget,
-  IconUsers,
   IconStore,
-  IconTrace,
-  IconSliders,
-  IconTrendingUp,
   IconArrowRight,
-  IconHeart,
-  IconChart,
-  IconWallet,
   IconCheck,
 } from "@/components/marketing/icons";
 
 const confianza = ["Solo pagas cuando vendes", "Sin mensualidad", "Ventas 100% trazables"];
-
-const problema = [
-  {
-    icon: IconHeart,
-    titulo: "Los likes no son ventas",
-    texto: "El engagement no paga las facturas.",
-  },
-  {
-    icon: IconChart,
-    titulo: "Mide el ROI",
-    texto: "Conoce cuánto vendió cada creador.",
-  },
-  {
-    icon: IconTarget,
-    // No "invierte con confianza / destina presupuesto" — Marcolini no le
-    // pide presupuesto a la marca por adelantado, así que esa frase no
-    // encajaba con el modelo. El ángulo real es que no hay riesgo: se paga
-    // solo cuando hay una venta real, nunca antes.
-    titulo: "Sin riesgo por adelantado",
-    texto: "No pagas nada hasta que haya una venta real.",
-  },
-];
-
-const beneficios = [
-  {
-    icon: IconTarget,
-    titulo: "Paga solo por resultados",
-    // Antes decía solo "5% únicamente sobre las ventas generadas" — se
-    // podía leer como que eso es TODO lo que se paga, cuando en realidad
-    // son dos componentes: la comisión del creador (la define la marca) +
-    // el 5% de Marcolini. Ahora queda explícito que son dos cosas, ambas
-    // atadas a que haya una venta real.
-    texto: "La comisión del creador que tú defines, más el 5% de Marcolini — ambos solo sobre las ventas generadas por este canal.",
-  },
-  {
-    icon: IconUsers,
-    titulo: "Red de creadores especializados",
-    texto: "Accede a una comunidad enfocada en uñas y belleza.",
-  },
-  {
-    icon: IconStore,
-    titulo: "Conecta tu tienda en minutos",
-    texto: "Shopify o WooCommerce, sin desarrollos ni integraciones complejas.",
-  },
-  {
-    icon: IconTrace,
-    titulo: "Trazabilidad total",
-    texto: "Cada creador tiene su propio código: da descuento a tus compradores (tú defines el %) y te dice quién vendió, cuánto vendió y cuánto pagar.",
-  },
-  {
-    icon: IconSliders,
-    titulo: "Comisiones flexibles",
-    texto: "Define el porcentaje para cada campaña.",
-  },
-  {
-    icon: IconTrendingUp,
-    titulo: "Escala sin aumentar riesgo",
-    texto: "Más ventas sin pagar por publicaciones anticipadamente.",
-  },
-];
 
 // Datos de ejemplo para las vistas previas de la sección "Así funciona en tu
 // panel" — la misma info y el mismo tratamiento visual (colores, tipos,
@@ -114,24 +46,6 @@ const previewTransacciones = [
   { creador: "Valentina R.", fecha: "12 ago", venta: "$189.000", estado: "Pagado" },
   { creador: "Camila M.", fecha: "11 ago", venta: "$95.000", estado: "Aprobado" },
   { creador: "Sofía T.", fecha: "10 ago", venta: "$210.000", estado: "En revisión" },
-];
-
-const cambioMercado = [
-  {
-    icon: IconWallet,
-    titulo: "La publicidad es cada vez más cara",
-    texto: "Los costos de adquisición siguen aumentando.",
-  },
-  {
-    icon: IconUsers,
-    titulo: "Las personas confían en personas",
-    texto: "Los creadores generan recomendaciones más auténticas que los anuncios.",
-  },
-  {
-    icon: IconTrendingUp,
-    titulo: "Ahora puedes medirlo",
-    texto: "Cada venta queda atribuida al creador que la originó.",
-  },
 ];
 
 export default function ParaMarcasPage() {
@@ -191,9 +105,6 @@ export default function ParaMarcasPage() {
             medir resultados), pero con el look real del portal de Marcolini
             y solo capacidades que ya existen hoy. */}
         <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
-          <p className="font-mono text-xs text-brand-accent tracking-widest text-center mb-3">
-            ASÍ FUNCIONA EN TU PANEL
-          </p>
           <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-16 max-w-2xl mx-auto text-balance">
             Todo lo que necesitas para vender a través de creadores, en un solo lugar
           </h2>
@@ -410,79 +321,19 @@ export default function ParaMarcasPage() {
                 </p>
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* El problema */}
-        <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-4 text-balance">
-            Deja de adivinar qué creadores de contenido realmente hacen vender
-          </h2>
-          <p className="text-brand-ink-soft text-center max-w-2xl mx-auto mb-12 text-balance">
-            La mayoría del marketing de influencia termina en likes, vistas y engagement. Marcolini
-            rastrea ventas reales para que sepas exactamente qué creadores generan crecimiento para
-            tu negocio.
-          </p>
-          <div className="grid sm:grid-cols-3 gap-6">
-            {problema.map((b) => (
-              <div key={b.titulo} className="rounded-2xl bg-brand-surface border border-brand-line p-6">
-                <div className="w-11 h-11 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-4">
-                  <b.icon className="w-5 h-5" />
-                </div>
-                <p className="font-display font-semibold text-brand-ink mb-1.5">{b.titulo}</p>
-                <p className="text-sm text-brand-ink-soft leading-relaxed">{b.texto}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Beneficios */}
-        <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
-          <p className="font-mono text-xs text-brand-accent tracking-widest text-center mb-3">
-            ¿POR QUÉ MARCOLINI?
-          </p>
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-12 text-balance">
-            Un canal de ventas que se paga solo con resultados
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {beneficios.map((b) => (
-              <div
-                key={b.titulo}
-                className="group rounded-2xl bg-brand-surface border border-brand-line p-6 hover:border-brand-accent hover:shadow-[0_16px_40px_-24px_var(--brand-accent)] transition"
-              >
-                <div className="w-11 h-11 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-4 group-hover:scale-105 transition">
-                  <b.icon className="w-5 h-5" />
-                </div>
-                <p className="font-display font-semibold text-brand-ink mb-1.5">{b.titulo}</p>
-                <p className="text-sm text-brand-ink-soft leading-relaxed">{b.texto}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* El cambio del mercado — banda con tinte, para marcar el cambio de
-            ritmo antes de la tarifa (mismo tono que ya se usa en los avisos
-            del portal, no un color nuevo). Sin cifras globales todavía — la
-            plataforma es nueva y una promesa atemporal es más honesta que un
-            número inflado. */}
-        <section className="bg-brand-accent-soft/40 border-t border-brand-line">
-          <div className="max-w-5xl mx-auto px-6 py-16">
-            <p className="font-mono text-xs text-brand-accent tracking-widest text-center mb-3">
-              EL CAMBIO DEL MERCADO
-            </p>
-            <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-12 max-w-2xl mx-auto text-balance">
-              El futuro del marketing no es pagar por publicaciones. Es pagar por resultados.
-            </h2>
-            <div className="grid sm:grid-cols-3 gap-6">
-              {cambioMercado.map((b) => (
-                <div key={b.titulo} className="rounded-2xl bg-brand-surface border border-brand-line p-6">
-                  <div className="w-11 h-11 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-4">
-                    <b.icon className="w-5 h-5" />
-                  </div>
-                  <p className="font-display font-semibold text-brand-ink mb-1.5">{b.titulo}</p>
-                  <p className="text-sm text-brand-ink-soft leading-relaxed">{b.texto}</p>
-                </div>
-              ))}
+            {/* Cierre de la sección — resume por qué todo lo anterior importa:
+                reemplaza a los antiguos bloques "El cambio del mercado" y la
+                tarjeta "Escala sin aumentar riesgo" de Beneficios (ambos
+                retirados de la página), condensados en un solo párrafo. */}
+            <div className="rounded-2xl bg-brand-accent-soft/40 border border-brand-accent/20 p-8 sm:p-10 text-center">
+              <p className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-balance mb-3">
+                El futuro del marketing no es pagar por publicaciones. Es pagar por resultados.
+              </p>
+              <p className="text-brand-ink-soft leading-relaxed max-w-xl mx-auto">
+                Por eso puedes escalar sin aumentar el riesgo: suma más creadores y más campañas sin
+                pagar nada por adelantado — solo cuando generan ventas reales.
+              </p>
             </div>
           </div>
         </section>
