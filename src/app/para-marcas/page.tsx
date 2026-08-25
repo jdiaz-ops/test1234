@@ -34,8 +34,12 @@ const problema = [
   },
   {
     icon: IconTarget,
-    titulo: "Invierte con confianza",
-    texto: "Destina presupuesto a quienes convierten.",
+    // No "invierte con confianza / destina presupuesto" — Marcolini no le
+    // pide presupuesto a la marca por adelantado, así que esa frase no
+    // encajaba con el modelo. El ángulo real es que no hay riesgo: se paga
+    // solo cuando hay una venta real, nunca antes.
+    titulo: "Sin riesgo por adelantado",
+    texto: "No pagas nada hasta que haya una venta real.",
   },
 ];
 
@@ -58,7 +62,7 @@ const beneficios = [
   {
     icon: IconTrace,
     titulo: "Trazabilidad total",
-    texto: "Quién vendió, cuánto vendió y cuánto pagar.",
+    texto: "Cada creador tiene su propio código de descuento — sabes quién vendió, cuánto vendió y cuánto pagar.",
   },
   {
     icon: IconSliders,
@@ -86,7 +90,7 @@ const pasos = [
   {
     paso: "3",
     titulo: "Los creadores venden",
-    texto: "Comparten enlaces únicos y generan pedidos.",
+    texto: "Cada uno comparte su código de descuento único — tú sabes exactamente quién generó cada venta.",
   },
   {
     paso: "4",
@@ -128,7 +132,7 @@ export default function ParaMarcasPage() {
           />
           <div className="relative max-w-3xl mx-auto px-6 pt-24 pb-20 text-center">
             <span className="inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-4 py-1.5 mb-7">
-              PARA MARCAS DE UÑAS · SHOPIFY &amp; WOOCOMMERCE
+              PARA MARCAS QUE USAN SHOPIFY Y WOOCOMMERCE
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
               Convierte a los creadores de contenido en tu mejor canal de ventas
@@ -149,10 +153,10 @@ export default function ParaMarcasPage() {
                 Ya tengo cuenta
               </Link>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3">
               {confianza.map((texto) => (
-                <span key={texto} className="inline-flex items-center gap-1.5 text-xs text-brand-ink-soft">
-                  <IconCheck className="w-4 h-4 text-brand-accent shrink-0" />
+                <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
+                  <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
                   {texto}
                 </span>
               ))}
@@ -162,11 +166,8 @@ export default function ParaMarcasPage() {
 
         {/* El problema */}
         <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
-          <p className="font-mono text-xs text-brand-accent tracking-widest text-center mb-3">
-            EL PROBLEMA
-          </p>
           <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-4 text-balance">
-            Deja de adivinar qué creadores realmente hacen vender
+            Deja de adivinar qué creadores de contenido realmente hacen vender
           </h2>
           <p className="text-brand-ink-soft text-center max-w-2xl mx-auto mb-12 text-balance">
             La mayoría del marketing de influencia termina en likes, vistas y engagement. Marcolini
@@ -267,13 +268,16 @@ export default function ParaMarcasPage() {
               className="pointer-events-none absolute -bottom-24 -left-24 h-[300px] w-[300px] rounded-full opacity-30 blur-3xl"
               style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
             />
-            <p className="relative font-mono text-sm text-brand-accent mb-3 tracking-wide">5% + IVA</p>
+            <p className="relative font-mono text-brand-accent mb-3 tracking-wide">
+              <span className="text-2xl font-semibold">5%</span> <span className="text-sm">+ IVA</span>
+            </p>
             <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-4 text-balance">
               Una sola tarifa. Sin mensualidades.
             </h2>
             <p className="relative text-white/70 max-w-xl mx-auto mb-9 text-balance">
-              Tú defines la comisión del creador. Marcolini solo cobra un 5% sobre las ventas
-              generadas. Nunca descontamos dinero de lo que gana el creador.
+              Tú defines la comisión del creador y el descuento para el comprador final. Marcolini
+              solo cobra un 5% sobre las ventas generadas. Nunca descontamos dinero de lo que gana
+              el creador.
             </p>
             <Link
               href="/registro/marca"
