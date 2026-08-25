@@ -136,12 +136,11 @@ export default function ParaMarcasPage() {
               </div>
               <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Integración en minutos con Shopify o WooCommerce
+                  Conecta Shopify o WooCommerce en menos de 5 minutos
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Sin desarrollos ni integraciones complejas — en cinco minutos tu tienda queda
-                  lista para recibir ventas de tus creadores, con cada orden atribuida
-                  automáticamente.
+                  Sin código ni configuraciones complejas. Empieza a vender con creadores de
+                  contenido y atribuye automáticamente cada pedido al embajador que lo generó.
                 </p>
               </div>
             </div>
@@ -164,13 +163,12 @@ export default function ParaMarcasPage() {
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  No tienes que salir a buscar creadores — ya existen
+                  Accede a una red de creadores lista para vender tu marca
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Cientos de creadores especializados en uñas y belleza ya están en el marketplace
-                  de Marcolini. En cuanto publicas tu oferta, te descubren y deciden hablar de tu
-                  marca a cambio de una comisión — no tienes que reclutar, negociar ni convencer a
-                  nadie uno por uno. Es un canal de ventas listo para usar desde el día uno.
+                  Publica una campaña y comienza a recibir solicitudes de creadores especializados
+                  en uñas y belleza. Ellos eligen promocionar tu marca por una comisión, mientras
+                  tú descubres quién realmente genera ventas y escalas las mejores alianzas.
                 </p>
               </div>
             </div>
@@ -200,13 +198,13 @@ export default function ParaMarcasPage() {
               </div>
               <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Un código de descuento único para cada creador
+                  Cada creador recibe su propio código y enlace de ventas
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Apenas un creador se une a tu marca, genera automáticamente su propio código de
-                  descuento — tú defines el % que reciben tus compradores. Cada venta hecha con ese
-                  código queda atribuida al creador: sabes exactamente quién vendió, cuánto vendió y
-                  cuánto le debes pagar, sin hacer seguimiento a mano.
+                  Marcolini genera automáticamente un código de descuento y un enlace único para
+                  cada creador. Cada pedido queda atribuido en tiempo real, para que sepas quién
+                  vendió, cuánto facturó y qué comisión le corresponde, sin hojas de cálculo ni
+                  seguimiento manual.
                 </p>
               </div>
             </div>
@@ -240,12 +238,12 @@ export default function ParaMarcasPage() {
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Motiva a tus creadores con campañas por tiempo limitado
+                  Lanza Misiones y Flash Campaigns que impulsan más ventas
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Lanza una Misión con meta y bono, un Flash Sale que sube la comisión por unos días,
-                  o un Mix de ambos. Tú defines las reglas; Marcolini calcula quién llegó a la meta y
-                  paga el bono automáticamente.
+                  Crea retos con metas, bonos y comisiones temporales para incentivar a tus
+                  creadores. Marcolini mide el progreso en tiempo real, identifica quién cumplió el
+                  objetivo y calcula automáticamente los bonos y comisiones de cada campaña.
                 </p>
               </div>
             </div>
@@ -284,12 +282,12 @@ export default function ParaMarcasPage() {
               </div>
               <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Mide el retorno real de cada campaña
+                  Descubre qué creadores realmente hacen crecer tu negocio
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Ventas generadas, órdenes, comisiones pagadas y cuántas veces recuperaste lo
-                  invertido — calculado automáticamente al terminar cada campaña, sin hojas de cálculo
-                  ni reportes manuales.
+                  Marcolini calcula automáticamente el GMV, las órdenes, las comisiones y el ROI de
+                  cada campaña. Identifica qué alianzas generan ganancias reales y toma decisiones
+                  basadas en ventas, no en likes o engagement.
                 </p>
               </div>
             </div>
@@ -312,28 +310,14 @@ export default function ParaMarcasPage() {
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Trazabilidad total, con un registro de cada transacción
+                  Control total de ventas, comisiones y pagos
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Cada venta generada por tus creadores queda registrada automáticamente — fecha,
-                  creador, monto y estado, todo en un solo lugar. Nada de reconciliar reportes a
-                  mano ni perseguir información entre plataformas.
+                  Cada pedido queda registrado automáticamente con su creador, monto, comisión y
+                  estado de pago. Revisa el historial completo de transacciones y paga a tus
+                  creadores con total transparencia, sin conciliaciones manuales.
                 </p>
               </div>
-            </div>
-
-            {/* Cierre de la sección — resume por qué todo lo anterior importa:
-                reemplaza a los antiguos bloques "El cambio del mercado" y la
-                tarjeta "Escala sin aumentar riesgo" de Beneficios (ambos
-                retirados de la página), condensados en un solo párrafo. */}
-            <div className="rounded-2xl bg-brand-accent-soft/40 border border-brand-accent/20 p-8 sm:p-10 text-center">
-              <p className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-balance mb-3">
-                El futuro del marketing no es pagar por publicaciones. Es pagar por resultados.
-              </p>
-              <p className="text-brand-ink-soft leading-relaxed max-w-xl mx-auto">
-                Por eso puedes escalar sin aumentar el riesgo: suma más creadores y más campañas sin
-                pagar nada por adelantado — solo cuando generan ventas reales.
-              </p>
             </div>
           </div>
         </section>
@@ -346,14 +330,16 @@ export default function ParaMarcasPage() {
               className="pointer-events-none absolute -bottom-24 -left-24 h-[300px] w-[300px] rounded-full opacity-30 blur-3xl"
               style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
             />
-            <p className="relative font-mono text-2xl font-semibold text-brand-accent mb-3 tracking-wide">5%</p>
+            <span className="relative inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-white/10 rounded-full px-4 py-1.5 mb-5">
+              5% SOBRE VENTAS GENERADAS
+            </span>
             <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-4 text-balance">
-              Una sola tarifa. Sin mensualidades.
+              Empieza gratis. Solo pagas cuando vendes.
             </h2>
             <p className="relative text-white/70 max-w-xl mx-auto mb-9 text-balance">
-              Tú defines la comisión del creador y el descuento para el comprador final. Marcolini
-              solo cobra un 5% sobre las ventas generadas. Nunca descontamos dinero de lo que gana
-              el creador.
+              Tú defines la comisión de tus creadores y el descuento que recibirán tus compradores.
+              Marcolini cobra únicamente un 5% sobre las ventas confirmadas, sin mensualidades ni
+              costos de instalación. El creador recibe el 100% de la comisión que tú le asignaste.
             </p>
             <Link
               href="/registro/marca"
