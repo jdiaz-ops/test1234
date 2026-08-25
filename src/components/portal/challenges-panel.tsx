@@ -112,7 +112,7 @@ function ReviewSubmissionButtons({ rewardId }: { rewardId: string }) {
   );
 }
 
-function ChallengeCard({ c, onEnd, storeConnected }: { c: Challenge; onEnd: (id: string) => void; storeConnected: boolean }) {
+function ChallengeCard({ c, onEnd }: { c: Challenge; onEnd: (id: string) => void }) {
   const totalAwarded = c.rewards.reduce((sum, r) => sum + r.amount, 0);
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
@@ -129,19 +129,6 @@ function ChallengeCard({ c, onEnd, storeConnected }: { c: Challenge; onEnd: (id:
             {formatDateTime(c.startDate)} — {formatDateTime(c.endDate)}
           </p>
           <p className="text-xs text-brand-ink-soft mt-1">{configSummary(c.type, c.config)}</p>
-          {(c.type === "FLASH_SALE" || c.type === "MIX") && c.status === "ACTIVE" && c.config.newDiscountPercent != null && (
-            <p className="text-xs mt-1">
-              {!storeConnected ? (
-                <span className="text-brand-ink-soft">
-                  ○ No tienes una tienda conectada — sube este % a mano donde vendas
-                </span>
-              ) : c.discountBoostActive ? (
-                <span className="text-emerald-600">● Descuento elevado activo en tu tienda</span>
-              ) : (
-                <span className="text-brand-ink-soft">○ Se está aplicando en tu tienda — puede tardar unos minutos</span>
-              )}
-            </p>
-          )}
         </div>
         {c.status === "ACTIVE" && (
           <button onClick={() => onEnd(c.id)} className="text-xs text-brand-ink-soft hover:underline shrink-0">
@@ -175,12 +162,10 @@ export function ChallengesPanel({
   offers,
   challenges,
   submissions,
-  storeConnected,
 }: {
   offers: { id: string; name: string; defaultCommissionPercent: number; defaultDiscountPercent: number }[];
   challenges: Challenge[];
   submissions: Submission[];
-  storeConnected: boolean;
 }) {
   const router = useRouter();
 
@@ -243,7 +228,7 @@ export function ChallengesPanel({
         ) : (
           <div className="space-y-4">
             {active.map((c) => (
-              <ChallengeCard key={c.id} c={c} onEnd={handleEnd} storeConnected={storeConnected} />
+              <ChallengeCard key={c.id} c={c} onEnd={handleEnd} />
             ))}
           </div>
         )}
@@ -254,7 +239,7 @@ export function ChallengesPanel({
           <h2 className="font-display font-semibold text-brand-ink mb-4">Campañas terminadas ({ended.length})</h2>
           <div className="space-y-4">
             {ended.map((c) => (
-              <ChallengeCard key={c.id} c={c} onEnd={handleEnd} storeConnected={storeConnected} />
+              <ChallengeCard key={c.id} c={c} onEnd={handleEnd} />
             ))}
           </div>
         </div>
