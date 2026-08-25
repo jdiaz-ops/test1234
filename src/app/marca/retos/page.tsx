@@ -36,6 +36,7 @@ export default async function RetosPage() {
 
       <ChallengesPanel
         offers={offers}
+        storeConnected={profile.storeConnectionStatus === "CONNECTED" && profile.storeType !== "OTHER"}
         challenges={challenges
           .filter((c) => !HIDDEN_CHALLENGE_TYPES.includes(c.type as ChallengeType))
           .map((c) => ({

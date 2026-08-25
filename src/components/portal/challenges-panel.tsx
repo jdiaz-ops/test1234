@@ -112,14 +112,14 @@ function ReviewSubmissionButtons({ rewardId }: { rewardId: string }) {
   );
 }
 
-function ChallengeCard({ c, onEnd }: { c: Challenge; onEnd: (id: string) => void }) {
+function ChallengeCard({ c, onEnd, storeConnected }: { c: Challenge; onEnd: (id: string) => void; storeConnected: boolean }) {
   const totalAwarded = c.rewards.reduce((sum, r) => sum + r.amount, 0);
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
       <div className="flex items-start justify-between mb-2">
         <div>
           <p className="text-xs text-brand-ink-soft mb-1">
-            {c.offer.name} · {typeLabel[c.type]} ·{" "}
+            {typeLabel[c.type]} ·{" "}
             <span className={c.status === "ACTIVE" ? "text-brand-accent" : ""}>
               {c.status === "ACTIVE" ? "Activo" : "Terminado"}
             </span>
@@ -131,10 +131,14 @@ function ChallengeCard({ c, onEnd }: { c: Challenge; onEnd: (id: string) => void
           <p className="text-xs text-brand-ink-soft mt-1">{configSummary(c.type, c.config)}</p>
           {(c.type === "FLASH_SALE" || c.type === "MIX") && c.status === "ACTIVE" && c.config.newDiscountPercent != null && (
             <p className="text-xs mt-1">
-              {c.discountBoostActive ? (
+              {!storeConnected ? (
+                <span className="text-brand-ink-soft">
+                  ○ No tienes una tienda conectada — sube este % a mano donde vendas
+                </span>
+              ) : c.discountBoostActive ? (
                 <span className="text-emerald-600">● Descuento elevado activo en tu tienda</span>
               ) : (
-                <span className="text-brand-ink-soft">○ Todavía no se aplica en tu tienda</span>
+                <span className="text-brand-ink-soft">○ Se está aplicando en tu tienda — puede tardar unos minutos</span>
               )}
             </p>
           )}
@@ -171,10 +175,12 @@ export function ChallengesPanel({
   offers,
   challenges,
   submissions,
+  storeConnected,
 }: {
   offers: { id: string; name: string; defaultCommissionPercent: number; defaultDiscountPercent: number }[];
   challenges: Challenge[];
   submissions: Submission[];
+  storeConnected: boolean;
 }) {
   const router = useRouter();
 
@@ -237,7 +243,7 @@ export function ChallengesPanel({
         ) : (
           <div className="space-y-4">
             {active.map((c) => (
-              <ChallengeCard key={c.id} c={c} onEnd={handleEnd} />
+              <ChallengeCard key={c.id} c={c} onEnd={handleEnd} storeConnected={storeConnected} />
             ))}
           </div>
         )}
@@ -248,7 +254,7 @@ export function ChallengesPanel({
           <h2 className="font-display font-semibold text-brand-ink mb-4">Campañas terminadas ({ended.length})</h2>
           <div className="space-y-4">
             {ended.map((c) => (
-              <ChallengeCard key={c.id} c={c} onEnd={handleEnd} />
+              <ChallengeCard key={c.id} c={c} onEnd={handleEnd} storeConnected={storeConnected} />
             ))}
           </div>
         </div>
