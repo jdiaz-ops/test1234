@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChallengeForm } from "./challenge-form";
 import type { ChallengeType } from "@/lib/challenge-types";
 import { getBogotaDateTimeParts } from "@/lib/colombian-business-days";
+import { roiComment, formatROI, ROI_SMALL_SAMPLE_THRESHOLD } from "@/lib/challenge-roi";
 
 const typeLabel: Record<ChallengeType, string> = {
   GOAL_BONUS: "Misión",
@@ -89,6 +90,7 @@ interface ChallengeResults {
   totalBonus: number;
   creatorsReachedGoal: number;
   creatorsSoldNotReached: number;
+  roi: number | null;
 }
 
 interface Challenge {
@@ -172,9 +174,29 @@ function StatTile({ value, label, accent }: { value: string; label: string; acce
 // comisión aplican a cualquier tipo.
 function ChallengeResultsGrid({ type, results }: { type: ChallengeType; results: ChallengeResults }) {
   const hasGoal = type === "GOAL_BONUS" || type === "MIX";
+  const comment = roiComment(results.roi);
+  const smallSample = results.orderCount > 0 && results.orderCount < ROI_SMALL_SAMPLE_THRESHOLD;
   return (
     <div>
       <p className="text-xs text-brand-ink-soft mb-2">Resultado de la campaña</p>
+
+      {results.roi != null && (
+        <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-3">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <p className="font-display text-2xl font-bold text-brand-accent">{formatROI(results.roi)}</p>
+            <p className="text-xs text-brand-ink-soft">
+              por cada $1 invertido (comisión + bono + tarifa), generaste {formatROI(results.roi)} en ventas
+            </p>
+          </div>
+          {comment && <p className="text-sm text-brand-ink font-medium mt-1.5">{comment}</p>}
+          {smallSample && (
+            <p className="text-xs text-brand-ink-soft mt-1.5">
+              Muestra pequeña ({results.orderCount} {results.orderCount === 1 ? "orden" : "órdenes"}) — tómalo con cautela.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-2">
         {hasGoal && (
           <>

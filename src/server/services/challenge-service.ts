@@ -62,18 +62,30 @@ export async function getChallengeResults(challenge: {
     prisma.transaction.aggregate({ where: salesWhere, _sum: { netAmount: true }, _count: true }),
     prisma.commission.aggregate({
       where: { transaction: salesWhere },
-      _sum: { creatorCommissionAmount: true },
+      _sum: { creatorCommissionAmount: true, platformFeeAmount: true, platformFeeVatAmount: true },
     }),
     prisma.challengeReward.findMany({ where: { challengeId: challenge.id }, select: { creatorId: true, amount: true } }),
   ]);
 
+  const gmv = Number(salesAgg._sum.netAmount ?? 0);
+  const totalCommission = Number(commissionAgg._sum.creatorCommissionAmount ?? 0);
+  // La tarifa de Marcolini (con IVA) no se muestra como su propia tarjeta —
+  // solo entra al costo del ROI, igual que ya hace getBrandDashboardSummary
+  // (commissionPaidToCreators + platformFeePaid) para el Retorno del
+  // Dashboard general — mismo criterio, ahora por campaña.
+  const totalPlatformFee =
+    Number(commissionAgg._sum.platformFeeAmount ?? 0) + Number(commissionAgg._sum.platformFeeVatAmount ?? 0);
+
   const result = {
-    gmv: Number(salesAgg._sum.netAmount ?? 0),
+    gmv,
     orderCount: salesAgg._count,
-    totalCommission: Number(commissionAgg._sum.creatorCommissionAmount ?? 0),
+    totalCommission,
     totalBonus: 0,
     creatorsReachedGoal: 0,
     creatorsSoldNotReached: 0,
+    // null cuando no hay nada invertido todavía que dividir (campaña sin
+    // ventas) — se muestra como "—" en vez de un 0x o un Infinity engañoso.
+    roi: null as number | null,
   };
 
   if (challenge.type === "GOAL_BONUS" || challenge.type === "MIX") {
@@ -89,7 +101,28 @@ export async function getChallengeResults(challenge: {
     result.creatorsSoldNotReached = sellers.filter((s) => !reachedIds.has(s.creatorId)).length;
   }
 
+  const totalCost = totalCommission + result.totalBonus + totalPlatformFee;
+  result.roi = totalCost > 0 ? gmv / totalCost : null;
+
   return result;
+}
+
+/// La campaña ENDED más reciente de la marca (entre todas sus ofertas) que
+/// terminó hace 10 días o menos — para el aviso "así te fue con tu última
+/// campaña" del Dashboard. Pasado ese margen, ya no es información fresca
+/// y el Dashboard vuelve a la invitación genérica de crear una campaña.
+const RECENT_CHALLENGE_RECAP_DAYS = 10;
+
+export async function getRecentEndedChallengeForBrand(brandId: string) {
+  const since = new Date(Date.now() - RECENT_CHALLENGE_RECAP_DAYS * 24 * 60 * 60 * 1000);
+  const challenge = await prisma.challenge.findFirst({
+    where: { offer: { brandId }, status: "ENDED", endDate: { gte: since } },
+    orderBy: { endDate: "desc" },
+  });
+  if (!challenge) return null;
+
+  const results = await getChallengeResults(challenge);
+  return { challenge, results };
 }
 
 type ChallengeConfig =

@@ -8,7 +8,9 @@ import {
 } from "@/server/services/brand-finance-service";
 import { getOpenBrandCharge } from "@/server/services/payment-service";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
+import { getRecentEndedChallengeForBrand } from "@/server/services/challenge-service";
 import { ChargePaymentBox } from "@/components/portal/charge-payment-box";
+import { roiComment, formatROI } from "@/lib/challenge-roi";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
@@ -25,12 +27,57 @@ function initials(name: string) {
     .join("");
 }
 
+// Se muestra en vez de la invitación genérica mientras la última campaña
+// siga fresca (ver RECENT_CHALLENGE_RECAP_DAYS en challenge-service.ts) —
+// para que la marca decida "¿repito esto?" con el resultado real todavía
+// a la vista, no una invitación vacía sin contexto.
+function RecentCampaignRecapBox({
+  name,
+  gmv,
+  roi,
+}: {
+  name: string;
+  gmv: number;
+  roi: number | null;
+}) {
+  const comment = roiComment(roi);
+  return (
+    <div className="rounded-2xl border border-brand-accent/30 bg-brand-accent-soft/40 p-5 mb-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
+        <div>
+          <p className="text-sm font-medium text-brand-ink">Así te fue con tu última campaña</p>
+          <p className="text-xs text-brand-ink-soft mt-1">&quot;{name}&quot;</p>
+        </div>
+        <Link
+          href="/marca/retos"
+          className="shrink-0 bg-brand-accent text-white text-xs font-medium rounded-full px-5 py-2.5 hover:opacity-90"
+        >
+          Crear una campaña nueva
+        </Link>
+      </div>
+      {roi != null ? (
+        <>
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <p className="font-display text-2xl font-bold text-brand-accent">{formatROI(roi)}</p>
+            <p className="text-xs text-brand-ink-soft">
+              por cada $1 invertido, generaste {formatROI(roi)} en ventas — {formatCOP(gmv)} en total
+            </p>
+          </div>
+          {comment && <p className="text-sm text-brand-ink font-medium mt-1.5">{comment}</p>}
+        </>
+      ) : (
+        <p className="text-xs text-brand-ink-soft">No hubo ventas registradas durante esta campaña.</p>
+      )}
+    </div>
+  );
+}
+
 export default async function MarcaDashboardPage() {
   const session = await auth();
   const profile = await prisma.brandProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },
   });
-  const [summary, topCreators, pendingApprovals, openCharge, activeCampaigns] = await Promise.all([
+  const [summary, topCreators, pendingApprovals, openCharge, activeCampaigns, recentChallenge] = await Promise.all([
     getBrandDashboardSummary(profile.id),
     getTopCreatorsForBrand(profile.id, 3),
     countPendingApprovalsForBrand(profile.id),
@@ -40,6 +87,7 @@ export default async function MarcaDashboardPage() {
     // subido en revisión (PROOF_SUBMITTED), y el panel sigue sin bloquear.
     getOpenBrandCharge(profile.id),
     prisma.challenge.count({ where: { offer: { brandId: profile.id }, status: "ACTIVE" } }),
+    getRecentEndedChallengeForBrand(profile.id),
   ]);
   const platformConfig = openCharge ? await getPlatformConfig() : null;
 
@@ -87,22 +135,29 @@ export default async function MarcaDashboardPage() {
         </Link>
       )}
 
-      {activeCampaigns === 0 && (
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-brand-accent/30 bg-brand-accent-soft/40 p-5 mb-6">
-          <div>
-            <p className="text-sm font-medium text-brand-ink">Motiva a tus creadores con una campaña</p>
-            <p className="text-xs text-brand-ink-soft mt-1">
-              Una Misión, un Flash Sale o un Mix por tiempo limitado — para que vendan más ahora.
-            </p>
+      {activeCampaigns === 0 &&
+        (recentChallenge ? (
+          <RecentCampaignRecapBox
+            name={recentChallenge.challenge.name}
+            gmv={recentChallenge.results.gmv}
+            roi={recentChallenge.results.roi}
+          />
+        ) : (
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-brand-accent/30 bg-brand-accent-soft/40 p-5 mb-6">
+            <div>
+              <p className="text-sm font-medium text-brand-ink">Motiva a tus creadores con una campaña</p>
+              <p className="text-xs text-brand-ink-soft mt-1">
+                Una Misión, un Flash Sale o un Mix por tiempo limitado — para que vendan más ahora.
+              </p>
+            </div>
+            <Link
+              href="/marca/retos"
+              className="shrink-0 bg-brand-accent text-white text-xs font-medium rounded-full px-5 py-2.5 hover:opacity-90"
+            >
+              Crear campaña
+            </Link>
           </div>
-          <Link
-            href="/marca/retos"
-            className="shrink-0 bg-brand-accent text-white text-xs font-medium rounded-full px-5 py-2.5 hover:opacity-90"
-          >
-            Crear campaña
-          </Link>
-        </div>
-      )}
+        ))}
 
       <div className="grid sm:grid-cols-3 gap-4 mb-4">
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 sm:col-span-1">
