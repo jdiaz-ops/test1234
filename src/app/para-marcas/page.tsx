@@ -13,23 +13,9 @@ import {
   IconChart,
   IconWallet,
   IconCheck,
-  IconInfo,
 } from "@/components/marketing/icons";
 
-// El último ítem lleva `detail` — se explica con la misma lógica de
-// "aclaración" al pasar el mouse/tocar que usan páginas como UpPromote para
-// su "+1.5% successful referral sales", en vez de meter la letra chica
-// directo en el badge de confianza.
-const confianza: { texto: string; detail?: string }[] = [
-  { texto: "Solo pagas cuando vendes" },
-  { texto: "5 minutos de configuración en Shopify o WooCommerce" },
-  { texto: "Ventas 100% trazables" },
-  {
-    texto: "Tus compradores reciben descuento",
-    detail:
-      "Tú defines el % de descuento que reciben tus compradores con el código de cada creador — Marcolini nunca lo decide por ti.",
-  },
-];
+const confianza = ["Solo pagas cuando vendes", "Sin mensualidad", "Ventas 100% trazables"];
 
 const problema = [
   {
@@ -91,29 +77,6 @@ const beneficios = [
   },
 ];
 
-const pasos = [
-  {
-    paso: "1",
-    titulo: "Conecta tu tienda",
-    texto: "Shopify o WooCommerce en pocos minutos.",
-  },
-  {
-    paso: "2",
-    titulo: "Lanza una campaña",
-    texto: "Define la comisión y activa a tus creadores.",
-  },
-  {
-    paso: "3",
-    titulo: "Los creadores venden",
-    texto: "Cada uno comparte su código único, que da descuento a tus compradores — tú sabes exactamente quién generó cada venta.",
-  },
-  {
-    paso: "4",
-    titulo: "Mide y paga",
-    texto: "Paga únicamente las ventas confirmadas.",
-  },
-];
-
 // Datos de ejemplo para las vistas previas de la sección "Así funciona en tu
 // panel" — la misma info y el mismo tratamiento visual (colores, tipos,
 // tiles) que ya existen de verdad en el portal de marca (ver
@@ -147,6 +110,12 @@ const previewParticipantes = [
   { name: "Camila M.", status: "En camino", ok: false },
 ];
 
+const previewTransacciones = [
+  { creador: "Valentina R.", fecha: "12 ago", venta: "$189.000", estado: "Pagado" },
+  { creador: "Camila M.", fecha: "11 ago", venta: "$95.000", estado: "Aprobado" },
+  { creador: "Sofía T.", fecha: "10 ago", venta: "$210.000", estado: "En revisión" },
+];
+
 const cambioMercado = [
   {
     icon: IconWallet,
@@ -164,29 +133,6 @@ const cambioMercado = [
     texto: "Cada venta queda atribuida al creador que la originó.",
   },
 ];
-
-// Aclaración al estilo del "+1.5% successful referral sales" de UpPromote:
-// una etiqueta con subrayado punteado + ícono de info que revela el detalle
-// al pasar el mouse o al tocar. Usa <details>/<summary> nativo (sin JS, sin
-// "use client") para que funcione igual con clic/toque en mobile.
-function InfoClarification({ label, detail }: { label: string; detail: string }) {
-  return (
-    <details className="relative inline-block text-left">
-      <summary className="inline-flex items-center gap-1.5 cursor-pointer list-none marker:content-none [&::-webkit-details-marker]:hidden">
-        <span className="border-b border-dotted border-brand-ink-soft">{label}</span>
-        <IconInfo className="w-4 h-4 text-brand-ink-soft shrink-0" />
-      </summary>
-      {/* Se abre hacia arriba, no hacia abajo — el hero donde vive el
-          primer uso tiene overflow-hidden (para recortar el blur
-          decorativo) y el bloque de confianza es lo último dentro de esa
-          sección, así que un popover hacia abajo quedaba cortado por ese
-          overflow-hidden. Hacia arriba siempre hay espacio de sobra. */}
-      <div className="absolute z-20 left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 rounded-xl bg-brand-ink text-white text-xs leading-relaxed p-3 shadow-lg">
-        {detail}
-      </div>
-    </details>
-  );
-}
 
 export default function ParaMarcasPage() {
   return (
@@ -209,8 +155,8 @@ export default function ParaMarcasPage() {
               Convierte a los creadores de contenido en tu mejor canal de ventas
             </h1>
             <p className="text-brand-ink-soft text-lg sm:text-xl max-w-xl mx-auto mb-10 text-balance">
-              Descubre creadores especializados, lanza campañas con comisiones y mide exactamente
-              quién genera ventas para tu marca.
+              Colabora con creadores de contenido especializados, lanza campañas con comisiones y
+              mide exactamente quién genera ventas para tu marca.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10">
               <Link
@@ -224,15 +170,14 @@ export default function ParaMarcasPage() {
                 Ya tengo cuenta
               </Link>
             </div>
-            {/* Grid en vez de flex-wrap: con un número impar de ítems, el
-                wrap dejaba uno solo flotando en su propia fila — se veía
-                descuadrado. El grid siempre reparte 2x2 (o apilado en
-                mobile), sin importar cuántos ítems haya. */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-3 max-w-lg mx-auto justify-items-center sm:justify-items-start">
-              {confianza.map((c) => (
-                <span key={c.texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
+            {/* Grid de 3 columnas — con exactamente 3 ítems nunca queda uno
+                solo flotando en su fila (el problema que tenía el flex-wrap
+                de antes). */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-3 max-w-2xl mx-auto justify-items-center">
+              {confianza.map((texto) => (
+                <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
                   <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
-                  {c.detail ? <InfoClarification label={c.texto} detail={c.detail} /> : c.texto}
+                  {texto}
                 </span>
               ))}
             </div>
@@ -316,7 +261,7 @@ export default function ParaMarcasPage() {
             {/* 2 — red de creadores especializados */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Creadores especializados en tu categoría</p>
+                <p className="text-xs text-brand-ink-soft mb-4">Ya activos en el marketplace de Marcolini</p>
                 <div className="grid grid-cols-2 gap-3">
                   {previewRedCreadores.map((c) => (
                     <div key={c.name} className="rounded-xl bg-brand-bg px-3 py-3 text-center">
@@ -331,11 +276,13 @@ export default function ParaMarcasPage() {
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Una red de creadores especializados en belleza
+                  No tienes que salir a buscar creadores — ya existen
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Accede a una comunidad de creadores enfocados en uñas y belleza — perfiles afines
-                  a tu marca, no una audiencia genérica.
+                  Cientos de creadores especializados en uñas y belleza ya están en el marketplace
+                  de Marcolini. En cuanto publicas tu oferta, te descubren y deciden hablar de tu
+                  marca a cambio de una comisión — no tienes que reclutar, negociar ni convencer a
+                  nadie uno por uno. Es un canal de ventas listo para usar desde el día uno.
                 </p>
               </div>
             </div>
@@ -458,6 +405,34 @@ export default function ParaMarcasPage() {
                 </p>
               </div>
             </div>
+
+            {/* 6 — trazabilidad total / reporte de transacciones */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-xs text-brand-ink-soft mb-4">Transacciones</p>
+                <div className="space-y-2">
+                  {previewTransacciones.map((t) => (
+                    <div key={t.creador} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-2.5">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-brand-ink truncate">{t.creador}</p>
+                        <p className="text-xs font-mono text-brand-ink-soft">{t.fecha} · {t.venta}</p>
+                      </div>
+                      <span className="text-xs text-brand-ink-soft shrink-0">{t.estado}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="lg:order-1">
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Trazabilidad total, con un registro de cada transacción
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed">
+                  Cada venta generada por tus creadores queda registrada automáticamente — fecha,
+                  creador, monto y estado, todo en un solo lugar. Nada de reconciliar reportes a
+                  mano ni perseguir información entre plataformas.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -480,28 +455,6 @@ export default function ParaMarcasPage() {
                 </div>
                 <p className="font-display font-semibold text-brand-ink mb-1.5">{b.titulo}</p>
                 <p className="text-sm text-brand-ink-soft leading-relaxed">{b.texto}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Cómo funciona */}
-        <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-14">
-            ¿Cómo funciona?
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 relative">
-            <div
-              aria-hidden
-              className="hidden lg:block absolute top-6 left-[12.5%] right-[12.5%] h-px bg-brand-line"
-            />
-            {pasos.map((p) => (
-              <div key={p.paso} className="relative text-center">
-                <div className="relative z-10 w-12 h-12 mx-auto rounded-full bg-brand-accent text-white font-mono text-sm font-semibold flex items-center justify-center mb-5">
-                  {p.paso}
-                </div>
-                <p className="font-display font-semibold text-brand-ink mb-2">{p.titulo}</p>
-                <p className="text-sm text-brand-ink-soft leading-relaxed max-w-[200px] mx-auto">{p.texto}</p>
               </div>
             ))}
           </div>
