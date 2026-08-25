@@ -41,12 +41,15 @@ export default async function CreadorRetosPage() {
             id: a.challenge.id,
             name: a.challenge.name,
             type: a.challenge.type as ChallengeType,
+            startDate: a.challenge.startDate.toISOString(),
             endDate: a.challenge.endDate.toISOString(),
             config: a.challenge.config as Record<string, unknown>,
             offer: { name: a.challenge.offer.name, brand: { companyName: a.challenge.offer.brand.companyName } },
           },
           myReward: a.myReward ? { id: a.myReward.id, status: a.myReward.status, amount: Number(a.myReward.amount) } : null,
           progress: a.progress,
+          discountCode: a.enrollment.discountCode,
+          baseCommissionPercent: Number(a.enrollment.commissionPercentOverride ?? a.challenge.offer.defaultCommissionPercent),
         }))}
       />
 

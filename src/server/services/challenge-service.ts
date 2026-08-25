@@ -658,10 +658,13 @@ export async function listRewardsForCreator(creatorId: string) {
 export async function listActiveChallengesForCreator(creatorId: string) {
   const enrollments = await prisma.creatorOfferEnrollment.findMany({
     where: { creatorId, status: "ACTIVE" },
-    select: { offerId: true },
+    select: { offerId: true, discountCode: true, commissionPercentOverride: true },
   });
   const offerIds = enrollments.map((e) => e.offerId);
   if (offerIds.length === 0) return [];
+  // Por oferta — el código del creador y su comisión efectiva (con override
+  // si tiene uno), para no tener que ir a buscarlos aparte en la UI.
+  const enrollmentByOffer = new Map(enrollments.map((e) => [e.offerId, e]));
 
   const challenges = await prisma.challenge.findMany({
     where: { offerId: { in: offerIds }, status: "ACTIVE" },
@@ -688,9 +691,10 @@ export async function listActiveChallengesForCreator(creatorId: string) {
         challenge,
         myReward,
         progress: { currentAmount: Number(sum._sum.netAmount ?? 0), goalAmount: cfg.goalAmount, bonusAmount: cfg.bonusAmount },
+        enrollment: enrollmentByOffer.get(challenge.offerId)!,
       });
     } else {
-      result.push({ challenge, myReward, progress: null });
+      result.push({ challenge, myReward, progress: null, enrollment: enrollmentByOffer.get(challenge.offerId)! });
     }
   }
   return result;

@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCreatorDashboardSummary } from "@/server/services/creator-finance-service";
 
@@ -22,12 +23,46 @@ export default async function CreadorDashboardPage() {
   });
   const summary = await getCreatorDashboardSummary(profile.id);
 
+  // Igual que la invitación del dashboard de marca (ver /marca), pero en
+  // sentido contrario — acá no hay nada que crear, solo avisar que hay
+  // campañas activas esperando y motivar a que las revise. Si no tiene
+  // ninguna activa, no tiene sentido invitarla a "consultarlas".
+  const enrolledOfferIds = (
+    await prisma.creatorOfferEnrollment.findMany({
+      where: { creatorId: profile.id, status: "ACTIVE" },
+      select: { offerId: true },
+    })
+  ).map((e) => e.offerId);
+  const activeCampaigns =
+    enrolledOfferIds.length === 0
+      ? 0
+      : await prisma.challenge.count({ where: { offerId: { in: enrolledOfferIds }, status: "ACTIVE" } });
+
   return (
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">DASHBOARD</p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-6">
         Hola, {profile.displayName}
       </h1>
+
+      {activeCampaigns > 0 && (
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-brand-accent/30 bg-brand-accent-soft/40 p-5 mb-6">
+          <div>
+            <p className="text-sm font-medium text-brand-ink">
+              {activeCampaigns === 1 ? "Tienes una campaña activa" : `Tienes ${activeCampaigns} campañas activas`}
+            </p>
+            <p className="text-xs text-brand-ink-soft mt-1">
+              Gana más comisión o bonos completando misiones — revisa qué está activo ahora.
+            </p>
+          </div>
+          <Link
+            href="/creador/retos"
+            className="shrink-0 bg-brand-accent text-white text-xs font-medium rounded-full px-5 py-2.5 hover:opacity-90"
+          >
+            Ver campañas
+          </Link>
+        </div>
+      )}
 
       <div className="grid sm:grid-cols-3 gap-4 mb-10">
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
