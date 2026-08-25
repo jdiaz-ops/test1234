@@ -2,13 +2,19 @@ import { Suspense } from "react";
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getBrandProfileByUserId } from "@/server/services/brand-profile-service";
-import { getBrandDashboardSummary } from "@/server/services/brand-finance-service";
+import { getBrandDashboardSummary, getBrandTransactions } from "@/server/services/brand-finance-service";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
+import { listOffersForBrand } from "@/server/services/offer-service";
+import { listProductsForBrand } from "@/server/services/product-service";
+import { listEnrollmentsForBrand } from "@/server/services/enrollment-management-service";
 import { BrandProfileForm } from "@/components/portal/brand-profile-form";
 import { ChargePaymentBox } from "@/components/portal/charge-payment-box";
 import { BrandInvoicesList } from "@/components/portal/brand-invoices-list";
 import { StoreConnectionForm } from "@/components/portal/store-connection-form";
 import { ChangePasswordForm } from "@/components/portal/change-password-form";
+import { OffersPanel } from "@/components/portal/offers-panel";
+import { ProductsPanel } from "@/components/portal/products-panel";
+import { ManualSaleForm } from "@/components/portal/manual-sale-form";
 import { AccountTabs } from "@/components/portal/account-tabs";
 
 const storeStatusLabel: Record<string, string> = {
@@ -31,16 +37,36 @@ const chargeStatusLabel: Record<string, string> = {
   DEACTIVATED: "Vencido — servicio desactivado",
 };
 
+const transactionStatusLabel: Record<string, string> = {
+  PENDING: "Pendiente",
+  APPROVED: "Aprobada",
+  PAID: "Pagada",
+  REVERSED: "Revertida",
+};
+
+const transactionSourceLabel: Record<string, string> = {
+  SHOPIFY: "Shopify",
+  WOOCOMMERCE: "WooCommerce",
+  MANUAL: "Manual",
+};
+
 export default async function MarcaCuentaPage() {
   const session = await auth();
   const profile = await getBrandProfileByUserId(session!.user.id);
-  const [summary, charges, invoices, platformConfig] = await Promise.all([
+  const [summary, charges, invoices, platformConfig, offers, products, transactions, enrollments] = await Promise.all([
     getBrandDashboardSummary(profile.id),
     prisma.brandCharge.findMany({ where: { brandId: profile.id }, orderBy: { periodStart: "desc" } }),
     prisma.brandInvoice.findMany({ where: { brandId: profile.id }, orderBy: { period: "desc" } }),
     getPlatformConfig(),
+    listOffersForBrand(profile.id),
+    listProductsForBrand(profile.id),
+    getBrandTransactions(profile.id),
+    listEnrollmentsForBrand(profile.id),
   ]);
   const openCharge = charges.find((c) => c.status !== "PAID") ?? null;
+  const codeOptions = enrollments
+    .filter((e) => e.status === "ACTIVE")
+    .map((e) => ({ discountCode: e.discountCode, creatorName: e.creator.displayName, offerName: e.offer.name }));
 
   const perfilTab = (
     <BrandProfileForm
@@ -62,6 +88,29 @@ export default async function MarcaCuentaPage() {
         camaraComercioUrl: profile.camaraComercioUrl,
       }}
     />
+  );
+
+  const ofertaTab = (
+    <div>
+      <p className="text-sm text-brand-ink-soft mb-2 max-w-lg">
+        La comisión que definas es 100% para el creador. La tarifa de
+        Marcolini se cobra aparte, nunca se descuenta de lo que él gana.
+      </p>
+      <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
+        Marcolini cobra <span className="font-mono text-brand-accent">{summary.platformFeePercent}%</span>{" "}
+        + IVA (<span className="font-mono">{summary.vatPercent}%</span>) sobre cada venta, aparte de la
+        comisión que tú definas para tus creadores.
+      </p>
+      <OffersPanel
+        offers={offers.map((o) => ({
+          ...o,
+          defaultCommissionPercent: Number(o.defaultCommissionPercent),
+          defaultDiscountPercent: Number(o.defaultDiscountPercent),
+        }))}
+        platformFeePercent={summary.platformFeePercent}
+        vatPercent={summary.vatPercent}
+      />
+    </div>
   );
 
   const pagoTab = (
@@ -132,6 +181,60 @@ export default async function MarcaCuentaPage() {
     </div>
   );
 
+  const transaccionesTab = (
+    <div>
+      <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
+        Las de tu tienda conectada aparecen solas. ¿Cerraste una venta por fuera (WhatsApp, en persona, etc.)?
+        Regístrala a mano abajo.
+      </p>
+
+      <ManualSaleForm codeOptions={codeOptions} />
+
+      {transactions.length === 0 ? (
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 text-sm text-brand-ink-soft">
+          Todavía no hay ventas registradas. Aparecerán aquí automáticamente
+          cuando un cliente compre usando el código de un creador.
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
+                <th className="px-5 py-3 font-normal">Fecha</th>
+                <th className="px-5 py-3 font-normal">Creador</th>
+                <th className="px-5 py-3 font-normal">Origen</th>
+                <th className="px-5 py-3 font-normal">Venta</th>
+                <th className="px-5 py-3 font-normal">Comisión</th>
+                <th className="px-5 py-3 font-normal">Estado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-brand-line">
+              {transactions.map((t) => (
+                <tr key={t.id}>
+                  <td className="px-5 py-3 text-brand-ink-soft font-mono">
+                    {t.occurredAt.toLocaleDateString("es-CO")}
+                  </td>
+                  <td className="px-5 py-3 text-brand-ink">{t.creator.displayName}</td>
+                  <td className="px-5 py-3 text-brand-ink-soft">
+                    {transactionSourceLabel[t.source] ?? t.source}
+                    {t.note && <span className="block text-xs text-brand-ink-soft/70">{t.note}</span>}
+                  </td>
+                  <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(t.netAmount))}</td>
+                  <td className="px-5 py-3 font-mono text-brand-accent">
+                    {t.commission ? formatCOP(Number(t.commission.creatorCommissionAmount)) : "—"}
+                  </td>
+                  <td className="px-5 py-3 text-brand-ink-soft">
+                    {t.commission ? transactionStatusLabel[t.commission.status] : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+
   const facturacionTab = (
     <div className="max-w-2xl">
       <h2 className="font-display font-semibold text-brand-ink mb-4">Facturas electrónicas</h2>
@@ -163,6 +266,28 @@ export default async function MarcaCuentaPage() {
     </div>
   );
 
+  const productosTab = (
+    <div>
+      <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
+        Trae tus productos desde tu tienda para que los creadores puedan armar colecciones con fotos y
+        precios reales en su vitrina — y destaca hasta 3 para que aparezcan primero.
+      </p>
+      <ProductsPanel
+        products={products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          imageUrl: p.imageUrl,
+          price: Number(p.price),
+          currency: p.currency,
+          available: p.available,
+          featured: p.featured,
+        }))}
+        storeConnected={profile.storeConnectionStatus === "CONNECTED" && profile.storeType !== "OTHER"}
+        lastSyncedAt={profile.storeLastSyncedAt?.toISOString() ?? null}
+      />
+    </div>
+  );
+
   const seguridadTab = (
     <div className="max-w-lg">
       <p className="text-sm text-brand-ink-soft mb-4 font-mono">{session!.user.email}</p>
@@ -189,9 +314,12 @@ export default async function MarcaCuentaPage() {
         <AccountTabs
           tabs={[
             { key: "perfil", label: "Perfil del negocio", content: perfilTab },
+            { key: "oferta", label: "Oferta y comisión", content: ofertaTab },
             { key: "pago", label: "Pago", content: pagoTab },
+            { key: "transacciones", label: "Transacciones", content: transaccionesTab },
             { key: "facturacion", label: "Facturación", content: facturacionTab },
             { key: "tienda", label: "Conexión de tienda", content: tiendaTab },
+            { key: "productos", label: "Productos", content: productosTab },
             { key: "seguridad", label: "Seguridad", content: seguridadTab },
           ]}
         />

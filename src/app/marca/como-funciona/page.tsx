@@ -155,7 +155,7 @@ export default async function ComoFuncionaPage() {
             gana el creador de contenido. Sin ventas, no hay cobro.
           </p>
           <Link
-            href="/marca/ofertas"
+            href="/marca/cuenta?tab=oferta"
             className="relative inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
           >
             Ir a Oferta y comisión

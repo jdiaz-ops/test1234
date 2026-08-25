@@ -30,7 +30,7 @@ export default async function MarcaDashboardPage() {
   const profile = await prisma.brandProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },
   });
-  const [summary, topCreators, pendingApprovals, openCharge] = await Promise.all([
+  const [summary, topCreators, pendingApprovals, openCharge, activeCampaigns] = await Promise.all([
     getBrandDashboardSummary(profile.id),
     getTopCreatorsForBrand(profile.id, 3),
     countPendingApprovalsForBrand(profile.id),
@@ -39,6 +39,7 @@ export default async function MarcaDashboardPage() {
     // que si hay algo aquí, es Nivel 1 (PENDING) o un comprobante recién
     // subido en revisión (PROOF_SUBMITTED), y el panel sigue sin bloquear.
     getOpenBrandCharge(profile.id),
+    prisma.challenge.count({ where: { offer: { brandId: profile.id }, status: "ACTIVE" } }),
   ]);
   const platformConfig = openCharge ? await getPlatformConfig() : null;
 
@@ -84,6 +85,23 @@ export default async function MarcaDashboardPage() {
             ? "creador esperando tu aprobación"
             : "creadores esperando tu aprobación"}
         </Link>
+      )}
+
+      {activeCampaigns === 0 && (
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-brand-accent/30 bg-brand-accent-soft/40 p-5 mb-6">
+          <div>
+            <p className="text-sm font-medium text-brand-ink">Motiva a tus creadores con una campaña</p>
+            <p className="text-xs text-brand-ink-soft mt-1">
+              Una Misión, un Flash Sale o un Mix por tiempo limitado — para que vendan más ahora.
+            </p>
+          </div>
+          <Link
+            href="/marca/retos"
+            className="shrink-0 bg-brand-accent text-white text-xs font-medium rounded-full px-5 py-2.5 hover:opacity-90"
+          >
+            Crear campaña
+          </Link>
+        </div>
       )}
 
       <div className="grid sm:grid-cols-3 gap-4 mb-4">

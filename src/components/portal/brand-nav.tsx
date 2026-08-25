@@ -4,16 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 // Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
-// ruta siguen intactos, solo se quitó del menú. Perfil, Facturación y
-// Conexión de tienda se consolidaron dentro de Cuenta. Notificaciones vive
-// aparte, en el menú lateral, con su burbuja de pendientes.
+// ruta siguen intactos, solo se quitó del menú. Perfil, Facturación,
+// Conexión de tienda, Oferta y comisión, Productos y Transacciones se
+// consolidaron dentro de Cuenta. Notificaciones vive aparte, en el menú
+// lateral, con su burbuja de pendientes. Campañas va justo debajo de
+// Dashboard porque es la acción que más queremos que las marcas usen.
 const items = [
   { href: "/marca", label: "Dashboard", exact: true },
-  { href: "/marca/ofertas", label: "Oferta y comisión" },
-  { href: "/marca/productos", label: "Productos" },
   { href: "/marca/retos", label: "Campañas" },
   { href: "/marca/creadores", label: "Creadores vinculados" },
-  { href: "/marca/transacciones", label: "Transacciones" },
   { href: "/marca/cuenta", label: "Cuenta" },
 ];
 

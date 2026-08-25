@@ -32,6 +32,37 @@ function formatDateTime(iso: string) {
   return `${p.day} ${p.monthShort}, ${p.hour12}:${p.minute} ${p.ampm}`;
 }
 
+// La frase completa que la marca aprobó al crear la campaña — mismo texto
+// que vio en el resumen del formulario (ver buildSummary en
+// challenge-form.tsx), pero reconstruida acá a partir de lo que quedó
+// guardado, para que la tarjeta lo siga mostrando después.
+function buildAcceptedSentence(c: Challenge): string | null {
+  const pieces: string[] = [];
+  if (c.type === "GOAL_BONUS" || c.type === "MIX") {
+    const goalAmount = Number(c.config.goalAmount);
+    const bonusAmount = Number(c.config.bonusAmount);
+    if (!goalAmount || !bonusAmount) return null;
+    pieces.push(
+      `cada creador que llegue a ${formatCOP(goalAmount)} en ventas gana ${formatCOP(bonusAmount)} de bono adicional a su comisión`
+    );
+  }
+  if (c.type === "FLASH_SALE" || c.type === "MIX") {
+    if (c.config.newCommissionPercent != null) {
+      pieces.push(`la comisión del creador sube a ${c.config.newCommissionPercent}%`);
+    }
+    if (c.config.newDiscountPercent != null) {
+      pieces.push(`el descuento del comprador sube a ${c.config.newDiscountPercent}%`);
+    }
+  }
+  if (pieces.length === 0) return null;
+
+  const detail = pieces.length === 1 ? pieces[0] : `${pieces.slice(0, -1).join(", ")} y ${pieces[pieces.length - 1]}`;
+
+  // formatDateTime ya termina en "a. m."/"p. m." (con su propio punto), así
+  // que no hace falta agregar uno más al final.
+  return `En la campaña "${c.name}", ${detail}. Empieza el ${formatDateTime(c.startDate)} y termina el ${formatDateTime(c.endDate)}`;
+}
+
 const rewardStatusLabel: Record<string, string> = {
   PENDING_REVIEW: "En revisión",
   PENDING: "En espera",
@@ -114,6 +145,7 @@ function ReviewSubmissionButtons({ rewardId }: { rewardId: string }) {
 
 function ChallengeCard({ c, onEnd }: { c: Challenge; onEnd: (id: string) => void }) {
   const totalAwarded = c.rewards.reduce((sum, r) => sum + r.amount, 0);
+  const acceptedSentence = c.status === "ACTIVE" ? buildAcceptedSentence(c) : null;
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
       <div className="flex items-start justify-between mb-2">
@@ -129,6 +161,7 @@ function ChallengeCard({ c, onEnd }: { c: Challenge; onEnd: (id: string) => void
             {formatDateTime(c.startDate)} — {formatDateTime(c.endDate)}
           </p>
           <p className="text-xs text-brand-ink-soft mt-1">{configSummary(c.type, c.config)}</p>
+          {acceptedSentence && <p className="text-xs text-brand-ink-soft mt-2 max-w-md">{acceptedSentence}</p>}
         </div>
         {c.status === "ACTIVE" && (
           <button onClick={() => onEnd(c.id)} className="text-xs text-brand-ink-soft hover:underline shrink-0">
