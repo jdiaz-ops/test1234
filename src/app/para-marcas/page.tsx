@@ -9,7 +9,35 @@ import {
   IconSliders,
   IconTrendingUp,
   IconArrowRight,
+  IconHeart,
+  IconChart,
+  IconWallet,
+  IconCheck,
 } from "@/components/marketing/icons";
+
+const confianza = [
+  "Solo pagas cuando vendes",
+  "5 minutos de configuración",
+  "Ventas 100% trazables",
+];
+
+const problema = [
+  {
+    icon: IconHeart,
+    titulo: "Los likes no son ventas",
+    texto: "El engagement no paga las facturas.",
+  },
+  {
+    icon: IconChart,
+    titulo: "Mide el ROI",
+    texto: "Conoce cuánto vendió cada creador.",
+  },
+  {
+    icon: IconTarget,
+    titulo: "Invierte con confianza",
+    texto: "Destina presupuesto a quienes convierten.",
+  },
+];
 
 const beneficios = [
   {
@@ -19,51 +47,69 @@ const beneficios = [
   },
   {
     icon: IconUsers,
-    titulo: "Creadores especializados",
-    texto: "Llega a una comunidad enfocada 100% en uñas.",
+    titulo: "Red de creadores especializados",
+    texto: "Accede a una comunidad enfocada en uñas y belleza.",
   },
   {
     icon: IconStore,
-    titulo: "Conecta tu Shopify",
-    texto: "Integra tu tienda y lanza campañas en minutos.",
+    titulo: "Conecta tu tienda en minutos",
+    texto: "Shopify o WooCommerce, sin desarrollos ni integraciones complejas.",
   },
   {
     icon: IconTrace,
     titulo: "Trazabilidad total",
-    texto: "Conoce quién vendió, cuánto vendió y cuánto pagar.",
+    texto: "Quién vendió, cuánto vendió y cuánto pagar.",
   },
   {
     icon: IconSliders,
-    titulo: "Define tu comisión",
-    texto: "Tú eliges el porcentaje que recibirán los creadores.",
+    titulo: "Comisiones flexibles",
+    texto: "Define el porcentaje para cada campaña.",
   },
   {
     icon: IconTrendingUp,
-    titulo: "Escala tu ecommerce",
-    texto: "Convierte el marketing de influencia en ventas medibles.",
+    titulo: "Escala sin aumentar riesgo",
+    texto: "Más ventas sin pagar por publicaciones anticipadamente.",
   },
 ];
 
 const pasos = [
   {
     paso: "1",
-    titulo: "Crea tu programa",
-    texto: "Conecta tu tienda Shopify.",
+    titulo: "Conecta tu tienda",
+    texto: "Shopify o WooCommerce en pocos minutos.",
   },
   {
     paso: "2",
-    titulo: "Define la comisión",
-    texto: "Elige el % que ofrecerás a los creadores.",
+    titulo: "Lanza una campaña",
+    texto: "Define la comisión y activa a tus creadores.",
   },
   {
     paso: "3",
-    titulo: "Los creadores recomiendan",
-    texto: "Promocionan tus productos con enlaces únicos.",
+    titulo: "Los creadores venden",
+    texto: "Comparten enlaces únicos y generan pedidos.",
   },
   {
     paso: "4",
-    titulo: "Paga solo por ventas confirmadas",
-    texto: "La comisión del creador + 5% sobre la venta.",
+    titulo: "Mide y paga",
+    texto: "Paga únicamente las ventas confirmadas.",
+  },
+];
+
+const cambioMercado = [
+  {
+    icon: IconWallet,
+    titulo: "La publicidad es cada vez más cara",
+    texto: "Los costos de adquisición siguen aumentando.",
+  },
+  {
+    icon: IconUsers,
+    titulo: "Las personas confían en personas",
+    texto: "Los creadores generan recomendaciones más auténticas que los anuncios.",
+  },
+  {
+    icon: IconTrendingUp,
+    titulo: "Ahora puedes medirlo",
+    texto: "Cada venta queda atribuida al creador que la originó.",
   },
 ];
 
@@ -82,16 +128,16 @@ export default function ParaMarcasPage() {
           />
           <div className="relative max-w-3xl mx-auto px-6 pt-24 pb-20 text-center">
             <span className="inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-4 py-1.5 mb-7">
-              PARA MARCAS DE UÑAS
+              PARA MARCAS DE UÑAS · SHOPIFY &amp; WOOCOMMERCE
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
-              Convierte a los creadores de contenido de uñas en un canal de ventas para tu marca
+              Convierte a los creadores de contenido en tu mejor canal de ventas
             </h1>
             <p className="text-brand-ink-soft text-lg sm:text-xl max-w-xl mx-auto mb-10 text-balance">
-              Activa tu programa de afiliados y conecta con una red
-              especializada de creadores. <span className="text-brand-ink font-medium">Sin mensualidades. Solo pagas cuando vendes.</span>
+              Descubre creadores especializados, lanza campañas con comisiones y mide exactamente
+              quién genera ventas para tu marca.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10">
               <Link
                 href="/registro/marca"
                 className="group inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)]"
@@ -103,13 +149,47 @@ export default function ParaMarcasPage() {
                 Ya tengo cuenta
               </Link>
             </div>
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+              {confianza.map((texto) => (
+                <span key={texto} className="inline-flex items-center gap-1.5 text-xs text-brand-ink-soft">
+                  <IconCheck className="w-4 h-4 text-brand-accent shrink-0" />
+                  {texto}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* El problema */}
+        <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
+          <p className="font-mono text-xs text-brand-accent tracking-widest text-center mb-3">
+            EL PROBLEMA
+          </p>
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-4 text-balance">
+            Deja de adivinar qué creadores realmente hacen vender
+          </h2>
+          <p className="text-brand-ink-soft text-center max-w-2xl mx-auto mb-12 text-balance">
+            La mayoría del marketing de influencia termina en likes, vistas y engagement. Marcolini
+            rastrea ventas reales para que sepas exactamente qué creadores generan crecimiento para
+            tu negocio.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {problema.map((b) => (
+              <div key={b.titulo} className="rounded-2xl bg-brand-surface border border-brand-line p-6">
+                <div className="w-11 h-11 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-4">
+                  <b.icon className="w-5 h-5" />
+                </div>
+                <p className="font-display font-semibold text-brand-ink mb-1.5">{b.titulo}</p>
+                <p className="text-sm text-brand-ink-soft leading-relaxed">{b.texto}</p>
+              </div>
+            ))}
           </div>
         </section>
 
         {/* Beneficios */}
         <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
           <p className="font-mono text-xs text-brand-accent tracking-widest text-center mb-3">
-            ¿POR QUÉ UNIRTE?
+            ¿POR QUÉ MARCOLINI?
           </p>
           <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-12 text-balance">
             Un canal de ventas que se paga solo con resultados
@@ -152,8 +232,35 @@ export default function ParaMarcasPage() {
           </div>
         </section>
 
+        {/* El cambio del mercado — banda con tinte, para marcar el cambio de
+            ritmo antes de la tarifa (mismo tono que ya se usa en los avisos
+            del portal, no un color nuevo). Sin cifras globales todavía — la
+            plataforma es nueva y una promesa atemporal es más honesta que un
+            número inflado. */}
+        <section className="bg-brand-accent-soft/40 border-t border-brand-line">
+          <div className="max-w-5xl mx-auto px-6 py-16">
+            <p className="font-mono text-xs text-brand-accent tracking-widest text-center mb-3">
+              EL CAMBIO DEL MERCADO
+            </p>
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-12 max-w-2xl mx-auto text-balance">
+              El futuro del marketing no es pagar por publicaciones. Es pagar por resultados.
+            </h2>
+            <div className="grid sm:grid-cols-3 gap-6">
+              {cambioMercado.map((b) => (
+                <div key={b.titulo} className="rounded-2xl bg-brand-surface border border-brand-line p-6">
+                  <div className="w-11 h-11 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-4">
+                    <b.icon className="w-5 h-5" />
+                  </div>
+                  <p className="font-display font-semibold text-brand-ink mb-1.5">{b.titulo}</p>
+                  <p className="text-sm text-brand-ink-soft leading-relaxed">{b.texto}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Tarifa transparente */}
-        <section className="max-w-5xl mx-auto px-6 pb-24">
+        <section className="max-w-5xl mx-auto px-6 py-24">
           <div className="rounded-3xl bg-brand-ink text-white px-8 py-16 text-center relative overflow-hidden">
             <div
               aria-hidden
@@ -162,12 +269,11 @@ export default function ParaMarcasPage() {
             />
             <p className="relative font-mono text-sm text-brand-accent mb-3 tracking-wide">5% + IVA</p>
             <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-4 text-balance">
-              Una sola tarifa, sin costos ocultos
+              Una sola tarifa. Sin mensualidades.
             </h2>
             <p className="relative text-white/70 max-w-xl mx-auto mb-9 text-balance">
-              Pagas la comisión que definiste para tus creadores, más una
-              tarifa de plataforma del 5% + IVA — nunca se descuenta de lo
-              que gana el creador.
+              Tú defines la comisión del creador. Marcolini solo cobra un 5% sobre las ventas
+              generadas. Nunca descontamos dinero de lo que gana el creador.
             </p>
             <Link
               href="/registro/marca"
