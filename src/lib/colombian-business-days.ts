@@ -149,6 +149,7 @@ const MONTHS_LONG = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
+const WEEKDAYS_LONG = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
 /// Día/mes/hora en Colombia, calculados a mano (nunca con
 /// Intl.DateTimeFormat) para que un mismo componente cliente renderizado
@@ -163,6 +164,7 @@ export function getBogotaDateTimeParts(date: Date) {
   const hour24 = bogota.getUTCHours();
   return {
     day: bogota.getUTCDate(),
+    weekday: WEEKDAYS_LONG[bogota.getUTCDay()],
     monthShort: MONTHS_SHORT[bogota.getUTCMonth()],
     monthLong: MONTHS_LONG[bogota.getUTCMonth()],
     hour12: hour24 % 12 || 12,

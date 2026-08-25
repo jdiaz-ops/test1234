@@ -32,6 +32,18 @@ function formatEndDate(iso: string) {
   return `${p.day} ${p.monthShort}, ${p.hour12}:${p.minute} ${p.ampm}`;
 }
 
+// "viernes, 7:00 p. m." si la campaña dura una semana o menos (el día de la
+// semana no deja dudas de cuál viernes es); si dura más, "12 de septiembre,
+// 7:00 p. m." para no ser ambiguo. Se calcula solo con las fechas de inicio
+// y fin de la campaña — nunca con la hora actual — así que es igual en el
+// servidor y en el cliente desde el primer render.
+function deadlineText(startISO: string, endISO: string) {
+  const p = getBogotaDateTimeParts(new Date(endISO));
+  const days = (new Date(endISO).getTime() - new Date(startISO).getTime()) / (24 * 60 * 60 * 1000);
+  const when = days <= 7 ? p.weekday : `${p.day} de ${p.monthLong}`;
+  return `${when}, ${p.hour12}:${p.minute} ${p.ampm}`;
+}
+
 // Duración total de la campaña (fin - inicio) — se calcula solo con las dos
 // fechas guardadas, nunca con la hora actual, así que es igual en el
 // servidor y en el cliente desde el primer render (a diferencia del
@@ -52,6 +64,24 @@ function IconTimer({ className }: { className?: string }) {
       <path d="M18.5 5.5 20 4" />
     </svg>
   );
+}
+
+function IconBolt({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />
+    </svg>
+  );
+}
+
+// El número grande y con color — lo que se supone que emocione — y el
+// tachado del valor anterior, para que el "antes/ahora" se sienta de un
+// vistazo y no solo se lea.
+function Boosted({ children }: { children: React.ReactNode }) {
+  return <span className="font-display text-xl font-bold text-brand-accent">{children}</span>;
+}
+function WasBefore({ children }: { children: React.ReactNode }) {
+  return <span className="text-brand-ink-soft line-through">{children}</span>;
 }
 
 function formatRemaining(ms: number): string {
@@ -109,48 +139,18 @@ interface ActiveChallenge {
   progress: { currentAmount: number; goalAmount: number; bonusAmount: number } | null;
   discountCode: string;
   baseCommissionPercent: number;
+  baseDiscountPercent: number;
 }
 
-// Un titular corto y directo (lo primero que se lee) más, si aplica, líneas
-// de apoyo para las otras palancas de un Mix — en vez de una sola frase
-// larga con todo adentro, que se pierde de vista.
-function buildPitch(challenge: ActiveChallenge["challenge"]): { headline: string; secondary: string[] } {
-  const { type, config } = challenge;
-
-  if (type === "GOAL_BONUS" || type === "MIX") {
-    const goalAmount = Number(config.goalAmount);
-    const bonusAmount = Number(config.bonusAmount);
-    const headline =
-      goalAmount && bonusAmount ? `Vende ${formatCOP(goalAmount)} y desbloquea un bono de ${formatCOP(bonusAmount)}` : "";
-    const secondary: string[] = [];
-    if (type === "MIX") {
-      if (config.newCommissionPercent != null) {
-        secondary.push(`Tu comisión sube a ${String(config.newCommissionPercent)}% mientras dure la campaña.`);
-      }
-      if (config.newDiscountPercent != null) {
-        secondary.push(`Tu código tiene ${String(config.newDiscountPercent)}% de descuento extra para quien compre.`);
-      }
-    }
-    return { headline, secondary };
-  }
-
-  if (type === "FLASH_SALE") {
-    const lines: string[] = [];
-    if (config.newCommissionPercent != null) lines.push(`Tu comisión sube a ${String(config.newCommissionPercent)}%`);
-    if (config.newDiscountPercent != null) lines.push(`tu código tiene ${String(config.newDiscountPercent)}% de descuento extra`);
-    return { headline: lines.length === 2 ? `${lines[0]} y ${lines[1]}` : (lines[0] ?? ""), secondary: [] };
-  }
-
+// Para los tipos sin palancas de antes/después (Leaderboard, bienvenida,
+// contenido) — un titular simple, como antes.
+function simplePitch(type: ChallengeType, config: Record<string, unknown>): string {
   if (type === "LEADERBOARD") {
-    return { headline: `Los ${String(config.winnersCount)} creadores con más ventas al terminar se llevan un premio.`, secondary: [] };
+    return `Los ${String(config.winnersCount)} creadores con más ventas al terminar se llevan un premio.`;
   }
-  if (type === "WELCOME_BONUS") {
-    return { headline: "Bono de bienvenida activo — cupos limitados.", secondary: [] };
-  }
-  if (type === "CONTENT_CHALLENGE") {
-    return { headline: String(config.instructions), secondary: [] };
-  }
-  return { headline: "", secondary: [] };
+  if (type === "WELCOME_BONUS") return "Bono de bienvenida activo — cupos limitados.";
+  if (type === "CONTENT_CHALLENGE") return String(config.instructions);
+  return "";
 }
 
 function ContentSubmissionForm({ challengeId }: { challengeId: string }) {
@@ -206,11 +206,27 @@ function ContentSubmissionForm({ challengeId }: { challengeId: string }) {
   );
 }
 
-function ChallengeCard({ challenge, myReward, progress, discountCode, baseCommissionPercent }: ActiveChallenge) {
-  const { headline, secondary } = buildPitch(challenge);
+function ChallengeCard({ challenge, myReward, progress, discountCode, baseCommissionPercent, baseDiscountPercent }: ActiveChallenge) {
+  const { type, config } = challenge;
   const goalReached = progress != null && progress.currentAmount >= progress.goalAmount;
   const progressPct = progress ? Math.min(100, Math.round((progress.currentAmount / progress.goalAmount) * 100)) : 0;
   const duration = durationLabel(challenge.startDate, challenge.endDate);
+  const deadline = deadlineText(challenge.startDate, challenge.endDate);
+  const brand = challenge.offer.brand.companyName;
+
+  const hasCommissionBoost = (type === "FLASH_SALE" || type === "MIX") && config.newCommissionPercent != null;
+  const hasDiscountBoost = (type === "FLASH_SALE" || type === "MIX") && config.newDiscountPercent != null;
+  const goalAmount = Number(config.goalAmount);
+  const bonusAmount = Number(config.bonusAmount);
+  const hasGoal = (type === "GOAL_BONUS" || type === "MIX") && Boolean(goalAmount) && Boolean(bonusAmount);
+
+  // La cláusula "Hasta el viernes, 7:00 p. m." abre la primera palanca que
+  // aparece en la tarjeta, para no repetirla en cada línea — comisión y
+  // descuento primero (son las urgentes), la meta al final.
+  const firstLever = hasCommissionBoost ? "commission" : hasDiscountBoost ? "discount" : hasGoal ? "goal" : null;
+  const newCommissionPercent = Number(config.newCommissionPercent);
+  const newDiscountPercent = Number(config.newDiscountPercent);
+  const simple = simplePitch(type, config);
 
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
@@ -219,20 +235,58 @@ function ChallengeCard({ challenge, myReward, progress, discountCode, baseCommis
           {typeLabel[challenge.type]}
           {duration && ` · ${duration}`}
         </span>
-        <span className="text-sm font-bold text-brand-ink shrink-0">{baseCommissionPercent}% base</span>
       </div>
-      <p className="text-xs text-brand-ink-soft mb-4">{challenge.offer.brand.companyName}</p>
+      <p className="text-xs text-brand-ink-soft mb-4">{brand}</p>
 
-      {headline && <p className="font-display text-lg font-bold text-brand-ink leading-snug mb-1">{headline}</p>}
-      {secondary.map((line, i) => (
-        <p key={i} className="text-sm text-brand-ink-soft mb-1">
-          {line}
+      {hasCommissionBoost && (
+        <p className="text-base text-brand-ink leading-snug mb-1.5 flex items-start gap-1.5">
+          <IconBolt className="w-4 h-4 text-brand-accent shrink-0 mt-1" />
+          <span>
+            {firstLever === "commission" && <>Hasta el {deadline}, </>}
+            tu comisión es <Boosted>{newCommissionPercent}%</Boosted>
+            {baseCommissionPercent !== newCommissionPercent && (
+              <>
+                {" "}en vez de tu <WasBefore>{baseCommissionPercent}%</WasBefore> normal
+              </>
+            )}
+            .
+          </span>
         </p>
-      ))}
+      )}
+
+      {hasDiscountBoost && (
+        <p className="text-base text-brand-ink leading-snug mb-1.5 flex items-start gap-1.5">
+          <IconBolt className="w-4 h-4 text-brand-accent shrink-0 mt-1" />
+          <span>
+            {firstLever === "discount" && <>Hasta el {deadline}, </>}
+            tu código tiene <Boosted>{newDiscountPercent}%</Boosted> de descuento
+            {baseDiscountPercent !== newDiscountPercent && (
+              <>
+                {" "}en vez del <WasBefore>{baseDiscountPercent}%</WasBefore>
+              </>
+            )}
+            .
+          </span>
+        </p>
+      )}
+
+      {hasGoal && (
+        <p className="text-sm text-brand-ink leading-snug mb-1.5">
+          {firstLever === "goal" ? <>Hasta el {deadline}, si</> : <>Si</>} vendes más de{" "}
+          <span className="font-semibold text-brand-ink">{formatCOP(goalAmount)}</span> para {brand} antes de que se
+          acabe, ganas un bono de <Boosted>{formatCOP(bonusAmount)}</Boosted>.
+        </p>
+      )}
+
+      {!hasCommissionBoost && !hasDiscountBoost && !hasGoal && simple && (
+        <p className="font-display text-lg font-bold text-brand-ink leading-snug mb-1.5">{simple}</p>
+      )}
+
+      <p className="text-sm font-medium text-brand-ink mt-2 mb-2">Actívalo con tu código de {brand}.</p>
 
       {/* El código siempre a la vista — para que nunca tenga que ir a
           buscarlo a otra pestaña mientras la campaña está corriendo. */}
-      <div className="flex items-center justify-between gap-3 rounded-xl bg-brand-accent-soft px-3.5 py-2.5 mt-3 mb-4">
+      <div className="flex items-center justify-between gap-3 rounded-xl bg-brand-accent-soft px-3.5 py-2.5 mb-4">
         <div>
           <p className="text-[11px] text-brand-ink-soft mb-0.5">Tu código para esta campaña</p>
           <p className="font-mono text-brand-accent font-semibold">{discountCode}</p>

@@ -50,6 +50,7 @@ export default async function CreadorRetosPage() {
           progress: a.progress,
           discountCode: a.enrollment.discountCode,
           baseCommissionPercent: Number(a.enrollment.commissionPercentOverride ?? a.challenge.offer.defaultCommissionPercent),
+          baseDiscountPercent: Number(a.enrollment.discountPercentOverride ?? a.challenge.offer.defaultDiscountPercent),
         }))}
       />
 
