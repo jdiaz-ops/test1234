@@ -17,7 +17,7 @@ import {
 
 const confianza = [
   "Solo pagas cuando vendes",
-  "5 minutos de configuración",
+  "5 minutos de configuración en Shopify o WooCommerce",
   "Ventas 100% trazables",
 ];
 
@@ -47,7 +47,12 @@ const beneficios = [
   {
     icon: IconTarget,
     titulo: "Paga solo por resultados",
-    texto: "5% únicamente sobre las ventas generadas.",
+    // Antes decía solo "5% únicamente sobre las ventas generadas" — se
+    // podía leer como que eso es TODO lo que se paga, cuando en realidad
+    // son dos componentes: la comisión del creador (la define la marca) +
+    // el 5% de Marcolini. Ahora queda explícito que son dos cosas, ambas
+    // atadas a que haya una venta real.
+    texto: "La comisión del creador que tú defines, más el 5% de Marcolini — ambos solo sobre las ventas generadas por este canal.",
   },
   {
     icon: IconUsers,
@@ -132,7 +137,7 @@ export default function ParaMarcasPage() {
           />
           <div className="relative max-w-3xl mx-auto px-6 pt-24 pb-20 text-center">
             <span className="inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-4 py-1.5 mb-7">
-              PARA MARCAS QUE USAN SHOPIFY Y WOOCOMMERCE
+              PARA MARCAS
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
               Convierte a los creadores de contenido en tu mejor canal de ventas
@@ -268,9 +273,7 @@ export default function ParaMarcasPage() {
               className="pointer-events-none absolute -bottom-24 -left-24 h-[300px] w-[300px] rounded-full opacity-30 blur-3xl"
               style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
             />
-            <p className="relative font-mono text-brand-accent mb-3 tracking-wide">
-              <span className="text-2xl font-semibold">5%</span> <span className="text-sm">+ IVA</span>
-            </p>
+            <p className="relative font-mono text-2xl font-semibold text-brand-accent mb-3 tracking-wide">5%</p>
             <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-4 text-balance">
               Una sola tarifa. Sin mensualidades.
             </h2>
