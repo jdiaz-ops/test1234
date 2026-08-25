@@ -41,7 +41,7 @@ const PICKER_CARDS: { type: ChallengeType; title: string; description: string }[
   {
     type: "GOAL_BONUS",
     title: "Misión",
-    description: "Si un creador llega a una meta de ventas en el período, gana un bono fijo — además de su comisión normal.",
+    description: "Si un creador llega a una meta de ventas en el período, gana un bono fijo — además de su comisión.",
   },
   {
     type: "FLASH_SALE",
@@ -125,7 +125,7 @@ export function ChallengeForm({ offers, onCreated }: { offers: Offer[]; onCreate
     if (type === "GOAL_BONUS" || type === "MIX") {
       if (!goalAmount || !bonusAmount) return null;
       pieces.push(
-        `cada creador que llegue a ${formatCOP(Number(goalAmount))} en ventas gana ${formatCOP(Number(bonusAmount))} de bono adicional a su comisión normal`
+        `cada creador que llegue a ${formatCOP(Number(goalAmount))} en ventas gana ${formatCOP(Number(bonusAmount))} de bono adicional a su comisión`
       );
     }
     if (type === "FLASH_SALE" || type === "MIX") {

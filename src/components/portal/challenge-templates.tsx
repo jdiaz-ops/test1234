@@ -98,7 +98,7 @@ function explainTemplate(
   durationDays: number
 ): string {
   if (t.type === "GOAL_BONUS") {
-    return `Si un creador vende ${formatCOP(t.goalAmount!)} en total con su código durante los ${durationDays} días de la campaña, gana ${formatCOP(t.bonusAmount!)} de bono — adicional a su comisión normal por esas mismas ventas. Aplica a cada creador que llegue a la meta, no solo al primero.`;
+    return `Si un creador vende ${formatCOP(t.goalAmount!)} en total con su código durante los ${durationDays} días de la campaña, gana ${formatCOP(t.bonusAmount!)} de bono — adicional a su comisión por esas mismas ventas. Aplica a cada creador que llegue a la meta, no solo al primero.`;
   }
   if (t.type === "FLASH_SALE" && t.newDiscountPercent != null) {
     return `Durante los ${durationDays} días de la campaña, el código de cada creador vinculado a esta oferta pasa de ${defaultDiscountPercent}% a ${t.newDiscountPercent}% de descuento para quien compre — se actualiza directo en tu tienda y vuelve solo al valor normal al terminar. La comisión del creador no cambia.`;
