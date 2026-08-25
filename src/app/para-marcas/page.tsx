@@ -184,30 +184,7 @@ export default function ParaMarcasPage() {
           </div>
         </section>
 
-        {/* El problema */}
-        <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-4 text-balance">
-            Deja de adivinar qué creadores de contenido realmente hacen vender
-          </h2>
-          <p className="text-brand-ink-soft text-center max-w-2xl mx-auto mb-12 text-balance">
-            La mayoría del marketing de influencia termina en likes, vistas y engagement. Marcolini
-            rastrea ventas reales para que sepas exactamente qué creadores generan crecimiento para
-            tu negocio.
-          </p>
-          <div className="grid sm:grid-cols-3 gap-6">
-            {problema.map((b) => (
-              <div key={b.titulo} className="rounded-2xl bg-brand-surface border border-brand-line p-6">
-                <div className="w-11 h-11 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-4">
-                  <b.icon className="w-5 h-5" />
-                </div>
-                <p className="font-display font-semibold text-brand-ink mb-1.5">{b.titulo}</p>
-                <p className="text-sm text-brand-ink-soft leading-relaxed">{b.texto}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Así funciona en tu panel — se ubica temprano, justo después de
+        {/* Así funciona en tu panel — va justo después del hero, antes de
             plantear el problema, porque es la primera prueba concreta de la
             solución (no solo texto abstracto) — adaptado de páginas como
             UpPromote (códigos por creador, motivar creadores con campañas,
@@ -433,6 +410,29 @@ export default function ParaMarcasPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* El problema */}
+        <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-4 text-balance">
+            Deja de adivinar qué creadores de contenido realmente hacen vender
+          </h2>
+          <p className="text-brand-ink-soft text-center max-w-2xl mx-auto mb-12 text-balance">
+            La mayoría del marketing de influencia termina en likes, vistas y engagement. Marcolini
+            rastrea ventas reales para que sepas exactamente qué creadores generan crecimiento para
+            tu negocio.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {problema.map((b) => (
+              <div key={b.titulo} className="rounded-2xl bg-brand-surface border border-brand-line p-6">
+                <div className="w-11 h-11 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-4">
+                  <b.icon className="w-5 h-5" />
+                </div>
+                <p className="font-display font-semibold text-brand-ink mb-1.5">{b.titulo}</p>
+                <p className="text-sm text-brand-ink-soft leading-relaxed">{b.texto}</p>
+              </div>
+            ))}
           </div>
         </section>
 
