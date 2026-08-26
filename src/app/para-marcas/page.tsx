@@ -49,6 +49,41 @@ const previewTransacciones = [
   { creador: "Sofía T.", fecha: "10 ago", venta: "$210.000", estado: "Pagado" },
 ];
 
+// Respuestas basadas en la configuración real de la plataforma
+// (PlatformConfig en schema.prisma: chargeDayOfMonth=1, payoutDayOfMonth=15,
+// refundHoldDays=15), no inventadas ni genéricas.
+const faq = [
+  {
+    pregunta: "¿Qué pasa si un creador no genera ventas?",
+    respuesta:
+      "No pagas nada. No hay mensualidad ni comisión si no hay una venta confirmada — el riesgo es de la campaña, no tuyo.",
+  },
+  {
+    pregunta: "¿Cuándo y cómo se pagan las comisiones a los creadores?",
+    respuesta:
+      "Automático: Marcolini cobra tu tarifa el día 1 de cada mes y paga a tus creadores el día 15, sin que tengas que hacer transferencias una por una.",
+  },
+  {
+    pregunta: "¿Qué pasa si un cliente pide un reembolso?",
+    respuesta:
+      "La comisión del creador queda retenida 15 días antes de liberarse — si hay un reembolso en ese período, se ajusta automáticamente y no pagas comisión sobre una venta que se devolvió.",
+  },
+  {
+    pregunta: "¿Necesito Shopify o WooCommerce obligatoriamente?",
+    respuesta:
+      "Sí. Sin embargo, si tienes otro sistema, comunícate con nosotros y verificamos si podemos integrarlo.",
+  },
+  {
+    pregunta: "¿Cómo encuentro creadores para mi marca?",
+    respuesta:
+      "No los buscas tú — los creadores descubren tu marca en el marketplace de Marcolini y aplican para promocionarla. Tú decides si la vinculación es automática o si apruebas cada uno.",
+  },
+  {
+    pregunta: "¿Hay permanencia mínima o contrato?",
+    respuesta: "No. Sin mensualidad, sin permanencia — cancelas cuando quieras.",
+  },
+];
+
 export default function ParaMarcasPage() {
   return (
     <div className="flex flex-col min-h-screen">
@@ -299,14 +334,58 @@ export default function ParaMarcasPage() {
           </div>
 
           <div className="space-y-20">
-            {/* Orden pensado como historia: primero el activo (la red de
-                creadores y cómo se les atribuye cada venta), después cómo
-                se los motiva y se mide el resultado, y al final —ya
-                convencidos— el paso técnico de conectar la tienda. */}
+            {/* Orden pensado como historia: primero el simulador (responde
+                "cuánto me cuesta" antes que nada, con la marca metiendo sus
+                propios números), después el activo (la red de creadores y
+                cómo se les atribuye cada venta), cómo se los motiva y se
+                mide el resultado, y al final —ya convencidos— el paso
+                técnico de conectar la tienda. */}
 
-            {/* 1 — red de creadores especializados */}
+            {/* 1 — cómo se reparte una venta: no una tarjeta de precio, sino
+                el mismo simulador de costos que ya existe de verdad en el
+                portal (Oferta y comisión / onboarding — ver
+                cost-calculator.tsx), con números de ejemplo. Es interactivo:
+                la marca puede meter su propio ticket de compra y ver el
+                reparto real, no una ilustración estática. vatPercent=0
+                porque en esta página se comunica una tarifa plana del 5%
+                (sin el detalle de IVA que sí se explica ya dentro del
+                portal) — el label "+ IVA" del componente es condicional a
+                vatPercent > 0, así que desaparece solo. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <CostCalculator commission={8} discount={10} platformFeePercent={5} vatPercent={0} editableRates />
+              </div>
+              <div>
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Solo ganamos cuando tu marca vende
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed">
+                  Empieza gratis, sin mensualidades ni costos de instalación. Tú defines la
+                  comisión de tus creadores y el descuento para tus compradores; Marcolini cobra
+                  únicamente un 5% sobre cada venta confirmada.
+                </p>
+              </div>
+            </div>
+
+            {/* CTA a mitad de la sección, justo después del simulador — es
+                el punto de mayor intención de toda la página (la marca
+                acaba de meter SUS propios números), no tiene sentido
+                hacerla esperar hasta el final para poder actuar. Copy
+                distinto al del hero/cierre a propósito, referenciando lo
+                que acaba de hacer en vez de repetir "Empieza gratis". */}
+            <div className="flex justify-center -mt-6">
+              <Link
+                href="/registro/marca"
+                className="group inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
+              >
+                Crea tu programa con estos números
+                <IconArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+
+            {/* 2 — red de creadores especializados */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <div className="grid grid-cols-2 gap-3">
                   {previewRedCreadores.map((c) => (
                     <div key={c.name} className="rounded-xl bg-brand-bg px-3 py-3 text-center">
@@ -319,7 +398,7 @@ export default function ParaMarcasPage() {
                   ))}
                 </div>
               </div>
-              <div>
+              <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Accede a nuestra red de creadores lista para recomendar y vender tu marca.
                 </h3>
@@ -330,9 +409,9 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 2 — código de descuento único por creador */}
+            {/* 3 — código de descuento único por creador */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Creadores de tu marca</p>
                 <div className="space-y-3">
                   {previewCreadores.map((c) => (
@@ -353,7 +432,7 @@ export default function ParaMarcasPage() {
                   ))}
                 </div>
               </div>
-              <div className="lg:order-1">
+              <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Cada creador recibe su propio código de descuento y enlace de ventas
                 </h3>
@@ -366,9 +445,9 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 3 — motivar creadores con campañas */}
+            {/* 4 — motivar creadores con campañas */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-3 py-1">
                     MISIÓN
@@ -393,7 +472,7 @@ export default function ParaMarcasPage() {
                   ))}
                 </div>
               </div>
-              <div>
+              <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Lanza Misiones y Campañas Flash Sales que impulsan más ventas
                 </h3>
@@ -405,9 +484,9 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 4 — medir el ROI */}
+            {/* 5 — medir el ROI */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-3">Resultado de la campaña</p>
                 <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-3">
                   <div className="flex items-baseline justify-between gap-3 flex-wrap">
@@ -437,7 +516,7 @@ export default function ParaMarcasPage() {
                   </div>
                 </div>
               </div>
-              <div className="lg:order-1">
+              <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Descubre qué creadores realmente hacen crecer tu negocio
                 </h3>
@@ -448,9 +527,9 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 5 — trazabilidad total / reporte de transacciones */}
+            {/* 6 — trazabilidad total / reporte de transacciones */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Transacciones</p>
                 <div className="space-y-2">
                   {previewTransacciones.map((t) => (
@@ -464,7 +543,7 @@ export default function ParaMarcasPage() {
                   ))}
                 </div>
               </div>
-              <div>
+              <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Control total de ventas, comisiones y pagos
                 </h3>
@@ -474,48 +553,6 @@ export default function ParaMarcasPage() {
                   creadores con total transparencia, sin conciliaciones manuales.
                 </p>
               </div>
-            </div>
-
-            {/* 6 — cómo se reparte una venta: no una tarjeta de precio, sino
-                el mismo simulador de costos que ya existe de verdad en el
-                portal (Oferta y comisión / onboarding — ver
-                cost-calculator.tsx), con números de ejemplo. Es interactivo:
-                la marca puede meter su propio ticket de compra y ver el
-                reparto real, no una ilustración estática. vatPercent=0
-                porque en esta página se comunica una tarifa plana del 5%
-                (sin el detalle de IVA que sí se explica ya dentro del
-                portal) — el label "+ IVA" del componente es condicional a
-                vatPercent > 0, así que desaparece solo. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <CostCalculator commission={8} discount={10} platformFeePercent={5} vatPercent={0} editableRates />
-              </div>
-              <div className="lg:order-1">
-                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Solo ganamos cuando tu marca vende
-                </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
-                  Empieza gratis, sin mensualidades ni costos de instalación. Tú defines la
-                  comisión de tus creadores y el descuento para tus compradores; Marcolini cobra
-                  únicamente un 5% sobre cada venta confirmada.
-                </p>
-              </div>
-            </div>
-
-            {/* CTA a mitad de la sección, justo después del simulador — es
-                el punto de mayor intención de toda la página (la marca
-                acaba de meter SUS propios números), no tiene sentido
-                hacerla esperar hasta el final para poder actuar. Copy
-                distinto al del hero/cierre a propósito, referenciando lo
-                que acaba de hacer en vez de repetir "Empieza gratis". */}
-            <div className="flex justify-center -mt-6">
-              <Link
-                href="/registro/marca"
-                className="group inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
-              >
-                Crea tu programa con estos números
-                <IconArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
             </div>
 
             {/* 7 — integración con Shopify/WooCommerce (al final: el paso
@@ -548,10 +585,32 @@ export default function ParaMarcasPage() {
                   Conecta Shopify o WooCommerce en menos de 5 minutos
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Sin código ni configuraciones complejas.
+                  Sin código ni configuraciones complejas. Importa automáticamente tus productos,
+                  genera códigos de descuento y empieza a atribuir ventas desde el primer día.
                 </p>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Preguntas frecuentes — justo antes del cierre/CTA final, que es
+            donde alguien casi convencido todavía tiene dudas puntuales
+            antes de dar el clic. Lista estática (sin acordeón/JS): solo 6
+            preguntas, no justifica un componente cliente nuevo para esto.
+            Respuestas basadas en la lógica real del producto (ver
+            PlatformConfig en schema.prisma: chargeDayOfMonth=1,
+            payoutDayOfMonth=15, refundHoldDays=15), no inventadas. */}
+        <section className="max-w-3xl mx-auto px-6 py-16 border-t border-brand-line">
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-12 text-balance">
+            Preguntas frecuentes
+          </h2>
+          <div className="divide-y divide-brand-line">
+            {faq.map((item) => (
+              <div key={item.pregunta} className="py-6">
+                <p className="font-display font-semibold text-brand-ink mb-2">{item.pregunta}</p>
+                <p className="text-brand-ink-soft leading-relaxed">{item.respuesta}</p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -563,11 +622,13 @@ export default function ParaMarcasPage() {
               className="pointer-events-none absolute -bottom-24 -left-24 h-[300px] w-[300px] rounded-full opacity-30 blur-3xl"
               style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
             />
-            <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-9 text-balance">
-              Solo pagas comisión cuando generan ventas
-              <br />
-              Empieza gratis. Sin mensualidades.
+            <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-4 text-balance">
+              Tu próxima venta puede venir de un creador.
             </h2>
+            <p className="relative text-white/70 max-w-lg mx-auto mb-9 text-balance">
+              Lanza tu programa hoy. Conecta tu tienda en minutos y empieza a vender pagando solo
+              por resultados.
+            </p>
             <Link
               href="/registro/marca"
               className="relative inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"

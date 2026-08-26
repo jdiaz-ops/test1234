@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function LegalContentForm({ initial }: { initial: { title: string; body: string } }) {
+export function LegalContentForm({
+  legalKey,
+  initial,
+}: {
+  legalKey: string;
+  initial: { title: string; body: string };
+}) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -17,7 +23,7 @@ export function LegalContentForm({ initial }: { initial: { title: string; body: 
     await fetch("/api/admin/legal", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: "terms", ...form }),
+      body: JSON.stringify({ key: legalKey, ...form }),
     });
 
     setSaving(false);

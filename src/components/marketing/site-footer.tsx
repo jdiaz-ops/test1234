@@ -15,6 +15,9 @@ export function SiteFooter() {
           <Link href="/terminos" className="hover:text-brand-ink">
             Términos
           </Link>
+          <Link href="/privacidad" className="hover:text-brand-ink">
+            Privacidad
+          </Link>
         </div>
       </div>
     </footer>

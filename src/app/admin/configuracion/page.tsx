@@ -7,7 +7,11 @@ import { LegalContentForm } from "@/components/portal/legal-content-form";
 
 export default async function AdminConfiguracionPage() {
   const session = await auth();
-  const [config, legal] = await Promise.all([getPlatformConfig(), getLegalContent("terms")]);
+  const [config, legalTerms, legalPrivacy] = await Promise.all([
+    getPlatformConfig(),
+    getLegalContent("terms"),
+    getLegalContent("privacy"),
+  ]);
   const readOnly = !isOwner(session!.user.adminRole);
 
   return (
@@ -43,8 +47,17 @@ export default async function AdminConfiguracionPage() {
       )}
 
       <h2 className="font-display font-semibold text-brand-ink mb-4">Contenido legal (Términos y Condiciones)</h2>
+      <div className="mb-10">
+        <LegalContentForm
+          legalKey="terms"
+          initial={{ title: legalTerms?.title ?? "", body: legalTerms?.body ?? "" }}
+        />
+      </div>
+
+      <h2 className="font-display font-semibold text-brand-ink mb-4">Contenido legal (Política de Privacidad)</h2>
       <LegalContentForm
-        initial={{ title: legal?.title ?? "", body: legal?.body ?? "" }}
+        legalKey="privacy"
+        initial={{ title: legalPrivacy?.title ?? "", body: legalPrivacy?.body ?? "" }}
       />
     </div>
   );
