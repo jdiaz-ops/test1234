@@ -464,10 +464,36 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 6 — integración con Shopify/WooCommerce (al final: el paso
-                técnico de conectar la tienda, ya con la marca convencida) */}
+            {/* 6 — cómo se reparte una venta: no una tarjeta de precio, sino
+                el mismo simulador de costos que ya existe de verdad en el
+                portal (Oferta y comisión / onboarding — ver
+                cost-calculator.tsx), con números de ejemplo. Es interactivo:
+                la marca puede meter su propio ticket de compra y ver el
+                reparto real, no una ilustración estática. vatPercent=0
+                porque en esta página se comunica una tarifa plana del 5%
+                (sin el detalle de IVA que sí se explica ya dentro del
+                portal) — el label "+ IVA" del componente es condicional a
+                vatPercent > 0, así que desaparece solo. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <CostCalculator commission={8} discount={10} platformFeePercent={5} vatPercent={0} />
+              </div>
+              <div className="lg:order-1">
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Solo ganamos cuando tu marca vende
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed">
+                  Empieza gratis, sin mensualidades ni costos de instalación. Tú defines la
+                  comisión de tus creadores y el descuento para tus compradores; Marcolini cobra
+                  únicamente un 5% sobre cada venta confirmada.
+                </p>
+              </div>
+            </div>
+
+            {/* 7 — integración con Shopify/WooCommerce (al final: el paso
+                técnico de conectar la tienda, ya con la marca convencida) */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Conecta tu tienda</p>
                 <div className="space-y-3">
                   {previewIntegraciones.map((p) => (
@@ -489,35 +515,13 @@ export default function ParaMarcasPage() {
                   ))}
                 </div>
               </div>
-              <div className="lg:order-1">
+              <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Conecta Shopify o WooCommerce en menos de 5 minutos
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
                   Sin código ni configuraciones complejas. Empieza a vender con creadores de
                   contenido y atribuye automáticamente cada pedido al embajador que lo generó.
-                </p>
-              </div>
-            </div>
-
-            {/* 7 — cómo se reparte una venta: no una tarjeta de precio, sino
-                el mismo simulador de costos que ya existe de verdad en el
-                portal (Oferta y comisión / onboarding — ver
-                cost-calculator.tsx), con números de ejemplo. Es interactivo:
-                la marca puede meter su propio ticket de compra y ver el
-                reparto real, no una ilustración estática. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <CostCalculator commission={15} discount={0} platformFeePercent={5} vatPercent={19} />
-              </div>
-              <div>
-                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Solo ganamos cuando tu marca vende
-                </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
-                  Empieza gratis, sin mensualidades ni costos de instalación. Tú defines la
-                  comisión de tus creadores y el descuento para tus compradores; Marcolini cobra
-                  únicamente un 5% + IVA sobre cada venta confirmada.
                 </p>
               </div>
             </div>

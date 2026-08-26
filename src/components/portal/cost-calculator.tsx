@@ -58,11 +58,11 @@ export function CostCalculator({
             <span>-{formatCOP(listPrice - netAmount)}</span>
           </div>
           <div className="flex justify-between text-brand-ink-soft">
-            <span>Comisión para el creador de contenido ({commission}%)</span>
+            <span>Comisión del creador ({commission}%)</span>
             <span>-{formatCOP(commissionAmount)}</span>
           </div>
           <div className="flex justify-between text-brand-ink-soft">
-            <span>Tarifa Marcolini ({platformFeePercent}% + IVA)</span>
+            <span>Tarifa Marcolini ({platformFeePercent}%{vatPercent > 0 ? " + IVA" : ""})</span>
             <span>-{formatCOP(feeAmount + vatAmount)}</span>
           </div>
           <div className="flex justify-between text-brand-ink font-semibold pt-1.5 border-t border-brand-line">
