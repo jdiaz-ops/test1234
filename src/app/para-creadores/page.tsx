@@ -5,6 +5,12 @@ import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 import { IconArrowRight, IconCheck, IconPhoto, IconProduct } from "@/components/marketing/icons";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
 
+// Checklist de confianza debajo del CTA del hero — mismo patrón que
+// /para-marcas (ver `confianza` ahí): datos reales de la plataforma, no
+// mínimo de seguidores en ningún lado del código, pago el día 15 de cada
+// mes (payoutDayOfMonth=15 en PlatformConfig).
+const confianza = ["Sin mínimo de seguidores", "Pago mensual de comisiones"];
+
 // Datos de ejemplo para las vistas previas — mismo tratamiento que la
 // versión para marcas: colores, tipos y tiles ya reales en el portal de
 // creador (marketplace, códigos, vitrina pública, retos, transacciones).
@@ -107,8 +113,8 @@ export default function ParaCreadoresPage() {
                 Convierte tu contenido e influencia en dinero
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
-                Tu comunidad accede a descuentos exclusivos y tú ganas una comisión por cada compra
-                que realicen con tu código.
+                Obtén códigos de descuento para tu comunidad y gana una comisión por cada compra
+                que realicen con ellos.
               </p>
               <Link
                 href="/registro/creador"
@@ -117,6 +123,15 @@ export default function ParaCreadoresPage() {
                 Crear mi perfil gratis
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
+              {/* Checklist de confianza — mismo patrón que /para-marcas. */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-5">
+                {confianza.map((texto) => (
+                  <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
+                    <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
+                    {texto}
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div className="py-8 px-6">
@@ -140,14 +155,18 @@ export default function ParaCreadoresPage() {
                   </div>
                 </div>
 
-                {/* Satélite 1 — "estás unida a varias marcas". Mismo chip de
-                    iniciales que ya se ve en /para-marcas y en el resto del
-                    portal. Oculta en mobile por la misma razón que en
+                {/* Satélite 1 — mismo chip de iniciales que ya se ve en
+                    /para-marcas (ahí: "3 creadores recomendando tu
+                    marca") y en el resto del portal. Iniciales propias
+                    (no "AB"/"BC", que ya son Aurora Beauty/Bruma
+                    Cosmética más abajo en esta misma página) para no
+                    confundir avatares de creadoras con iniciales de
+                    marca. Oculta en mobile por la misma razón que en
                     /para-marcas: sin espacio para sobresalir sin tapar la
                     tarjeta principal. */}
                 <div className="hidden sm:flex absolute top-0 left-0 -translate-x-2/3 -translate-y-1/2 z-10 rounded-xl bg-brand-surface border border-brand-line shadow-lg px-3 py-2.5 items-center gap-2.5">
                   <div className="flex -space-x-2">
-                    {["AB", "BC", "NS"].map((initials) => (
+                    {["MG", "SL", "CR"].map((initials) => (
                       <div
                         key={initials}
                         className="w-7 h-7 rounded-full bg-brand-accent-soft text-brand-accent font-display text-[10px] font-semibold flex items-center justify-center ring-2 ring-brand-surface"
@@ -157,7 +176,7 @@ export default function ParaCreadoresPage() {
                     ))}
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-brand-ink leading-tight">3 marcas</p>
+                    <p className="text-xs font-medium text-brand-ink leading-tight">3 creadores</p>
                     <p className="text-[11px] text-brand-accent font-medium leading-tight">generando comisión</p>
                   </div>
                 </div>
@@ -281,7 +300,7 @@ export default function ParaCreadoresPage() {
                           <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Tu comisión por venta</p>
                         </div>
                       </div>
-                      <p className="w-full text-center bg-brand-accent text-white rounded-full px-4 py-2 text-sm font-medium">
+                      <p className="w-full text-center bg-brand-accent text-white rounded-full px-4 py-2 text-sm font-medium mt-3">
                         Unirme a este programa
                       </p>
                     </div>
