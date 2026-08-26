@@ -54,11 +54,15 @@ export default function HomePage() {
                 posicionamiento propio — mismo tratamiento que se probó
                 antes de fusionarlos en un solo H1. */}
             <p className="font-display italic text-xl sm:text-2xl text-brand-ink-soft leading-relaxed max-w-2xl mx-auto mb-6 text-balance">
-              Las personas confían más en las recomendaciones de otras personas que en la
-              publicidad.
+              &ldquo;Las personas siempre confiarán más en una recomendación que en un
+              anuncio.&rdquo;
             </p>
+            {/* TODO: "Somos [logo Marcolini]." va antes de esta frase — falta
+                el archivo del logo (el que se compartió en el chat no quedó
+                accesible en el filesystem) para agregarlo en vez de
+                inventar una versión propia. */}
             <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink text-balance leading-tight tracking-tight">
-              Somos el marketplace entre marcas y creadores de contenido.
+              El puente entre marcas y creadores de contenido.
             </h1>
           </div>
 
