@@ -228,49 +228,74 @@ export default function ParaMarcasPage() {
             medir resultados), pero con el look real del portal de Marcolini
             y solo capacidades que ya existen hoy. */}
         <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-16 max-w-2xl mx-auto text-balance">
-            Todo lo que necesitas para vender a través de creadores, en un solo lugar
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-4 max-w-2xl mx-auto text-balance">
+            ¿Quién asume el riesgo de tu marketing?
           </h2>
+          <p className="text-brand-ink-soft text-center max-w-lg mx-auto mb-12">
+            Con marketing tradicional pagas antes de saber si funciona. Con Marcolini, solo pagas
+            cuando ya vendiste.
+          </p>
 
-          <div className="space-y-20">
-            {/* 1 — integración con Shopify/WooCommerce */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Conecta tu tienda</p>
-                <div className="space-y-3">
-                  {previewIntegraciones.map((p) => (
-                    <div key={p.nombre} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center shrink-0">
-                          <IconStore className="w-5 h-5" />
-                        </div>
-                        <span className="text-sm font-medium text-brand-ink">{p.nombre}</span>
-                      </div>
-                      {p.conectada ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-accent shrink-0">
-                          <IconCheck className="w-4 h-4" /> Conectada
-                        </span>
-                      ) : (
-                        <span className="text-xs text-brand-ink-soft shrink-0">Disponible</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+          {/* Comparación de riesgo: la misma idea del hero (pago por
+              resultados) pero mostrada, no explicada — dos tarjetas una al
+              lado de la otra en vez de un párrafo más. */}
+          <div className="grid sm:grid-cols-2 gap-5 max-w-3xl mx-auto mb-20">
+            <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
+              <div className="flex items-center gap-2.5 pb-4 border-b border-brand-line mb-4">
+                <span className="w-6 h-6 rounded-full border border-brand-line text-brand-ink-soft flex items-center justify-center text-xs shrink-0">
+                  ✕
+                </span>
+                <span className="font-medium text-brand-ink-soft">Marketing tradicional</span>
               </div>
-              <div>
-                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Conecta Shopify o WooCommerce en menos de 5 minutos
-                </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
-                  Sin código ni configuraciones complejas. Empieza a vender con creadores de
-                  contenido y atribuye automáticamente cada pedido al embajador que lo generó.
-                </p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-brand-ink-soft">Pagas por una publicación</span>
+                  <span className="font-mono text-sm font-semibold text-brand-ink">$800.000</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-brand-ink-soft">Ventas generadas</span>
+                  <span className="font-mono text-sm font-semibold text-brand-ink">?</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-brand-ink-soft">Riesgo</span>
+                  <span className="text-sm font-semibold text-brand-ink">Todo tuyo</span>
+                </div>
               </div>
             </div>
 
-            {/* 2 — red de creadores especializados */}
+            <div className="rounded-2xl border border-brand-accent bg-brand-accent-soft p-6">
+              <div className="flex items-center gap-2.5 pb-4 border-b border-brand-accent/25 mb-4">
+                <span className="w-6 h-6 rounded-full bg-brand-accent text-white flex items-center justify-center shrink-0">
+                  <IconCheck className="w-3.5 h-3.5" />
+                </span>
+                <span className="font-display font-semibold text-brand-accent">Con Marcolini</span>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-brand-ink-soft">Publicación</span>
+                  <span className="font-mono text-sm font-semibold text-brand-ink">$0</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-brand-ink-soft">Comisión</span>
+                  <span className="text-sm font-semibold text-brand-ink">Solo si vende</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-brand-ink-soft">Riesgo</span>
+                  <span className="text-sm font-semibold text-brand-ink">Basado en resultados</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-20">
+            {/* Orden pensado como historia: primero el activo (la red de
+                creadores y cómo se les atribuye cada venta), después cómo
+                se los motiva y se mide el resultado, y al final —ya
+                convencidos— el paso técnico de conectar la tienda. */}
+
+            {/* 1 — red de creadores especializados */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Ya activos en el marketplace de Marcolini</p>
                 <div className="grid grid-cols-2 gap-3">
                   {previewRedCreadores.map((c) => (
@@ -284,7 +309,7 @@ export default function ParaMarcasPage() {
                   ))}
                 </div>
               </div>
-              <div className="lg:order-1">
+              <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Accede a una red de creadores lista para vender tu marca
                 </h3>
@@ -296,9 +321,9 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 3 — código de descuento único por creador */}
+            {/* 2 — código de descuento único por creador */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Creadores de tu marca</p>
                 <div className="space-y-3">
                   {previewCreadores.map((c) => (
@@ -319,7 +344,7 @@ export default function ParaMarcasPage() {
                   ))}
                 </div>
               </div>
-              <div>
+              <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Cada creador recibe su propio código y enlace de ventas
                 </h3>
@@ -332,9 +357,9 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 4 — motivar creadores con campañas */}
+            {/* 3 — motivar creadores con campañas */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-3 py-1">
                     MISIÓN
@@ -359,7 +384,7 @@ export default function ParaMarcasPage() {
                   ))}
                 </div>
               </div>
-              <div className="lg:order-1">
+              <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Lanza Misiones y Flash Campaigns que impulsan más ventas
                 </h3>
@@ -371,9 +396,9 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 5 — medir el ROI */}
+            {/* 4 — medir el ROI */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-3">Resultado de la campaña</p>
                 <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-3">
                   <div className="flex items-baseline justify-between gap-3 flex-wrap">
@@ -403,7 +428,7 @@ export default function ParaMarcasPage() {
                   </div>
                 </div>
               </div>
-              <div>
+              <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Descubre qué creadores realmente hacen crecer tu negocio
                 </h3>
@@ -415,9 +440,9 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 6 — trazabilidad total / reporte de transacciones */}
+            {/* 5 — trazabilidad total / reporte de transacciones */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Transacciones</p>
                 <div className="space-y-2">
                   {previewTransacciones.map((t) => (
@@ -431,7 +456,7 @@ export default function ParaMarcasPage() {
                   ))}
                 </div>
               </div>
-              <div className="lg:order-1">
+              <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Control total de ventas, comisiones y pagos
                 </h3>
@@ -439,6 +464,42 @@ export default function ParaMarcasPage() {
                   Cada pedido queda registrado automáticamente con su creador, monto, comisión y
                   estado de pago. Revisa el historial completo de transacciones y paga a tus
                   creadores con total transparencia, sin conciliaciones manuales.
+                </p>
+              </div>
+            </div>
+
+            {/* 6 — integración con Shopify/WooCommerce (al final: el paso
+                técnico de conectar la tienda, ya con la marca convencida) */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-xs text-brand-ink-soft mb-4">Conecta tu tienda</p>
+                <div className="space-y-3">
+                  {previewIntegraciones.map((p) => (
+                    <div key={p.nombre} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center shrink-0">
+                          <IconStore className="w-5 h-5" />
+                        </div>
+                        <span className="text-sm font-medium text-brand-ink">{p.nombre}</span>
+                      </div>
+                      {p.conectada ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-accent shrink-0">
+                          <IconCheck className="w-4 h-4" /> Conectada
+                        </span>
+                      ) : (
+                        <span className="text-xs text-brand-ink-soft shrink-0">Disponible</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="lg:order-1">
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Conecta Shopify o WooCommerce en menos de 5 minutos
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed">
+                  Sin código ni configuraciones complejas. Empieza a vender con creadores de
+                  contenido y atribuye automáticamente cada pedido al embajador que lo generó.
                 </p>
               </div>
             </div>
