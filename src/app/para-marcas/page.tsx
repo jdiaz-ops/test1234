@@ -7,8 +7,6 @@ import {
   IconCheck,
 } from "@/components/marketing/icons";
 
-const confianza = ["Sin mensualidades", "Ventas 100% trazables", "Comisiones automáticas"];
-
 // Datos de ejemplo para las vistas previas de la sección "Así funciona en tu
 // panel" — la misma info y el mismo tratamiento visual (colores, tipos,
 // tiles) que ya existen de verdad en el portal de marca (ver
@@ -97,30 +95,16 @@ export default function ParaMarcasPage() {
               <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
                 Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
               </h1>
-              <p className="text-brand-ink text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
-                Solo pagas comisión cuando generan ventas.
+              <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
+                Sin mensualidades. Solo pagas comisión cuando generan ventas
               </p>
               <Link
                 href="/registro/marca"
-                className="group inline-flex items-center justify-center gap-2 bg-brand-accent text-white rounded-full px-10 py-5 text-base font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)] mb-8"
+                className="group inline-flex items-center justify-center gap-2 bg-brand-accent text-white rounded-full px-10 py-5 text-base font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)]"
               >
                 Crear mi programa gratis
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
-              {/* flex-wrap + centrado, no grid de 3 columnas ni columna
-                  vertical — con 3 ítems de largo distinto, el grid los
-                  envolvía de forma despareja y la columna apilada se
-                  sentía pesada. Centrado para que el ítem que quede solo
-                  en la última fila ("Comisiones automáticas") no quede
-                  pegado a la izquierda. */}
-              <div className="flex flex-wrap justify-center items-center gap-x-5 gap-y-2.5">
-                {confianza.map((texto) => (
-                  <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
-                    <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
-                    {texto}
-                  </span>
-                ))}
-              </div>
             </div>
 
             {/* Composición con 2 tarjetas satélite (estilo impact.com):
@@ -132,34 +116,44 @@ export default function ParaMarcasPage() {
                 para que las satélites, que sobresalen del borde de la
                 tarjeta principal, tengan espacio y no se corten contra el
                 borde de la sección. */}
-            <div className="relative py-8 px-6">
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-5 sm:p-6 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)] max-w-md mx-auto">
-                <p className="text-xs text-brand-ink-soft mb-2.5">Resultado de la campaña</p>
-                <div className="rounded-xl bg-brand-accent-soft px-3.5 py-2.5 mb-2.5">
-                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                    <p className="font-display text-xl font-bold text-brand-accent">3.8x</p>
-                    <p className="text-xs text-brand-ink-soft">por cada $1 invertido, generaste 3.8x en ventas</p>
+            <div className="py-8 px-6">
+              {/* Las satélites se anclan a ESTE contenedor (del tamaño
+                  real de la tarjeta, max-w-xl), no al wrapper de afuera
+                  (que es tan ancho como toda la columna) — si no, al
+                  agrandar la tarjeta sus bordes terminan tapados por las
+                  satélites en vez de sobresalir de ellos. */}
+              <div className="relative max-w-xl mx-auto">
+              {/* Más grande que antes — para que domine claramente sobre
+                  las 2 satélites (como en impact.com, donde el dashboard
+                  principal es mucho más grande que las tarjetitas
+                  flotantes, no del mismo tamaño). */}
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-8 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)]">
+                <p className="text-sm text-brand-ink-soft mb-3">Resultado de la campaña</p>
+                <div className="rounded-xl bg-brand-accent-soft px-5 py-4 mb-3">
+                  <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                    <p className="font-display text-3xl font-bold text-brand-accent">3.8x</p>
+                    <p className="text-sm text-brand-ink-soft">por cada $1 invertido, generaste 3.8x en ventas</p>
                   </div>
-                  <p className="text-sm text-brand-ink font-medium mt-1">
+                  <p className="text-base text-brand-ink font-medium mt-1.5">
                     Esta campaña rindió bien — vale la pena repetirla.
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg bg-brand-bg px-3 py-2">
-                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$4.200.000</p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Ventas generadas</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-brand-bg px-4 py-3">
+                    <p className="font-mono text-xl font-medium text-brand-ink leading-tight">$4.200.000</p>
+                    <p className="text-sm text-brand-ink-soft leading-snug mt-0.5">Ventas generadas</p>
                   </div>
-                  <div className="rounded-lg bg-brand-bg px-3 py-2">
-                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">54</p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
+                  <div className="rounded-lg bg-brand-bg px-4 py-3">
+                    <p className="font-mono text-xl font-medium text-brand-ink leading-tight">54</p>
+                    <p className="text-sm text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
                   </div>
-                  <div className="rounded-lg bg-brand-bg px-3 py-2">
-                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$200.000</p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
+                  <div className="rounded-lg bg-brand-bg px-4 py-3">
+                    <p className="font-mono text-xl font-medium text-brand-ink leading-tight">$200.000</p>
+                    <p className="text-sm text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
                   </div>
-                  <div className="rounded-lg bg-brand-bg px-3 py-2">
-                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$900.000</p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
+                  <div className="rounded-lg bg-brand-bg px-4 py-3">
+                    <p className="font-mono text-xl font-medium text-brand-ink leading-tight">$900.000</p>
+                    <p className="text-sm text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
                   </div>
                 </div>
               </div>
@@ -168,8 +162,15 @@ export default function ParaMarcasPage() {
                   marca". Reusa el chip de iniciales que ya se ve en el
                   bloque de "Creadores de tu marca" más abajo. Oculta en
                   mobile: a ese ancho no hay espacio para que sobresalga
-                  sin taparle el texto a la tarjeta principal. */}
-              <div className="hidden sm:flex absolute top-2 -left-2 z-10 rounded-xl bg-brand-surface border border-brand-line shadow-lg px-3 py-2.5 items-center gap-2.5">
+                  sin taparle el texto a la tarjeta principal.
+                  top-0 -translate-y-1/2 (además del -translate-x-2/3): que
+                  quede montada sobre la esquina, mitad afuera / mitad
+                  adentro — con solo el desplazamiento horizontal, ese
+                  "mitad adentro" caía justo sobre el título "Resultado de
+                  la campaña" y lo tapaba. Subiéndola también la mitad de
+                  su propio alto, el solape queda arriba del título, no
+                  encima. */}
+              <div className="hidden sm:flex absolute top-0 left-0 -translate-x-2/3 -translate-y-1/2 z-10 rounded-xl bg-brand-surface border border-brand-line shadow-lg px-3 py-2.5 items-center gap-2.5">
                 <div className="flex -space-x-2">
                   {["VR", "CM", "ST"].map((initials) => (
                     <div
@@ -190,8 +191,12 @@ export default function ParaMarcasPage() {
                   un mini-gráfico de barras ascendente, dibujado con divs
                   (sin librería de charts, es solo decorativo). También
                   oculta en mobile — se veía encima del texto de la
-                  tarjeta principal, sin espacio para sobresalir limpio. */}
-              <div className="hidden sm:block absolute bottom-2 -right-2 z-10 rounded-xl bg-brand-surface border border-brand-line shadow-lg px-3.5 py-3">
+                  tarjeta principal, sin espacio para sobresalir limpio.
+                  Mismo fix que la satélite 1: translate-x-2/3 +
+                  translate-y-1/2 en vez de "-right-2"/"bottom-2", para
+                  que quede montada en la esquina (mitad afuera) en vez de
+                  tapar "Comisión total generada". */}
+              <div className="hidden sm:block absolute bottom-0 right-0 translate-x-2/3 translate-y-1/2 z-10 rounded-xl bg-brand-surface border border-brand-line shadow-lg px-3.5 py-3">
                 <p className="text-[11px] text-brand-ink-soft mb-1.5">Ventas del mes</p>
                 <div className="flex items-end gap-1 h-8 mb-1">
                   {[5, 7, 6, 9, 8, 11, 14].map((h, i) => (
@@ -203,6 +208,7 @@ export default function ParaMarcasPage() {
                   ))}
                 </div>
                 <p className="text-xs font-semibold text-brand-accent">↑ 34% este mes</p>
+              </div>
               </div>
             </div>
           </div>
