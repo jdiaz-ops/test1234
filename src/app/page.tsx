@@ -49,12 +49,19 @@ export default function HomePage() {
             <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-7">
               MARCOLINI
             </p>
-            {/* TODO: "Somos [logo Marcolini]." va antes de esta frase — falta
-                el archivo del logo (el que se compartió en el chat no quedó
-                accesible en el filesystem) para agregarlo en vez de
-                inventar una versión propia. */}
+            {/* Ícono real de Marcolini (recortado del logo que subió Juan a
+                public/) inline justo después de "Somos" — h-[1em] lo ata al
+                tamaño de la letra en cada breakpoint, así escala con el
+                resto del titular en vez de quedar fijo. */}
             <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink text-balance leading-tight tracking-tight">
-              Somos la conexión que impulsa el crecimiento de las marcas y la monetización de las
+              Somos{" "}
+              {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura atada al texto (h-[1em]) */}
+              <img
+                src="/marcolini-icon.png"
+                alt=""
+                className="inline-block h-[1em] w-auto align-[-0.12em] mx-1"
+              />{" "}
+              la conexión que impulsa el crecimiento de las marcas y la monetización de las
               creadoras de contenido.
             </h1>
           </div>
