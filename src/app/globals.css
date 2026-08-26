@@ -47,11 +47,6 @@ body {
   .font-display {
     font-family: var(--font-display), -apple-system, sans-serif;
   }
-  /* Script elegante (Alex Brush) — uso puntual para citas/frases sueltas,
-     no para titulares normales. */
-  .font-script {
-    font-family: var(--font-script), cursive;
-  }
 }
 
 /* Estilos de formulario compartidos por las páginas de autenticación */

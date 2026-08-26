@@ -46,12 +46,19 @@ export default function HomePage() {
               <IconStore className="w-6 h-6 text-brand-accent" />
             </div>
 
-            <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-9">
+            <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-7">
               MARCOLINI
             </p>
-            <h1 className="font-script text-brand-accent text-balance leading-[1.15] max-w-2xl mx-auto text-5xl sm:text-6xl">
+            {/* Dos niveles: la frase suave (gris, itálica, más chica) da
+                contexto/respaldo, y el titular (negro, bold) es el
+                posicionamiento propio — mismo tratamiento que se probó
+                antes de fusionarlos en un solo H1. */}
+            <p className="font-display italic text-xl sm:text-2xl text-brand-ink-soft leading-relaxed max-w-2xl mx-auto mb-6 text-balance">
               Las personas confían más en las recomendaciones de otras personas que en la
               publicidad.
+            </p>
+            <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink text-balance leading-tight tracking-tight">
+              Somos el marketplace entre marcas y creadores de contenido.
             </h1>
           </div>
 

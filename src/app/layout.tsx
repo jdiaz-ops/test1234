@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
-import { Instrument_Sans, Karla, IBM_Plex_Mono, Alex_Brush } from "next/font/google";
+import { Instrument_Sans, Karla, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
 // Identidad de marca de Marcolini: "Sistema Confiable" en tono nude/rosado —
 // Instrument Sans para titulares, Karla para el cuerpo, IBM Plex Mono para
-// datos (comisiones, códigos, %). Alex Brush es un extra puntual: script
-// elegante para citas/frases sueltas donde se quiere un trazo casi escrito a
-// mano (ver el hero de la home) — no reemplaza a Instrument Sans como
-// tipografía de titulares.
+// datos (comisiones, códigos, %).
 const instrumentSans = Instrument_Sans({
   variable: "--font-display",
   subsets: ["latin"],
@@ -27,12 +24,6 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
-const alexBrush = Alex_Brush({
-  variable: "--font-script",
-  subsets: ["latin"],
-  weight: ["400"],
-});
-
 export const metadata: Metadata = {
   title: "Marcolini",
   description: "Red de afiliación para la industria de belleza",
@@ -42,7 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${instrumentSans.variable} ${karla.variable} ${ibmPlexMono.variable} ${alexBrush.variable} h-full antialiased`}
+      className={`${instrumentSans.variable} ${karla.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-brand-bg text-brand-ink">
         <Providers>{children}</Providers>
