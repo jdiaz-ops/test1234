@@ -231,9 +231,9 @@ export default function ParaMarcasPage() {
             y solo capacidades que ya existen hoy. */}
         <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
           <p className="font-display text-xl sm:text-2xl font-bold text-brand-ink text-center max-w-2xl mx-auto mb-12 text-balance">
-            Con marketing tradicional pagas antes de saber si funciona.
+            Un Reel cuesta lo mismo, venda o no.
             <br />
-            Con Marcolini, solo pagas cuando ya vendiste.
+            Con Marcolini, solo pagas cuando vende.
           </p>
 
           {/* Comparación de riesgo: la misma idea del hero (pago por
