@@ -50,7 +50,7 @@ export default function HomePage() {
                 subió a public/ — reemplaza el label de texto "MARCOLINI"
                 que había antes acá. */}
             {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
-            <img src="/marcolini-logo-lockup.png" alt="Marcolini" className="h-10 w-auto mx-auto mb-7" />
+            <img src="/marcolini-logo-lockup.png" alt="Marcolini" className="h-20 w-auto mx-auto mb-8" />
             <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink text-balance leading-tight tracking-tight">
               Somos la conexión que impulsa el crecimiento de las marcas y la monetización de las
               creadoras de contenido.
