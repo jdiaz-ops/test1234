@@ -49,17 +49,9 @@ export default function HomePage() {
             <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-9">
               MARCOLINI
             </p>
-            {/* Ángulo distinto al del mega-titular anterior: una cita/dato
-                suelta primero, en itálica y en el tono más suave de la
-                paleta (brand-ink-soft) — lee como algo dicho, no gritado —
-                y recién después el posicionamiento propio, más corto y
-                tranquilo que el H1 gigante de antes. */}
-            <p className="font-display italic text-xl sm:text-2xl text-brand-ink-soft leading-relaxed max-w-2xl mx-auto mb-6 text-balance">
-              &ldquo;El 92% de las personas confía más en la recomendación de otra persona que en
-              la publicidad.&rdquo;
-            </p>
             <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink text-balance leading-tight tracking-tight">
-              Somos el marketplace entre marcas y creadores de contenido.
+              Las personas confían más en las recomendaciones de otras personas que en la
+              publicidad.
             </h1>
           </div>
 
