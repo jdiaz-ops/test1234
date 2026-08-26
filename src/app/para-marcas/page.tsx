@@ -90,7 +90,7 @@ export default function ParaMarcasPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
                 <img src="/woocomerce.png" alt="WooCommerce" className="h-6 w-auto" style={{ filter: "grayscale(1)" }} />
               </div>
-              <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink mb-5 text-balance leading-[1.1]">
+              <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
                 Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
               </h1>
               <p className="text-brand-ink-soft text-base sm:text-lg mb-8 text-balance max-w-lg">
@@ -122,25 +122,41 @@ export default function ParaMarcasPage() {
             </div>
 
             <div className="relative">
+              {/* Prueba visual de "crece tu e-commerce": el resultado real
+                  de una campaña (ROI + ventas generadas), no una lista
+                  administrativa de creadores — esto sí conecta con la
+                  promesa del H1. Mismo componente que el bloque 5 de "Así
+                  funciona en tu panel" (mostrar el resultado arriba, en el
+                  hero, y explicar cómo se llega a él más abajo es un
+                  patrón estándar, no una repetición accidental). */}
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)]">
-                <p className="text-xs text-brand-ink-soft mb-4">Creadores de tu marca</p>
-                <div className="space-y-3">
-                  {previewCreadores.map((c) => (
-                    <div key={c.code} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center shrink-0">
-                          {c.name.split(" ").map((w) => w[0]).join("")}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-brand-ink truncate">{c.name}</p>
-                          <p className="text-xs text-brand-ink-soft">{c.ventas}</p>
-                        </div>
-                      </div>
-                      <span className="font-mono text-xs font-medium text-brand-accent bg-brand-accent-soft rounded-lg px-2.5 py-1 shrink-0">
-                        {c.code}
-                      </span>
-                    </div>
-                  ))}
+                <p className="text-xs text-brand-ink-soft mb-3">Resultado de la campaña</p>
+                <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-3">
+                  <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                    <p className="font-display text-2xl font-bold text-brand-accent">3.8x</p>
+                    <p className="text-xs text-brand-ink-soft">por cada $1 invertido, generaste 3.8x en ventas</p>
+                  </div>
+                  <p className="text-sm text-brand-ink font-medium mt-1.5">
+                    Esta campaña rindió bien — vale la pena repetirla.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$4.200.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Ventas generadas (GMV)</p>
+                  </div>
+                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">54</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
+                  </div>
+                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$150.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
+                  </div>
+                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$630.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
+                  </div>
                 </div>
               </div>
               <p className="text-xs text-brand-ink-soft text-center mt-3">Así se ve en tu panel</p>
