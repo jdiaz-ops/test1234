@@ -7,7 +7,7 @@ import {
   IconCheck,
 } from "@/components/marketing/icons";
 
-const confianza = ["Solo pagas por ventas confirmadas", "Sin mensualidades ni costos fijos", "ROI y ventas 100% trazables"];
+const confianza = ["Solo pagas cuando vendes", "Sin mensualidad", "Ventas 100% trazables"];
 
 // Datos de ejemplo para las vistas previas de la sección "Así funciona en tu
 // panel" — la misma info y el mismo tratamiento visual (colores, tipos,
@@ -66,11 +66,10 @@ export default function ParaMarcasPage() {
               PAGA POR RESULTADOS, NO POR PUBLICACIONES
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
-              Convierte a los creadores de contenido en un canal de ventas medible para tu marca
+              Convierte a los creadores de contenido en un canal de ventas
             </h1>
             <p className="text-brand-ink-soft text-lg sm:text-xl max-w-xl mx-auto mb-10 text-balance">
-              Conecta tu marca con creadores especializados y trabaja bajo un modelo de comisiones:
-              tú defines cuánto pagar y solo inviertes cuando generan ventas reales.
+              Conectamos tu marca.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10">
               <Link
