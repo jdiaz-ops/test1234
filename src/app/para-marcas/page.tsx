@@ -77,17 +77,17 @@ export default function ParaMarcasPage() {
                 ilegibles) — el grayscale conserva ese contraste de tono. */}
             <div className="inline-flex items-center gap-4 bg-brand-surface border border-brand-line rounded-full px-5 py-2.5 mb-7">
               {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
-              <img src="/shopify.webp" alt="Shopify" className="h-4 w-auto" style={{ filter: "brightness(0)" }} />
-              <span aria-hidden className="h-5 w-px bg-brand-line" />
+              <img src="/shopify.webp" alt="Shopify" className="h-5 w-auto" style={{ filter: "brightness(0)" }} />
+              <span aria-hidden className="h-6 w-px bg-brand-line" />
               {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
-              <img src="/woocomerce.png" alt="WooCommerce" className="h-6 w-auto" style={{ filter: "grayscale(1)" }} />
+              <img src="/woocomerce.png" alt="WooCommerce" className="h-8 w-auto" style={{ filter: "grayscale(1)" }} />
             </div>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
-              Crece tu e‑commerce con una red de creadores de contenido pagando solo por resultados
+              Conectamos tu marca con nuestra red de creadores de contenido que recomiendan y venden
+              tus productos
             </h1>
-            <p className="text-brand-ink-soft text-lg sm:text-xl max-w-xl mx-auto mb-10 text-balance">
-              Conectamos tu marca con creadores que recomiendan y venden tus productos. Tú defines
-              la comisión; nosotros atribuimos cada venta y calculamos automáticamente cuánto pagar.
+            <p className="font-display text-xl sm:text-2xl font-semibold text-brand-ink max-w-xl mx-auto mb-10 text-balance">
+              Solo pagas una comisión cuando generan ventas.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10">
               <Link
