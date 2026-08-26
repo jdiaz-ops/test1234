@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
@@ -8,6 +9,17 @@ import {
   IconCheck,
 } from "@/components/marketing/icons";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
+
+// Metadata propia — mismo motivo que /para-creadores: sin esto hereda
+// el título/descripción genérico del layout raíz, que asume belleza
+// (hoy el marketplace solo tiene "Uñas" poblado). Acá tampoco se nombra
+// categoría, se apoya en el mecanismo (comisión solo si vende, red de
+// creadores) ya redactado en el resto de la página.
+export const metadata: Metadata = {
+  title: "Conecta tu marca con creadores de contenido — Marcolini",
+  description:
+    "Crece tu e-commerce con una red de creadores que solo cobran comisión cuando venden. Conecta Shopify o WooCommerce en minutos, sin mensualidades.",
+};
 
 const confianza = ["Sin mensualidades", "Sin costos de instalación"];
 

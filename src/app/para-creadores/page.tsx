@@ -1,9 +1,23 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 import { IconArrowRight, IconCheck, IconPhoto, IconProduct } from "@/components/marketing/icons";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
+
+// Metadata propia — sin esto la página hereda el título/descripción
+// genérico del layout raíz ("Marcolini" / "Red de afiliación para la
+// industria de belleza"), que además asume belleza: hoy el marketplace
+// solo tiene poblado el vertical "Uñas" (ver Vertical en schema.prisma),
+// con belleza y moda como categorías futuras — por eso el copy de acá
+// no nombra ninguna categoría, se apoya en el mecanismo (código propio,
+// comisión por venta) que ya está redactado en el resto de la página.
+export const metadata: Metadata = {
+  title: "Gana comisión recomendando marcas con tu propio código — Marcolini",
+  description:
+    "Únete gratis, elige las marcas que quieres recomendar y comparte tu código de descuento. Gana una comisión por cada venta, sin mínimo de seguidores.",
+};
 
 // Checklist de confianza debajo del CTA del hero — mismo patrón que
 // /para-marcas (ver `confianza` ahí): datos reales de la plataforma, no
