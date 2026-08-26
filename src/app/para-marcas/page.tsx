@@ -97,15 +97,15 @@ export default function ParaMarcasPage() {
                 Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
-                Empieza gratis. Sin mensualidades.
-                <br />
                 Solo pagas comisión cuando generan ventas
+                <br />
+                Empieza gratis. Sin mensualidades.
               </p>
               <Link
                 href="/registro/marca"
                 className="group inline-flex items-center justify-center gap-2 bg-brand-accent text-white rounded-full px-10 py-5 text-base font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)]"
               >
-                Crear mi programa gratis
+                Empieza gratis
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
@@ -348,8 +348,8 @@ export default function ParaMarcasPage() {
                 <p className="text-brand-ink-soft leading-relaxed">
                   Marcolini genera automáticamente un código de descuento y un enlace único para
                   cada creador. Cada pedido queda atribuido en tiempo real, para que sepas quién
-                  vendió, cuánto facturó y qué comisión le corresponde, sin hojas de cálculo ni
-                  seguimiento manual.
+                  vendió y qué comisión le corresponde, sin hojas de cálculo ni seguimiento
+                  manual.
                 </p>
               </div>
             </div>
@@ -520,8 +520,7 @@ export default function ParaMarcasPage() {
                   Conecta Shopify o WooCommerce en menos de 5 minutos
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Sin código ni configuraciones complejas. Empieza a vender con creadores de
-                  contenido y atribuye automáticamente cada pedido al embajador que lo generó.
+                  Sin código ni configuraciones complejas.
                 </p>
               </div>
             </div>
@@ -537,17 +536,15 @@ export default function ParaMarcasPage() {
               style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
             />
             <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-9 text-balance">
-              Empieza gratis.
-              <br />
-              Sin mensualidades.
-              <br />
               Solo pagas comisión cuando generan ventas
+              <br />
+              Empieza gratis. Sin mensualidades.
             </h2>
             <Link
               href="/registro/marca"
               className="relative inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
             >
-              Crear mi programa gratis
+              Empieza gratis
               <IconArrowRight className="w-4 h-4" />
             </Link>
           </div>
