@@ -92,11 +92,19 @@ export default function ParaMarcasPage() {
                   <img src="/woocomerce.png" alt="WooCommerce" className="h-6 w-auto" style={{ filter: "grayscale(1)" }} />
                 </div>
               </div>
-              <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
+              <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink mb-5 text-balance leading-[1.12]">
                 Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
               </h1>
-              <p className="text-brand-ink-soft text-base sm:text-lg mb-8 text-balance max-w-lg">
-                Recomiendan y venden tus productos. Solo pagas comisión cuando generan ventas.
+              {/* Dos frases con más peso que un subhead gris normal (aquí
+                  cargan la explicación del modelo, no son un detalle
+                  secundario) + salto de línea forzado antes de "Solo
+                  pagas..." para que esa frase se lea siempre entera en su
+                  propia línea, en vez de partirse a la mitad junto con el
+                  final de la anterior. */}
+              <p className="text-brand-ink text-base sm:text-lg font-medium mb-8 text-balance max-w-lg">
+                Recomiendan y venden tus productos.
+                <br />
+                Solo pagas comisión cuando generan ventas.
               </p>
               <Link
                 href="/registro/marca"
@@ -105,11 +113,13 @@ export default function ParaMarcasPage() {
                 Crear mi programa gratis
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
-              {/* flex-wrap, no grid de 3 columnas ni columna vertical — con
-                  3 ítems de largo distinto, el grid los envolvía de forma
-                  despareja y la columna apilada se sentía pesada. Que cada
-                  uno fluya y envuelva de forma natural. */}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
+              {/* flex-wrap + centrado, no grid de 3 columnas ni columna
+                  vertical — con 3 ítems de largo distinto, el grid los
+                  envolvía de forma despareja y la columna apilada se
+                  sentía pesada. Centrado para que el ítem que quede solo
+                  en la última fila ("Comisiones automáticas") no quede
+                  pegado a la izquierda. */}
+              <div className="flex flex-wrap justify-center items-center gap-x-5 gap-y-2.5">
                 {confianza.map((texto) => (
                   <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
                     <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
@@ -127,33 +137,36 @@ export default function ParaMarcasPage() {
                   funciona en tu panel" (mostrar el resultado arriba, en el
                   hero, y explicar cómo se llega a él más abajo es un
                   patrón estándar, no una repetición accidental). */}
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-5 sm:p-6 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)]">
-                <p className="text-xs text-brand-ink-soft mb-2.5">Resultado de la campaña</p>
-                <div className="rounded-xl bg-brand-accent-soft px-3.5 py-2.5 mb-2.5">
-                  <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                    <p className="font-display text-xl font-bold text-brand-accent">3.8x</p>
-                    <p className="text-xs text-brand-ink-soft">por cada $1 invertido, generaste 3.8x en ventas</p>
+              {/* ~20% más chica que antes (paddings y tipografía un
+                  escalón por debajo) para dejarle más protagonismo al
+                  texto del hero. */}
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-4 sm:p-5 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)] max-w-sm ml-auto">
+                <p className="text-[11px] text-brand-ink-soft mb-2">Resultado de la campaña</p>
+                <div className="rounded-lg bg-brand-accent-soft px-3 py-2 mb-2">
+                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                    <p className="font-display text-lg font-bold text-brand-accent">3.8x</p>
+                    <p className="text-[11px] text-brand-ink-soft">por cada $1 invertido, generaste 3.8x en ventas</p>
                   </div>
-                  <p className="text-sm text-brand-ink font-medium mt-1">
+                  <p className="text-xs text-brand-ink font-medium mt-1">
                     Esta campaña rindió bien — vale la pena repetirla.
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-xl bg-brand-bg px-3 py-2">
-                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$4.200.000</p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Ventas generadas</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="rounded-lg bg-brand-bg px-2.5 py-1.5">
+                    <p className="font-mono text-sm font-medium text-brand-ink leading-tight">$4.200.000</p>
+                    <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Ventas generadas</p>
                   </div>
-                  <div className="rounded-xl bg-brand-bg px-3 py-2">
-                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">54</p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
+                  <div className="rounded-lg bg-brand-bg px-2.5 py-1.5">
+                    <p className="font-mono text-sm font-medium text-brand-ink leading-tight">54</p>
+                    <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
                   </div>
-                  <div className="rounded-xl bg-brand-bg px-3 py-2">
-                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$200.000</p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
+                  <div className="rounded-lg bg-brand-bg px-2.5 py-1.5">
+                    <p className="font-mono text-sm font-medium text-brand-ink leading-tight">$200.000</p>
+                    <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
                   </div>
-                  <div className="rounded-xl bg-brand-bg px-3 py-2">
-                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$900.000</p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
+                  <div className="rounded-lg bg-brand-bg px-2.5 py-1.5">
+                    <p className="font-mono text-sm font-medium text-brand-ink leading-tight">$900.000</p>
+                    <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
                   </div>
                 </div>
               </div>
