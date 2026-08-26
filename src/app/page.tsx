@@ -24,9 +24,14 @@ export default function HomePage() {
         <div className="relative max-w-4xl w-full text-center">
           {/* Versión simplificada: el logo grande (ya con la paleta de dos
               rosados) es lo único arriba — sin H1, sin ilustración aparte
-              — y debajo, directo, las dos tarjetas. */}
+              — y debajo, directo, las dos tarjetas. El slogan va chico y
+              elegante entre el logo y las tarjetas, como acompañante, no
+              como titular. */}
           {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
-          <img src="/marcolini-logo-lockup.png" alt="Marcolini" className="h-40 sm:h-52 w-auto mx-auto mb-14" />
+          <img src="/marcolini-logo-lockup.png" alt="Marcolini" className="h-40 sm:h-52 w-auto mx-auto mb-5" />
+          <p className="font-display italic text-lg sm:text-xl text-brand-ink-soft tracking-wide mb-14">
+            Impulsamos la economía de la confianza.
+          </p>
 
           <div className="grid sm:grid-cols-2 gap-6 mb-8">
             {/* Tarjeta creador */}
