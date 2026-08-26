@@ -407,10 +407,10 @@ export default function ParaCreadoresPage() {
                   la promesa central del bloque ("un solo link"), no una
                   zona más adentro del mockup. */}
               <div className="text-center mb-6">
-                <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1 mb-2">
+                <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5 mb-2.5">
                   TU LINK
                 </span>
-                <p className="font-mono text-sm text-brand-accent">marcolini.co/c/valentina</p>
+                <p className="font-mono text-base text-brand-accent">marcolini.co/c/valentina</p>
               </div>
               <div className="flex justify-center mb-10">
                 <Link
@@ -444,12 +444,12 @@ export default function ParaCreadoresPage() {
                     directo con el borde — así se ve, a simple vista,
                     a qué franja del mockup corresponde. */}
                 <div className="relative">
-                  <div className="mb-3 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:right-full lg:w-56 lg:flex lg:items-center lg:gap-4">
+                  <div className="mb-3 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:right-full lg:w-64 lg:flex lg:items-center lg:gap-4">
                     <div className="lg:text-right">
-                      <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1">
+                      <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
                         TUS CÓDIGOS ACTIVOS
                       </span>
-                      <p className="text-xs text-brand-ink-soft leading-relaxed mt-1.5">
+                      <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
                         Todos tus códigos de descuento se organizan automáticamente en tu vitrina,
                         para que tu comunidad siempre tenga acceso al código correcto de cada
                         marca.
@@ -484,13 +484,13 @@ export default function ParaCreadoresPage() {
                 {/* Zona 3 — tus colecciones. Mismo tratamiento que la
                     Zona 2, en espejo hacia la derecha. */}
                 <div className="relative">
-                  <div className="mb-3 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:w-56 lg:flex lg:items-center lg:gap-4">
+                  <div className="mb-3 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:w-64 lg:flex lg:items-center lg:gap-4">
                     <span aria-hidden className="hidden lg:block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40" />
                     <div>
-                      <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1">
+                      <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
                         TUS COLECCIONES
                       </span>
-                      <p className="text-xs text-brand-ink-soft leading-relaxed mt-1.5">
+                      <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
                         Crea colecciones con tus productos favoritos y organízalos por tema, rutina
                         o estilo. Comparte recomendaciones mucho más útiles y convierte tu vitrina
                         en una verdadera guía de compra para tu comunidad.
@@ -610,14 +610,9 @@ export default function ParaCreadoresPage() {
               className="pointer-events-none absolute -bottom-24 -left-24 h-[300px] w-[300px] rounded-full opacity-30 blur-3xl"
               style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
             />
-            <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-4 text-balance">
-              Empieza a ganar dinero con las marcas que ya recomiendas.
+            <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-9 text-balance">
+              Convierte tu contenido e influencia en una fuente de ingresos.
             </h2>
-            <p className="relative text-white/70 max-w-lg mx-auto mb-9 text-balance">
-              Crea tu perfil, únete a las marcas que te interesan y comparte tus códigos o enlaces.
-              Cada compra de tu comunidad genera comisiones que se registran y pagan
-              automáticamente.
-            </p>
             <Link
               href="/registro/creador"
               className="relative inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
