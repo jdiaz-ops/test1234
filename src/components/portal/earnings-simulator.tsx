@@ -30,7 +30,8 @@ export function EarningsSimulator() {
             max={50}
             value={ventas}
             onChange={(e) => setVentas(Number(e.target.value))}
-            className="w-full accent-[--brand-accent]"
+            className="w-full"
+            style={{ accentColor: "var(--brand-accent)" }}
           />
         </div>
         <div>
@@ -44,7 +45,8 @@ export function EarningsSimulator() {
             step={5000}
             value={monto}
             onChange={(e) => setMonto(Number(e.target.value))}
-            className="w-full accent-[--brand-accent]"
+            className="w-full"
+            style={{ accentColor: "var(--brand-accent)" }}
           />
         </div>
         <div>
@@ -57,7 +59,8 @@ export function EarningsSimulator() {
             max={25}
             value={comision}
             onChange={(e) => setComision(Number(e.target.value))}
-            className="w-full accent-[--brand-accent]"
+            className="w-full"
+            style={{ accentColor: "var(--brand-accent)" }}
           />
           <p className="text-xs text-brand-ink-soft mt-1">Varía según la marca — la ves al unirte a cada una.</p>
         </div>
