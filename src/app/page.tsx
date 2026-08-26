@@ -16,12 +16,9 @@ export default function HomePage() {
           <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-7">
             MARCOLINI
           </p>
-          <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
-            La red que conecta marcas de uñas y creadores de contenido
-          </h1>
-          <p className="text-brand-ink-soft text-lg sm:text-xl max-w-xl mx-auto mb-14 text-balance">
+          <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-14 text-balance leading-[1.08]">
             Donde las marcas crecen y los creadores de contenido monetizan.
-          </p>
+          </h1>
 
           <div className="grid sm:grid-cols-2 gap-5 mb-8">
             <Link
@@ -32,10 +29,14 @@ export default function HomePage() {
                 <IconHeart className="w-5 h-5" />
               </div>
               <p className="font-mono text-xs text-brand-ink-soft tracking-widest mb-2">
-                SOY CREADOR
+                PARA CREADORES
               </p>
-              <p className="font-display text-lg font-semibold text-brand-ink mb-4 text-balance">
-                Gana comisiones por tus recomendaciones
+              <p className="font-display text-lg font-semibold text-brand-ink mb-2 text-balance">
+                Convierte tu contenido e influencia en dinero
+              </p>
+              <p className="text-sm text-brand-ink-soft leading-relaxed mb-4">
+                Obtén códigos de descuento para tu comunidad y gana una comisión por cada compra
+                que realicen con ellos.
               </p>
               <p className="text-sm text-brand-accent font-medium inline-flex items-center gap-1.5">
                 Únete gratis
@@ -53,8 +54,11 @@ export default function HomePage() {
               <p className="font-mono text-xs text-brand-ink-soft tracking-widest mb-2">
                 SOY MARCA
               </p>
-              <p className="font-display text-lg font-semibold text-brand-ink mb-4 text-balance">
-                Crea tu programa de afiliados
+              <p className="font-display text-lg font-semibold text-brand-ink mb-2 text-balance">
+                Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
+              </p>
+              <p className="text-sm text-brand-ink-soft leading-relaxed mb-4">
+                Solo pagas comisión cuando generan ventas.
               </p>
               <p className="text-sm text-brand-accent font-medium inline-flex items-center gap-1.5">
                 Sin mensualidad
