@@ -1,6 +1,11 @@
 import Link from "next/link";
 
-export function SiteHeader() {
+/// ctaHref/ctaLabel son opcionales porque el header se comparte entre
+/// /para-marcas y /para-creadores — cada landing manda a un registro
+/// distinto (/registro/marca vs /registro/creador), así que el botón de
+/// "empieza gratis" del header lo decide la página, no el componente.
+/// Sin props, el header queda como estaba (solo "Ya tengo cuenta").
+export function SiteHeader({ ctaHref, ctaLabel }: { ctaHref?: string; ctaLabel?: string } = {}) {
   return (
     <header className="border-b border-brand-line bg-brand-surface/80 backdrop-blur sticky top-0 z-10">
       <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -20,6 +25,14 @@ export function SiteHeader() {
           >
             Ya tengo cuenta
           </Link>
+          {ctaHref && ctaLabel && (
+            <Link
+              href={ctaHref}
+              className="bg-brand-accent text-white font-medium rounded-full px-4 py-1.5 hover:opacity-90 transition"
+            >
+              {ctaLabel}
+            </Link>
+          )}
         </nav>
       </div>
     </header>

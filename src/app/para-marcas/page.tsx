@@ -50,7 +50,7 @@ const previewTransacciones = [
 export default function ParaMarcasPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <SiteHeader />
+      <SiteHeader ctaHref="/registro/marca" ctaLabel="Empieza gratis" />
 
       <main className="flex-1">
         {/* Hero — dos columnas (texto + visual), no todo centrado y gigante
@@ -488,6 +488,22 @@ export default function ParaMarcasPage() {
                   únicamente un 5% sobre cada venta confirmada.
                 </p>
               </div>
+            </div>
+
+            {/* CTA a mitad de la sección, justo después del simulador — es
+                el punto de mayor intención de toda la página (la marca
+                acaba de meter SUS propios números), no tiene sentido
+                hacerla esperar hasta el final para poder actuar. Copy
+                distinto al del hero/cierre a propósito, referenciando lo
+                que acaba de hacer en vez de repetir "Empieza gratis". */}
+            <div className="flex justify-center -mt-6">
+              <Link
+                href="/registro/marca"
+                className="group inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
+              >
+                Crea tu programa con estos números
+                <IconArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
             </div>
 
             {/* 7 — integración con Shopify/WooCommerce (al final: el paso
