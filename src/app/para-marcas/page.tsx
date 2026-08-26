@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { CostCalculator } from "@/components/portal/cost-calculator";
 import {
   IconStore,
   IconArrowRight,
@@ -495,6 +496,28 @@ export default function ParaMarcasPage() {
                 <p className="text-brand-ink-soft leading-relaxed">
                   Sin código ni configuraciones complejas. Empieza a vender con creadores de
                   contenido y atribuye automáticamente cada pedido al embajador que lo generó.
+                </p>
+              </div>
+            </div>
+
+            {/* 7 — cómo se reparte una venta: no una tarjeta de precio, sino
+                el mismo simulador de costos que ya existe de verdad en el
+                portal (Oferta y comisión / onboarding — ver
+                cost-calculator.tsx), con números de ejemplo. Es interactivo:
+                la marca puede meter su propio ticket de compra y ver el
+                reparto real, no una ilustración estática. */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <CostCalculator commission={15} discount={0} platformFeePercent={5} vatPercent={19} />
+              </div>
+              <div>
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Solo ganamos cuando tu marca vende
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed">
+                  Empieza gratis, sin mensualidades ni costos de instalación. Tú defines la
+                  comisión de tus creadores y el descuento para tus compradores; Marcolini cobra
+                  únicamente un 5% + IVA sobre cada venta confirmada.
                 </p>
               </div>
             </div>
