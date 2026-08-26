@@ -63,7 +63,7 @@ export default function ParaMarcasPage() {
           />
           <div className="relative max-w-3xl mx-auto px-6 pt-24 pb-20 text-center">
             <span className="inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-4 py-1.5 mb-7">
-              PAGO POR RESULTADOS
+              HECHO PARA SHOPIFY Y WOOCOMMERCE
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
               Crece tu e‑commerce pagando solo por resultados
