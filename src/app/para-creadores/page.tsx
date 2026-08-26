@@ -104,7 +104,7 @@ export default function ParaCreadoresPage() {
                 </span>
               </div>
               <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
-                Convierte tu contenido e influencia en una fuente de ingresos
+                Convierte tu contenido e influencia en dinero
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
                 Tu comunidad accede a descuentos exclusivos y tú ganas una comisión por cada compra
@@ -611,7 +611,7 @@ export default function ParaCreadoresPage() {
               style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
             />
             <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-9 text-balance">
-              Convierte tu contenido e influencia en una fuente de ingresos.
+              Convierte tu contenido e influencia en dinero.
             </h2>
             <Link
               href="/registro/creador"
