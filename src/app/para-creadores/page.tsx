@@ -8,7 +8,7 @@ import { FaqAccordion } from "@/components/marketing/faq-accordion";
 // Datos de ejemplo para las vistas previas — mismo tratamiento que la
 // versión para marcas: colores, tipos y tiles ya reales en el portal de
 // creador (marketplace, códigos, vitrina pública, retos, transacciones).
-// Marcas 100% inventadas (Aurora Beauty / Bruma Cosmética / Nudo Studio)
+// Marcas 100% inventadas (Aurora Beauty / Bruma Cosmética)
 // — no son marcas reales ni tampoco las demo del seed ("Latin Nails",
 // "Mixcoco") — hasta que existan marcas de verdad en la plataforma. Sin
 // logoUrl a propósito: BrandMiniProfile (el mismo componente que ya usan
@@ -18,13 +18,9 @@ import { FaqAccordion } from "@/components/marketing/faq-accordion";
 const previewOfertas = [
   { marca: "Aurora Beauty", categoria: "Skincare", web: "aurorabeauty.co", descuento: 10, comision: 6 },
   { marca: "Bruma Cosmética", categoria: "Maquillaje", web: "brumacosmetica.co", descuento: 10, comision: 7.5 },
-  { marca: "Nudo Studio", categoria: "Cuidado capilar", web: "nudostudio.co", descuento: 10, comision: 8 },
 ];
 
-const previewCodigos = [
-  { marca: "Aurora Beauty", code: "VALE10", link: "aurorabeauty.co/VALE10", descuento: 10, comision: 6 },
-  { marca: "Bruma Cosmética", code: "VALE10", link: "brumacosmetica.co/VALE10", descuento: 10, comision: 7.5 },
-];
+const previewCodigos = [{ marca: "Aurora Beauty", code: "VALE10", link: "aurorabeauty.co/VALE10", descuento: 10, comision: 6 }];
 
 const previewVitrinaMarcas = [
   { marca: "Aurora Beauty", descuento: 10, code: "VALE10" },
@@ -43,7 +39,6 @@ const previewColeccion = {
 const previewTransacciones = [
   { marca: "Aurora Beauty", fecha: "12 ago", venta: "$95.000", comision: "$5.700", estado: "Pagada" },
   { marca: "Bruma Cosmética", fecha: "10 ago", venta: "$120.000", comision: "$9.000", estado: "Pagada" },
-  { marca: "Nudo Studio", fecha: "8 ago", venta: "$60.000", comision: "$4.800", estado: "Aprobada" },
 ];
 
 // Respuestas basadas en la lógica real de la plataforma (mismo
@@ -195,9 +190,8 @@ export default function ParaCreadoresPage() {
             de pagos. */}
         <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
           <p className="font-display text-xl sm:text-2xl font-bold text-brand-ink text-center max-w-2xl mx-auto mb-12 text-balance">
-            Ya recomiendas marcas todos los días.
-            <br />
-            Con Marcolini, conviertes esas recomendaciones en ingresos.
+            Ya recomiendas marcas todos los días. Con Marcolini, conviertes esas recomendaciones en
+            ingresos.
           </p>
 
           {/* Comparación de riesgo, espejo de la de /para-marcas ("Un Reel
@@ -261,7 +255,11 @@ export default function ParaCreadoresPage() {
                 nombre, categoría y sitio web. Debajo, los mismos 2 tiles
                 con etiqueta completa que ya usa esa tarjeta real
                 ("Descuento para tu comunidad" / "Tu comisión por venta"),
-                para que no haya dudas de cuál número es cuál. */}
+                para que no haya dudas de cuál número es cuál, y el mismo
+                botón de unirse (idle state de JoinOfferButton: "Unirme a
+                este programa") — acá es solo visual, sin acción real
+                detrás. Dos marcas en vez de tres para que la ilustración
+                no quede tan larga. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Marketplace de marcas</p>
@@ -283,6 +281,9 @@ export default function ParaCreadoresPage() {
                           <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Tu comisión por venta</p>
                         </div>
                       </div>
+                      <p className="w-full text-center bg-brand-accent text-white rounded-full px-4 py-2 text-sm font-medium">
+                        Unirme a este programa
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -310,7 +311,10 @@ export default function ParaCreadoresPage() {
                 código — "muy pobre" para explicar el mecanismo. Ahora
                 mirror exacto de la tarjeta real de /creador/codigos:
                 código + link juntos (son las dos piezas de compartir) y
-                los mismos 2 tiles de descuento/comisión. */}
+                los mismos 2 tiles de descuento/comisión. Una sola marca
+                (Aurora Beauty) para que la ilustración no quede tan
+                larga — el mecanismo es el mismo sin importar cuántas
+                marcas tenga la creadora. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Mis códigos y links</p>
