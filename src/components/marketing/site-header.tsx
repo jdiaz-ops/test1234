@@ -13,15 +13,16 @@ export function SiteHeader({ ctaHref, ctaLabel }: { ctaHref?: string; ctaLabel?:
     // por encima del menú en vez de quedar debajo del header sticky.
     <header className="border-b border-brand-line bg-brand-surface/80 backdrop-blur sticky top-0 z-20">
       <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="font-mono text-sm font-medium text-brand-accent tracking-wide">
-          MARCOLINI
+        <Link href="/">
+          {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
+          <img src="/marcolini-icon.png" alt="Marcolini" className="h-8 w-auto" />
         </Link>
         <nav className="flex items-center gap-6 text-sm">
           <Link href="/para-creadores" className="text-brand-ink-soft hover:text-brand-ink">
-            Para Creadores
+            Soy Creador
           </Link>
           <Link href="/para-marcas" className="text-brand-ink-soft hover:text-brand-ink">
-            Para Marcas
+            Soy Marca
           </Link>
           <Link
             href="/login"
