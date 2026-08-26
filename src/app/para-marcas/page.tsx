@@ -7,7 +7,7 @@ import {
   IconCheck,
 } from "@/components/marketing/icons";
 
-const confianza = "Sin mensualidades · Comisiones automáticas · Ventas 100% trazables";
+const confianza = ["Sin mensualidades", "Ventas 100% trazables", "Comisiones automáticas"];
 
 // Datos de ejemplo para las vistas previas de la sección "Así funciona en tu
 // panel" — la misma info y el mismo tratamiento visual (colores, tipos,
@@ -83,12 +83,14 @@ export default function ParaMarcasPage() {
                   tiene blanco Y morado a la vez (el brightness(0) fundiría
                   las letras "Woo" blancas con el fondo, volviéndolas
                   ilegibles) — el grayscale conserva ese contraste de tono. */}
-              <div className="inline-flex items-center gap-4 bg-brand-surface border border-brand-line rounded-full px-5 py-2.5 mb-6">
-                {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
-                <img src="/shopify.webp" alt="Shopify" className="h-4 w-auto" style={{ filter: "brightness(0)" }} />
-                <span aria-hidden className="h-5 w-px bg-brand-line" />
-                {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
-                <img src="/woocomerce.png" alt="WooCommerce" className="h-6 w-auto" style={{ filter: "grayscale(1)" }} />
+              <div className="flex justify-center mb-6">
+                <div className="inline-flex items-center gap-4 bg-brand-surface border border-brand-line rounded-full px-5 py-2.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
+                  <img src="/shopify.webp" alt="Shopify" className="h-4 w-auto" style={{ filter: "brightness(0)" }} />
+                  <span aria-hidden className="h-5 w-px bg-brand-line" />
+                  {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
+                  <img src="/woocomerce.png" alt="WooCommerce" className="h-6 w-auto" style={{ filter: "grayscale(1)" }} />
+                </div>
               </div>
               <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
                 Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
@@ -96,27 +98,25 @@ export default function ParaMarcasPage() {
               <p className="text-brand-ink-soft text-base sm:text-lg mb-8 text-balance max-w-lg">
                 Recomiendan y venden tus productos. Solo pagas comisión cuando generan ventas.
               </p>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mb-10">
-                <Link
-                  href="/registro/marca"
-                  className="group inline-flex items-center justify-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)]"
-                >
-                  Crear mi programa gratis
-                  <IconArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-                <Link href="/login" className="text-sm text-brand-ink-soft hover:text-brand-ink hover:underline">
-                  Ya tengo cuenta
-                </Link>
+              <Link
+                href="/registro/marca"
+                className="group inline-flex items-center justify-center gap-2 bg-brand-accent text-white rounded-full px-10 py-5 text-base font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)] mb-8"
+              >
+                Crear mi programa gratis
+                <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+              {/* flex-wrap, no grid de 3 columnas ni columna vertical — con
+                  3 ítems de largo distinto, el grid los envolvía de forma
+                  despareja y la columna apilada se sentía pesada. Que cada
+                  uno fluya y envuelva de forma natural. */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
+                {confianza.map((texto) => (
+                  <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
+                    <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
+                    {texto}
+                  </span>
+                ))}
               </div>
-              {/* Una sola línea con separadores — antes era una lista de 3
-                  ítems (en grid, y luego en columna) y ambas se veían mal:
-                  el grid envolvía cada ítem de forma despareja, y la
-                  columna vertical se sentía pesada apilada uno debajo del
-                  otro. Una frase corta con "·" resuelve las dos cosas. */}
-              <p className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
-                <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
-                {confianza}
-              </p>
             </div>
 
             <div className="relative">
@@ -127,37 +127,36 @@ export default function ParaMarcasPage() {
                   funciona en tu panel" (mostrar el resultado arriba, en el
                   hero, y explicar cómo se llega a él más abajo es un
                   patrón estándar, no una repetición accidental). */}
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)]">
-                <p className="text-xs text-brand-ink-soft mb-3">Resultado de la campaña</p>
-                <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-3">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-5 sm:p-6 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)]">
+                <p className="text-xs text-brand-ink-soft mb-2.5">Resultado de la campaña</p>
+                <div className="rounded-xl bg-brand-accent-soft px-3.5 py-2.5 mb-2.5">
                   <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                    <p className="font-display text-2xl font-bold text-brand-accent">3.8x</p>
+                    <p className="font-display text-xl font-bold text-brand-accent">3.8x</p>
                     <p className="text-xs text-brand-ink-soft">por cada $1 invertido, generaste 3.8x en ventas</p>
                   </div>
-                  <p className="text-sm text-brand-ink font-medium mt-1.5">
+                  <p className="text-sm text-brand-ink font-medium mt-1">
                     Esta campaña rindió bien — vale la pena repetirla.
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
-                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$4.200.000</p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Ventas generadas (GMV)</p>
+                  <div className="rounded-xl bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$4.200.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Ventas generadas</p>
                   </div>
-                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
-                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">54</p>
+                  <div className="rounded-xl bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">54</p>
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
                   </div>
-                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
-                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$200.000</p>
+                  <div className="rounded-xl bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$200.000</p>
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
                   </div>
-                  <div className="rounded-xl bg-brand-bg px-3 py-2.5">
-                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$900.000</p>
+                  <div className="rounded-xl bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$900.000</p>
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-brand-ink-soft text-center mt-3">Así se ve en tu panel</p>
             </div>
           </div>
         </section>
@@ -328,7 +327,7 @@ export default function ParaMarcasPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-xl bg-brand-bg px-3 py-2.5">
                     <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$4.200.000</p>
-                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Ventas generadas (GMV)</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Ventas generadas</p>
                   </div>
                   <div className="rounded-xl bg-brand-bg px-3 py-2.5">
                     <p className="font-mono text-lg font-medium text-brand-ink leading-tight">54</p>
