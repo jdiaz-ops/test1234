@@ -87,7 +87,7 @@ export default function ParaMarcasPage() {
                   <img src="/shopify.webp" alt="Shopify" className="h-4 w-auto" style={{ filter: "brightness(0)" }} />
                   <span aria-hidden className="h-5 w-px bg-brand-line" />
                   {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
-                  <img src="/woocomerce.png" alt="WooCommerce" className="h-6 w-auto" style={{ filter: "grayscale(1)" }} />
+                  <img src="/Woocommerce.png" alt="WooCommerce" className="h-6 w-auto" style={{ filter: "grayscale(1)" }} />
                 </div>
               </div>
               {/* Vuelve al tamaño de dos rondas atrás — el +20% de la ronda
