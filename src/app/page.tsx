@@ -20,8 +20,7 @@ export default function HomePage() {
             La red que conecta marcas de uñas y creadores de contenido
           </h1>
           <p className="text-brand-ink-soft text-lg sm:text-xl max-w-xl mx-auto mb-14 text-balance">
-            Creadores ganan comisiones por las ventas que generan. Las marcas
-            pagan únicamente por resultados.
+            Donde las marcas crecen y los creadores de contenido monetizan.
           </p>
 
           <div className="grid sm:grid-cols-2 gap-5 mb-8">
