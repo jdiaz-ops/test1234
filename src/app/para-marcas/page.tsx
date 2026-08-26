@@ -62,15 +62,18 @@ export default function ParaMarcasPage() {
             style={{ background: "radial-gradient(closest-side, var(--brand-accent-soft), transparent)" }}
           />
           <div className="relative max-w-3xl mx-auto px-6 pt-24 pb-20 text-center">
+            {/* Texto por ahora — el plan es reemplazarlo por los logos reales
+                de Shopify/WooCommerce (assets oficiales + lineamientos de
+                marca, todavía no los tenemos en el proyecto). */}
             <span className="inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-4 py-1.5 mb-7">
-              HECHO PARA SHOPIFY Y WOOCOMMERCE
+              SHOPIFY · WOOCOMMERCE
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
-              Crece tu e‑commerce pagando solo por resultados
+              Crece tu e‑commerce con una red de creadores de contenido pagando solo por resultados
             </h1>
             <p className="text-brand-ink-soft text-lg sm:text-xl max-w-xl mx-auto mb-10 text-balance">
-              Conectamos tu marca con nuestra red de creadores de contenido para que recomienden y
-              vendan tus productos. Tú defines la comisión y solo pagas cuando generan ventas.
+              Conectamos tu marca con creadores que recomiendan y venden tus productos. Tú defines
+              la comisión; nosotros atribuimos cada venta y calculamos automáticamente cuánto pagar.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10">
               <Link
