@@ -26,9 +26,12 @@ export function SiteHeader({ ctaHref, ctaLabel }: { ctaHref?: string; ctaLabel?:
             Ya tengo cuenta
           </Link>
           {ctaHref && ctaLabel && (
+            // Oculto en mobile: con los otros 3 elementos del nav ya no
+            // cabe (se desborda y corta el botón) — y en mobile el CTA
+            // del hero queda a la vista inmediata, justo debajo.
             <Link
               href={ctaHref}
-              className="bg-brand-accent text-white font-medium rounded-full px-4 py-1.5 hover:opacity-90 transition"
+              className="hidden sm:inline-flex bg-brand-accent text-white font-medium rounded-full px-4 py-1.5 hover:opacity-90 transition"
             >
               {ctaLabel}
             </Link>

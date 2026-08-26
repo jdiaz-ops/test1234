@@ -8,6 +8,8 @@ import {
   IconCheck,
 } from "@/components/marketing/icons";
 
+const confianza = ["Sin mensualidades", "Sin costos de instalación"];
+
 // Datos de ejemplo para las vistas previas de la sección "Así funciona en tu
 // panel" — la misma info y el mismo tratamiento visual (colores, tipos,
 // tiles) que ya existen de verdad en el portal de marca (ver
@@ -98,8 +100,6 @@ export default function ParaMarcasPage() {
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
                 Solo pagas comisión cuando generan ventas
-                <br />
-                Empieza gratis. Sin mensualidades.
               </p>
               <Link
                 href="/registro/marca"
@@ -108,6 +108,18 @@ export default function ParaMarcasPage() {
                 Empieza gratis
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
+              {/* "Empieza gratis" y "Sin mensualidades" salieron del subhead
+                  y volvieron como checklist de confianza debajo del botón —
+                  igual que antes, pero ahora con "Sin costos de
+                  instalación" en vez del tercer ítem que había. */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-5">
+                {confianza.map((texto) => (
+                  <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
+                    <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
+                    {texto}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {/* Composición con 2 tarjetas satélite (estilo impact.com):
