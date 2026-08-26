@@ -62,12 +62,26 @@ export default function ParaMarcasPage() {
             style={{ background: "radial-gradient(closest-side, var(--brand-accent-soft), transparent)" }}
           />
           <div className="relative max-w-3xl mx-auto px-6 pt-24 pb-20 text-center">
-            {/* Texto por ahora — el plan es reemplazarlo por los logos reales
-                de Shopify/WooCommerce (assets oficiales + lineamientos de
-                marca, todavía no los tenemos en el proyecto). */}
-            <span className="inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-4 py-1.5 mb-7">
-              SHOPIFY · WOOCOMMERCE
-            </span>
+            {/* Logos reales en vez de texto. En blanco/neutro (no en el
+                rosado de las demás píldoras) para que el morado de
+                WooCommerce no choque con el acento de la página. Altura
+                fija + ancho automático en cada logo (no al revés) porque
+                los dos vienen con proporciones muy distintas — Shopify es
+                un lockup ancho y bajo, WooCommerce viene apilado (globo +
+                wordmark), más cuadrado. El de Shopify llegó en blanco puro
+                (pensado para fondos oscuros) — brightness(0) lo vuelve
+                negro sólido, que sí se lee sobre este fondo claro.
+                WooCommerce usa grayscale en vez de brightness(0) porque
+                tiene blanco Y morado a la vez (el brightness(0) fundiría
+                las letras "Woo" blancas con el fondo, volviéndolas
+                ilegibles) — el grayscale conserva ese contraste de tono. */}
+            <div className="inline-flex items-center gap-4 bg-brand-surface border border-brand-line rounded-full px-5 py-2.5 mb-7">
+              {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
+              <img src="/shopify.webp" alt="Shopify" className="h-4 w-auto" style={{ filter: "brightness(0)" }} />
+              <span aria-hidden className="h-5 w-px bg-brand-line" />
+              {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
+              <img src="/woocomerce.png" alt="WooCommerce" className="h-6 w-auto" style={{ filter: "grayscale(1)" }} />
+            </div>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
               Crece tu e‑commerce con una red de creadores de contenido pagando solo por resultados
             </h1>
