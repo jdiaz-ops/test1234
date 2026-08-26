@@ -96,10 +96,6 @@ export default function ParaMarcasPage() {
                 Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
-                Empieza gratis.
-                <br />
-                Sin mensualidades.
-                <br />
                 Solo pagas comisión cuando generan ventas
               </p>
               <Link
@@ -296,7 +292,6 @@ export default function ParaMarcasPage() {
             {/* 1 — red de creadores especializados */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Ya activos en el marketplace de Marcolini</p>
                 <div className="grid grid-cols-2 gap-3">
                   {previewRedCreadores.map((c) => (
                     <div key={c.name} className="rounded-xl bg-brand-bg px-3 py-3 text-center">
@@ -311,12 +306,11 @@ export default function ParaMarcasPage() {
               </div>
               <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Accede a una red de creadores lista para recomendar y vender tu marca
+                  Accede a nuestra red de creadores lista para recomendar y vender tu marca.
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Docenas de creadores de contenido especializados, con audiencias interesadas en
-                  tu categoría, eligen promocionar tu marca a cambio de una comisión. Tú descubres
-                  quién realmente genera ventas y escalas las alianzas que mejor funcionan.
+                  Colabora con creadores de contenido especializados, con audiencias interesadas en
+                  tu categoría que eligen promocionar tu marca a cambio de una comisión.
                 </p>
               </div>
             </div>
