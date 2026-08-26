@@ -7,6 +7,7 @@ import {
   IconArrowRight,
   IconCheck,
 } from "@/components/marketing/icons";
+import { FaqAccordion } from "@/components/marketing/faq-accordion";
 
 const confianza = ["Sin mensualidades", "Sin costos de instalación"];
 
@@ -402,10 +403,17 @@ export default function ParaMarcasPage() {
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Accede a nuestra red de creadores lista para recomendar y vender tu marca.
                 </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
                   Colabora con creadores de contenido especializados, con audiencias interesadas en
                   tu categoría que eligen promocionar tu marca a cambio de una comisión.
                 </p>
+                <Link
+                  href="/registro/marca"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Atrae creadores a tu marca
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
 
@@ -436,12 +444,19 @@ export default function ParaMarcasPage() {
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Cada creador recibe su propio código de descuento y enlace de ventas
                 </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
                   Marcolini genera automáticamente un código de descuento y un enlace único para
                   cada creador. Cada pedido queda atribuido en tiempo real, para que sepas quién
                   vendió y qué comisión le corresponde, sin hojas de cálculo ni seguimiento
                   manual.
                 </p>
+                <Link
+                  href="/registro/marca"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Automatiza tus códigos
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
 
@@ -476,11 +491,18 @@ export default function ParaMarcasPage() {
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Lanza Misiones y Campañas Flash Sales que impulsan más ventas
                 </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
                   Crea retos con metas, bonos y comisiones temporales para incentivar a tus
                   creadores. Marcolini mide el progreso en tiempo real, identifica quién cumplió el
                   objetivo y calcula automáticamente los bonos y comisiones de cada campaña.
                 </p>
+                <Link
+                  href="/registro/marca"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Lanza tu primera campaña
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
 
@@ -520,10 +542,17 @@ export default function ParaMarcasPage() {
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Descubre qué creadores realmente hacen crecer tu negocio
                 </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
                   Marcolini calcula automáticamente las ventas generadas, las órdenes, las
                   comisiones y el ROI de cada campaña.
                 </p>
+                <Link
+                  href="/registro/marca"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Mide tu ROI
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
 
@@ -547,11 +576,18 @@ export default function ParaMarcasPage() {
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Control total de ventas, comisiones y pagos
                 </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
                   Cada pedido queda registrado automáticamente con su creador, monto, comisión y
                   estado de pago. Revisa el historial completo de transacciones y paga a tus
                   creadores con total transparencia, sin conciliaciones manuales.
                 </p>
+                <Link
+                  href="/registro/marca"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Controla tus pagos
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
 
@@ -584,10 +620,17 @@ export default function ParaMarcasPage() {
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
                   Conecta Shopify o WooCommerce en menos de 5 minutos
                 </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
                   Sin código ni configuraciones complejas. Importa automáticamente tus productos,
                   genera códigos de descuento y empieza a atribuir ventas desde el primer día.
                 </p>
+                <Link
+                  href="/registro/marca"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Conecta tu tienda
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
           </div>
@@ -595,23 +638,17 @@ export default function ParaMarcasPage() {
 
         {/* Preguntas frecuentes — justo antes del cierre/CTA final, que es
             donde alguien casi convencido todavía tiene dudas puntuales
-            antes de dar el clic. Lista estática (sin acordeón/JS): solo 6
-            preguntas, no justifica un componente cliente nuevo para esto.
-            Respuestas basadas en la lógica real del producto (ver
-            PlatformConfig en schema.prisma: chargeDayOfMonth=1,
-            payoutDayOfMonth=15, refundHoldDays=15), no inventadas. */}
+            antes de dar el clic. Acordeón (FaqAccordion, mismo componente
+            que /para-creadores): preguntas cerradas por defecto, se abren
+            al hacer clic. Respuestas basadas en la lógica real del
+            producto (ver PlatformConfig en schema.prisma:
+            chargeDayOfMonth=1, payoutDayOfMonth=15, refundHoldDays=15),
+            no inventadas. */}
         <section className="max-w-3xl mx-auto px-6 py-16 border-t border-brand-line">
           <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-12 text-balance">
             Preguntas frecuentes
           </h2>
-          <div className="divide-y divide-brand-line">
-            {faq.map((item) => (
-              <div key={item.pregunta} className="py-6">
-                <p className="font-display font-semibold text-brand-ink mb-2">{item.pregunta}</p>
-                <p className="text-brand-ink-soft leading-relaxed">{item.respuesta}</p>
-              </div>
-            ))}
-          </div>
+          <FaqAccordion items={faq} />
         </section>
 
         {/* Tarifa transparente */}
