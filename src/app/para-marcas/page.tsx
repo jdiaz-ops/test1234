@@ -96,7 +96,9 @@ export default function ParaMarcasPage() {
                 Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
-                Sin mensualidades. Solo pagas comisión cuando generan ventas
+                Sin mensualidades.
+                <br />
+                Solo pagas comisión cuando generan ventas
               </p>
               <Link
                 href="/registro/marca"
@@ -118,42 +120,47 @@ export default function ParaMarcasPage() {
                 borde de la sección. */}
             <div className="py-8 px-6">
               {/* Las satélites se anclan a ESTE contenedor (del tamaño
-                  real de la tarjeta, max-w-xl), no al wrapper de afuera
+                  real de la tarjeta, max-w-sm), no al wrapper de afuera
                   (que es tan ancho como toda la columna) — si no, al
                   agrandar la tarjeta sus bordes terminan tapados por las
-                  satélites en vez de sobresalir de ellos. */}
-              <div className="relative max-w-xl mx-auto">
-              {/* Más grande que antes — para que domine claramente sobre
-                  las 2 satélites (como en impact.com, donde el dashboard
-                  principal es mucho más grande que las tarjetitas
-                  flotantes, no del mismo tamaño). */}
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-8 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)]">
-                <p className="text-sm text-brand-ink-soft mb-3">Resultado de la campaña</p>
-                <div className="rounded-xl bg-brand-accent-soft px-5 py-4 mb-3">
-                  <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                    <p className="font-display text-3xl font-bold text-brand-accent">3.8x</p>
-                    <p className="text-sm text-brand-ink-soft">por cada $1 invertido, generaste 3.8x en ventas</p>
+                  satélites en vez de sobresalir de ellos.
+                  max-w-sm (antes max-w-xl) + padding/tipografía un
+                  escalón más chicos: comparado con impact.com, donde el
+                  texto del H1 domina y la ilustración de la derecha es
+                  secundaria, esta tarjeta se veía demasiado grande frente
+                  a la columna de texto. */}
+              <div className="relative max-w-sm mx-auto">
+              {/* Sigue siendo la tarjeta más grande de la composición
+                  (domina sobre las 2 satélites, como en impact.com), pero
+                  todo el bloque se achicó para no competir con el texto
+                  del lado izquierdo. */}
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-5 sm:p-6 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)]">
+                <p className="text-xs text-brand-ink-soft mb-2.5">Resultado de la campaña</p>
+                <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-2.5">
+                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                    <p className="font-display text-2xl font-bold text-brand-accent">3.8x</p>
+                    <p className="text-xs text-brand-ink-soft">por cada $1 invertido, generaste 3.8x en ventas</p>
                   </div>
-                  <p className="text-base text-brand-ink font-medium mt-1.5">
+                  <p className="text-sm text-brand-ink font-medium mt-1">
                     Esta campaña rindió bien — vale la pena repetirla.
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-brand-bg px-4 py-3">
-                    <p className="font-mono text-xl font-medium text-brand-ink leading-tight">$4.200.000</p>
-                    <p className="text-sm text-brand-ink-soft leading-snug mt-0.5">Ventas generadas</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$4.200.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Ventas generadas</p>
                   </div>
-                  <div className="rounded-lg bg-brand-bg px-4 py-3">
-                    <p className="font-mono text-xl font-medium text-brand-ink leading-tight">54</p>
-                    <p className="text-sm text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
+                  <div className="rounded-lg bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">54</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
                   </div>
-                  <div className="rounded-lg bg-brand-bg px-4 py-3">
-                    <p className="font-mono text-xl font-medium text-brand-ink leading-tight">$200.000</p>
-                    <p className="text-sm text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
+                  <div className="rounded-lg bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$200.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
                   </div>
-                  <div className="rounded-lg bg-brand-bg px-4 py-3">
-                    <p className="font-mono text-xl font-medium text-brand-ink leading-tight">$900.000</p>
-                    <p className="text-sm text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
+                  <div className="rounded-lg bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$900.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
                   </div>
                 </div>
               </div>
