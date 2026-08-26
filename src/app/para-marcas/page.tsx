@@ -69,7 +69,9 @@ export default function ParaMarcasPage() {
               Convierte a los creadores de contenido en un canal de ventas
             </h1>
             <p className="text-brand-ink-soft text-lg sm:text-xl max-w-xl mx-auto mb-10 text-balance">
-              Conectamos tu marca.
+              Conectamos tu marca con nuestra red de creadores de contenido afines a tu categoría y
+              convertimos cada colaboración en ventas reales. Tú defines la comisión y solo pagas
+              por resultados.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10">
               <Link
