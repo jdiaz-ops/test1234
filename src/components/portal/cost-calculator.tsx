@@ -36,11 +36,17 @@ export function CostCalculator({
   editableRates?: boolean;
 }) {
   const [ticketRaw, setTicketRaw] = useState("100000");
-  const [commissionPct, setCommissionPct] = useState(commission);
-  const [discountPct, setDiscountPct] = useState(discount);
+  // Texto crudo, no number: si el estado fuera number, escribir sobre un
+  // "0" existente (ej. borrar y teclear "8") deja "08" pegado en pantalla
+  // — al volver a parsear "08" da el mismo 8 de antes, así que React no
+  // vuelve a tocar el DOM y el navegador se queda con el cero de más.
+  // Guardando el string tal cual se escribe, como ya hace ticketRaw, el
+  // input siempre muestra exactamente lo que el usuario tecleó.
+  const [commissionRaw, setCommissionRaw] = useState(String(commission));
+  const [discountRaw, setDiscountRaw] = useState(String(discount));
 
-  const effectiveCommission = editableRates ? commissionPct : commission;
-  const effectiveDiscount = editableRates ? discountPct : discount;
+  const effectiveCommission = editableRates ? Number(commissionRaw) || 0 : commission;
+  const effectiveDiscount = editableRates ? Number(discountRaw) || 0 : discount;
 
   const listPrice = Number(ticketRaw) || 0;
   const netAmount = listPrice * (1 - effectiveDiscount / 100);
@@ -71,8 +77,8 @@ export function CostCalculator({
                 min={0}
                 max={100}
                 step={0.5}
-                value={commissionPct}
-                onChange={(e) => setCommissionPct(Number(e.target.value))}
+                value={commissionRaw}
+                onChange={(e) => setCommissionRaw(e.target.value)}
                 className="input font-mono"
               />
             </div>
@@ -83,8 +89,8 @@ export function CostCalculator({
                 min={0}
                 max={100}
                 step={0.5}
-                value={discountPct}
-                onChange={(e) => setDiscountPct(Number(e.target.value))}
+                value={discountRaw}
+                onChange={(e) => setDiscountRaw(e.target.value)}
                 className="input font-mono"
               />
             </div>
