@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
-import { IconArrowRight, IconCheck, IconPhoto, IconArrowCurve } from "@/components/marketing/icons";
+import { IconArrowRight, IconCheck, IconPhoto } from "@/components/marketing/icons";
 
 // Datos de ejemplo para las vistas previas — mismo tratamiento que la
 // versión para marcas: colores, tipos y tiles ya reales en el portal de
@@ -366,11 +366,12 @@ export default function ParaCreadoresPage() {
                 colecciones (imagen, marca, nombre, precio, "Ver en
                 tienda →") — nada inventado. Las etiquetas de "códigos
                 activos" y "colecciones" salen del mockup como notas
-                flotantes con flecha (izquierda/derecha) en vez de vivir
-                adentro — así se leen como anotaciones que explican el
-                concepto, no como parte de la interfaz misma. En mobile,
-                sin espacio para flotar, la misma nota baja al flujo
-                normal justo encima de su zona. */}
+                flotantes a los lados (izquierda/derecha), centradas a
+                la altura de su zona y conectadas con una línea al
+                borde del mockup — en vez de vivir adentro como parte
+                de la interfaz. En mobile, sin espacio para flotar, la
+                misma nota baja al flujo normal justo encima de su
+                zona. */}
             <div>
               <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-center mb-3">
                 Tu vitrina: todo en un solo lugar
@@ -399,17 +400,23 @@ export default function ParaCreadoresPage() {
                   </p>
                 </div>
 
-                {/* Zona 2 — tus códigos activos */}
+                {/* Zona 2 — tus códigos activos. La nota flota lejos del
+                    mockup, centrada a la altura de esta zona (no
+                    pegada arriba), con una línea que la conecta
+                    directo con el borde — así se ve, a simple vista,
+                    a qué franja del mockup corresponde. */}
                 <div className="relative">
-                  <div className="mb-3 lg:mb-0 lg:absolute lg:top-0 lg:right-full lg:mr-8 lg:w-48 lg:flex lg:flex-col lg:items-end lg:text-right">
-                    <IconArrowCurve className="hidden lg:block w-9 h-9 text-brand-accent/50 mb-1" />
-                    <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1">
-                      TUS CÓDIGOS ACTIVOS
-                    </span>
-                    <p className="text-xs text-brand-ink-soft leading-relaxed mt-1.5">
-                      Los códigos de cada marca, siempre a la mano para que tu comunidad los use
-                      cuando quiera.
-                    </p>
+                  <div className="mb-3 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:right-full lg:w-56 lg:flex lg:items-center lg:gap-4">
+                    <div className="lg:text-right">
+                      <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1">
+                        TUS CÓDIGOS ACTIVOS
+                      </span>
+                      <p className="text-xs text-brand-ink-soft leading-relaxed mt-1.5">
+                        Los códigos de cada marca, siempre a la mano para que tu comunidad los use
+                        cuando quiera.
+                      </p>
+                    </div>
+                    <span aria-hidden className="hidden lg:block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40" />
                   </div>
                   <div className="space-y-3 mb-6">
                     {previewVitrinaMarcas.map((m) => (
@@ -435,17 +442,20 @@ export default function ParaCreadoresPage() {
                   </div>
                 </div>
 
-                {/* Zona 3 — tus colecciones */}
+                {/* Zona 3 — tus colecciones. Mismo tratamiento que la
+                    Zona 2, en espejo hacia la derecha. */}
                 <div className="relative">
-                  <div className="mb-3 lg:mb-0 lg:absolute lg:top-0 lg:left-full lg:ml-8 lg:w-48 lg:flex lg:flex-col lg:items-start">
-                    <IconArrowCurve className="hidden lg:block w-9 h-9 text-brand-accent/50 mb-1 -scale-x-100" />
-                    <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1">
-                      TUS COLECCIONES
-                    </span>
-                    <p className="text-xs text-brand-ink-soft leading-relaxed mt-1.5">
-                      Agrupa tus productos favoritos por tema: tu mesa de trabajo, tu clóset, lo
-                      que quieras.
-                    </p>
+                  <div className="mb-3 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:w-56 lg:flex lg:items-center lg:gap-4">
+                    <span aria-hidden className="hidden lg:block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40" />
+                    <div>
+                      <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1">
+                        TUS COLECCIONES
+                      </span>
+                      <p className="text-xs text-brand-ink-soft leading-relaxed mt-1.5">
+                        Agrupa tus productos favoritos por tema: tu mesa de trabajo, tu clóset, lo
+                        que quieras.
+                      </p>
+                    </div>
                   </div>
                   <p className="text-sm font-semibold text-brand-ink mb-0.5">{previewColeccion.nombre}</p>
                   <p className="text-xs text-brand-ink-soft mb-3">{previewColeccion.descripcion}</p>

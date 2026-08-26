@@ -175,16 +175,3 @@ export function IconPhoto({ className }: IconProps) {
     </svg>
   );
 }
-
-/// Flecha curva estilo "anotación a mano" — para señalar, desde una nota
-/// flotante afuera de un mockup, hacia la zona que explica. Apunta hacia
-/// la derecha por defecto; espejo horizontal (scale-x negativo) para
-/// señalar hacia la izquierda.
-export function IconArrowCurve({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={base} strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M3 5c7.5 0.6 11 4.3 11 11" />
-      <path d="M10.5 14.7l3.5 1.8 2-3.6" />
-    </svg>
-  );
-}
