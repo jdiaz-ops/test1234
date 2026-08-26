@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 import { IconArrowRight, IconCheck, IconPhoto, IconProduct } from "@/components/marketing/icons";
+import { FaqAccordion } from "@/components/marketing/faq-accordion";
 
 // Datos de ejemplo para las vistas previas — mismo tratamiento que la
 // versión para marcas: colores, tipos y tiles ya reales en el portal de
@@ -118,7 +119,7 @@ export default function ParaCreadoresPage() {
                 href="/registro/creador"
                 className="group inline-flex items-center justify-center gap-2 bg-brand-accent text-white rounded-full px-10 py-5 text-base font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)]"
               >
-                Únete gratis
+                Crear mi perfil gratis
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
@@ -288,13 +289,20 @@ export default function ParaCreadoresPage() {
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Elige las marcas que quieres recomendar
+                  Elige las marcas con las que quieres ganar dinero
                 </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
-                  Explora el marketplace y mira qué descuento tienen para tu audiencia y qué
-                  comisión hay para ti. Únete a las que te interesen — sin mínimo de seguidores ni
-                  aprobación garantizada, cada marca decide su propio criterio.
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
+                  Explora el marketplace y descubre qué ofrece cada marca: el descuento que recibirá
+                  tu comunidad y la comisión que ganarás por cada venta. Únete a tantas marcas como
+                  quieras y empieza a compartir sus códigos y enlaces desde un solo lugar.
                 </p>
+                <Link
+                  href="/registro/creador"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Explorar marcas
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
 
@@ -344,12 +352,21 @@ export default function ParaCreadoresPage() {
               </div>
               <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Cada marca te da tu propio código de descuento y enlace
+                  Recibe un código y un enlace único para cada marca
                 </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
-                  Compártelo en tu bio, historias o WhatsApp. Cada venta hecha con tu código queda
-                  atribuida automáticamente a ti — sin que tengas que hacer seguimiento manual.
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
+                  Cada vez que te unes a una marca obtienes tu propio código de descuento y un
+                  enlace personalizado. Compártelos en Instagram, TikTok, WhatsApp o donde quieras:
+                  las ventas quedan atribuidas automáticamente a tu perfil y tu comisión se registra
+                  sin tener que reclamar ni hacer seguimiento manual.
                 </p>
+                <Link
+                  href="/registro/creador"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Quiero mis códigos
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
 
@@ -374,12 +391,23 @@ export default function ParaCreadoresPage() {
                 zona. */}
             <div>
               <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-center mb-3">
-                Tu vitrina: todo en un solo lugar
+                Un solo link para todo lo que recomiendas
               </h3>
-              <p className="text-brand-ink-soft text-center max-w-lg mx-auto mb-10">
-                Tu link, tus códigos activos y tus colecciones de productos viven en una sola
-                página — la herramienta que reúne y potencia todo lo que compartes.
+              <p className="text-brand-ink-soft text-center max-w-lg mx-auto mb-6">
+                Crea tu propia vitrina pública con tus marcas, códigos de descuento y colecciones de
+                productos favoritos en una sola página. Personalízala y ponla en la bio de
+                Instagram, TikTok o cualquier red para que tu comunidad encuentre todo lo que
+                recomiendas desde un único enlace.
               </p>
+              <div className="flex justify-center mb-10">
+                <Link
+                  href="/registro/creador"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Crear mi vitrina
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
               <div className="max-w-sm mx-auto rounded-[2rem] border border-brand-line bg-brand-surface shadow-[0_30px_60px_-30px_rgba(0,0,0,0.25)] p-6 sm:p-7">
                 {/* Zona 1 — usuaria + tu link. Círculo de foto (icono,
                     no una inicial) porque acá se ilustra el caso
@@ -412,8 +440,9 @@ export default function ParaCreadoresPage() {
                         TUS CÓDIGOS ACTIVOS
                       </span>
                       <p className="text-xs text-brand-ink-soft leading-relaxed mt-1.5">
-                        Los códigos de cada marca, siempre a la mano para que tu comunidad los use
-                        cuando quiera.
+                        Todos tus códigos de descuento se organizan automáticamente en tu vitrina,
+                        para que tu comunidad siempre tenga acceso al código correcto de cada
+                        marca.
                       </p>
                     </div>
                     <span aria-hidden className="hidden lg:block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40" />
@@ -452,8 +481,9 @@ export default function ParaCreadoresPage() {
                         TUS COLECCIONES
                       </span>
                       <p className="text-xs text-brand-ink-soft leading-relaxed mt-1.5">
-                        Agrupa tus productos favoritos por tema: tu mesa de trabajo, tu clóset, lo
-                        que quieras.
+                        Crea colecciones con tus productos favoritos y organízalos por tema, rutina
+                        o estilo. Comparte recomendaciones mucho más útiles y convierte tu vitrina
+                        en una verdadera guía de compra para tu comunidad.
                       </p>
                     </div>
                   </div>
@@ -502,11 +532,12 @@ export default function ParaCreadoresPage() {
               </div>
               <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Gana bonos extra en campañas activas
+                  Gana bonos adicionales por cumplir metas de venta
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Las marcas activan retos con metas y bonos temporales. Cumple el objetivo y el
-                  bono se calcula y se suma automáticamente a tu comisión — sin nada que reclamar.
+                  Además de tus comisiones, las marcas pueden lanzar campañas con objetivos y
+                  recompensas especiales. Sigue tu progreso en tiempo real y, cuando alcances la
+                  meta, el bono se acredita automáticamente a tu saldo junto con tus comisiones.
                 </p>
               </div>
             </div>
@@ -539,32 +570,26 @@ export default function ParaCreadoresPage() {
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Sigue tus ingresos en tiempo real
+                  Lleva el control de tus comisiones en tiempo real
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Cada venta atribuida a tu código se suma a tu saldo al instante, con su marca,
-                  monto y estado de pago — para que sepas exactamente cuánto vas a recibir y
-                  cuándo.
+                  Cada venta aparece automáticamente en tu panel con la marca, el valor de tu
+                  comisión, el estado del pago y tu saldo acumulado. Siempre sabrás cuánto has
+                  ganado, cuánto está pendiente y cuándo recibirás tu próximo pago.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Preguntas frecuentes — mismo patrón que /para-marcas: lista
-            estática, sin acordeón, justo antes del cierre. */}
+        {/* Preguntas frecuentes — acordeón (FaqAccordion): preguntas
+            cerradas por defecto, se abren al hacer clic para leer la
+            respuesta. */}
         <section className="max-w-3xl mx-auto px-6 py-16 border-t border-brand-line">
           <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-12 text-balance">
             Preguntas frecuentes
           </h2>
-          <div className="divide-y divide-brand-line">
-            {faq.map((item) => (
-              <div key={item.pregunta} className="py-6">
-                <p className="font-display font-semibold text-brand-ink mb-2">{item.pregunta}</p>
-                <p className="text-brand-ink-soft leading-relaxed">{item.respuesta}</p>
-              </div>
-            ))}
-          </div>
+          <FaqAccordion items={faq} />
         </section>
 
         {/* Cierre — misma estructura que /para-marcas (tarjeta oscura). */}
@@ -576,17 +601,18 @@ export default function ParaCreadoresPage() {
               style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
             />
             <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-4 text-balance">
-              Tu contenido ya vale — empieza a cobrarlo.
+              Empieza a ganar dinero con las marcas que ya recomiendas.
             </h2>
             <p className="relative text-white/70 max-w-lg mx-auto mb-9 text-balance">
-              Crea tu perfil gratis, elige tus marcas y comparte tu código. Sin mínimo de
-              seguidores, sin permanencia.
+              Crea tu perfil, únete a las marcas que te interesan y comparte tus códigos o enlaces.
+              Cada compra de tu comunidad genera comisiones que se registran y pagan
+              automáticamente.
             </p>
             <Link
               href="/registro/creador"
               className="relative inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
             >
-              Únete gratis
+              Crear mi perfil gratis
               <IconArrowRight className="w-4 h-4" />
             </Link>
           </div>

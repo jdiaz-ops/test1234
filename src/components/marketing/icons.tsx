@@ -157,6 +157,14 @@ export function IconArrowRight({ className }: IconProps) {
   );
 }
 
+export function IconChevronDown({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={base} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M5 9l7 7 7-7" />
+    </svg>
+  );
+}
+
 export function IconSparkle({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={base} strokeLinecap="round" strokeLinejoin="round" className={className}>
