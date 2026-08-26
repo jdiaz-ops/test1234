@@ -42,8 +42,8 @@ const previewParticipantes = [
 
 const previewTransacciones = [
   { creador: "Valentina R.", fecha: "12 ago", venta: "$189.000", estado: "Pagado" },
-  { creador: "Camila M.", fecha: "11 ago", venta: "$95.000", estado: "Aprobado" },
-  { creador: "Sofía T.", fecha: "10 ago", venta: "$210.000", estado: "En revisión" },
+  { creador: "Camila M.", fecha: "11 ago", venta: "$95.000", estado: "Pagado" },
+  { creador: "Sofía T.", fecha: "10 ago", venta: "$210.000", estado: "Pagado" },
 ];
 
 export default function ParaMarcasPage() {
@@ -81,7 +81,7 @@ export default function ParaMarcasPage() {
                   tiene blanco Y morado a la vez (el brightness(0) fundiría
                   las letras "Woo" blancas con el fondo, volviéndolas
                   ilegibles) — el grayscale conserva ese contraste de tono. */}
-              <div className="flex justify-center mb-6">
+              <div className="flex justify-start mb-6">
                 <div className="inline-flex items-center gap-4 bg-brand-surface border border-brand-line rounded-full px-5 py-2.5">
                   {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
                   <img src="/shopify.webp" alt="Shopify" className="h-4 w-auto" style={{ filter: "brightness(0)" }} />
@@ -96,6 +96,8 @@ export default function ParaMarcasPage() {
                 Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
+                Empieza gratis.
+                <br />
                 Sin mensualidades.
                 <br />
                 Solo pagas comisión cuando generan ventas
@@ -228,12 +230,10 @@ export default function ParaMarcasPage() {
             medir resultados), pero con el look real del portal de Marcolini
             y solo capacidades que ya existen hoy. */}
         <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-brand-ink text-center mb-4 max-w-2xl mx-auto text-balance">
-            ¿Quién asume el riesgo de tu marketing?
-          </h2>
-          <p className="text-brand-ink-soft text-center max-w-lg mx-auto mb-12">
-            Con marketing tradicional pagas antes de saber si funciona. Con Marcolini, solo pagas
-            cuando ya vendiste.
+          <p className="text-brand-ink font-bold text-center max-w-lg mx-auto mb-12 text-balance">
+            Con marketing tradicional pagas antes de saber si funciona.
+            <br />
+            Con Marcolini, solo pagas cuando ya vendiste.
           </p>
 
           {/* Comparación de riesgo: la misma idea del hero (pago por
@@ -249,7 +249,7 @@ export default function ParaMarcasPage() {
               </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-brand-ink-soft">Pagas por una publicación</span>
+                  <span className="text-sm text-brand-ink-soft">Pagas por un Reel</span>
                   <span className="font-mono text-sm font-semibold text-brand-ink">$800.000</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
@@ -311,7 +311,7 @@ export default function ParaMarcasPage() {
               </div>
               <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Accede a una red de creadores lista para vender tu marca
+                  Accede a una red de creadores lista para recomendar y vender tu marca
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
                   Docenas de creadores de contenido especializados, con audiencias interesadas en
@@ -346,7 +346,7 @@ export default function ParaMarcasPage() {
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Cada creador recibe su propio código y enlace de ventas
+                  Cada creador recibe su propio código de descuento y enlace de ventas
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
                   Marcolini genera automáticamente un código de descuento y un enlace único para
@@ -386,7 +386,7 @@ export default function ParaMarcasPage() {
               </div>
               <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Lanza Misiones y Flash Campaigns que impulsan más ventas
+                  Lanza Misiones y Campañas Flash Sales que impulsan más ventas
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
                   Crea retos con metas, bonos y comisiones temporales para incentivar a tus
@@ -433,9 +433,8 @@ export default function ParaMarcasPage() {
                   Descubre qué creadores realmente hacen crecer tu negocio
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Marcolini calcula automáticamente el GMV, las órdenes, las comisiones y el ROI de
-                  cada campaña. Identifica qué alianzas generan ganancias reales y toma decisiones
-                  basadas en ventas, no en likes o engagement.
+                  Marcolini calcula automáticamente las ventas generadas, las órdenes, las
+                  comisiones y el ROI de cada campaña.
                 </p>
               </div>
             </div>
@@ -514,14 +513,13 @@ export default function ParaMarcasPage() {
               className="pointer-events-none absolute -bottom-24 -left-24 h-[300px] w-[300px] rounded-full opacity-30 blur-3xl"
               style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
             />
-            <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-4 text-balance">
-              Empieza gratis. Solo pagas cuando vendes.
+            <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-9 text-balance">
+              Empieza gratis.
+              <br />
+              Sin mensualidades.
+              <br />
+              Solo pagas comisión cuando generan ventas
             </h2>
-            <p className="relative text-white/70 max-w-xl mx-auto mb-9 text-balance">
-              Tú defines la comisión de tus creadores y el descuento que recibirán tus compradores.
-              Marcolini cobra únicamente un 5% sobre las ventas confirmadas, sin mensualidades ni
-              costos de instalación. El creador recibe el 100% de la comisión que tú le asignaste.
-            </p>
             <Link
               href="/registro/marca"
               className="relative inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
