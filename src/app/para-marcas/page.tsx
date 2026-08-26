@@ -123,46 +123,86 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            <div className="relative">
-              {/* Prueba visual de "crece tu e-commerce": el resultado real
-                  de una campaña (ROI + ventas generadas), no una lista
-                  administrativa de creadores — esto sí conecta con la
-                  promesa del H1. Mismo componente que el bloque 5 de "Así
-                  funciona en tu panel" (mostrar el resultado arriba, en el
-                  hero, y explicar cómo se llega a él más abajo es un
-                  patrón estándar, no una repetición accidental). */}
-              {/* ~20% más chica que antes (paddings y tipografía un
-                  escalón por debajo) para dejarle más protagonismo al
-                  texto del hero. */}
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-4 sm:p-5 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)] max-w-sm ml-auto">
-                <p className="text-[11px] text-brand-ink-soft mb-2">Resultado de la campaña</p>
-                <div className="rounded-lg bg-brand-accent-soft px-3 py-2 mb-2">
+            {/* Composición con 2 tarjetas satélite (estilo impact.com):
+                la principal es el resultado real de una campaña; las dos
+                pequeñas ilustran, con nuestro propio lenguaje visual (no
+                fotos ni íconos inventados), lo que ofrecemos — creadores
+                ya conectados a tu marca, y el efecto en las ventas de tu
+                e-commerce. Padding generoso alrededor (py-8 en el wrapper)
+                para que las satélites, que sobresalen del borde de la
+                tarjeta principal, tengan espacio y no se corten contra el
+                borde de la sección. */}
+            <div className="relative py-8 px-6">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-5 sm:p-6 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)] max-w-md mx-auto">
+                <p className="text-xs text-brand-ink-soft mb-2.5">Resultado de la campaña</p>
+                <div className="rounded-xl bg-brand-accent-soft px-3.5 py-2.5 mb-2.5">
                   <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                    <p className="font-display text-lg font-bold text-brand-accent">3.8x</p>
-                    <p className="text-[11px] text-brand-ink-soft">por cada $1 invertido, generaste 3.8x en ventas</p>
+                    <p className="font-display text-xl font-bold text-brand-accent">3.8x</p>
+                    <p className="text-xs text-brand-ink-soft">por cada $1 invertido, generaste 3.8x en ventas</p>
                   </div>
-                  <p className="text-xs text-brand-ink font-medium mt-1">
+                  <p className="text-sm text-brand-ink font-medium mt-1">
                     Esta campaña rindió bien — vale la pena repetirla.
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <div className="rounded-lg bg-brand-bg px-2.5 py-1.5">
-                    <p className="font-mono text-sm font-medium text-brand-ink leading-tight">$4.200.000</p>
-                    <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Ventas generadas</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$4.200.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Ventas generadas</p>
                   </div>
-                  <div className="rounded-lg bg-brand-bg px-2.5 py-1.5">
-                    <p className="font-mono text-sm font-medium text-brand-ink leading-tight">54</p>
-                    <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
+                  <div className="rounded-lg bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">54</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
                   </div>
-                  <div className="rounded-lg bg-brand-bg px-2.5 py-1.5">
-                    <p className="font-mono text-sm font-medium text-brand-ink leading-tight">$200.000</p>
-                    <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
+                  <div className="rounded-lg bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$200.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
                   </div>
-                  <div className="rounded-lg bg-brand-bg px-2.5 py-1.5">
-                    <p className="font-mono text-sm font-medium text-brand-ink leading-tight">$900.000</p>
-                    <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
+                  <div className="rounded-lg bg-brand-bg px-3 py-2">
+                    <p className="font-mono text-base font-medium text-brand-ink leading-tight">$900.000</p>
+                    <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Satélite 1 — "hay creadores, ya están conectados a tu
+                  marca". Reusa el chip de iniciales que ya se ve en el
+                  bloque de "Creadores de tu marca" más abajo. Oculta en
+                  mobile: a ese ancho no hay espacio para que sobresalga
+                  sin taparle el texto a la tarjeta principal. */}
+              <div className="hidden sm:flex absolute top-2 -left-2 z-10 rounded-xl bg-brand-surface border border-brand-line shadow-lg px-3 py-2.5 items-center gap-2.5">
+                <div className="flex -space-x-2">
+                  {["VR", "CM", "ST"].map((initials) => (
+                    <div
+                      key={initials}
+                      className="w-7 h-7 rounded-full bg-brand-accent-soft text-brand-accent font-display text-[10px] font-semibold flex items-center justify-center ring-2 ring-brand-surface"
+                    >
+                      {initials}
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-brand-ink leading-tight">3 creadores</p>
+                  <p className="text-[11px] text-brand-accent font-medium leading-tight">recomendando tu marca</p>
+                </div>
+              </div>
+
+              {/* Satélite 2 — "el efecto en las ventas de tu e-commerce":
+                  un mini-gráfico de barras ascendente, dibujado con divs
+                  (sin librería de charts, es solo decorativo). También
+                  oculta en mobile — se veía encima del texto de la
+                  tarjeta principal, sin espacio para sobresalir limpio. */}
+              <div className="hidden sm:block absolute bottom-2 -right-2 z-10 rounded-xl bg-brand-surface border border-brand-line shadow-lg px-3.5 py-3">
+                <p className="text-[11px] text-brand-ink-soft mb-1.5">Ventas del mes</p>
+                <div className="flex items-end gap-1 h-8 mb-1">
+                  {[5, 7, 6, 9, 8, 11, 14].map((h, i) => (
+                    <div
+                      key={i}
+                      className="w-1.5 rounded-full bg-brand-accent"
+                      style={{ height: `${h * 2.4}px`, opacity: 0.4 + (i / 6) * 0.6 }}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs font-semibold text-brand-accent">↑ 34% este mes</p>
               </div>
             </div>
           </div>
