@@ -107,8 +107,8 @@ export default function ParaCreadoresPage() {
                 Convierte tu contenido e influencia en una fuente de ingresos
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
-                Comparte tu código, tu comunidad obtiene descuentos y tú ganas una comisión por
-                cada compra.
+                Tu comunidad accede a descuentos exclusivos y tú ganas una comisión por cada compra
+                que realicen con tu código.
               </p>
               <Link
                 href="/registro/creador"
