@@ -63,14 +63,14 @@ export default function ParaMarcasPage() {
           />
           <div className="relative max-w-3xl mx-auto px-6 pt-24 pb-20 text-center">
             <span className="inline-block font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-4 py-1.5 mb-7">
-              DEJA DE PAGAR POR PUBLICACIONES. EMPIEZA A PAGAR POR VENTAS.
+              PAGO POR RESULTADOS
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
-              Convierte a los creadores de contenido en tu nuevo canal de ventas
+              Crece tu e‑commerce pagando solo por resultados
             </h1>
             <p className="text-brand-ink-soft text-lg sm:text-xl max-w-xl mx-auto mb-10 text-balance">
               Conectamos tu marca con nuestra red de creadores de contenido para que recomienden y
-              vendan tus productos. Tú defines la comisión y solo pagas por resultados.
+              vendan tus productos. Tú defines la comisión y solo pagas cuando generan ventas.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10">
               <Link
