@@ -49,7 +49,7 @@ export default function HomePage() {
             <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-9">
               MARCOLINI
             </p>
-            <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink text-balance leading-tight tracking-tight">
+            <h1 className="font-display italic text-3xl sm:text-4xl font-normal text-brand-ink text-balance leading-snug max-w-2xl mx-auto">
               Las personas confían más en las recomendaciones de otras personas que en la
               publicidad.
             </h1>
