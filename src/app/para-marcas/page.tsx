@@ -96,6 +96,8 @@ export default function ParaMarcasPage() {
                 Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
+                Empieza gratis. Sin mensualidades.
+                <br />
                 Solo pagas comisión cuando generan ventas
               </p>
               <Link
