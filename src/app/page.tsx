@@ -22,23 +22,45 @@ export default function HomePage() {
         />
 
         <div className="relative max-w-4xl w-full text-center">
-          <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-7">
-            MARCOLINI
-          </p>
-          {/* Split de color en vez de un bloque de texto plano — "crecen" y
-              "monetizan" en el rosado de marca, el resto en tinta, para que
-              el H1 tenga un punto de énfasis en vez de un solo peso visual
-              parejo de principio a fin. */}
-          <h1 className="font-display text-5xl sm:text-7xl font-semibold text-brand-ink mb-16 text-balance leading-[1.05] tracking-tight">
-            Donde las marcas <span className="text-brand-accent">crecen</span> y los creadores de
-            contenido <span className="text-brand-accent">monetizan</span>.
-          </h1>
+          <div className="relative mb-16">
+            {/* Ilustración del hero — dos badges flotantes en las esquinas
+                del titular, mismo lenguaje visual que los satélites de los
+                heroes de /para-creadores y /para-marcas (tarjeta blanca,
+                shadow-lg, rotadas), esta vez sin ninguna cifra adentro —
+                solo los íconos que ya representan a cada lado de la red
+                (mismos IconHeart/IconStore de las tarjetas de abajo), para
+                que el hero tenga algo de ilustración sin repetir la
+                ambigüedad que se sacó de los cuadros rosados. Ocultas en
+                mobile/tablet, igual que esos satélites: sin espacio para
+                flotar sin tapar el texto. */}
+            <div
+              aria-hidden
+              className="hidden lg:flex absolute -top-6 left-0 -translate-x-1/2 w-16 h-16 rounded-2xl bg-brand-surface border border-brand-line shadow-lg items-center justify-center -rotate-6"
+            >
+              <IconHeart className="w-6 h-6 text-brand-accent" />
+            </div>
+            <div
+              aria-hidden
+              className="hidden lg:flex absolute -bottom-4 right-0 translate-x-1/2 w-16 h-16 rounded-2xl bg-brand-surface border border-brand-line shadow-lg items-center justify-center rotate-6"
+            >
+              <IconStore className="w-6 h-6 text-brand-accent" />
+            </div>
+
+            <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-7">
+              MARCOLINI
+            </p>
+            {/* Split de color en vez de un bloque de texto plano — "crecen" y
+                "monetizan" en el rosado de marca, el resto en tinta, para que
+                el H1 tenga un punto de énfasis en vez de un solo peso visual
+                parejo de principio a fin. */}
+            <h1 className="font-display text-5xl sm:text-7xl font-semibold text-brand-ink text-balance leading-[1.05] tracking-tight">
+              Donde las marcas <span className="text-brand-accent">crecen</span> y los creadores de
+              contenido <span className="text-brand-accent">monetizan</span>.
+            </h1>
+          </div>
 
           <div className="grid sm:grid-cols-2 gap-6 mb-8">
-            {/* Tarjeta creador — ya no es solo texto: incluye una miniatura
-                real del "Tu resumen" del hero de /para-creadores (mismas
-                cifras: Comisión confirmada $340.000), para que de un
-                vistazo se sienta el producto, no solo se lea sobre él. */}
+            {/* Tarjeta creador */}
             <Link
               href="/para-creadores"
               className="group rounded-3xl border border-brand-line bg-brand-surface p-8 text-left hover:border-brand-accent hover:shadow-[0_30px_70px_-32px_var(--brand-accent)] hover:-translate-y-1 transition-all"
@@ -47,7 +69,7 @@ export default function HomePage() {
                 <IconHeart className="w-5 h-5" />
               </div>
               <p className="font-mono text-xs text-brand-ink-soft tracking-widest mb-2">
-                PARA CREADORES
+                SOY CREADOR
               </p>
               <p className="font-display text-xl font-semibold text-brand-ink mb-2 text-balance">
                 Convierte tu contenido e influencia en dinero
@@ -56,24 +78,32 @@ export default function HomePage() {
                 Obtén códigos de descuento para tu comunidad y gana una comisión por cada compra
                 que realicen con ellos.
               </p>
-              <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-6">
-                <p className="text-xs text-brand-ink-soft mb-0.5">Comisión confirmada</p>
-                <p className="font-display text-xl font-bold text-brand-accent">$340.000</p>
-              </div>
               <p className="text-sm text-brand-accent font-semibold inline-flex items-center gap-1.5">
-                Únete gratis
+                Quiero saber más
                 <IconArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
               </p>
             </Link>
 
-            {/* Tarjeta marca — mismo tratamiento, con la miniatura real del
-                "Resultado de la campaña" de /para-marcas (3.8x ROI). */}
+            {/* Tarjeta marca — logos de Shopify/WooCommerce arriba a la
+                derecha (mismos assets y tratamiento de color que el hero de
+                /para-marcas: brightness(0) para Shopify, grayscale para
+                WooCommerce), como sello de "con qué se integra" en vez de
+                una cifra de ejemplo. */}
             <Link
               href="/para-marcas"
               className="group rounded-3xl border border-brand-line bg-brand-surface p-8 text-left hover:border-brand-accent hover:shadow-[0_30px_70px_-32px_var(--brand-accent)] hover:-translate-y-1 transition-all"
             >
-              <div className="w-12 h-12 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
-                <IconStore className="w-5 h-5" />
+              <div className="flex items-start justify-between mb-6">
+                <div className="w-12 h-12 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <IconStore className="w-5 h-5" />
+                </div>
+                <div className="inline-flex items-center gap-2.5 bg-brand-bg border border-brand-line rounded-full px-3 py-1.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
+                  <img src="/shopify.webp" alt="Shopify" className="h-3 w-auto" style={{ filter: "brightness(0)" }} />
+                  <span aria-hidden className="h-3.5 w-px bg-brand-line" />
+                  {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
+                  <img src="/Woocommerce.png" alt="WooCommerce" className="h-4 w-auto" style={{ filter: "grayscale(1)" }} />
+                </div>
               </div>
               <p className="font-mono text-xs text-brand-ink-soft tracking-widest mb-2">
                 SOY MARCA
@@ -84,15 +114,8 @@ export default function HomePage() {
               <p className="text-sm text-brand-ink-soft leading-relaxed mb-6">
                 Solo pagas comisión cuando generan ventas.
               </p>
-              <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-6">
-                <p className="text-xs text-brand-ink-soft mb-0.5">Resultado de la campaña</p>
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <p className="font-display text-xl font-bold text-brand-accent">3.8x</p>
-                  <p className="text-xs text-brand-ink-soft">en ventas por cada $1 invertido</p>
-                </div>
-              </div>
               <p className="text-sm text-brand-accent font-semibold inline-flex items-center gap-1.5">
-                Sin mensualidad
+                Quiero saber más
                 <IconArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
               </p>
             </Link>
