@@ -263,8 +263,8 @@ export default function ParaCreadoresPage() {
                 Calcula cuánto podrías ganar
               </h3>
               <p className="text-brand-ink-soft text-center max-w-lg mx-auto mb-8">
-                Ajusta tus ventas al mes, tu compra promedio y la comisión — el mismo simulador que
-                ya usan las creadoras dentro del portal.
+                Ingresa tus ventas al mes, tu compra promedio y la comisión — el mismo simulador
+                que ya usan las creadoras dentro del portal.
               </p>
               <EarningsSimulator />
             </div>
@@ -282,21 +282,33 @@ export default function ParaCreadoresPage() {
               </Link>
             </div>
 
-            {/* 2 — marketplace de marcas */}
+            {/* 2 — marketplace de marcas. Cada tile lleva su etiqueta
+                completa debajo ("Descuento para tu comunidad" / "Tu
+                comisión por venta") en vez de pills abreviadas — mismo
+                tratamiento que la tarjeta real de oferta en
+                /creador/marketplace (ver OfferCard en
+                marketplace/page.tsx), para que no haya dudas de cuál
+                número es cuál. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Marketplace de marcas</p>
                 <div className="space-y-3">
                   {previewOfertas.map((o) => (
-                    <div key={o.marca} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
-                      <span className="text-sm font-medium text-brand-ink">{o.marca}</span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-mono text-xs text-brand-ink-soft bg-brand-surface rounded-lg px-2 py-1">
-                          {o.descuento}% desc.
-                        </span>
-                        <span className="font-mono text-xs font-medium text-brand-accent bg-brand-accent-soft rounded-lg px-2 py-1">
-                          {o.comision}% comisión
-                        </span>
+                    <div key={o.marca} className="rounded-xl bg-brand-bg px-4 py-3">
+                      <p className="text-sm font-medium text-brand-ink mb-2.5">{o.marca}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-lg bg-brand-surface px-2.5 py-2">
+                          <p className="font-mono text-base font-medium text-brand-ink leading-tight">{o.descuento}%</p>
+                          <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">
+                            Descuento para tu comunidad
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-brand-accent-soft px-2.5 py-2">
+                          <p className="font-mono text-base font-medium text-brand-accent leading-tight">
+                            {o.comision}%
+                          </p>
+                          <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Tu comisión por venta</p>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -445,22 +457,6 @@ export default function ParaCreadoresPage() {
                   cuándo.
                 </p>
               </div>
-            </div>
-
-            {/* 7 — invita a otro creador (referidos — feature real, $20.000
-                por creador invitado, ver /creador/referidos). Banner más
-                chico que los demás bloques: es un extra, no el mecanismo
-                principal de la página. */}
-            <div className="rounded-2xl border border-brand-line bg-brand-accent-soft/40 px-6 py-5 flex flex-wrap items-center justify-between gap-4">
-              <p className="text-sm text-brand-ink">
-                <span className="font-display font-semibold text-brand-ink">
-                  Invita a otra creadora y gana $20.000
-                </span>{" "}
-                cuando haga su primera venta.
-              </p>
-              <Link href="/registro/creador" className="text-sm font-medium text-brand-accent hover:underline shrink-0">
-                Únete y consigue tu link →
-              </Link>
             </div>
           </div>
         </section>
