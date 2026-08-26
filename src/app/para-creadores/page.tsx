@@ -1,10 +1,7 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
-import { EarningsSimulator } from "@/components/portal/earnings-simulator";
 import { IconArrowRight, IconCheck } from "@/components/marketing/icons";
-
-const confianza = ["100% gratis", "Pago mensual"];
 
 // Datos de ejemplo para las vistas previas — mismo tratamiento que la
 // versión para marcas: colores, tipos y tiles ya reales en el portal de
@@ -77,9 +74,9 @@ export default function ParaCreadoresPage() {
 
       <main className="flex-1">
         {/* Hero — misma estructura que /para-marcas: 2 columnas (texto +
-            visual), badge arriba del H1, subhead en rosado, checklist de
-            confianza debajo del CTA, composición de tarjeta principal +
-            2 satélites a la derecha. El visual de la derecha es el
+            visual), badge arriba del H1, subhead en rosado, composición
+            de tarjeta principal + 2 satélites a la derecha. El visual de
+            la derecha es el
             resumen real del dashboard de creador (Comisión confirmada /
             Próximo pago / Pagado este año — mismos 3 tiles y mismas
             etiquetas que /creador, ver creator-finance-service.ts), no
@@ -98,10 +95,11 @@ export default function ParaCreadoresPage() {
                 </span>
               </div>
               <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
-                Convierte tu contenido en una fuente de ingresos
+                Convierte tu contenido e influencia en una fuente de ingresos
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
-                Gana comisión por cada venta con tu código
+                Comparte tu código, tus seguidores obtienen descuento y tú ganas una comisión por
+                cada compra.
               </p>
               <Link
                 href="/registro/creador"
@@ -110,14 +108,6 @@ export default function ParaCreadoresPage() {
                 Únete gratis
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-5">
-                {confianza.map((texto) => (
-                  <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
-                    <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
-                    {texto}
-                  </span>
-                ))}
-              </div>
             </div>
 
             <div className="py-8 px-6">
@@ -186,10 +176,9 @@ export default function ParaCreadoresPage() {
 
         {/* Así funciona en tu panel — misma sección que /para-marcas,
             adaptada al lado creador. Orden pensado como historia: primero
-            el simulador (responde "cuánto podría ganar" antes que nada),
-            después el activo real (el marketplace de marcas), cómo se
-            comparte (código + vitrina), cómo se gana más (campañas), y
-            el control de pagos. */}
+            el activo real (el marketplace de marcas), cómo se comparte
+            (código + vitrina), cómo se gana más (campañas), y el control
+            de pagos. */}
         <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
           <p className="font-display text-xl sm:text-2xl font-bold text-brand-ink text-center max-w-2xl mx-auto mb-12 text-balance">
             Ya recomiendas marcas todos los días.
@@ -251,38 +240,7 @@ export default function ParaCreadoresPage() {
           </div>
 
           <div className="space-y-20">
-            {/* 1 — simulador de ingresos: el mismo componente real que ya
-                existe en el portal (ver /creador/aprende y
-                earnings-simulator.tsx) — puramente educativo, no habla de
-                ninguna marca puntual, solo del mecanismo: más ventas ×
-                mejor comisión = más ingreso. Se reutiliza tal cual, no una
-                versión adaptada — no necesita props ni datos de esta
-                página. */}
-            <div>
-              <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-center mb-3">
-                Calcula cuánto podrías ganar
-              </h3>
-              <p className="text-brand-ink-soft text-center max-w-lg mx-auto mb-8">
-                Ingresa tus ventas al mes, tu compra promedio y la comisión — el mismo simulador
-                que ya usan las creadoras dentro del portal.
-              </p>
-              <EarningsSimulator />
-            </div>
-
-            {/* CTA a mitad de la sección, justo después del simulador —
-                mismo patrón que /para-marcas: es el punto de mayor
-                intención, la creadora acaba de ver cuánto podría ganar. */}
-            <div className="flex justify-center -mt-6">
-              <Link
-                href="/registro/creador"
-                className="group inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
-              >
-                Empieza a ganar con estos números
-                <IconArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            </div>
-
-            {/* 2 — marketplace de marcas. Cada tile lleva su etiqueta
+            {/* 1 — marketplace de marcas. Cada tile lleva su etiqueta
                 completa debajo ("Descuento para tu comunidad" / "Tu
                 comisión por venta") en vez de pills abreviadas — mismo
                 tratamiento que la tarjeta real de oferta en
@@ -326,7 +284,7 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 3 — código y link únicos */}
+            {/* 2 — código y link únicos */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Mis códigos y links</p>
@@ -352,7 +310,7 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 4 — vitrina pública (link-in-bio con colecciones — feature
+            {/* 3 — vitrina pública (link-in-bio con colecciones — feature
                 real, ver creator-storefront-step.tsx y /c/[slug]/page.tsx).
                 Preview estático inspirado en su look real (avatar + marcas
                 + productos), no el componente en vivo — esa página tiene su
@@ -390,7 +348,7 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 5 — campañas y bonos (retos — feature real, ver
+            {/* 4 — campañas y bonos (retos — feature real, ver
                 creator-challenges-panel.tsx / retos/page.tsx) */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
@@ -421,7 +379,7 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 6 — trazabilidad total: saldo + comisiones recientes, el
+            {/* 5 — trazabilidad total: saldo + comisiones recientes, el
                 equivalente para creador de la tarjeta de ROI de
                 /para-marcas. El % de crecimiento es ilustrativo (mismo
                 criterio que el mini-gráfico "Ventas del mes" del hero),
