@@ -22,48 +22,11 @@ export default function HomePage() {
         />
 
         <div className="relative max-w-4xl w-full text-center">
-          <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-8">
-            MARCOLINI
-          </p>
-          <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink text-balance leading-tight tracking-tight mb-14">
-            Somos la conexión que impulsa el crecimiento de las marcas y la monetización de las
-            creadoras de contenido.
-          </h1>
-
-          {/* Ilustración del hero — el logo mismo (las dos personas
-              formando la "M") como la pieza que cose las dos tarjetas hero
-              que ya existen: comisión confirmada (/para-creadores) a un
-              lado, resultado de campaña (/para-marcas) al otro. En mobile
-              las tarjetas se apilan y el ícono queda en la costura
-              horizontal en vez de la vertical — mismo wrapper relative,
-              el ícono siempre centrado en el 50/50% del contenedor. */}
-          <div className="relative flex flex-col sm:flex-row gap-y-20 sm:gap-y-0 sm:gap-x-36 max-w-3xl mx-auto mb-16">
-            <div className="flex-1 rounded-3xl bg-brand-accent-soft p-6 sm:p-7 text-left">
-              <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent mb-3">
-                PARA CREADORAS
-              </span>
-              <p className="text-sm text-brand-ink-soft mb-1">Comisión confirmada</p>
-              <p className="font-display text-3xl font-bold text-brand-accent">$340.000</p>
-              <p className="text-sm text-brand-ink-soft mt-1">lista para tu próximo pago</p>
-            </div>
-            <div className="flex-1 rounded-3xl bg-brand-accent-soft p-6 sm:p-7 text-left">
-              <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent mb-3">
-                PARA MARCAS
-              </span>
-              <p className="text-sm text-brand-ink-soft mb-1">Resultado de campaña</p>
-              <p className="font-display text-3xl font-bold text-brand-accent">3.8x</p>
-              <p className="text-sm text-brand-ink-soft mt-1">por cada $1 invertido, generaste 3.8x en ventas</p>
-            </div>
-            {/* w-20/w-28 + el gap de arriba (gap-y-20 / sm:gap-x-36) están
-                calculados para que el ícono quepa completo en la costura
-                sin taparle el texto a ninguna de las dos tarjetas. */}
-            {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, tamaño fijo */}
-            <img
-              src="/marcolini-icon.png"
-              alt="Marcolini"
-              className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-20 sm:w-28 drop-shadow-[0_20px_30px_rgba(46,31,34,0.25)]"
-            />
-          </div>
+          {/* Versión simplificada: el logo grande (ya con la paleta de dos
+              rosados) es lo único arriba — sin H1, sin ilustración aparte
+              — y debajo, directo, las dos tarjetas. */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
+          <img src="/marcolini-logo-lockup.png" alt="Marcolini" className="h-40 sm:h-52 w-auto mx-auto mb-14" />
 
           <div className="grid sm:grid-cols-2 gap-6 mb-8">
             {/* Tarjeta creador */}
