@@ -54,62 +54,96 @@ export default function ParaMarcasPage() {
       <SiteHeader />
 
       <main className="flex-1">
-        {/* Hero */}
+        {/* Hero — dos columnas (texto + visual), no todo centrado y gigante
+            como antes. Referencia: impact.com/affiliate-marketing (texto a
+            la izquierda más comedido, mockup real a la derecha). El visual
+            de la derecha es la tarjeta real de "Creadores de tu marca" que
+            ya existe en "Así funciona en tu panel" más abajo — no una
+            ilustración inventada, ni la misma tarjeta de ROI que ya se ve
+            más abajo (para no repetir el mismo ejemplo dos veces en la
+            misma página). */}
         <section className="relative overflow-hidden">
           <div
             aria-hidden
-            className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[420px] w-[720px] rounded-full opacity-60 blur-3xl"
+            className="pointer-events-none absolute -top-32 -right-20 h-[420px] w-[560px] rounded-full opacity-50 blur-3xl"
             style={{ background: "radial-gradient(closest-side, var(--brand-accent-soft), transparent)" }}
           />
-          <div className="relative max-w-3xl mx-auto px-6 pt-24 pb-20 text-center">
-            {/* Logos reales en vez de texto. En blanco/neutro (no en el
-                rosado de las demás píldoras) para que el morado de
-                WooCommerce no choque con el acento de la página. Altura
-                fija + ancho automático en cada logo (no al revés) porque
-                los dos vienen con proporciones muy distintas — Shopify es
-                un lockup ancho y bajo, WooCommerce viene apilado (globo +
-                wordmark), más cuadrado. El de Shopify llegó en blanco puro
-                (pensado para fondos oscuros) — brightness(0) lo vuelve
-                negro sólido, que sí se lee sobre este fondo claro.
-                WooCommerce usa grayscale en vez de brightness(0) porque
-                tiene blanco Y morado a la vez (el brightness(0) fundiría
-                las letras "Woo" blancas con el fondo, volviéndolas
-                ilegibles) — el grayscale conserva ese contraste de tono. */}
-            <div className="inline-flex items-center gap-4 bg-brand-surface border border-brand-line rounded-full px-5 py-2.5 mb-7">
-              {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
-              <img src="/shopify.webp" alt="Shopify" className="h-5 w-auto" style={{ filter: "brightness(0)" }} />
-              <span aria-hidden className="h-6 w-px bg-brand-line" />
-              {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
-              <img src="/woocomerce.png" alt="WooCommerce" className="h-8 w-auto" style={{ filter: "grayscale(1)" }} />
+          <div className="relative max-w-6xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-14 items-center">
+            <div>
+              {/* Logos reales en vez de texto. En blanco/neutro (no en el
+                  rosado de las demás píldoras) para que el morado de
+                  WooCommerce no choque con el acento de la página. Altura
+                  fija + ancho automático en cada logo (no al revés) porque
+                  los dos vienen con proporciones muy distintas — Shopify es
+                  un lockup ancho y bajo, WooCommerce viene apilado (globo +
+                  wordmark), más cuadrado. El de Shopify llegó en blanco puro
+                  (pensado para fondos oscuros) — brightness(0) lo vuelve
+                  negro sólido, que sí se lee sobre este fondo claro.
+                  WooCommerce usa grayscale en vez de brightness(0) porque
+                  tiene blanco Y morado a la vez (el brightness(0) fundiría
+                  las letras "Woo" blancas con el fondo, volviéndolas
+                  ilegibles) — el grayscale conserva ese contraste de tono. */}
+              <div className="inline-flex items-center gap-4 bg-brand-surface border border-brand-line rounded-full px-5 py-2.5 mb-6">
+                {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
+                <img src="/shopify.webp" alt="Shopify" className="h-4 w-auto" style={{ filter: "brightness(0)" }} />
+                <span aria-hidden className="h-5 w-px bg-brand-line" />
+                {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
+                <img src="/woocomerce.png" alt="WooCommerce" className="h-6 w-auto" style={{ filter: "grayscale(1)" }} />
+              </div>
+              <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink mb-5 text-balance leading-[1.1]">
+                Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
+              </h1>
+              <p className="text-brand-ink-soft text-base sm:text-lg mb-8 text-balance max-w-lg">
+                Recomiendan y venden tus productos. Solo pagas comisión cuando generan ventas.
+              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mb-10">
+                <Link
+                  href="/registro/marca"
+                  className="group inline-flex items-center justify-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)]"
+                >
+                  Crear mi programa gratis
+                  <IconArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+                <Link href="/login" className="text-sm text-brand-ink-soft hover:text-brand-ink hover:underline">
+                  Ya tengo cuenta
+                </Link>
+              </div>
+              {/* Lista vertical, no grid de 3 columnas — en la columna
+                  angosta del hero de dos columnas, 3-en-fila envolvía cada
+                  ítem a 2 líneas de forma pareja. */}
+              <div className="flex flex-col gap-2.5">
+                {confianza.map((texto) => (
+                  <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
+                    <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
+                    {texto}
+                  </span>
+                ))}
+              </div>
             </div>
-            <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
-              Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
-            </h1>
-            <p className="font-display text-xl sm:text-2xl font-semibold text-brand-ink max-w-xl mx-auto mb-10 text-balance">
-              Recomiendan y venden tus productos. Solo pagas comisión cuando generan ventas.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10">
-              <Link
-                href="/registro/marca"
-                className="group inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)]"
-              >
-                Crear mi programa gratis
-                <IconArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <Link href="/login" className="text-sm text-brand-ink-soft hover:text-brand-ink hover:underline">
-                Ya tengo cuenta
-              </Link>
-            </div>
-            {/* Grid de 3 columnas — con exactamente 3 ítems nunca queda uno
-                solo flotando en su fila (el problema que tenía el flex-wrap
-                de antes). */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-3 max-w-2xl mx-auto justify-items-center">
-              {confianza.map((texto) => (
-                <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
-                  <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
-                  {texto}
-                </span>
-              ))}
+
+            <div className="relative">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)]">
+                <p className="text-xs text-brand-ink-soft mb-4">Creadores de tu marca</p>
+                <div className="space-y-3">
+                  {previewCreadores.map((c) => (
+                    <div key={c.code} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center shrink-0">
+                          {c.name.split(" ").map((w) => w[0]).join("")}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-brand-ink truncate">{c.name}</p>
+                          <p className="text-xs text-brand-ink-soft">{c.ventas}</p>
+                        </div>
+                      </div>
+                      <span className="font-mono text-xs font-medium text-brand-accent bg-brand-accent-soft rounded-lg px-2.5 py-1 shrink-0">
+                        {c.code}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-brand-ink-soft text-center mt-3">Así se ve en tu panel</p>
             </div>
           </div>
         </section>
