@@ -83,11 +83,10 @@ export default function ParaMarcasPage() {
               <img src="/woocomerce.png" alt="WooCommerce" className="h-8 w-auto" style={{ filter: "grayscale(1)" }} />
             </div>
             <h1 className="font-display text-4xl sm:text-6xl font-semibold text-brand-ink mb-6 text-balance leading-[1.08]">
-              Conectamos tu marca con nuestra red de creadores de contenido que recomiendan y venden
-              tus productos
+              Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
             </h1>
             <p className="font-display text-xl sm:text-2xl font-semibold text-brand-ink max-w-xl mx-auto mb-10 text-balance">
-              Solo pagas una comisión cuando generan ventas.
+              Recomiendan y venden tus productos. Solo pagas comisión cuando generan ventas.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10">
               <Link
