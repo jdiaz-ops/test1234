@@ -175,3 +175,16 @@ export function IconPhoto({ className }: IconProps) {
     </svg>
   );
 }
+
+/// Frasco de producto de belleza — para las miniaturas de producto en las
+/// colecciones de la vitrina, hasta que existan fotos reales que subir.
+export function IconProduct({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={base} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="6.5" y="9" width="11" height="12" rx="2.5" />
+      <path d="M9.5 9V6.5A1.5 1.5 0 0 1 11 5h2a1.5 1.5 0 0 1 1.5 1.5V9" />
+      <path d="M12 3.2v1.8" />
+      <path d="M6.5 14h11" />
+    </svg>
+  );
+}

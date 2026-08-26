@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
-import { IconArrowRight, IconCheck, IconPhoto } from "@/components/marketing/icons";
+import { IconArrowRight, IconCheck, IconPhoto, IconProduct } from "@/components/marketing/icons";
 
 // Datos de ejemplo para las vistas previas — mismo tratamiento que la
 // versión para marcas: colores, tipos y tiles ya reales en el portal de
@@ -344,7 +344,7 @@ export default function ParaCreadoresPage() {
               </div>
               <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Cada marca te da tu propio código y enlace
+                  Cada marca te da tu propio código de descuento y enlace
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
                   Compártelo en tu bio, historias o WhatsApp. Cada venta hecha con tu código queda
@@ -462,7 +462,9 @@ export default function ParaCreadoresPage() {
                   <div className="grid grid-cols-2 gap-3">
                     {previewColeccion.productos.map((p) => (
                       <div key={p.nombre} className="rounded-xl border border-brand-line overflow-hidden">
-                        <div className="aspect-square bg-brand-bg" />
+                        <div className="aspect-square bg-brand-bg flex items-center justify-center">
+                          <IconProduct className="w-8 h-8 text-brand-ink-soft/35" />
+                        </div>
                         <div className="p-2.5">
                           <p className="text-[10px] text-brand-ink-soft mb-0.5">{p.marca}</p>
                           <p className="text-xs font-medium text-brand-ink leading-snug mb-1.5">{p.nombre}</p>
