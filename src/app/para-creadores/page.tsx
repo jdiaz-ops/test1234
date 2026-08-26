@@ -100,7 +100,7 @@ export default function ParaCreadoresPage() {
             <div>
               <div className="flex justify-start mb-6">
                 <span className="inline-flex items-center bg-brand-surface border border-brand-line rounded-full px-5 py-2.5 font-mono text-xs font-medium text-brand-accent tracking-widest">
-                  PARA CREADORAS
+                  PARA CREADORES
                 </span>
               </div>
               <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
