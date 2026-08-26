@@ -7,7 +7,11 @@ import Link from "next/link";
 /// Sin props, el header queda como estaba (solo "Ya tengo cuenta").
 export function SiteHeader({ ctaHref, ctaLabel }: { ctaHref?: string; ctaLabel?: string } = {}) {
   return (
-    <header className="border-b border-brand-line bg-brand-surface/80 backdrop-blur sticky top-0 z-10">
+    // z-20, no z-10: con el mismo z-index que las tarjetas satélite
+    // absolutas del hero (también z-10), gana quien esté más abajo en el
+    // DOM — las satélites, no el header — así que al hacer scroll pasaban
+    // por encima del menú en vez de quedar debajo del header sticky.
+    <header className="border-b border-brand-line bg-brand-surface/80 backdrop-blur sticky top-0 z-20">
       <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="font-mono text-sm font-medium text-brand-accent tracking-wide">
           MARCOLINI
