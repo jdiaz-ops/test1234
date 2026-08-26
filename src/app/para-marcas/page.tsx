@@ -476,7 +476,7 @@ export default function ParaMarcasPage() {
                 vatPercent > 0, así que desaparece solo. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <CostCalculator commission={8} discount={10} platformFeePercent={5} vatPercent={0} />
+                <CostCalculator commission={8} discount={10} platformFeePercent={5} vatPercent={0} editableRates />
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
