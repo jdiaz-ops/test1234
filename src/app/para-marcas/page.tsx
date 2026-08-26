@@ -230,7 +230,7 @@ export default function ParaMarcasPage() {
             medir resultados), pero con el look real del portal de Marcolini
             y solo capacidades que ya existen hoy. */}
         <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
-          <p className="text-brand-ink font-bold text-center max-w-lg mx-auto mb-12 text-balance">
+          <p className="font-display text-xl sm:text-2xl font-bold text-brand-ink text-center max-w-2xl mx-auto mb-12 text-balance">
             Con marketing tradicional pagas antes de saber si funciona.
             <br />
             Con Marcolini, solo pagas cuando ya vendiste.
