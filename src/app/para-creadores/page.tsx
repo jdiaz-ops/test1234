@@ -1,35 +1,48 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 import { IconArrowRight, IconCheck } from "@/components/marketing/icons";
 
 // Datos de ejemplo para las vistas previas — mismo tratamiento que la
 // versión para marcas: colores, tipos y tiles ya reales en el portal de
-// creador (marketplace, códigos, vitrina pública, retos, transacciones),
-// solo con cifras de muestra. Nombres de marca inventados-pero-plausibles
-// (mismo estilo que "Latin Nails"/"Mixcoco", las marcas demo reales del
-// seed) — nunca marcas externas reales con las que Marcolini no tiene
-// ninguna relación.
+// creador (marketplace, códigos, vitrina pública, retos, transacciones).
+// Marcas 100% inventadas (Aurora Beauty / Bruma Cosmética / Nudo Studio)
+// — no son marcas reales ni tampoco las demo del seed ("Latin Nails",
+// "Mixcoco") — hasta que existan marcas de verdad en la plataforma. Sin
+// logoUrl a propósito: BrandMiniProfile (el mismo componente que ya usan
+// marcas y creadores) cae solo en su estado real de "sin logo todavía"
+// (círculo con iniciales) — no es una ilustración inventada, es
+// literalmente cómo se ve hoy una marca sin logo subido.
 const previewOfertas = [
-  { marca: "Latin Nails", descuento: 15, comision: 12 },
-  { marca: "Mixcoco", descuento: 10, comision: 15 },
-  { marca: "Bella Uñas", descuento: 20, comision: 10 },
+  { marca: "Aurora Beauty", categoria: "Skincare", web: "aurorabeauty.co", descuento: 10, comision: 6 },
+  { marca: "Bruma Cosmética", categoria: "Maquillaje", web: "brumacosmetica.co", descuento: 10, comision: 7.5 },
+  { marca: "Nudo Studio", categoria: "Cuidado capilar", web: "nudostudio.co", descuento: 10, comision: 8 },
 ];
 
 const previewCodigos = [
-  { marca: "Latin Nails", code: "VALE15" },
-  { marca: "Mixcoco", code: "VALE10" },
+  { marca: "Aurora Beauty", code: "VALE10", link: "aurorabeauty.co/VALE10", descuento: 10, comision: 6 },
+  { marca: "Bruma Cosmética", code: "VALE10", link: "brumacosmetica.co/VALE10", descuento: 10, comision: 7.5 },
 ];
 
 const previewVitrinaMarcas = [
-  { marca: "Latin Nails", descuento: 15 },
-  { marca: "Mixcoco", descuento: 10 },
+  { marca: "Aurora Beauty", descuento: 10, code: "VALE10" },
+  { marca: "Bruma Cosmética", descuento: 10, code: "VALE10" },
 ];
 
+const previewColeccion = {
+  nombre: "Mi rutina de skincare",
+  descripcion: "Lo que uso todos los días",
+  productos: [
+    { marca: "Aurora Beauty", nombre: "Sérum vitamina C", precio: "$65.000" },
+    { marca: "Bruma Cosmética", nombre: "Bruma facial hidratante", precio: "$42.000" },
+  ],
+};
+
 const previewTransacciones = [
-  { marca: "Latin Nails", fecha: "12 ago", venta: "$95.000", comision: "$14.250", estado: "Pagada" },
-  { marca: "Mixcoco", fecha: "10 ago", venta: "$120.000", comision: "$18.000", estado: "Pagada" },
-  { marca: "Bella Uñas", fecha: "8 ago", venta: "$60.000", comision: "$6.000", estado: "Aprobada" },
+  { marca: "Aurora Beauty", fecha: "12 ago", venta: "$95.000", comision: "$5.700", estado: "Pagada" },
+  { marca: "Bruma Cosmética", fecha: "10 ago", venta: "$120.000", comision: "$9.000", estado: "Pagada" },
+  { marca: "Nudo Studio", fecha: "8 ago", venta: "$60.000", comision: "$4.800", estado: "Aprobada" },
 ];
 
 // Respuestas basadas en la lógica real de la plataforma (mismo
@@ -138,7 +151,7 @@ export default function ParaCreadoresPage() {
                     tarjeta principal. */}
                 <div className="hidden sm:flex absolute top-0 left-0 -translate-x-2/3 -translate-y-1/2 z-10 rounded-xl bg-brand-surface border border-brand-line shadow-lg px-3 py-2.5 items-center gap-2.5">
                   <div className="flex -space-x-2">
-                    {["LN", "MX", "BU"].map((initials) => (
+                    {["AB", "BC", "NS"].map((initials) => (
                       <div
                         key={initials}
                         className="w-7 h-7 rounded-full bg-brand-accent-soft text-brand-accent font-display text-[10px] font-semibold flex items-center justify-center ring-2 ring-brand-surface"
@@ -240,21 +253,22 @@ export default function ParaCreadoresPage() {
           </div>
 
           <div className="space-y-20">
-            {/* 1 — marketplace de marcas. Cada tile lleva su etiqueta
-                completa debajo ("Descuento para tu comunidad" / "Tu
-                comisión por venta") en vez de pills abreviadas — mismo
-                tratamiento que la tarjeta real de oferta en
-                /creador/marketplace (ver OfferCard en
-                marketplace/page.tsx), para que no haya dudas de cuál
-                número es cuál. */}
+            {/* 1 — marketplace de marcas. Reutiliza BrandMiniProfile tal
+                cual — el mismo componente que ya se usa en el marketplace
+                real (ver OfferCard en marketplace/page.tsx) — en vez de
+                un nombre suelto: logo (o su fallback real de iniciales),
+                nombre, categoría y sitio web. Debajo, los mismos 2 tiles
+                con etiqueta completa que ya usa esa tarjeta real
+                ("Descuento para tu comunidad" / "Tu comisión por venta"),
+                para que no haya dudas de cuál número es cuál. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Marketplace de marcas</p>
                 <div className="space-y-3">
                   {previewOfertas.map((o) => (
                     <div key={o.marca} className="rounded-xl bg-brand-bg px-4 py-3">
-                      <p className="text-sm font-medium text-brand-ink mb-2.5">{o.marca}</p>
-                      <div className="grid grid-cols-2 gap-2">
+                      <BrandMiniProfile companyName={o.marca} description={o.categoria} websiteUrl={`https://${o.web}`} />
+                      <div className="grid grid-cols-2 gap-2 mt-3">
                         <div className="rounded-lg bg-brand-surface px-2.5 py-2">
                           <p className="font-mono text-base font-medium text-brand-ink leading-tight">{o.descuento}%</p>
                           <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">
@@ -284,17 +298,46 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 2 — código y link únicos */}
+            {/* 2 — código y link únicos. Antes era un nombre + una pill de
+                código — "muy pobre" para explicar el mecanismo. Ahora
+                mirror exacto de la tarjeta real de /creador/codigos:
+                código + link juntos (son las dos piezas de compartir) y
+                los mismos 2 tiles de descuento/comisión. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Mis códigos y links</p>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {previewCodigos.map((c) => (
-                    <div key={c.marca} className="rounded-xl border border-brand-line px-4 py-3">
-                      <p className="text-sm font-medium text-brand-ink mb-1.5">{c.marca}</p>
-                      <span className="font-mono text-xs font-medium text-brand-accent bg-brand-accent-soft rounded-lg px-2.5 py-1">
-                        {c.code}
-                      </span>
+                    <div key={c.marca} className="rounded-xl border border-brand-line px-4 py-4">
+                      <p className="font-display font-semibold text-brand-ink mb-3">{c.marca}</p>
+                      <div className="rounded-lg border border-brand-line px-3 py-2.5 mb-3 divide-y divide-brand-line">
+                        <div className="pb-2">
+                          <span className="font-mono text-brand-accent font-medium">{c.code}</span>
+                          <p className="text-xs text-brand-ink-soft mt-0.5">Tu código para compartir</p>
+                        </div>
+                        <div className="pt-2">
+                          <span className="text-xs font-mono text-brand-ink block truncate">{c.link}</span>
+                          <p className="text-xs text-brand-ink-soft mt-0.5">Link de la tienda para compartir</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-lg bg-brand-bg px-3 py-2">
+                          <p className="font-mono text-base font-medium text-brand-ink leading-tight">
+                            {c.descuento}%
+                          </p>
+                          <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">
+                            Código de descuento para tu comunidad
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-brand-accent-soft px-3 py-2">
+                          <p className="font-mono text-base font-medium text-brand-accent leading-tight">
+                            {c.comision}%
+                          </p>
+                          <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">
+                            Tu comisión por cada venta
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -310,45 +353,99 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 3 — vitrina pública (link-in-bio con colecciones — feature
-                real, ver creator-storefront-step.tsx y /c/[slug]/page.tsx).
-                Preview estático inspirado en su look real (avatar + marcas
-                + productos), no el componente en vivo — esa página tiene su
-                propio sistema de temas standalone. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <div className="max-w-[220px] mx-auto text-center">
-                  <div className="w-12 h-12 rounded-full bg-brand-accent-soft text-brand-accent font-display font-semibold flex items-center justify-center mx-auto mb-2">
+            {/* 3 — vitrina pública: la pieza más importante de la
+                estrategia, así que rompe el patrón de 2 columnas del
+                resto de bloques y se trata como su propio momento
+                grande, centrado — mismo recurso que ya usamos para el
+                simulador en /para-marcas. El mockup es fiel al look real
+                de /c/[slug]/page.tsx: avatar, el link con el slug, la
+                frase (storefrontHeadline), y por cada marca vinculada la
+                misma tarjeta con la misma frase exacta ("Obtén X% de
+                descuento con esta marca usando mi código Y") y el mismo
+                botón "Ir a la tienda →" que ya existe hoy en la vitrina
+                real — no una versión inventada. */}
+            <div>
+              <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-center mb-3">
+                Tu propia vitrina pública
+              </h3>
+              <p className="text-brand-ink-soft text-center max-w-lg mx-auto mb-10">
+                Un solo link con todas tus marcas, tus códigos y tu frase. Personalízala y ponla en
+                la bio de tu Instagram o TikTok.
+              </p>
+              <div className="max-w-sm mx-auto rounded-[2rem] border border-brand-line bg-brand-surface shadow-[0_30px_60px_-30px_rgba(0,0,0,0.25)] p-6 sm:p-7">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 rounded-full bg-brand-accent-soft text-brand-accent font-display font-semibold text-xl flex items-center justify-center mx-auto mb-3">
                     V
                   </div>
-                  <p className="text-xs font-mono text-brand-accent mb-3">marcolini.co/c/valentina</p>
-                  <div className="space-y-2 mb-3">
-                    {previewVitrinaMarcas.map((m) => (
-                      <div key={m.marca} className="rounded-lg border border-brand-line px-3 py-2 text-left">
-                        <p className="text-xs font-medium text-brand-ink">{m.marca}</p>
-                        <p className="text-[11px] text-brand-ink-soft">{m.descuento}% de descuento</p>
+                  <p className="font-mono text-sm text-brand-accent mb-1.5">marcolini.co/c/valentina</p>
+                  <p className="font-display text-lg font-semibold text-brand-ink text-balance">
+                    Mis favoritos de skincare y beauty ✨
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  {previewVitrinaMarcas.map((m) => (
+                    <div key={m.marca} className="rounded-xl border border-brand-line bg-brand-bg px-4 py-3.5">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center shrink-0">
+                          {m.marca
+                            .split(" ")
+                            .map((w) => w[0])
+                            .join("")}
+                        </div>
+                        <p className="text-sm font-medium text-brand-ink">{m.marca}</p>
                       </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="aspect-square rounded-lg bg-brand-bg" />
-                    <div className="aspect-square rounded-lg bg-brand-bg" />
-                  </div>
+                      <p className="text-xs text-brand-ink-soft mb-2.5">
+                        Obtén {m.descuento}% de descuento con esta marca usando mi código{" "}
+                        <span className="font-mono font-medium text-brand-accent">{m.code}</span>
+                      </p>
+                      <p className="text-center text-xs font-semibold text-white bg-brand-accent rounded-full py-2">
+                        Ir a la tienda →
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 4 — colecciones: sección propia, separada de la vitrina —
+                feature real (collection-service.ts, CollectionsManager
+                dentro de creator-storefront-step.tsx), no una extensión
+                inventada de la vitrina. Mismas tarjetas de producto que
+                ya renderiza /c/[slug]/page.tsx: imagen, marca, nombre,
+                precio y "Ver en tienda →". */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-sm font-semibold text-brand-ink mb-0.5">{previewColeccion.nombre}</p>
+                <p className="text-xs text-brand-ink-soft mb-4">{previewColeccion.descripcion}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {previewColeccion.productos.map((p) => (
+                    <div key={p.nombre} className="rounded-xl border border-brand-line overflow-hidden">
+                      <div className="aspect-square bg-brand-bg" />
+                      <div className="p-2.5">
+                        <p className="text-[10px] text-brand-ink-soft mb-0.5">{p.marca}</p>
+                        <p className="text-xs font-medium text-brand-ink leading-snug mb-1.5">{p.nombre}</p>
+                        <p className="font-mono text-xs font-semibold text-brand-accent mb-2">{p.precio}</p>
+                        <p className="text-[10px] font-semibold text-center rounded-full py-1.5 bg-brand-accent-soft text-brand-accent">
+                          Ver en tienda →
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Un solo link para todas tus recomendaciones
+                  Organiza tus productos favoritos en colecciones
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Tu propia vitrina pública con todas tus marcas y tus productos favoritos
-                  organizados en colecciones. Personalízala y ponla en la bio de tu Instagram o
-                  TikTok — un solo link para todo lo que recomiendas.
+                  Agrupa productos de tus marcas en colecciones temáticas — tu rutina de skincare,
+                  lo que usas para maquillarte — y aparecen directo en tu vitrina, listas para que
+                  tu audiencia compre.
                 </p>
               </div>
             </div>
 
-            {/* 4 — campañas y bonos (retos — feature real, ver
+            {/* 5 — campañas y bonos (retos — feature real, ver
                 creator-challenges-panel.tsx / retos/page.tsx) */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
@@ -358,7 +455,7 @@ export default function ParaCreadoresPage() {
                   </span>
                   <span className="text-xs text-brand-accent font-medium">Activo</span>
                 </div>
-                <p className="font-display font-semibold text-brand-ink mb-1">Meta de agosto — Latin Nails</p>
+                <p className="font-display font-semibold text-brand-ink mb-1">Meta de agosto — Aurora Beauty</p>
                 <p className="text-xs text-brand-ink-soft mb-4">Meta $500.000 · Bono $50.000</p>
                 <div className="h-2 rounded-full bg-brand-bg overflow-hidden mb-2">
                   <div className="h-full rounded-full bg-brand-accent" style={{ width: "72%" }} />
@@ -379,7 +476,7 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 5 — trazabilidad total: saldo + comisiones recientes, el
+            {/* 6 — trazabilidad total: saldo + comisiones recientes, el
                 equivalente para creador de la tarjeta de ROI de
                 /para-marcas. El % de crecimiento es ilustrativo (mismo
                 criterio que el mini-gráfico "Ventas del mes" del hero),
