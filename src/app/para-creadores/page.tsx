@@ -112,7 +112,7 @@ export default function ParaCreadoresPage() {
                 Convierte tu contenido e influencia en una fuente de ingresos
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
-                Comparte tu código, tus seguidores obtienen descuento y tú ganas una comisión por
+                Comparte tu código, tu comunidad obtiene descuentos y tú ganas una comisión por
                 cada compra.
               </p>
               <Link
@@ -197,7 +197,7 @@ export default function ParaCreadoresPage() {
           <p className="font-display text-xl sm:text-2xl font-bold text-brand-ink text-center max-w-2xl mx-auto mb-12 text-balance">
             Ya recomiendas marcas todos los días.
             <br />
-            Con Marcolini, esas recomendaciones te pagan.
+            Con Marcolini, conviertes esas recomendaciones en ingresos.
           </p>
 
           {/* Comparación de riesgo, espejo de la de /para-marcas ("Un Reel
