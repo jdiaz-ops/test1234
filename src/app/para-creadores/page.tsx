@@ -403,6 +403,15 @@ export default function ParaCreadoresPage() {
                 Instagram, TikTok o cualquier red para que tu comunidad encuentre todo lo que
                 recomiendas desde un único enlace.
               </p>
+              {/* "TU LINK" + el link en sí viven acá, arriba del CTA — es
+                  la promesa central del bloque ("un solo link"), no una
+                  zona más adentro del mockup. */}
+              <div className="text-center mb-6">
+                <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1 mb-2">
+                  TU LINK
+                </span>
+                <p className="font-mono text-sm text-brand-accent">marcolini.co/c/valentina</p>
+              </div>
               <div className="flex justify-center mb-10">
                 <Link
                   href="/registro/creador"
@@ -413,20 +422,17 @@ export default function ParaCreadoresPage() {
                 </Link>
               </div>
               <div className="max-w-sm mx-auto rounded-[2rem] border border-brand-line bg-brand-surface shadow-[0_30px_60px_-30px_rgba(0,0,0,0.25)] p-6 sm:p-7">
-                {/* Zona 1 — usuaria + tu link. Círculo de foto (icono,
-                    no una inicial) porque acá se ilustra el caso
-                    completo de la vitrina, con foto de perfil puesta —
-                    distinto del estado real "sin foto todavía" que sí
-                    usa VitrinaLivePreview dentro del portal. */}
+                {/* Zona 1 — usuaria. Círculo de foto (icono, no una
+                    inicial) porque acá se ilustra el caso completo de
+                    la vitrina, con foto de perfil puesta — distinto del
+                    estado real "sin foto todavía" que sí usa
+                    VitrinaLivePreview dentro del portal. El link ya no
+                    va acá — subió arriba del CTA. */}
                 <div className="text-center mb-6">
                   <div className="w-16 h-16 rounded-full bg-brand-accent-soft text-brand-accent flex items-center justify-center mx-auto mb-2.5">
                     <IconPhoto className="w-7 h-7" />
                   </div>
                   <p className="font-display font-semibold text-brand-ink mb-2">@valentina</p>
-                  <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1 mb-2">
-                    TU LINK
-                  </span>
-                  <p className="font-mono text-sm text-brand-accent mb-1.5">marcolini.co/c/valentina</p>
                   <p className="font-display text-lg font-semibold text-brand-ink text-balance">
                     Mis favoritos de skincare y beauty ✨
                   </p>
