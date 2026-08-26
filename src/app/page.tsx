@@ -46,16 +46,20 @@ export default function HomePage() {
               <IconStore className="w-6 h-6 text-brand-accent" />
             </div>
 
-            <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-7">
+            <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-9">
               MARCOLINI
             </p>
-            {/* Split de color en vez de un bloque de texto plano — "crecen" y
-                "monetizan" en el rosado de marca, el resto en tinta, para que
-                el H1 tenga un punto de énfasis en vez de un solo peso visual
-                parejo de principio a fin. */}
-            <h1 className="font-display text-5xl sm:text-7xl font-semibold text-brand-ink text-balance leading-[1.05] tracking-tight">
-              Donde las marcas <span className="text-brand-accent">crecen</span> y los creadores de
-              contenido <span className="text-brand-accent">monetizan</span>.
+            {/* Ángulo distinto al del mega-titular anterior: una cita/dato
+                suelta primero, en itálica y en el tono más suave de la
+                paleta (brand-ink-soft) — lee como algo dicho, no gritado —
+                y recién después el posicionamiento propio, más corto y
+                tranquilo que el H1 gigante de antes. */}
+            <p className="font-display italic text-xl sm:text-2xl text-brand-ink-soft leading-relaxed max-w-2xl mx-auto mb-6 text-balance">
+              &ldquo;El 92% de las personas confía más en la recomendación de otra persona que en
+              la publicidad.&rdquo;
+            </p>
+            <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink text-balance leading-tight tracking-tight">
+              Somos el marketplace entre marcas y creadores de contenido.
             </h1>
           </div>
 
@@ -68,13 +72,13 @@ export default function HomePage() {
               <div className="w-12 h-12 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
                 <IconHeart className="w-5 h-5" />
               </div>
-              <p className="font-mono text-xs text-brand-ink-soft tracking-widest mb-2">
+              <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1 mb-3">
                 SOY CREADOR
-              </p>
-              <p className="font-display text-xl font-semibold text-brand-ink mb-2 text-balance">
+              </span>
+              <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
                 Convierte tu contenido e influencia en dinero
               </p>
-              <p className="text-sm text-brand-ink-soft leading-relaxed mb-6">
+              <p className="text-base text-brand-ink/75 leading-relaxed mb-6">
                 Obtén códigos de descuento para tu comunidad y gana una comisión por cada compra
                 que realicen con ellos.
               </p>
@@ -105,13 +109,13 @@ export default function HomePage() {
                   <img src="/Woocommerce.png" alt="WooCommerce" className="h-4 w-auto" style={{ filter: "grayscale(1)" }} />
                 </div>
               </div>
-              <p className="font-mono text-xs text-brand-ink-soft tracking-widest mb-2">
+              <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1 mb-3">
                 SOY MARCA
-              </p>
-              <p className="font-display text-xl font-semibold text-brand-ink mb-2 text-balance">
+              </span>
+              <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
                 Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
               </p>
-              <p className="text-sm text-brand-ink-soft leading-relaxed mb-6">
+              <p className="text-base text-brand-ink/75 leading-relaxed mb-6">
                 Solo pagas comisión cuando generan ventas.
               </p>
               <p className="text-sm text-brand-accent font-semibold inline-flex items-center gap-1.5">
