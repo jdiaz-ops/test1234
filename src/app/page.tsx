@@ -49,20 +49,13 @@ export default function HomePage() {
             <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-7">
               MARCOLINI
             </p>
-            {/* Dos niveles: la frase suave (gris, itálica, más chica) da
-                contexto/respaldo, y el titular (negro, bold) es el
-                posicionamiento propio — mismo tratamiento que se probó
-                antes de fusionarlos en un solo H1. */}
-            <p className="font-display italic text-xl sm:text-2xl text-brand-ink-soft leading-relaxed max-w-2xl mx-auto mb-6 text-balance">
-              &ldquo;Las personas siempre confiarán más en una recomendación que en un
-              anuncio.&rdquo;
-            </p>
             {/* TODO: "Somos [logo Marcolini]." va antes de esta frase — falta
                 el archivo del logo (el que se compartió en el chat no quedó
                 accesible en el filesystem) para agregarlo en vez de
                 inventar una versión propia. */}
             <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink text-balance leading-tight tracking-tight">
-              El puente entre marcas y creadores de contenido.
+              Somos la conexión que impulsa el crecimiento de las marcas y la monetización de las
+              creadoras de contenido.
             </h1>
           </div>
 
