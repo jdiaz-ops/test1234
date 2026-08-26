@@ -7,7 +7,7 @@ import {
   IconCheck,
 } from "@/components/marketing/icons";
 
-const confianza = ["Solo pagas cuando vendes", "Sin mensualidad", "Ventas 100% trazables"];
+const confianza = "Sin mensualidades · Comisiones automáticas · Ventas 100% trazables";
 
 // Datos de ejemplo para las vistas previas de la sección "Así funciona en tu
 // panel" — la misma info y el mismo tratamiento visual (colores, tipos,
@@ -108,17 +108,15 @@ export default function ParaMarcasPage() {
                   Ya tengo cuenta
                 </Link>
               </div>
-              {/* Lista vertical, no grid de 3 columnas — en la columna
-                  angosta del hero de dos columnas, 3-en-fila envolvía cada
-                  ítem a 2 líneas de forma pareja. */}
-              <div className="flex flex-col gap-2.5">
-                {confianza.map((texto) => (
-                  <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
-                    <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
-                    {texto}
-                  </span>
-                ))}
-              </div>
+              {/* Una sola línea con separadores — antes era una lista de 3
+                  ítems (en grid, y luego en columna) y ambas se veían mal:
+                  el grid envolvía cada ítem de forma despareja, y la
+                  columna vertical se sentía pesada apilada uno debajo del
+                  otro. Una frase corta con "·" resuelve las dos cosas. */}
+              <p className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
+                <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
+                {confianza}
+              </p>
             </div>
 
             <div className="relative">
@@ -150,11 +148,11 @@ export default function ParaMarcasPage() {
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
                   </div>
                   <div className="rounded-xl bg-brand-bg px-3 py-2.5">
-                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$150.000</p>
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$200.000</p>
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
                   </div>
                   <div className="rounded-xl bg-brand-bg px-3 py-2.5">
-                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$630.000</p>
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$900.000</p>
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
                   </div>
                 </div>
@@ -337,11 +335,11 @@ export default function ParaMarcasPage() {
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Órdenes</p>
                   </div>
                   <div className="rounded-xl bg-brand-bg px-3 py-2.5">
-                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$150.000</p>
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$200.000</p>
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Bono total otorgado</p>
                   </div>
                   <div className="rounded-xl bg-brand-bg px-3 py-2.5">
-                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$630.000</p>
+                    <p className="font-mono text-lg font-medium text-brand-ink leading-tight">$900.000</p>
                     <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Comisión total generada</p>
                   </div>
                 </div>
