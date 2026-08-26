@@ -46,22 +46,13 @@ export default function HomePage() {
               <IconStore className="w-6 h-6 text-brand-accent" />
             </div>
 
-            <p className="font-mono text-sm font-medium text-brand-accent tracking-widest mb-7">
-              MARCOLINI
-            </p>
-            {/* Ícono real de Marcolini (recortado del logo que subió Juan a
-                public/) inline justo después de "Somos" — h-[1em] lo ata al
-                tamaño de la letra en cada breakpoint, así escala con el
-                resto del titular en vez de quedar fijo. */}
+            {/* Logo real (ícono + wordmark), recortado del archivo que Juan
+                subió a public/ — reemplaza el label de texto "MARCOLINI"
+                que había antes acá. */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
+            <img src="/marcolini-logo-lockup.png" alt="Marcolini" className="h-10 w-auto mx-auto mb-7" />
             <h1 className="font-display text-3xl sm:text-5xl font-semibold text-brand-ink text-balance leading-tight tracking-tight">
-              Somos{" "}
-              {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura atada al texto (h-[1em]) */}
-              <img
-                src="/marcolini-icon.png"
-                alt=""
-                className="inline-block h-[1em] w-auto align-[-0.12em] mx-1"
-              />{" "}
-              la conexión que impulsa el crecimiento de las marcas y la monetización de las
+              Somos la conexión que impulsa el crecimiento de las marcas y la monetización de las
               creadoras de contenido.
             </h1>
           </div>
