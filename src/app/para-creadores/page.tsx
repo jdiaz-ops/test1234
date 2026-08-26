@@ -353,36 +353,47 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 3 — vitrina pública: la pieza más importante de la
-                estrategia, así que rompe el patrón de 2 columnas del
-                resto de bloques y se trata como su propio momento
-                grande, centrado — mismo recurso que ya usamos para el
-                simulador en /para-marcas. El mockup es fiel al look real
-                de /c/[slug]/page.tsx: avatar, el link con el slug, la
-                frase (storefrontHeadline), y por cada marca vinculada la
-                misma tarjeta con la misma frase exacta ("Obtén X% de
-                descuento con esta marca usando mi código Y") y el mismo
-                botón "Ir a la tienda →" que ya existe hoy en la vitrina
-                real — no una versión inventada. */}
+            {/* 3 — vitrina pública: la pieza central de toda la
+                estrategia — un solo lugar donde viven el link, los
+                códigos activos y las colecciones, así que va como un
+                único mockup grande (rompe el patrón de 2 columnas del
+                resto de bloques, mismo recurso que el simulador de
+                para-marcas) con 3 zonas rotuladas en vez de partirla en
+                bloques separados. Fiel al look real de /c/[slug]/page.tsx:
+                avatar, link con el slug, frase (storefrontHeadline),
+                tarjetas de marca con la misma frase exacta ("Obtén X% de
+                descuento con esta marca usando mi código Y" + "Ir a la
+                tienda →"), y las mismas tarjetas de producto de las
+                colecciones (imagen, marca, nombre, precio, "Ver en
+                tienda →") — nada inventado. */}
             <div>
               <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-center mb-3">
-                Tu propia vitrina pública
+                Tu vitrina: todo en un solo lugar
               </h3>
               <p className="text-brand-ink-soft text-center max-w-lg mx-auto mb-10">
-                Un solo link con todas tus marcas, tus códigos y tu frase. Personalízala y ponla en
-                la bio de tu Instagram o TikTok.
+                Tu link, tus códigos activos y tus colecciones de productos viven en una sola
+                página — la herramienta que reúne y potencia todo lo que compartes.
               </p>
               <div className="max-w-sm mx-auto rounded-[2rem] border border-brand-line bg-brand-surface shadow-[0_30px_60px_-30px_rgba(0,0,0,0.25)] p-6 sm:p-7">
+                {/* Zona 1 — tu link */}
                 <div className="text-center mb-6">
                   <div className="w-16 h-16 rounded-full bg-brand-accent-soft text-brand-accent font-display font-semibold text-xl flex items-center justify-center mx-auto mb-3">
                     V
                   </div>
+                  <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1 mb-2">
+                    TU LINK
+                  </span>
                   <p className="font-mono text-sm text-brand-accent mb-1.5">marcolini.co/c/valentina</p>
                   <p className="font-display text-lg font-semibold text-brand-ink text-balance">
                     Mis favoritos de skincare y beauty ✨
                   </p>
                 </div>
-                <div className="space-y-3">
+
+                {/* Zona 2 — tus códigos activos */}
+                <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1 mb-3">
+                  TUS CÓDIGOS ACTIVOS
+                </span>
+                <div className="space-y-3 mb-6">
                   {previewVitrinaMarcas.map((m) => (
                     <div key={m.marca} className="rounded-xl border border-brand-line bg-brand-bg px-4 py-3.5">
                       <div className="flex items-center gap-2.5 mb-2">
@@ -404,19 +415,13 @@ export default function ParaCreadoresPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            </div>
 
-            {/* 4 — colecciones: sección propia, separada de la vitrina —
-                feature real (collection-service.ts, CollectionsManager
-                dentro de creator-storefront-step.tsx), no una extensión
-                inventada de la vitrina. Mismas tarjetas de producto que
-                ya renderiza /c/[slug]/page.tsx: imagen, marca, nombre,
-                precio y "Ver en tienda →". */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                {/* Zona 3 — tus colecciones */}
+                <span className="inline-block font-mono text-[10px] font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1 mb-3">
+                  TUS COLECCIONES
+                </span>
                 <p className="text-sm font-semibold text-brand-ink mb-0.5">{previewColeccion.nombre}</p>
-                <p className="text-xs text-brand-ink-soft mb-4">{previewColeccion.descripcion}</p>
+                <p className="text-xs text-brand-ink-soft mb-3">{previewColeccion.descripcion}</p>
                 <div className="grid grid-cols-2 gap-3">
                   {previewColeccion.productos.map((p) => (
                     <div key={p.nombre} className="rounded-xl border border-brand-line overflow-hidden">
@@ -433,19 +438,9 @@ export default function ParaCreadoresPage() {
                   ))}
                 </div>
               </div>
-              <div className="lg:order-1">
-                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Organiza tus productos favoritos en colecciones
-                </h3>
-                <p className="text-brand-ink-soft leading-relaxed">
-                  Agrupa productos de tus marcas en colecciones temáticas — tu rutina de skincare,
-                  lo que usas para maquillarte — y aparecen directo en tu vitrina, listas para que
-                  tu audiencia compre.
-                </p>
-              </div>
             </div>
 
-            {/* 5 — campañas y bonos (retos — feature real, ver
+            {/* 4 — campañas y bonos (retos — feature real, ver
                 creator-challenges-panel.tsx / retos/page.tsx) */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
@@ -476,7 +471,7 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 6 — trazabilidad total: saldo + comisiones recientes, el
+            {/* 5 — trazabilidad total: saldo + comisiones recientes, el
                 equivalente para creador de la tarjeta de ROI de
                 /para-marcas. El % de crecimiento es ilustrativo (mismo
                 criterio que el mini-gráfico "Ventas del mes" del hero),
