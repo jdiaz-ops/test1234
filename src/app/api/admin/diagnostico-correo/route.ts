@@ -3,6 +3,7 @@ import { requireAdmin, isOwner } from "@/lib/current-admin";
 import {
   findUsersByEmail,
   deleteUserAccount,
+  AdminDiagnosticsError,
 } from "@/server/services/admin-diagnostics-service";
 
 export async function GET(req: Request) {
@@ -37,6 +38,17 @@ export async function DELETE(req: Request) {
     );
   }
 
-  await deleteUserAccount(userId);
-  return NextResponse.json({ ok: true });
+  try {
+    await deleteUserAccount(userId);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    if (err instanceof AdminDiagnosticsError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    console.error("[diagnostico-correo] error al borrar cuenta:", err);
+    return NextResponse.json(
+      { error: "No se pudo borrar la cuenta — revisa los logs del servidor." },
+      { status: 500 },
+    );
+  }
 }
