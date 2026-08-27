@@ -24,24 +24,56 @@ export default function DiagnosticoCorreoPage() {
   const [users, setUsers] = useState<UserRow[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function search() {
+    const res = await fetch(
+      `/api/admin/diagnostico-correo?correo=${encodeURIComponent(correo)}`,
+    );
+    const body = await res.json();
+    if (!res.ok) {
+      setError(body.error ?? "No se pudo buscar.");
+      return;
+    }
+    setUsers(body.users);
+  }
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setUsers(null);
-
-    const res = await fetch(
-      `/api/admin/diagnostico-correo?correo=${encodeURIComponent(correo)}`,
-    );
-    const body = await res.json();
+    await search();
     setLoading(false);
+  }
 
-    if (!res.ok) {
-      setError(body.error ?? "No se pudo buscar.");
+  // Borrado sin deshacer — confirmación explícita con el correo y el
+  // perfil de por medio, para no borrar la fila equivocada por error de
+  // clic cuando hay varias en la tabla.
+  async function handleDelete(u: UserRow) {
+    const label = u.profileName ? `${u.profileName} (${u.email})` : u.email;
+    if (
+      !window.confirm(
+        `¿Borrar esta cuenta? ${label} — esto no se puede deshacer.`,
+      )
+    ) {
       return;
     }
-    setUsers(body.users);
+
+    setDeletingId(u.id);
+    setError(null);
+    const res = await fetch(
+      `/api/admin/diagnostico-correo?userId=${encodeURIComponent(u.id)}`,
+      { method: "DELETE" },
+    );
+    setDeletingId(null);
+
+    if (!res.ok) {
+      const body = await res.json();
+      setError(body.error ?? "No se pudo borrar la cuenta.");
+      return;
+    }
+    await search();
   }
 
   return (
@@ -95,7 +127,7 @@ export default function DiagnosticoCorreoPage() {
                 </p>
               )}
               <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[720px]">
+                <table className="w-full text-sm min-w-[800px]">
                   <thead>
                     <tr className="text-left text-xs text-brand-ink-soft border-b border-brand-line">
                       <th className="px-4 py-3 font-medium">
@@ -110,6 +142,7 @@ export default function DiagnosticoCorreoPage() {
                         Tiene contraseña
                       </th>
                       <th className="px-4 py-3 font-medium">Creada</th>
+                      <th className="px-4 py-3 font-medium"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -148,6 +181,16 @@ export default function DiagnosticoCorreoPage() {
                         </td>
                         <td className="px-4 py-3 text-brand-ink-soft">
                           {new Date(u.createdAt).toLocaleString("es-CO")}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(u)}
+                            disabled={deletingId === u.id}
+                            className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                          >
+                            {deletingId === u.id ? "Borrando..." : "Eliminar"}
+                          </button>
                         </td>
                       </tr>
                     ))}

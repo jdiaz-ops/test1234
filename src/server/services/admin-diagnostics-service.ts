@@ -34,3 +34,12 @@ export async function findUsersByEmail(rawEmail: string) {
     brandStatus: u.brandProfile?.status ?? null,
   }));
 }
+
+/// Borra una fila de User completa (y su perfil de marca/creador, por
+/// cascade — ver onDelete: Cascade en el schema) — para limpiar una cuenta
+/// de prueba duplicada que quedó ocupando un correo que se necesita para
+/// una cuenta real. Sin deshacer: antes de llamarla, confirmar con
+/// findUsersByEmail que es la fila correcta.
+export async function deleteUserAccount(userId: string) {
+  await prisma.user.delete({ where: { id: userId } });
+}
