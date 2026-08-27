@@ -76,12 +76,8 @@ const previewColeccion = {
   nombre: "Mi rutina de skincare",
   descripcion: "Lo que uso todos los días",
   productos: [
-    { marca: "Aurora Beauty", nombre: "Sérum vitamina C", precio: "$65.000" },
-    {
-      marca: "Bruma Cosmética",
-      nombre: "Bruma facial hidratante",
-      precio: "$42.000",
-    },
+    { marca: "Aurora Beauty", nombre: "Sérum vitamina C" },
+    { marca: "Bruma Cosmética", nombre: "Bruma facial hidratante" },
   ],
 };
 
@@ -559,8 +555,9 @@ export default function ParaCreadoresPage() {
                 tarjetas de marca con la misma frase exacta ("Obtén X% de
                 descuento con esta marca usando mi código Y" + "Ir a la
                 tienda →"), y las mismas tarjetas de producto de las
-                colecciones (imagen, marca, nombre, precio, "Ver en
-                tienda →") — nada inventado. Las etiquetas de "códigos
+                colecciones (imagen, marca, nombre, "Ver en tienda →" —
+                sin precio, igual que en la vitrina real) — nada
+                inventado. Las etiquetas de "códigos
                 activos" y "colecciones" salen del mockup como notas
                 flotantes a los lados (izquierda/derecha), centradas a
                 la altura de su zona — en todos los anchos, no solo
@@ -741,11 +738,8 @@ export default function ParaCreadoresPage() {
                             <p className="text-[10px] text-brand-ink-soft mb-0.5">
                               {p.marca}
                             </p>
-                            <p className="text-xs font-medium text-brand-ink leading-snug mb-1.5">
+                            <p className="text-xs font-medium text-brand-ink leading-snug mb-2">
                               {p.nombre}
-                            </p>
-                            <p className="font-mono text-xs font-semibold text-brand-accent mb-2">
-                              {p.precio}
                             </p>
                             <p className="text-[10px] font-semibold text-center rounded-full py-1.5 bg-brand-accent-soft text-brand-accent">
                               Ver en tienda →
