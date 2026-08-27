@@ -100,7 +100,7 @@ const faq = [
 export default function ParaMarcasPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <SiteHeader ctaHref="/registro/marca" ctaLabel="Empieza gratis" />
+      <SiteHeader ctaHref="/registro/marca" ctaLabel="Crear Cuenta" loginLabel="Portal Marca" />
 
       <main className="flex-1">
         {/* Hero — dos columnas (texto + visual), no todo centrado y gigante
@@ -118,7 +118,11 @@ export default function ParaMarcasPage() {
             style={{ background: "radial-gradient(closest-side, var(--brand-accent-soft), transparent)" }}
           />
           <div className="relative max-w-6xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-14 items-center">
-            <div>
+            {/* Hero centrado (antes alineado a la izquierda), también en
+                desktop — a diferencia de /para-creadores (que solo se
+                centra en mobile), acá se pidió centrado en la versión
+                web también, así que no vuelve a la izquierda en lg+. */}
+            <div className="text-center">
               {/* Logos reales en vez de texto. En blanco/neutro (no en el
                   rosado de las demás píldoras) para que el morado de
                   WooCommerce no choque con el acento de la página. Altura
@@ -132,7 +136,7 @@ export default function ParaMarcasPage() {
                   tiene blanco Y morado a la vez (el brightness(0) fundiría
                   las letras "Woo" blancas con el fondo, volviéndolas
                   ilegibles) — el grayscale conserva ese contraste de tono. */}
-              <div className="flex justify-start mb-6">
+              <div className="flex justify-center mb-6">
                 <div className="inline-flex items-center gap-4 bg-brand-surface border border-brand-line rounded-full px-5 py-2.5">
                   {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
                   <img src="/shopify.webp" alt="Shopify" className="h-4 w-auto" style={{ filter: "brightness(0)" }} />
@@ -146,21 +150,21 @@ export default function ParaMarcasPage() {
               <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
                 Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
               </h1>
-              <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
+              <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg mx-auto">
                 Solo pagas comisión cuando generan ventas
               </p>
               <Link
                 href="/registro/marca"
                 className="group inline-flex items-center justify-center gap-2 bg-brand-accent text-white rounded-full px-10 py-5 text-base font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)]"
               >
-                Empieza gratis
+                Crear Cuenta
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
               {/* "Empieza gratis" y "Sin mensualidades" salieron del subhead
                   y volvieron como checklist de confianza debajo del botón —
                   igual que antes, pero ahora con "Sin costos de
                   instalación" en vez del tercer ítem que había. */}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-5">
+              <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mt-5">
                 {confianza.map((texto) => (
                   <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
                     <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
