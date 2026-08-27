@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { getPalette, getFont } from "@/lib/creator-storefront-themes";
 import { buildBrandStoreLink, buildProductLink } from "@/lib/brand-store-link";
+import { CopyCodeChip } from "@/components/storefront/copy-code-chip";
 
 /// Envuelve en <a> solo si hay un link real a dónde ir — si la marca
 /// todavía no tiene tienda ni sitio web configurado, se muestra el mismo
@@ -229,18 +230,19 @@ export default async function PublicStorefrontPage({
                     </p>
                   </BrandHeaderOrLink>
                   <p
-                    className="text-sm mb-4"
+                    className="text-sm mb-2"
                     style={{ color: palette.inkSoft }}
                   >
                     Obtén {discountPercent}% de descuento con esta marca usando
-                    mi código{" "}
-                    <span
-                      className="font-mono font-medium"
-                      style={{ color: palette.accent }}
-                    >
-                      {e.discountCode}
-                    </span>
+                    mi código
                   </p>
+                  <div className="mb-4">
+                    <CopyCodeChip
+                      code={e.discountCode}
+                      accent={palette.accent}
+                      accentSoft={palette.accentSoft}
+                    />
+                  </div>
                   {storeLink ? (
                     <a
                       href={storeLink}
@@ -296,12 +298,6 @@ export default async function PublicStorefrontPage({
                   const productLink = code
                     ? buildProductLink(item.product.brand, item.product, code)
                     : item.product.url;
-                  const formatPrice = (amount: number) =>
-                    new Intl.NumberFormat("es-CO", {
-                      style: "currency",
-                      currency: item.product.currency,
-                      maximumFractionDigits: 0,
-                    }).format(amount);
                   return (
                     <a
                       key={item.product.id}
@@ -340,22 +336,6 @@ export default async function PublicStorefrontPage({
                         >
                           {item.product.name}
                         </p>
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <p
-                            className="font-mono text-xs font-semibold"
-                            style={{ color: palette.accent }}
-                          >
-                            {formatPrice(Number(item.product.price))}
-                          </p>
-                          {item.product.compareAtPrice && (
-                            <p
-                              className="font-mono text-[10px] line-through"
-                              style={{ color: palette.inkSoft }}
-                            >
-                              {formatPrice(Number(item.product.compareAtPrice))}
-                            </p>
-                          )}
-                        </div>
                         <p
                           className="text-[10px] font-semibold text-center rounded-full py-1.5"
                           style={{
