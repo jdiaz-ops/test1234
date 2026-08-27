@@ -22,8 +22,12 @@ export default async function StorefrontSettingsPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">MI VITRINA</p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-6">Tu vitrina pública</h1>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
+        MI VITRINA
+      </p>
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-6">
+        Tu vitrina pública
+      </h1>
 
       <CreatorStorefrontStep
         displayName={profile.displayName}
@@ -42,7 +46,9 @@ export default async function StorefrontSettingsPage() {
             brandName: e.offer.brand.companyName,
             logoUrl: e.offer.brand.logoUrl,
             visible: e.storefrontVisible,
-            discountPercent: Number(e.discountPercentOverride ?? e.offer.defaultDiscountPercent),
+            discountPercent: Number(
+              e.discountPercentOverride ?? e.offer.defaultDiscountPercent,
+            ),
             discountCode: e.discountCode,
           }))}
         // Forma completa (para CollectionsManager, que vive adentro de este
@@ -65,6 +71,7 @@ export default async function StorefrontSettingsPage() {
           })),
         }))}
         publicUrl={publicUrl}
+        alreadyConfigured={Boolean(profile.storefrontHeadline)}
       />
     </div>
   );

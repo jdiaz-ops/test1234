@@ -8,12 +8,23 @@ import { buildBrandStoreLink, buildProductLink } from "@/lib/brand-store-link";
 /// todavía no tiene tienda ni sitio web configurado, se muestra el mismo
 /// contenido pero sin envolver en nada clickeable, para no dejar un botón
 /// que en apariencia funciona pero no lleva a ningún lado.
-function BrandHeaderOrLink({ storeLink, children }: { storeLink: string | null; children: React.ReactNode }) {
+function BrandHeaderOrLink({
+  storeLink,
+  children,
+}: {
+  storeLink: string | null;
+  children: React.ReactNode;
+}) {
   if (!storeLink) {
     return <div className="flex items-center gap-3 mb-3">{children}</div>;
   }
   return (
-    <a href={storeLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 mb-3">
+    <a
+      href={storeLink}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 mb-3"
+    >
       {children}
     </a>
   );
@@ -28,13 +39,17 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const profile = await prisma.creatorProfile.findUnique({ where: { storefrontSlug: slug } });
+  const profile = await prisma.creatorProfile.findUnique({
+    where: { storefrontSlug: slug },
+  });
   if (!profile) return {};
 
   const title = profile.storefrontHeadline
     ? `${profile.storefrontHeadline} — ${profile.displayName}`
     : `${profile.displayName} en Marcolini`;
-  const description = profile.bio || `Descuentos y códigos de ${profile.displayName} en marcas de belleza — con Marcolini.`;
+  const description =
+    profile.bio ||
+    `Descuentos y códigos de ${profile.displayName} en marcas de belleza — con Marcolini.`;
 
   return {
     title,
@@ -91,24 +106,33 @@ export default async function PublicStorefrontPage({
   const deactivatedBrandIds = new Set(
     (
       await prisma.brandCharge.findMany({
-        where: { status: "DEACTIVATED", brandId: { in: profile.enrollments.map((e) => e.offer.brandId) } },
+        where: {
+          status: "DEACTIVATED",
+          brandId: { in: profile.enrollments.map((e) => e.offer.brandId) },
+        },
         select: { brandId: true },
       })
-    ).map((c) => c.brandId)
+    ).map((c) => c.brandId),
   );
 
   const visibleEnrollments = profile.enrollments.filter(
-    (e) => e.storefrontVisible && !deactivatedBrandIds.has(e.offer.brandId)
+    (e) => e.storefrontVisible && !deactivatedBrandIds.has(e.offer.brandId),
   );
   // Código del creador para cada marca — lo necesitan las tarjetas de
   // producto de las colecciones para armar su link (con o sin descuento
   // aplicado, según la plataforma — ver buildProductLink).
-  const codeByBrandId = new Map(profile.enrollments.map((e) => [e.offer.brandId, e.discountCode]));
+  const codeByBrandId = new Map(
+    profile.enrollments.map((e) => [e.offer.brandId, e.discountCode]),
+  );
 
   return (
     <div
       className="min-h-screen"
-      style={{ background: palette.bg, fontFamily: font.stack, color: palette.ink }}
+      style={{
+        background: palette.bg,
+        fontFamily: font.stack,
+        color: palette.ink,
+      }}
     >
       <div className="max-w-md mx-auto px-6 py-16">
         <div className="text-center mb-10">
@@ -132,7 +156,10 @@ export default async function PublicStorefrontPage({
             {profile.displayName}
           </p>
           {profile.storefrontHeadline && (
-            <h1 className="font-display text-xl font-semibold mt-1" style={{ color: palette.ink }}>
+            <h1
+              className="font-display text-xl font-semibold mt-1"
+              style={{ color: palette.ink }}
+            >
               {profile.storefrontHeadline}
             </h1>
           )}
@@ -145,21 +172,32 @@ export default async function PublicStorefrontPage({
 
         <div className="space-y-4 mb-10">
           {visibleEnrollments.length === 0 ? (
-            <p className="text-center text-sm" style={{ color: palette.inkSoft }}>
+            <p
+              className="text-center text-sm"
+              style={{ color: palette.inkSoft }}
+            >
               Próximamente más marcas por aquí.
             </p>
           ) : (
             visibleEnrollments.map((e) => {
-              const discountPercent = Number(e.discountPercentOverride ?? e.offer.defaultDiscountPercent);
+              const discountPercent = Number(
+                e.discountPercentOverride ?? e.offer.defaultDiscountPercent,
+              );
               // Mismo link para el logo y el botón — con el código ya
               // aplicado si la tienda es Shopify (soporte nativo), o el
               // link normal de la tienda si no (ver buildBrandStoreLink).
-              const storeLink = buildBrandStoreLink(e.offer.brand, e.discountCode);
+              const storeLink = buildBrandStoreLink(
+                e.offer.brand,
+                e.discountCode,
+              );
               return (
                 <div
                   key={e.id}
                   className="rounded-2xl p-5"
-                  style={{ background: palette.surface, border: `1px solid ${palette.accentSoft}` }}
+                  style={{
+                    background: palette.surface,
+                    border: `1px solid ${palette.accentSoft}`,
+                  }}
                 >
                   {/* Sin link real (marca sin tienda ni sitio web todavía) — se
                       muestra igual, pero sin envolver en <a>, para nunca dejar un
@@ -167,22 +205,39 @@ export default async function PublicStorefrontPage({
                   <BrandHeaderOrLink storeLink={storeLink}>
                     {e.offer.brand.logoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- logo subido por la marca
-                      <img src={e.offer.brand.logoUrl} alt={e.offer.brand.companyName} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                      <img
+                        src={e.offer.brand.logoUrl}
+                        alt={e.offer.brand.companyName}
+                        className="w-10 h-10 rounded-full object-cover shrink-0"
+                      />
                     ) : (
                       <div
                         className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-display font-semibold text-sm"
-                        style={{ background: palette.accentSoft, color: palette.accent }}
+                        style={{
+                          background: palette.accentSoft,
+                          color: palette.accent,
+                        }}
                       >
                         {e.offer.brand.companyName[0]?.toUpperCase()}
                       </div>
                     )}
-                    <p className="font-display font-semibold" style={{ color: palette.ink }}>
+                    <p
+                      className="font-display font-semibold"
+                      style={{ color: palette.ink }}
+                    >
                       {e.offer.brand.companyName}
                     </p>
                   </BrandHeaderOrLink>
-                  <p className="text-sm mb-4" style={{ color: palette.inkSoft }}>
-                    Obtén {discountPercent}% de descuento con esta marca usando mi código{" "}
-                    <span className="font-mono font-medium" style={{ color: palette.accent }}>
+                  <p
+                    className="text-sm mb-4"
+                    style={{ color: palette.inkSoft }}
+                  >
+                    Obtén {discountPercent}% de descuento con esta marca usando
+                    mi código{" "}
+                    <span
+                      className="font-mono font-medium"
+                      style={{ color: palette.accent }}
+                    >
                       {e.discountCode}
                     </span>
                   </p>
@@ -199,7 +254,10 @@ export default async function PublicStorefrontPage({
                   ) : (
                     <p
                       className="block text-center rounded-full px-5 py-2.5 text-sm font-semibold"
-                      style={{ background: palette.accentSoft, color: palette.inkSoft }}
+                      style={{
+                        background: palette.accentSoft,
+                        color: palette.inkSoft,
+                      }}
                     >
                       Tienda próximamente
                     </p>
@@ -215,87 +273,121 @@ export default async function PublicStorefrontPage({
           // no se muestra, aunque el creador ya lo haya agregado a esta
           // colección. Si eso deja la colección vacía, se salta entera en
           // vez de mostrar el título sin nada debajo.
-          const visibleItems = collection.items.filter((item) => !deactivatedBrandIds.has(item.product.brandId));
+          const visibleItems = collection.items.filter(
+            (item) => !deactivatedBrandIds.has(item.product.brandId),
+          );
           if (visibleItems.length === 0) return null;
           return (
-          <div key={collection.id} className="mb-10">
-            <h2 className="font-display text-base font-semibold mb-1" style={{ color: palette.ink }}>
-              {collection.name}
-            </h2>
-            {collection.description && (
-              <p className="text-xs mb-3" style={{ color: palette.inkSoft }}>
-                {collection.description}
-              </p>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              {visibleItems.map((item) => {
-                const code = codeByBrandId.get(item.product.brandId);
-                const productLink = code
-                  ? buildProductLink(item.product.brand, item.product, code)
-                  : item.product.url;
-                const formatPrice = (amount: number) =>
-                  new Intl.NumberFormat("es-CO", {
-                    style: "currency",
-                    currency: item.product.currency,
-                    maximumFractionDigits: 0,
-                  }).format(amount);
-                return (
-                  <a
-                    key={item.product.id}
-                    href={productLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-2xl overflow-hidden block"
-                    style={{ background: palette.surface, border: `1px solid ${palette.accentSoft}` }}
-                  >
-                    {item.product.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- foto sincronizada desde la tienda de la marca
-                      <img src={item.product.imageUrl} alt={item.product.name} className="w-full aspect-square object-cover" />
-                    ) : (
-                      <div className="w-full aspect-square" style={{ background: palette.accentSoft }} />
-                    )}
-                    <div className="p-2.5">
-                      <p className="text-[10px] mb-0.5" style={{ color: palette.inkSoft }}>
-                        {item.product.brand.companyName}
-                      </p>
-                      <p className="text-xs font-medium leading-snug mb-1" style={{ color: palette.ink }}>
-                        {item.product.name}
-                      </p>
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <p className="font-mono text-xs font-semibold" style={{ color: palette.accent }}>
-                          {formatPrice(Number(item.product.price))}
+            <div key={collection.id} className="mb-10">
+              <h2
+                className="font-display text-base font-semibold mb-1"
+                style={{ color: palette.ink }}
+              >
+                {collection.name}
+              </h2>
+              {collection.description && (
+                <p className="text-xs mb-3" style={{ color: palette.inkSoft }}>
+                  {collection.description}
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                {visibleItems.map((item) => {
+                  const code = codeByBrandId.get(item.product.brandId);
+                  const productLink = code
+                    ? buildProductLink(item.product.brand, item.product, code)
+                    : item.product.url;
+                  const formatPrice = (amount: number) =>
+                    new Intl.NumberFormat("es-CO", {
+                      style: "currency",
+                      currency: item.product.currency,
+                      maximumFractionDigits: 0,
+                    }).format(amount);
+                  return (
+                    <a
+                      key={item.product.id}
+                      href={productLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-2xl overflow-hidden block"
+                      style={{
+                        background: palette.surface,
+                        border: `1px solid ${palette.accentSoft}`,
+                      }}
+                    >
+                      {item.product.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- foto sincronizada desde la tienda de la marca
+                        <img
+                          src={item.product.imageUrl}
+                          alt={item.product.name}
+                          className="w-full aspect-square object-cover"
+                        />
+                      ) : (
+                        <div
+                          className="w-full aspect-square"
+                          style={{ background: palette.accentSoft }}
+                        />
+                      )}
+                      <div className="p-2.5">
+                        <p
+                          className="text-[10px] mb-0.5"
+                          style={{ color: palette.inkSoft }}
+                        >
+                          {item.product.brand.companyName}
                         </p>
-                        {item.product.compareAtPrice && (
-                          <p className="font-mono text-[10px] line-through" style={{ color: palette.inkSoft }}>
-                            {formatPrice(Number(item.product.compareAtPrice))}
+                        <p
+                          className="text-xs font-medium leading-snug mb-1"
+                          style={{ color: palette.ink }}
+                        >
+                          {item.product.name}
+                        </p>
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <p
+                            className="font-mono text-xs font-semibold"
+                            style={{ color: palette.accent }}
+                          >
+                            {formatPrice(Number(item.product.price))}
                           </p>
-                        )}
+                          {item.product.compareAtPrice && (
+                            <p
+                              className="font-mono text-[10px] line-through"
+                              style={{ color: palette.inkSoft }}
+                            >
+                              {formatPrice(Number(item.product.compareAtPrice))}
+                            </p>
+                          )}
+                        </div>
+                        <p
+                          className="text-[10px] font-semibold text-center rounded-full py-1.5"
+                          style={{
+                            background: palette.accentSoft,
+                            color: palette.accent,
+                          }}
+                        >
+                          Ver en tienda →
+                        </p>
                       </div>
-                      <p
-                        className="text-[10px] font-semibold text-center rounded-full py-1.5"
-                        style={{ background: palette.accentSoft, color: palette.accent }}
-                      >
-                        Ver en tienda →
-                      </p>
-                    </div>
-                  </a>
-                );
-              })}
+                    </a>
+                  );
+                })}
+              </div>
             </div>
-          </div>
           );
         })}
 
         <div className="text-center mt-14">
-          <p className="font-mono text-xs mb-3" style={{ color: palette.inkSoft }}>
-            Powered by Marcolini
+          <p
+            className="font-mono text-xs mb-3"
+            style={{ color: palette.inkSoft }}
+          >
+            Creado por Marcolini
           </p>
           <a
             href="/registro/creador"
             className="inline-block rounded-full px-5 py-2 text-xs font-medium border"
             style={{ borderColor: palette.accent, color: palette.accent }}
           >
-            ¿Eres creador de contenido? Crea tu propia vitrina y empieza a generar ingresos con tu audiencia →
+            ¿Eres creador de contenido? Crea tu propia vitrina y convierte tu
+            contenido e influencia en dinero →
           </a>
         </div>
       </div>
