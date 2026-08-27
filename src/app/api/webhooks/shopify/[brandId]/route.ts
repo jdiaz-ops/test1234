@@ -5,15 +5,23 @@ import {
   type ShopifyOrderWebhookPayload,
   type ShopifyRefundWebhookPayload,
 } from "@/server/integrations/shopify-client";
-import { recordOrderFromWebhook, recordRefundFromWebhook } from "@/server/services/attribution-service";
+import {
+  recordOrderFromWebhook,
+  recordRefundFromWebhook,
+} from "@/server/services/attribution-service";
 import { syncProductsForBrand } from "@/server/services/product-sync-service";
 
 /// Shopify avisa qué evento es en el header `X-Shopify-Topic`
 /// (ej. "orders/create", "refunds/create").
-export async function POST(req: Request, { params }: { params: Promise<{ brandId: string }> }) {
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ brandId: string }> },
+) {
   const { brandId } = await params;
 
-  const brand = await prisma.brandProfile.findUnique({ where: { id: brandId } });
+  const brand = await prisma.brandProfile.findUnique({
+    where: { id: brandId },
+  });
   if (!brand) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
@@ -25,7 +33,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ brandId
   // mano (flujo viejo) firma con el secreto propio que le mostramos en su
   // momento. Se acepta cualquiera de los dos que esté configurado.
   const validShopifySecret = process.env.SHOPIFY_CLIENT_SECRET
-    ? verifyShopifyWebhookSignature(rawBody, hmac, process.env.SHOPIFY_CLIENT_SECRET)
+    ? verifyShopifyWebhookSignature(
+        rawBody,
+        hmac,
+        process.env.SHOPIFY_CLIENT_SECRET,
+      )
     : false;
   const validLegacySecret = brand.webhookSecret
     ? verifyShopifyWebhookSignature(rawBody, hmac, brand.webhookSecret)
@@ -52,7 +64,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ brandId
       discountAmount: discount,
       netAmount: gross - discount,
       occurredAt: new Date(order.created_at),
-      customerEmail: order.email,
+      // No se captura order.email — Marcolini no pide acceso a datos
+      // protegidos de clientes en Shopify (ver decisión en
+      // attribution-service.ts, junto a RecordOrderParams.customerEmail).
     });
 
     return NextResponse.json({ ok: true, ...result });
@@ -69,14 +83,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ brandId
     return NextResponse.json({ ok: true, ...result });
   }
 
-  if (topic === "products/create" || topic === "products/update" || topic === "products/delete") {
+  if (
+    topic === "products/create" ||
+    topic === "products/update" ||
+    topic === "products/delete"
+  ) {
     // El catálogo es chico — resincronizar todo entero es más simple y
     // seguro que tratar de parchar un solo producto suelto del payload, y
     // queda igual de al día.
     try {
       await syncProductsForBrand(brandId);
     } catch (err) {
-      console.error(`[webhook shopify] No se pudo resincronizar productos de ${brandId}:`, err);
+      console.error(
+        `[webhook shopify] No se pudo resincronizar productos de ${brandId}:`,
+        err,
+      );
     }
     return NextResponse.json({ ok: true });
   }

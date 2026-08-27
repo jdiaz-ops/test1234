@@ -4,7 +4,10 @@ import {
   verifyWooCommerceWebhookSignature,
   type WooCommerceOrderWebhookPayload,
 } from "@/server/integrations/woocommerce-client";
-import { recordOrderFromWebhook, recordRefundFromWebhook } from "@/server/services/attribution-service";
+import {
+  recordOrderFromWebhook,
+  recordRefundFromWebhook,
+} from "@/server/services/attribution-service";
 import { syncProductsForBrand } from "@/server/services/product-sync-service";
 
 /// Estados de WooCommerce que cuentan como venta real (pagada) — un pedido
@@ -16,30 +19,44 @@ const PAID_STATUSES = new Set(["processing", "completed"]);
 /// (ej. "order.created", "order.updated"). No existe un topic dedicado de
 /// reembolso en el core — un reembolso total se detecta porque el pedido
 /// pasa a status "refunded" en un `order.updated`.
-export async function POST(req: Request, { params }: { params: Promise<{ brandId: string }> }) {
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ brandId: string }> },
+) {
   const { brandId } = await params;
 
-  const brand = await prisma.brandProfile.findUnique({ where: { id: brandId } });
+  const brand = await prisma.brandProfile.findUnique({
+    where: { id: brandId },
+  });
   if (!brand || !brand.webhookSecret) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   const rawBody = await req.text();
   const signature = req.headers.get("x-wc-webhook-signature");
-  if (!verifyWooCommerceWebhookSignature(rawBody, signature, brand.webhookSecret)) {
+  if (
+    !verifyWooCommerceWebhookSignature(rawBody, signature, brand.webhookSecret)
+  ) {
     return NextResponse.json({ error: "Firma inválida" }, { status: 401 });
   }
 
   const topic = req.headers.get("x-wc-webhook-topic");
 
-  if (topic === "product.created" || topic === "product.updated" || topic === "product.deleted") {
+  if (
+    topic === "product.created" ||
+    topic === "product.updated" ||
+    topic === "product.deleted"
+  ) {
     // El catálogo es chico — resincronizar todo entero es más simple y
     // seguro que tratar de parchar un solo producto suelto del payload, y
     // queda igual de al día.
     try {
       await syncProductsForBrand(brandId);
     } catch (err) {
-      console.error(`[webhook woocommerce] No se pudo resincronizar productos de ${brandId}:`, err);
+      console.error(
+        `[webhook woocommerce] No se pudo resincronizar productos de ${brandId}:`,
+        err,
+      );
     }
     return NextResponse.json({ ok: true });
   }
@@ -61,7 +78,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ brandId
   }
 
   if (!PAID_STATUSES.has(order.status)) {
-    return NextResponse.json({ ok: true, ignored: true, reason: "ESTADO_NO_PAGADO" });
+    return NextResponse.json({
+      ok: true,
+      ignored: true,
+      reason: "ESTADO_NO_PAGADO",
+    });
   }
 
   const code = order.coupon_lines?.[0]?.code ?? null;
@@ -77,7 +98,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ brandId
     discountAmount: discount,
     netAmount: Number(order.total),
     occurredAt: new Date(order.date_created),
-    customerEmail: order.billing?.email,
+    // No se captura order.billing?.email — misma decisión que en el
+    // webhook de Shopify: Marcolini no recolecta datos del comprador desde
+    // las tiendas conectadas (ver RecordOrderParams.customerEmail en
+    // attribution-service.ts).
   });
 
   return NextResponse.json({ ok: true, ...result });

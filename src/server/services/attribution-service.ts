@@ -1,9 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createShopifyDiscountCode, ShopifyApiError } from "@/server/integrations/shopify-client";
-import { createWooCommerceCoupon, WooCommerceApiError } from "@/server/integrations/woocommerce-client";
-import { createCommissionForTransaction, reverseCommissionForTransaction } from "@/server/services/commission-service";
+import {
+  createShopifyDiscountCode,
+  ShopifyApiError,
+} from "@/server/integrations/shopify-client";
+import {
+  createWooCommerceCoupon,
+  WooCommerceApiError,
+} from "@/server/integrations/woocommerce-client";
+import {
+  createCommissionForTransaction,
+  reverseCommissionForTransaction,
+} from "@/server/services/commission-service";
 import { checkGoalBonusProgress } from "@/server/services/challenge-service";
 import { createNotification } from "@/server/services/notification-service";
 import { flagPotentialFraud } from "@/server/services/admin-fraud-service";
@@ -30,8 +39,11 @@ interface RecordOrderParams {
   occurredAt: Date;
   /// Solo tiene sentido con source MANUAL — ver Transaction.note.
   note?: string;
-  /// Correo del comprador, si el webhook de la tienda lo trae (o la marca
-  /// lo escribió en una venta manual) — ver Transaction.customerEmail.
+  /// Solo llega en ventas MANUAL, cuando la marca lo escribe a mano (ej. un
+  /// pedido de WhatsApp) — ver Transaction.customerEmail. Los webhooks de
+  /// Shopify/WooCommerce YA NO lo mandan: Marcolini decidió no pedir acceso
+  /// a datos protegidos de clientes en Shopify, así que ese dato nunca se
+  /// captura de las tiendas conectadas, solo del tipeo manual de la marca.
   customerEmail?: string | null;
 }
 
@@ -55,11 +67,17 @@ export async function provisionDiscountCodeForEnrollment(enrollmentId: string) {
 
   const { offer } = enrollment;
   const { brand } = offer;
-  const discountPercent = Number(enrollment.discountPercentOverride ?? offer.defaultDiscountPercent);
+  const discountPercent = Number(
+    enrollment.discountPercentOverride ?? offer.defaultDiscountPercent,
+  );
   const code = enrollment.discountCode;
 
   try {
-    if (brand.storeType === "SHOPIFY" && brand.storeUrl && brand.shopifyAccessToken) {
+    if (
+      brand.storeType === "SHOPIFY" &&
+      brand.storeUrl &&
+      brand.shopifyAccessToken
+    ) {
       const { priceRuleId } = await createShopifyDiscountCode({
         storeUrl: brand.storeUrl,
         accessToken: brand.shopifyAccessToken,
@@ -70,7 +88,12 @@ export async function provisionDiscountCodeForEnrollment(enrollmentId: string) {
         where: { id: enrollmentId },
         data: { shopifyPriceRuleId: priceRuleId },
       });
-    } else if (brand.storeType === "WOOCOMMERCE" && brand.storeUrl && brand.wooConsumerKey && brand.wooConsumerSecret) {
+    } else if (
+      brand.storeType === "WOOCOMMERCE" &&
+      brand.storeUrl &&
+      brand.wooConsumerKey &&
+      brand.wooConsumerSecret
+    ) {
       const { couponId } = await createWooCommerceCoupon({
         storeUrl: brand.storeUrl,
         consumerKey: brand.wooConsumerKey,
@@ -90,19 +113,27 @@ export async function provisionDiscountCodeForEnrollment(enrollmentId: string) {
     // No propagamos el error: el creador ya quedó unido a la oferta, y la
     // marca puede crear el código a mano mientras resuelve la conexión.
     // Guardamos evidencia visible marcando la tienda con error.
-    const isKnownApiError = err instanceof ShopifyApiError || err instanceof WooCommerceApiError;
+    const isKnownApiError =
+      err instanceof ShopifyApiError || err instanceof WooCommerceApiError;
     console.error(
       `[atribución] No se pudo crear el código "${code}" en la tienda de la marca ${brand.id}:`,
-      isKnownApiError ? err.message : err
+      isKnownApiError ? err.message : err,
     );
     await prisma.brandProfile.update({
       where: { id: brand.id },
       data: { storeConnectionStatus: "ERROR" },
     });
 
-    const admins = await prisma.user.findMany({ where: { role: "ADMIN", adminRole: "OWNER" }, select: { id: true } });
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN", adminRole: "OWNER" },
+      select: { id: true },
+    });
     await Promise.all(
-      admins.map((admin) => createNotification(admin.id, "STORE_CONNECTION_ERROR_ADMIN", { marca: brand.companyName }))
+      admins.map((admin) =>
+        createNotification(admin.id, "STORE_CONNECTION_ERROR_ADMIN", {
+          marca: brand.companyName,
+        }),
+      ),
     );
   }
 }
@@ -110,7 +141,10 @@ export async function provisionDiscountCodeForEnrollment(enrollmentId: string) {
 /// Busca la inscripción activa de un creador en una marca a partir del
 /// código de descuento usado en el pedido. Solo mira ofertas de esa marca —
 /// el mismo código nunca se comparte entre marcas.
-export async function findEnrollmentByDiscountCode(brandId: string, rawCode: string) {
+export async function findEnrollmentByDiscountCode(
+  brandId: string,
+  rawCode: string,
+) {
   const code = normalizeCode(rawCode);
   const enrollments = await prisma.creatorOfferEnrollment.findMany({
     where: {
@@ -119,7 +153,9 @@ export async function findEnrollmentByDiscountCode(brandId: string, rawCode: str
     },
     include: { offer: true },
   });
-  return enrollments.find((e) => normalizeCode(e.discountCode) === code) ?? null;
+  return (
+    enrollments.find((e) => normalizeCode(e.discountCode) === code) ?? null
+  );
 }
 
 /// Procesa un pedido nuevo (webhook `orders/create` de Shopify u
@@ -142,12 +178,23 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
   if (!params.discountCode) {
     // Pedido sin código de nuestro programa — no es un error, simplemente
     // no hay nada que atribuir (venta orgánica de la tienda).
-    return { transaction: null, created: false as const, reason: "SIN_CODIGO" as const };
+    return {
+      transaction: null,
+      created: false as const,
+      reason: "SIN_CODIGO" as const,
+    };
   }
 
-  const enrollment = await findEnrollmentByDiscountCode(params.brandId, params.discountCode);
+  const enrollment = await findEnrollmentByDiscountCode(
+    params.brandId,
+    params.discountCode,
+  );
   if (!enrollment) {
-    return { transaction: null, created: false as const, reason: "CODIGO_NO_ENCONTRADO" as const };
+    return {
+      transaction: null,
+      created: false as const,
+      reason: "CODIGO_NO_ENCONTRADO" as const,
+    };
   }
 
   // Nivel 3 (BrandCharge.status === "DEACTIVATED"): el código existe y el
@@ -157,7 +204,11 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
   // (OVERDUE, panel bloqueado) no cae aquí — ahí los códigos siguen
   // funcionando normal.
   if (await isBrandServiceDeactivated(params.brandId)) {
-    return { transaction: null, created: false as const, reason: "MARCA_DESACTIVADA" as const };
+    return {
+      transaction: null,
+      created: false as const,
+      reason: "MARCA_DESACTIVADA" as const,
+    };
   }
 
   let transaction;
@@ -187,7 +238,10 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
     // venta ya quedó registrada por la otra petición, así que se trata
     // exactamente igual que el `existing` de arriba, sin volver a correr
     // comisión/detectores de fraude (esa petición ganadora ya los corrió).
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
       const raceWinner = await prisma.transaction.findUnique({
         where: {
           brandId_source_externalOrderId: {
@@ -197,7 +251,8 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
           },
         },
       });
-      if (raceWinner) return { transaction: raceWinner, created: false as const };
+      if (raceWinner)
+        return { transaction: raceWinner, created: false as const };
     }
     throw err;
   }
@@ -205,36 +260,61 @@ export async function recordOrderFromWebhook(params: RecordOrderParams) {
   await createCommissionForTransaction(transaction.id);
   await checkGoalBonusProgress(enrollment.offerId, enrollment.creatorId);
   await checkAbnormalOrderSpike(enrollment.id);
-  await checkBuyerIsCreator(enrollment.id, transaction.id, transaction.customerEmail);
-  await checkDiscountMismatch(transaction.id, enrollment, params.grossAmount, params.discountAmount);
+  await checkBuyerIsCreator(
+    enrollment.id,
+    transaction.id,
+    transaction.customerEmail,
+  );
+  await checkDiscountMismatch(
+    transaction.id,
+    enrollment,
+    params.grossAmount,
+    params.discountAmount,
+  );
   if (params.source === "MANUAL") {
-    await checkDuplicateManualSale(enrollment.id, transaction.id, params.grossAmount, params.occurredAt);
+    await checkDuplicateManualSale(
+      enrollment.id,
+      transaction.id,
+      params.grossAmount,
+      params.occurredAt,
+    );
   }
 
   return { transaction, created: true as const };
 }
 
 function formatCOP(amount: number) {
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amount);
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
 /// Detector de fraude #2 (el segundo de los que documenta el schema en
 /// FraudFlag.reason): que el creador compre con su propio código para
 /// cobrarse su propia comisión. Solo puede correr cuando el pedido trajo
 /// el correo del comprador — ver Transaction.customerEmail.
-async function checkBuyerIsCreator(enrollmentId: string, transactionId: string, customerEmail: string | null) {
+async function checkBuyerIsCreator(
+  enrollmentId: string,
+  transactionId: string,
+  customerEmail: string | null,
+) {
   if (!customerEmail) return;
 
   const enrollment = await prisma.creatorOfferEnrollment.findUniqueOrThrow({
     where: { id: enrollmentId },
-    include: { creator: { include: { user: true } }, offer: { include: { brand: true } } },
+    include: {
+      creator: { include: { user: true } },
+      offer: { include: { brand: true } },
+    },
   });
 
   if (enrollment.creator.user.email.toLowerCase() !== customerEmail) return;
 
   await flagPotentialFraud(
     transactionId,
-    `El comprador usó el mismo correo que el creador ${enrollment.creator.displayName} (${customerEmail}) en ${enrollment.offer.brand.companyName}`
+    `El comprador usó el mismo correo que el creador ${enrollment.creator.displayName} (${customerEmail}) en ${enrollment.offer.brand.companyName}`,
   );
 }
 
@@ -246,19 +326,26 @@ const DISCOUNT_TOLERANCE_PERCENT = 5;
 /// manual mal reportada. Tolera unos puntos de diferencia por redondeos.
 async function checkDiscountMismatch(
   transactionId: string,
-  enrollment: { discountPercentOverride: Prisma.Decimal | null; offer: { defaultDiscountPercent: Prisma.Decimal } },
+  enrollment: {
+    discountPercentOverride: Prisma.Decimal | null;
+    offer: { defaultDiscountPercent: Prisma.Decimal };
+  },
   grossAmount: number,
-  discountAmount: number
+  discountAmount: number,
 ) {
   if (grossAmount <= 0) return;
 
-  const expectedPercent = Number(enrollment.discountPercentOverride ?? enrollment.offer.defaultDiscountPercent);
+  const expectedPercent = Number(
+    enrollment.discountPercentOverride ??
+      enrollment.offer.defaultDiscountPercent,
+  );
   const actualPercent = (discountAmount / grossAmount) * 100;
-  if (Math.abs(actualPercent - expectedPercent) <= DISCOUNT_TOLERANCE_PERCENT) return;
+  if (Math.abs(actualPercent - expectedPercent) <= DISCOUNT_TOLERANCE_PERCENT)
+    return;
 
   await flagPotentialFraud(
     transactionId,
-    `Descuento no cuadra: se esperaba ~${expectedPercent}% y la venta aplicó ${actualPercent.toFixed(1)}% — podría haber cupones combinados o datos manipulados`
+    `Descuento no cuadra: se esperaba ~${expectedPercent}% y la venta aplicó ${actualPercent.toFixed(1)}% — podría haber cupones combinados o datos manipulados`,
   );
 }
 
@@ -268,9 +355,18 @@ const DUPLICATE_SALE_WINDOW_HOURS = 24;
 /// el mismo pedido manual dos veces — mismo código, mismo monto exacto, en
 /// menos de 24 horas. Solo aplica a source MANUAL: Shopify/WooCommerce ya
 /// están protegidos por el externalOrderId único.
-async function checkDuplicateManualSale(enrollmentId: string, transactionId: string, grossAmount: number, occurredAt: Date) {
-  const since = new Date(occurredAt.getTime() - DUPLICATE_SALE_WINDOW_HOURS * 60 * 60 * 1000);
-  const until = new Date(occurredAt.getTime() + DUPLICATE_SALE_WINDOW_HOURS * 60 * 60 * 1000);
+async function checkDuplicateManualSale(
+  enrollmentId: string,
+  transactionId: string,
+  grossAmount: number,
+  occurredAt: Date,
+) {
+  const since = new Date(
+    occurredAt.getTime() - DUPLICATE_SALE_WINDOW_HOURS * 60 * 60 * 1000,
+  );
+  const until = new Date(
+    occurredAt.getTime() + DUPLICATE_SALE_WINDOW_HOURS * 60 * 60 * 1000,
+  );
 
   const duplicate = await prisma.transaction.findFirst({
     where: {
@@ -286,7 +382,7 @@ async function checkDuplicateManualSale(enrollmentId: string, transactionId: str
 
   await flagPotentialFraud(
     transactionId,
-    `Posible venta manual duplicada: mismo código y mismo monto (${formatCOP(grossAmount)}) reportado dos veces en menos de 24 horas`
+    `Posible venta manual duplicada: mismo código y mismo monto (${formatCOP(grossAmount)}) reportado dos veces en menos de 24 horas`,
   );
 }
 
@@ -301,7 +397,11 @@ const SPIKE_THRESHOLD = 5;
 async function checkAbnormalOrderSpike(enrollmentId: string) {
   const since = new Date(Date.now() - SPIKE_WINDOW_MINUTES * 60 * 1000);
   const recentTransactions = await prisma.transaction.findMany({
-    where: { enrollmentId, status: { not: "REFUNDED" }, occurredAt: { gte: since } },
+    where: {
+      enrollmentId,
+      status: { not: "REFUNDED" },
+      occurredAt: { gte: since },
+    },
     select: { id: true },
     orderBy: { occurredAt: "desc" },
   });
@@ -312,7 +412,10 @@ async function checkAbnormalOrderSpike(enrollmentId: string) {
   // dure el pico (FraudFlag.transactionId no tiene relación real en el
   // schema — es un id suelto — por eso se busca por lista de ids).
   const alreadyFlagged = await prisma.fraudFlag.findFirst({
-    where: { status: "PENDING_REVIEW", transactionId: { in: recentTransactions.map((t) => t.id) } },
+    where: {
+      status: "PENDING_REVIEW",
+      transactionId: { in: recentTransactions.map((t) => t.id) },
+    },
   });
   if (alreadyFlagged) return;
 
@@ -323,7 +426,7 @@ async function checkAbnormalOrderSpike(enrollmentId: string) {
 
   await flagPotentialFraud(
     recentTransactions[0].id,
-    `Pico anormal de órdenes: ${recentTransactions.length} ventas con el código de ${enrollment.creator.displayName} en ${enrollment.offer.brand.companyName} en la última hora`
+    `Pico anormal de órdenes: ${recentTransactions.length} ventas con el código de ${enrollment.creator.displayName} en ${enrollment.offer.brand.companyName} en la última hora`,
   );
 }
 
@@ -350,7 +453,11 @@ export async function recordRefundFromWebhook(params: {
   });
 
   if (!transaction) {
-    return { transaction: null, updated: false as const, reason: "PEDIDO_NO_ENCONTRADO" as const };
+    return {
+      transaction: null,
+      updated: false as const,
+      reason: "PEDIDO_NO_ENCONTRADO" as const,
+    };
   }
   if (transaction.status === "REFUNDED") {
     return { transaction, updated: false as const };
@@ -391,12 +498,20 @@ export async function recordManualSale(params: {
     throw new ManualSaleError("El monto debe ser mayor a cero.");
   }
 
-  const enrollment = await findEnrollmentByDiscountCode(params.brandId, params.discountCode);
+  const enrollment = await findEnrollmentByDiscountCode(
+    params.brandId,
+    params.discountCode,
+  );
   if (!enrollment) {
-    throw new ManualSaleError("No encontramos ese código entre tus creadores vinculados y activos.");
+    throw new ManualSaleError(
+      "No encontramos ese código entre tus creadores vinculados y activos.",
+    );
   }
 
-  const discountPercent = Number(enrollment.discountPercentOverride ?? enrollment.offer.defaultDiscountPercent);
+  const discountPercent = Number(
+    enrollment.discountPercentOverride ??
+      enrollment.offer.defaultDiscountPercent,
+  );
   const discountAmount = round2(params.grossAmount * (discountPercent / 100));
   const netAmount = round2(params.grossAmount - discountAmount);
 
