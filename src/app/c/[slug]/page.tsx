@@ -230,19 +230,22 @@ export default async function PublicStorefrontPage({
                     </p>
                   </BrandHeaderOrLink>
                   <p
-                    className="text-sm mb-2"
+                    className="text-sm mb-4"
                     style={{ color: palette.inkSoft }}
                   >
                     Obtén {discountPercent}% de descuento con esta marca usando
-                    mi código
-                  </p>
-                  <div className="mb-4">
+                    mi código{" "}
+                    <span
+                      className="font-mono font-medium"
+                      style={{ color: palette.accent }}
+                    >
+                      {e.discountCode}
+                    </span>{" "}
                     <CopyCodeChip
                       code={e.discountCode}
                       accent={palette.accent}
-                      accentSoft={palette.accentSoft}
                     />
-                  </div>
+                  </p>
                   {storeLink ? (
                     <a
                       href={storeLink}
