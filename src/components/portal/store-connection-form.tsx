@@ -313,8 +313,7 @@ export function StoreConnectionForm({
                 />
                 <p className="text-xs text-brand-ink-soft mt-1">
                   Lo encuentras en tu panel de Shopify, en la barra de
-                  direcciones, o en Configuración → Dominios. Escríbelo primero
-                  — con él armamos el acceso directo del paso 1.
+                  direcciones, o en Configuración → Dominios.
                 </p>
               </div>
 
@@ -325,7 +324,7 @@ export function StoreConnectionForm({
                     Configuración → Apps y canales de venta → Desarrollar apps
                   </strong>{" "}
                   en tu admin de Shopify.
-                  {shopifyDevelopAppsUrl ? (
+                  {shopifyDevelopAppsUrl && (
                     <a
                       href={shopifyDevelopAppsUrl}
                       target="_blank"
@@ -334,11 +333,6 @@ export function StoreConnectionForm({
                     >
                       Abrir esta pantalla en tu tienda →
                     </a>
-                  ) : (
-                    <span className="block mt-1 text-xs text-brand-ink-soft">
-                      Escribe tu dominio arriba para habilitar el acceso
-                      directo.
-                    </span>
                   )}
                 </li>
                 <li>
