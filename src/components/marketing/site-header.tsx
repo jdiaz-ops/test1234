@@ -35,12 +35,18 @@ export function SiteHeader({
     // por encima del menú en vez de quedar debajo del header sticky.
     <header className="border-b border-brand-line bg-brand-surface/80 backdrop-blur sticky top-0 z-20">
       <div className="max-w-5xl mx-auto px-6">
-        <div className="h-16 flex items-center justify-between gap-3">
+        {/* Una sola fila también en mobile (antes había una segunda fila
+            solo para el link de cuenta, que hacía el header más grueso).
+            Los dos botones — cuenta y CTA — van juntos a la derecha, cada
+            uno con su label corto en mobile (mobileLoginLabel/
+            mobileCtaLabel) y padding más chico para que quepan al lado
+            del logo sin desbordar. */}
+        <div className="h-16 flex items-center justify-between gap-2 sm:gap-3">
           <Link href="/" className="shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
             <img src="/marcolini-icon.png" alt="Marcolini" className="h-8 w-auto" />
           </Link>
-          <nav className="flex items-center gap-3 sm:gap-6 text-sm">
+          <nav className="flex items-center gap-2 sm:gap-6 text-sm">
             {/* "Soy Creador"/"Soy Marca" ocultos en mobile: en una barra
                 angosta compiten por espacio con el link de cuenta y el CTA
                 — y en mobile ya se llega a estas landings desde el link
@@ -51,42 +57,23 @@ export function SiteHeader({
             <Link href="/para-marcas" className="hidden sm:inline text-brand-ink-soft hover:text-brand-ink">
               Soy Marca
             </Link>
-            {/* En mobile el link de cuenta baja a la fila secundaria de
-                abajo (ver más abajo) para no pelear por ancho con el CTA;
-                en desktop se queda acá, como antes. */}
             <Link
               href={loginHref}
-              className="hidden sm:inline-flex text-brand-ink font-medium border border-brand-line rounded-full px-4 py-1.5 hover:bg-brand-accent-soft"
+              className="inline-flex items-center text-brand-ink font-medium border border-brand-line rounded-full px-3 py-1 text-xs sm:px-4 sm:py-1.5 sm:text-sm hover:bg-brand-accent-soft whitespace-nowrap"
             >
-              {loginLabel}
+              <span className="sm:hidden">{mobileLoginLabel ?? loginLabel}</span>
+              <span className="hidden sm:inline">{loginLabel}</span>
             </Link>
             {ctaHref && ctaLabel && (
-              // Visible también en mobile (antes hidden sm:inline-flex):
-              // con "Soy Creador"/"Soy Marca" ocultos ahora sí cabe, y es
-              // el llamado a la acción principal de la barra en mobile.
               <Link
                 href={ctaHref}
-                className="inline-flex bg-brand-accent text-white font-medium rounded-full px-4 py-1.5 hover:opacity-90 transition whitespace-nowrap"
+                className="inline-flex items-center bg-brand-accent text-white font-medium rounded-full px-3 py-1 text-xs sm:px-4 sm:py-1.5 sm:text-sm hover:opacity-90 transition whitespace-nowrap"
               >
                 <span className="sm:hidden">{mobileCtaLabel ?? ctaLabel}</span>
                 <span className="hidden sm:inline">{ctaLabel}</span>
               </Link>
             )}
           </nav>
-        </div>
-        {/* Fila secundaria solo mobile: el link de cuenta como botón
-            chico, centrado, debajo de la fila principal — antes era una
-            pill metida entre "Soy Creador"/"Soy Marca" y el CTA que no
-            cabía bien en una barra angosta, y luego texto suelto sin
-            forma de botón. Usa mobileLoginLabel (label corto) cuando se
-            pasa, para que quepa cómodo como pill. */}
-        <div className="sm:hidden pb-2.5 -mt-1 text-center">
-          <Link
-            href={loginHref}
-            className="inline-flex text-xs font-medium text-brand-ink-soft border border-brand-line rounded-full px-3 py-1 hover:bg-brand-accent-soft hover:text-brand-ink transition"
-          >
-            {mobileLoginLabel ?? loginLabel}
-          </Link>
         </div>
       </div>
     </header>
