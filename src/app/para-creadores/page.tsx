@@ -563,11 +563,12 @@ export default function ParaCreadoresPage() {
                 tienda →") — nada inventado. Las etiquetas de "códigos
                 activos" y "colecciones" salen del mockup como notas
                 flotantes a los lados (izquierda/derecha), centradas a
-                la altura de su zona y conectadas con una línea al
-                borde del mockup — en vez de vivir adentro como parte
-                de la interfaz. En mobile, sin espacio para flotar, la
-                misma nota baja al flujo normal justo encima de su
-                zona. */}
+                la altura de su zona — en todos los anchos, no solo
+                desktop: en lg+ es la nota ancha conectada con una línea
+                al borde del mockup; en <lg el mockup se angosta (ver el
+                contenedor -mx-6 que envuelve el mockup, unas líneas más
+                abajo) para dejar hueco real donde flotar una versión
+                angosta de la misma nota (texto corto, sin línea). */}
             <div>
               <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-center mb-3">
                 Un solo link para todo lo que recomiendas
@@ -599,133 +600,160 @@ export default function ParaCreadoresPage() {
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
-              <div className="max-w-sm mx-auto rounded-[2rem] border border-brand-line bg-brand-surface shadow-[0_30px_60px_-30px_rgba(0,0,0,0.25)] p-6 sm:p-7">
-                {/* Zona 1 — usuaria. Círculo de foto (icono, no una
-                    inicial) porque acá se ilustra el caso completo de
-                    la vitrina, con foto de perfil puesta — distinto del
-                    estado real "sin foto todavía" que sí usa
-                    VitrinaLivePreview dentro del portal. El link ya no
-                    va acá — subió arriba del CTA. */}
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 rounded-full bg-brand-accent-soft text-brand-accent flex items-center justify-center mx-auto mb-2.5">
-                    <IconPhoto className="w-7 h-7" />
+              {/* -mx-6 lg:mx-0 — recupera el padding de la <section> (px-6)
+                  solo acá, para tener margen real a los costados del
+                  mockup en <lg y que las notas de las Zonas 2 y 3 puedan
+                  flotar de verdad (no solo en desktop) sin que la página
+                  scrollee horizontal. El mockup se angosta a juego
+                  (w-[210px]) — a partir de lg vuelve a su ancho y
+                  padding normales, ya con margen de sobra fuera del
+                  contenedor max-w-5xl de la sección. */}
+              <div className="-mx-6 lg:mx-0">
+                <div className="w-[210px] p-4 lg:w-full lg:max-w-sm lg:p-7 mx-auto rounded-[2rem] border border-brand-line bg-brand-surface shadow-[0_30px_60px_-30px_rgba(0,0,0,0.25)]">
+                  {/* Zona 1 — usuaria. Círculo de foto (icono, no una
+                      inicial) porque acá se ilustra el caso completo de
+                      la vitrina, con foto de perfil puesta — distinto del
+                      estado real "sin foto todavía" que sí usa
+                      VitrinaLivePreview dentro del portal. El link ya no
+                      va acá — subió arriba del CTA. */}
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 rounded-full bg-brand-accent-soft text-brand-accent flex items-center justify-center mx-auto mb-2.5">
+                      <IconPhoto className="w-7 h-7" />
+                    </div>
+                    <p className="font-display font-semibold text-brand-ink mb-2">
+                      @valentina
+                    </p>
+                    <p className="font-display text-lg font-semibold text-brand-ink text-balance">
+                      Mis favoritos de skincare y beauty ✨
+                    </p>
                   </div>
-                  <p className="font-display font-semibold text-brand-ink mb-2">
-                    @valentina
-                  </p>
-                  <p className="font-display text-lg font-semibold text-brand-ink text-balance">
-                    Mis favoritos de skincare y beauty ✨
-                  </p>
-                </div>
 
-                {/* Zona 2 — tus códigos activos. La nota flota lejos del
-                    mockup, centrada a la altura de esta zona (no
-                    pegada arriba), con una línea que la conecta
-                    directo con el borde — así se ve, a simple vista,
-                    a qué franja del mockup corresponde. En mobile, sin
-                    espacio para flotar, la misma nota baja al flujo
-                    normal justo encima de su zona, como texto simple
-                    (sin tarjeta ni borde — vuelve a la línea de tiempo). */}
-                <div className="relative">
-                  <div className="mb-4 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:right-full lg:w-64 lg:flex lg:items-center lg:gap-4">
-                    <div className="lg:text-right">
-                      <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
+                  {/* Zona 2 — tus códigos activos. Nota que flota SIEMPRE al
+                    costado del mockup, en todos los anchos — no solo en
+                    desktop. En <lg el mockup se angostó (ver el
+                    contenedor -mx-6 más arriba) para dejar hueco real
+                    donde flotar una versión angosta (texto corto, sin
+                    línea conectora — no hay espacio para eso). En lg+
+                    vuelve a la nota ancha con línea, como antes. */}
+                  <div className="relative">
+                    <div className="lg:hidden absolute top-1/2 right-full mr-1.5 w-20 -translate-y-1/2 text-center">
+                      <span className="block font-mono text-[8px] font-semibold tracking-wide text-brand-accent bg-brand-accent-soft rounded-full px-1.5 py-1 leading-tight mb-1.5">
                         TUS CÓDIGOS ACTIVOS
                       </span>
-                      <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
-                        Todos tus códigos de descuento se organizan
-                        automáticamente en tu vitrina, para que tu comunidad
-                        siempre tenga acceso al código correcto de cada marca.
+                      <p className="text-[9px] text-brand-ink-soft leading-snug">
+                        Los códigos, siempre a la mano.
                       </p>
                     </div>
-                    <span
-                      aria-hidden
-                      className="hidden lg:block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40"
-                    />
-                  </div>
-                  <div className="space-y-3 mb-6">
-                    {previewVitrinaMarcas.map((m) => (
-                      <div
-                        key={m.marca}
-                        className="rounded-xl border border-brand-line bg-brand-bg px-4 py-3.5"
-                      >
-                        <div className="flex items-center gap-2.5 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center shrink-0">
-                            {m.marca
-                              .split(" ")
-                              .map((w) => w[0])
-                              .join("")}
-                          </div>
-                          <p className="text-sm font-medium text-brand-ink">
-                            {m.marca}
-                          </p>
-                        </div>
-                        <p className="text-xs text-brand-ink-soft mb-2.5">
-                          Obtén {m.descuento}% de descuento con esta marca
-                          usando mi código{" "}
-                          <span className="font-mono font-medium text-brand-accent">
-                            {m.code}
-                          </span>
-                        </p>
-                        <p className="text-center text-xs font-semibold text-white bg-brand-accent rounded-full py-2">
-                          Ir a la tienda →
+                    <div className="hidden lg:flex lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:right-full lg:w-64 lg:items-center lg:gap-4">
+                      <div className="lg:text-right">
+                        <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
+                          TUS CÓDIGOS ACTIVOS
+                        </span>
+                        <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
+                          Todos tus códigos de descuento se organizan
+                          automáticamente en tu vitrina, para que tu comunidad
+                          siempre tenga acceso al código correcto de cada marca.
                         </p>
                       </div>
-                    ))}
+                      <span
+                        aria-hidden
+                        className="block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40"
+                      />
+                    </div>
+                    <div className="space-y-3 mb-6">
+                      {previewVitrinaMarcas.map((m) => (
+                        <div
+                          key={m.marca}
+                          className="rounded-xl border border-brand-line bg-brand-bg px-4 py-3.5"
+                        >
+                          <div className="flex items-center gap-2.5 mb-2">
+                            <div className="w-8 h-8 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center shrink-0">
+                              {m.marca
+                                .split(" ")
+                                .map((w) => w[0])
+                                .join("")}
+                            </div>
+                            <p className="text-sm font-medium text-brand-ink">
+                              {m.marca}
+                            </p>
+                          </div>
+                          <p className="text-xs text-brand-ink-soft mb-2.5">
+                            Obtén {m.descuento}% de descuento con esta marca
+                            usando mi código{" "}
+                            <span className="font-mono font-medium text-brand-accent">
+                              {m.code}
+                            </span>
+                          </p>
+                          <p className="text-center text-xs font-semibold text-white bg-brand-accent rounded-full py-2">
+                            Ir a la tienda →
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Zona 3 — tus colecciones. Mismo tratamiento que la
-                    Zona 2, en espejo hacia la derecha. */}
-                <div className="relative">
-                  <div className="mb-4 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:w-64 lg:flex lg:items-center lg:gap-4">
-                    <span
-                      aria-hidden
-                      className="hidden lg:block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40"
-                    />
-                    <div>
-                      <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
+                  {/* Zona 3 — tus colecciones. Mismo tratamiento que la
+                    Zona 2 (nota que flota SIEMPRE, angosta en <lg y
+                    ancha con línea en lg+), en espejo hacia la derecha. */}
+                  <div className="relative">
+                    <div className="lg:hidden absolute top-1/2 left-full ml-1.5 w-20 -translate-y-1/2 text-center">
+                      <span className="block font-mono text-[8px] font-semibold tracking-wide text-brand-accent bg-brand-accent-soft rounded-full px-1.5 py-1 leading-tight mb-1.5">
                         TUS COLECCIONES
                       </span>
-                      <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
-                        Crea colecciones con tus productos favoritos y
-                        organízalos por tema, rutina o estilo. Comparte
-                        recomendaciones mucho más útiles y convierte tu vitrina
-                        en una verdadera guía de compra para tu comunidad.
+                      <p className="text-[9px] text-brand-ink-soft leading-snug">
+                        Organiza por tema o rutina.
                       </p>
                     </div>
-                  </div>
-                  <p className="text-sm font-semibold text-brand-ink mb-0.5">
-                    {previewColeccion.nombre}
-                  </p>
-                  <p className="text-xs text-brand-ink-soft mb-3">
-                    {previewColeccion.descripcion}
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {previewColeccion.productos.map((p) => (
-                      <div
-                        key={p.nombre}
-                        className="rounded-xl border border-brand-line overflow-hidden"
-                      >
-                        <div className="aspect-square bg-brand-bg flex items-center justify-center">
-                          <IconProduct className="w-8 h-8 text-brand-ink-soft/35" />
-                        </div>
-                        <div className="p-2.5">
-                          <p className="text-[10px] text-brand-ink-soft mb-0.5">
-                            {p.marca}
-                          </p>
-                          <p className="text-xs font-medium text-brand-ink leading-snug mb-1.5">
-                            {p.nombre}
-                          </p>
-                          <p className="font-mono text-xs font-semibold text-brand-accent mb-2">
-                            {p.precio}
-                          </p>
-                          <p className="text-[10px] font-semibold text-center rounded-full py-1.5 bg-brand-accent-soft text-brand-accent">
-                            Ver en tienda →
-                          </p>
-                        </div>
+                    <div className="hidden lg:flex lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:w-64 lg:items-center lg:gap-4">
+                      <span
+                        aria-hidden
+                        className="block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40"
+                      />
+                      <div>
+                        <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
+                          TUS COLECCIONES
+                        </span>
+                        <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
+                          Crea colecciones con tus productos favoritos y
+                          organízalos por tema, rutina o estilo. Comparte
+                          recomendaciones mucho más útiles y convierte tu
+                          vitrina en una verdadera guía de compra para tu
+                          comunidad.
+                        </p>
                       </div>
-                    ))}
+                    </div>
+                    <p className="text-sm font-semibold text-brand-ink mb-0.5">
+                      {previewColeccion.nombre}
+                    </p>
+                    <p className="text-xs text-brand-ink-soft mb-3">
+                      {previewColeccion.descripcion}
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {previewColeccion.productos.map((p) => (
+                        <div
+                          key={p.nombre}
+                          className="rounded-xl border border-brand-line overflow-hidden"
+                        >
+                          <div className="aspect-square bg-brand-bg flex items-center justify-center">
+                            <IconProduct className="w-8 h-8 text-brand-ink-soft/35" />
+                          </div>
+                          <div className="p-2.5">
+                            <p className="text-[10px] text-brand-ink-soft mb-0.5">
+                              {p.marca}
+                            </p>
+                            <p className="text-xs font-medium text-brand-ink leading-snug mb-1.5">
+                              {p.nombre}
+                            </p>
+                            <p className="font-mono text-xs font-semibold text-brand-accent mb-2">
+                              {p.precio}
+                            </p>
+                            <p className="text-[10px] font-semibold text-center rounded-full py-1.5 bg-brand-accent-soft text-brand-accent">
+                              Ver en tienda →
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
