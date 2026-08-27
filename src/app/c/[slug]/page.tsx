@@ -364,8 +364,10 @@ export default async function PublicStorefrontPage({
           >
             Creado por Marcolini
           </p>
+          {/* A la landing de creadores, no directo al registro — que vea de
+              qué se trata antes de pedirle que se registre. */}
           <a
-            href="/registro/creador"
+            href="/para-creadores"
             className="inline-block rounded-full px-5 py-2 text-xs font-medium border"
             style={{ borderColor: palette.accent, color: palette.accent }}
           >
