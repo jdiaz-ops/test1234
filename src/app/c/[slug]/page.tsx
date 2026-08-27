@@ -243,7 +243,7 @@ export default async function PublicStorefrontPage({
                     </span>{" "}
                     <CopyCodeChip
                       code={e.discountCode}
-                      accent={palette.accent}
+                      color={palette.inkSoft}
                     />
                   </p>
                   {storeLink ? (

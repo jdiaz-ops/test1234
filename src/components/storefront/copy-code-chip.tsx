@@ -5,14 +5,9 @@ import { useState } from "react";
 /// Pequeño link "Copiar código" al lado del código de descuento — el
 /// código en sí se muestra igual que antes (texto plano dentro de la
 /// frase, en la vitrina pública); esto es solo el gatillo para copiarlo
-/// sin tener que seleccionarlo a mano.
-export function CopyCodeChip({
-  code,
-  accent,
-}: {
-  code: string;
-  accent: string;
-}) {
+/// sin tener que seleccionarlo a mano. Color discreto (inkSoft, no accent)
+/// para que no compita con el código — es una acción secundaria.
+export function CopyCodeChip({ code, color }: { code: string; color: string }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -30,9 +25,9 @@ export function CopyCodeChip({
       type="button"
       onClick={handleCopy}
       className="text-xs font-medium hover:underline"
-      style={{ color: accent }}
+      style={{ color }}
     >
-      {copied ? "¡Copiado!" : "Copiar código"}
+      - {copied ? "¡Copiado!" : "Copiar código"}
     </button>
   );
 }
