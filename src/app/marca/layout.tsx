@@ -1,5 +1,6 @@
 import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { BrandNav } from "@/components/portal/brand-nav";
 import { PortalShell } from "@/components/portal/portal-shell";
@@ -98,10 +99,17 @@ export default async function MarcaLayout({
         }
       >
         {profile.status === "PENDING" && (
-          <div className="bg-brand-accent-soft border-b border-brand-line px-4 sm:px-8 py-3 text-sm text-brand-ink">
-            Tu marca está <strong>pendiente de aprobación</strong>. Puedes
-            configurar todo mientras tanto — en cuanto se apruebe, tu oferta
-            queda visible en el marketplace.
+          <div className="bg-brand-accent-soft border-b border-brand-line px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-brand-ink">
+              Completa el proceso de onboarding para que tu marca sea visible
+              para los creadores de contenido.
+            </p>
+            <Link
+              href="/marca/onboarding"
+              className="shrink-0 bg-brand-accent text-white text-xs font-medium rounded-full px-4 py-1.5 hover:opacity-90 transition"
+            >
+              Terminar onboarding
+            </Link>
           </div>
         )}
         {profile.status === "REJECTED" && (
