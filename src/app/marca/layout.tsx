@@ -71,6 +71,11 @@ export default async function MarcaLayout({
       <PortalShell
         logoHref="/marca"
         logoLabel="MARCOLINI"
+        centerAction={
+          onboarding.complete
+            ? undefined
+            : { label: "Terminar onboarding", href: "/marca/onboarding" }
+        }
         nav={
           <BrandNav
             unreadNotifications={unreadNotifications}
