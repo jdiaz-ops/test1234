@@ -443,7 +443,7 @@ export default function ParaCreadoresPage() {
                 <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5 mb-2.5">
                   TU LINK
                 </span>
-                <p className="font-mono text-base text-brand-accent">marcolini.co/c/valentina</p>
+                <p className="font-mono text-base text-brand-accent">marcolini.lat/c/valentina</p>
               </div>
               <div className="flex justify-center mb-10">
                 <Link
