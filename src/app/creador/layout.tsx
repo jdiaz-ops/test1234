@@ -25,6 +25,11 @@ export default async function CreadorLayout({
       <PortalShell
         logoHref="/creador"
         logoLabel="MARCOLINI"
+        centerAction={
+          onboarding.complete
+            ? undefined
+            : { label: "Terminar onboarding", href: "/creador/onboarding" }
+        }
         nav={
           <PortalNav
             onboardingRemaining={
@@ -36,9 +41,6 @@ export default async function CreadorLayout({
         }
         footer={
           <>
-            <p className="text-xs text-brand-ink-soft truncate mb-2">
-              {session.user.email}
-            </p>
             <form
               action={async () => {
                 "use server";

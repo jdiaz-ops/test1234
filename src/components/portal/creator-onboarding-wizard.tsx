@@ -29,7 +29,9 @@ export function CreatorOnboardingWizard({
   storefrontStepProps: StorefrontStepProps;
 }) {
   const order = steps.map((s) => s.key);
-  const [open, setOpen] = useState<string | null>(steps.find((s) => !s.done)?.key ?? order[0]);
+  const [open, setOpen] = useState<string | null>(
+    steps.find((s) => !s.done)?.key ?? order[0],
+  );
 
   function goToNext(currentKey: string) {
     const idx = order.indexOf(currentKey);
@@ -48,31 +50,66 @@ export function CreatorOnboardingWizard({
           <div
             key={step.key}
             className={`rounded-2xl border overflow-hidden ${
-              step.done ? "border-brand-line bg-brand-surface" : "border-brand-accent bg-brand-accent-soft"
+              step.done
+                ? "border-brand-line bg-brand-surface"
+                : "border-brand-accent bg-brand-accent-soft"
             }`}
           >
-            <button type="button" onClick={() => toggle(step.key)} className="w-full flex items-center gap-4 p-5 text-left">
+            <button
+              type="button"
+              onClick={() => toggle(step.key)}
+              className="w-full flex items-center gap-4 p-5 text-left"
+            >
               <div
                 className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-mono text-sm font-medium ${
-                  step.done ? "bg-brand-accent text-white" : "bg-white border border-brand-accent text-brand-accent"
+                  step.done
+                    ? "bg-brand-accent text-white"
+                    : "bg-white border border-brand-accent text-brand-accent"
                 }`}
               >
                 {step.done ? "✓" : i + 1}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-display font-semibold text-brand-ink">{step.label}</p>
-                <p className="text-xs text-brand-ink-soft mt-0.5">{step.description}</p>
+                <p className="font-display font-semibold text-brand-ink">
+                  {step.label}
+                </p>
+                {step.description && (
+                  <p className="text-xs text-brand-ink-soft mt-0.5">
+                    {step.description}
+                  </p>
+                )}
               </div>
-              <span className={`shrink-0 text-brand-ink-soft transition-transform ${isOpen ? "rotate-180" : ""}`}>▾</span>
+              <span
+                className={`shrink-0 text-brand-ink-soft transition-transform ${isOpen ? "rotate-180" : ""}`}
+              >
+                ▾
+              </span>
             </button>
 
             {isOpen && (
               <div className="px-5 pb-6 pt-1 border-t border-brand-line bg-brand-bg">
                 <div className="pt-5">
-                  {step.key === "perfil" && <CreatorProfileStepForm {...profileStepProps} onSaved={() => goToNext("perfil")} />}
-                  {step.key === "pago" && <PaymentForm {...paymentStepProps} onSaved={() => goToNext("pago")} />}
-                  {step.key === "marcas" && <CreatorJoinBrandsStep {...joinStepProps} />}
-                  {step.key === "vitrina" && <CreatorStorefrontStep {...storefrontStepProps} onSaved={() => goToNext("vitrina")} />}
+                  {step.key === "perfil" && (
+                    <CreatorProfileStepForm
+                      {...profileStepProps}
+                      onSaved={() => goToNext("perfil")}
+                    />
+                  )}
+                  {step.key === "pago" && (
+                    <PaymentForm
+                      {...paymentStepProps}
+                      onSaved={() => goToNext("pago")}
+                    />
+                  )}
+                  {step.key === "marcas" && (
+                    <CreatorJoinBrandsStep {...joinStepProps} />
+                  )}
+                  {step.key === "vitrina" && (
+                    <CreatorStorefrontStep
+                      {...storefrontStepProps}
+                      onSaved={() => goToNext("vitrina")}
+                    />
+                  )}
                 </div>
 
                 {!step.done && (

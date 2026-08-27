@@ -12,7 +12,12 @@ export type LivePreviewItem = {
 export type LivePreviewCollection = {
   id: string;
   name: string;
-  items: { id: string; name: string; imageUrl: string | null; brandName: string }[];
+  items: {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    brandName: string;
+  }[];
 };
 
 /// Espejo compacto de /c/[slug]/page.tsx — mismo sistema de paleta/fuente,
@@ -53,16 +58,25 @@ export function VitrinaLivePreview({
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-accent" />
         </span>
-        <p className="text-xs font-medium text-brand-ink-soft">Vista previa en vivo</p>
+        <p className="text-sm font-semibold text-brand-ink">
+          Vista previa en vivo de tu vitrina
+        </p>
       </div>
 
       {/* Marco tipo teléfono — mismo espíritu que se ve en otras
           plataformas de link-in-bio: chico, angosto, no compite con el
           formulario. */}
-      <div className="rounded-[26px] p-1.5 bg-brand-ink/85 shadow-md mx-auto" style={{ width: 200 }}>
+      <div
+        className="rounded-[26px] p-1.5 bg-brand-ink/85 shadow-md mx-auto"
+        style={{ width: 200 }}
+      >
         <div
           className="rounded-[20px] overflow-hidden max-h-[420px] overflow-y-auto"
-          style={{ background: palette.bg, fontFamily: font.stack, color: palette.ink }}
+          style={{
+            background: palette.bg,
+            fontFamily: font.stack,
+            color: palette.ink,
+          }}
         >
           <div className="px-3 py-5 text-center">
             {photoUrl ? (
@@ -76,7 +90,10 @@ export function VitrinaLivePreview({
             ) : (
               <div
                 className="w-9 h-9 rounded-full mx-auto mb-2 flex items-center justify-center font-semibold text-xs"
-                style={{ background: palette.accentSoft, color: palette.accent }}
+                style={{
+                  background: palette.accentSoft,
+                  color: palette.accent,
+                }}
               >
                 {displayName[0]?.toUpperCase() ?? "?"}
               </div>
@@ -85,12 +102,18 @@ export function VitrinaLivePreview({
               {displayName}
             </p>
             {headline && (
-              <p className="text-xs font-semibold mt-1" style={{ color: palette.ink }}>
+              <p
+                className="text-xs font-semibold mt-1"
+                style={{ color: palette.ink }}
+              >
                 {headline}
               </p>
             )}
             {bio && (
-              <p className="text-[10px] mt-1" style={{ color: palette.inkSoft }}>
+              <p
+                className="text-[10px] mt-1"
+                style={{ color: palette.inkSoft }}
+              >
                 {bio}
               </p>
             )}
@@ -99,7 +122,10 @@ export function VitrinaLivePreview({
                 colecciones debajo. */}
             <div className="space-y-2 mt-4 text-left">
               {visibleItems.length === 0 ? (
-                <p className="text-[10px] text-center" style={{ color: palette.inkSoft }}>
+                <p
+                  className="text-[10px] text-center"
+                  style={{ color: palette.inkSoft }}
+                >
                   Próximamente más marcas por aquí.
                 </p>
               ) : (
@@ -107,27 +133,46 @@ export function VitrinaLivePreview({
                   <div
                     key={item.id}
                     className="rounded-lg p-2"
-                    style={{ background: palette.surface, border: `1px solid ${palette.accentSoft}` }}
+                    style={{
+                      background: palette.surface,
+                      border: `1px solid ${palette.accentSoft}`,
+                    }}
                   >
                     <div className="flex items-center gap-1.5 mb-1">
                       {item.logoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element -- vista previa, mismo logo de la vitrina real
-                        <img src={item.logoUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                        <img
+                          src={item.logoUrl}
+                          alt=""
+                          className="w-4 h-4 rounded-full object-cover shrink-0"
+                        />
                       ) : (
                         <div
                           className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center text-[8px] font-semibold"
-                          style={{ background: palette.accentSoft, color: palette.accent }}
+                          style={{
+                            background: palette.accentSoft,
+                            color: palette.accent,
+                          }}
                         >
                           {item.brandName[0]?.toUpperCase()}
                         </div>
                       )}
-                      <p className="text-[10px] font-semibold truncate" style={{ color: palette.ink }}>
+                      <p
+                        className="text-[10px] font-semibold truncate"
+                        style={{ color: palette.ink }}
+                      >
                         {item.brandName}
                       </p>
                     </div>
-                    <p className="text-[9px]" style={{ color: palette.inkSoft }}>
+                    <p
+                      className="text-[9px]"
+                      style={{ color: palette.inkSoft }}
+                    >
                       {item.discountPercent}% con{" "}
-                      <span className="font-mono font-medium" style={{ color: palette.accent }}>
+                      <span
+                        className="font-mono font-medium"
+                        style={{ color: palette.accent }}
+                      >
                         {item.discountCode}
                       </span>
                     </p>
@@ -140,7 +185,10 @@ export function VitrinaLivePreview({
               <div className="space-y-3 mt-4 text-left">
                 {visibleCollections.map((c) => (
                   <div key={c.id}>
-                    <p className="text-[10px] font-semibold mb-1" style={{ color: palette.ink }}>
+                    <p
+                      className="text-[10px] font-semibold mb-1"
+                      style={{ color: palette.ink }}
+                    >
                       {c.name}
                     </p>
                     <div className="grid grid-cols-2 gap-1">
@@ -148,18 +196,34 @@ export function VitrinaLivePreview({
                         <div
                           key={item.id}
                           className="rounded-md overflow-hidden"
-                          style={{ background: palette.surface, border: `1px solid ${palette.accentSoft}` }}
+                          style={{
+                            background: palette.surface,
+                            border: `1px solid ${palette.accentSoft}`,
+                          }}
                         >
                           {item.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element -- vista previa, misma foto del producto real
-                            <img src={item.imageUrl} alt="" className="w-full aspect-square object-cover" />
+                            <img
+                              src={item.imageUrl}
+                              alt=""
+                              className="w-full aspect-square object-cover"
+                            />
                           ) : (
-                            <div className="w-full aspect-square" style={{ background: palette.accentSoft }} />
+                            <div
+                              className="w-full aspect-square"
+                              style={{ background: palette.accentSoft }}
+                            />
                           )}
-                          <p className="text-[8px] px-1 pt-0.5 truncate" style={{ color: palette.inkSoft }}>
+                          <p
+                            className="text-[8px] px-1 pt-0.5 truncate"
+                            style={{ color: palette.inkSoft }}
+                          >
                             {item.brandName}
                           </p>
-                          <p className="text-[9px] px-1 pb-1 font-medium truncate" style={{ color: palette.ink }}>
+                          <p
+                            className="text-[9px] px-1 pb-1 font-medium truncate"
+                            style={{ color: palette.ink }}
+                          >
                             {item.name}
                           </p>
                         </div>

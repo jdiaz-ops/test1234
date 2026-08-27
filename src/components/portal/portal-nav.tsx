@@ -31,16 +31,21 @@ const cuentaSubItems = [
 
 const trailingItems = [
   { href: "/creador/notificaciones", label: "Notificaciones" },
-  { href: "/creador/aprende", label: "Marketing de afiliados" },
 ];
 
 function isActive(pathname: string, href: string) {
   return href === "/creador" ? pathname === href : pathname.startsWith(href);
 }
 
-export function PortalNav({ onboardingRemaining = 0 }: { onboardingRemaining?: number }) {
+export function PortalNav({
+  onboardingRemaining = 0,
+}: {
+  onboardingRemaining?: number;
+}) {
   const pathname = usePathname();
-  const cuentaHasActiveChild = cuentaSubItems.some((i) => isActive(pathname, i.href));
+  const cuentaHasActiveChild = cuentaSubItems.some((i) =>
+    isActive(pathname, i.href),
+  );
   const [cuentaOpen, setCuentaOpen] = useState(cuentaHasActiveChild);
   const cuentaExpanded = cuentaOpen || cuentaHasActiveChild;
 
@@ -68,7 +73,12 @@ export function PortalNav({ onboardingRemaining = 0 }: { onboardingRemaining?: n
 
   return (
     <nav className="flex flex-col gap-0.5">
-      {flatItems.map((item) => renderLink(item, item.href === "/creador/onboarding" ? onboardingRemaining : 0))}
+      {flatItems.map((item) =>
+        renderLink(
+          item,
+          item.href === "/creador/onboarding" ? onboardingRemaining : 0,
+        ),
+      )}
 
       <button
         type="button"
@@ -80,7 +90,11 @@ export function PortalNav({ onboardingRemaining = 0 }: { onboardingRemaining?: n
         }`}
       >
         Cuenta
-        <span className={`text-xs transition-transform ${cuentaExpanded ? "rotate-180" : ""}`}>▾</span>
+        <span
+          className={`text-xs transition-transform ${cuentaExpanded ? "rotate-180" : ""}`}
+        >
+          ▾
+        </span>
       </button>
       {cuentaExpanded && (
         <div className="flex flex-col gap-0.5 pl-3 border-l border-brand-line ml-3">

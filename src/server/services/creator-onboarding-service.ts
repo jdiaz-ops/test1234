@@ -31,31 +31,38 @@ export async function getCreatorOnboardingStatus(profile: CreatorProfile) {
     {
       key: "perfil",
       label: "Tu perfil",
-      description: "Username, redes sociales y categorías de interés.",
+      description: "",
       done: interestCount > 0,
     },
     {
       key: "pago",
       label: "Cómo te pagamos",
-      description: "Tu identidad y cuenta bancaria o llave Bre-B para transferirte.",
-      done: Boolean(profile.legalName && profile.phone && profile.documentId) && payoutReady,
+      description: "",
+      done:
+        Boolean(profile.legalName && profile.phone && profile.documentId) &&
+        payoutReady,
     },
     {
       key: "marcas",
       label: "Únete a marcas",
-      description: "Elige las marcas que quieres representar y empieza a generar comisión.",
+      description: "",
       done: enrollmentCount > 0,
     },
     {
       key: "vitrina",
       label: "Tu vitrina",
-      description: "Elige cómo se ve tu página pública y consigue tu link para compartir.",
+      description: "",
       done: Boolean(profile.storefrontHeadline),
     },
   ];
 
   const completedCount = steps.filter((s) => s.done).length;
-  return { steps, complete: completedCount === steps.length, completedCount, total: steps.length };
+  return {
+    steps,
+    complete: completedCount === steps.length,
+    completedCount,
+    total: steps.length,
+  };
 }
 
 const REMINDER_1_DAYS = 3;
@@ -73,16 +80,30 @@ function daysAgo(days: number) {
 /// sendChallengeUrgencyReminders.
 export async function sendOnboardingReminders() {
   const round1 = await prisma.creatorProfile.findMany({
-    where: { createdAt: { lte: daysAgo(REMINDER_1_DAYS) }, onboardingReminder1SentAt: null },
+    where: {
+      createdAt: { lte: daysAgo(REMINDER_1_DAYS) },
+      onboardingReminder1SentAt: null,
+    },
     include: { user: true },
   });
   const round2 = await prisma.creatorProfile.findMany({
-    where: { createdAt: { lte: daysAgo(REMINDER_2_DAYS) }, onboardingReminder2SentAt: null },
+    where: {
+      createdAt: { lte: daysAgo(REMINDER_2_DAYS) },
+      onboardingReminder2SentAt: null,
+    },
     include: { user: true },
   });
 
-  const sent1 = await processReminderRound(round1, "onboardingReminder1SentAt", 1);
-  const sent2 = await processReminderRound(round2, "onboardingReminder2SentAt", 2);
+  const sent1 = await processReminderRound(
+    round1,
+    "onboardingReminder1SentAt",
+    1,
+  );
+  const sent2 = await processReminderRound(
+    round2,
+    "onboardingReminder2SentAt",
+    2,
+  );
 
   return { sentCount: sent1 + sent2 };
 }
@@ -90,7 +111,7 @@ export async function sendOnboardingReminders() {
 async function processReminderRound(
   candidates: (CreatorProfile & { user: { email: string } })[],
   field: "onboardingReminder1SentAt" | "onboardingReminder2SentAt",
-  round: 1 | 2
+  round: 1 | 2,
 ) {
   let sentCount = 0;
 
@@ -99,11 +120,16 @@ async function processReminderRound(
     const now = new Date();
 
     if (status.complete) {
-      await prisma.creatorProfile.update({ where: { id: profile.id }, data: { [field]: now } });
+      await prisma.creatorProfile.update({
+        where: { id: profile.id },
+        data: { [field]: now },
+      });
       continue;
     }
 
-    const missingLabels = status.steps.filter((s) => !s.done).map((s) => s.label);
+    const missingLabels = status.steps
+      .filter((s) => !s.done)
+      .map((s) => s.label);
 
     await createNotification(
       profile.userId,
@@ -114,10 +140,13 @@ async function processReminderRound(
           displayName: profile.displayName,
           missingLabels,
           round,
-        })
+        }),
     );
 
-    await prisma.creatorProfile.update({ where: { id: profile.id }, data: { [field]: now } });
+    await prisma.creatorProfile.update({
+      where: { id: profile.id },
+      data: { [field]: now },
+    });
     sentCount++;
   }
 
