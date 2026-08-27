@@ -3,7 +3,12 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
-import { IconArrowRight, IconCheck, IconPhoto, IconProduct } from "@/components/marketing/icons";
+import {
+  IconArrowRight,
+  IconCheck,
+  IconPhoto,
+  IconProduct,
+} from "@/components/marketing/icons";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
 
 // Metadata propia — sin esto la página hereda el título/descripción
@@ -36,11 +41,31 @@ const confianza = ["Sin mínimo de seguidores", "Pago mensual de comisiones"];
 // (círculo con iniciales) — no es una ilustración inventada, es
 // literalmente cómo se ve hoy una marca sin logo subido.
 const previewOfertas = [
-  { marca: "Aurora Beauty", categoria: "Skincare", web: "aurorabeauty.co", descuento: 10, comision: 6 },
-  { marca: "Bruma Cosmética", categoria: "Maquillaje", web: "brumacosmetica.co", descuento: 10, comision: 7.5 },
+  {
+    marca: "Aurora Beauty",
+    categoria: "Skincare",
+    web: "aurorabeauty.co",
+    descuento: 10,
+    comision: 6,
+  },
+  {
+    marca: "Bruma Cosmética",
+    categoria: "Maquillaje",
+    web: "brumacosmetica.co",
+    descuento: 10,
+    comision: 7.5,
+  },
 ];
 
-const previewCodigos = [{ marca: "Aurora Beauty", code: "VALE10", link: "aurorabeauty.co/VALE10", descuento: 10, comision: 6 }];
+const previewCodigos = [
+  {
+    marca: "Aurora Beauty",
+    code: "VALE10",
+    link: "aurorabeauty.co/VALE10",
+    descuento: 10,
+    comision: 6,
+  },
+];
 
 const previewVitrinaMarcas = [
   { marca: "Aurora Beauty", descuento: 10, code: "VALE10" },
@@ -52,13 +77,29 @@ const previewColeccion = {
   descripcion: "Lo que uso todos los días",
   productos: [
     { marca: "Aurora Beauty", nombre: "Sérum vitamina C", precio: "$65.000" },
-    { marca: "Bruma Cosmética", nombre: "Bruma facial hidratante", precio: "$42.000" },
+    {
+      marca: "Bruma Cosmética",
+      nombre: "Bruma facial hidratante",
+      precio: "$42.000",
+    },
   ],
 };
 
 const previewTransacciones = [
-  { marca: "Aurora Beauty", fecha: "12 ago", venta: "$95.000", comision: "$5.700", estado: "Pagada" },
-  { marca: "Bruma Cosmética", fecha: "10 ago", venta: "$120.000", comision: "$9.000", estado: "Pagada" },
+  {
+    marca: "Aurora Beauty",
+    fecha: "12 ago",
+    venta: "$95.000",
+    comision: "$5.700",
+    estado: "Pagada",
+  },
+  {
+    marca: "Bruma Cosmética",
+    fecha: "10 ago",
+    venta: "$120.000",
+    comision: "$9.000",
+    estado: "Pagada",
+  },
 ];
 
 // Respuestas basadas en la lógica real de la plataforma (mismo
@@ -69,7 +110,8 @@ const previewTransacciones = [
 const faq = [
   {
     pregunta: "¿Cuánto cuesta unirme a Marcolini?",
-    respuesta: "Nada. Es 100% gratis — nunca pagas por pertenecer a la red ni por unirte a una marca.",
+    respuesta:
+      "Nada. Es 100% gratis — nunca pagas por pertenecer a la red ni por unirte a una marca.",
   },
   {
     pregunta: "¿Cuándo y cómo me pagan?",
@@ -78,11 +120,13 @@ const faq = [
   },
   {
     pregunta: "¿Necesito un mínimo de seguidores?",
-    respuesta: "No. No hay un mínimo de audiencia — cualquier creador de contenido puede unirse.",
+    respuesta:
+      "No. No hay un mínimo de audiencia — cualquier creador de contenido puede unirse.",
   },
   {
     pregunta: "¿Puedo unirme a varias marcas a la vez?",
-    respuesta: "Sí, a todas las que quieras. Cada marca te da su propio código y su propia comisión.",
+    respuesta:
+      "Sí, a todas las que quieras. Cada marca te da su propio código y su propia comisión.",
   },
   {
     pregunta: "¿Qué pasa si una marca no acepta mi solicitud?",
@@ -120,7 +164,10 @@ export default function ParaCreadoresPage() {
           <div
             aria-hidden
             className="pointer-events-none absolute -top-32 -right-20 h-[420px] w-[560px] rounded-full opacity-50 blur-3xl"
-            style={{ background: "radial-gradient(closest-side, var(--brand-accent-soft), transparent)" }}
+            style={{
+              background:
+                "radial-gradient(closest-side, var(--brand-accent-soft), transparent)",
+            }}
           />
           <div className="relative max-w-6xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-14 items-center">
             <div className="text-center lg:text-left">
@@ -137,8 +184,8 @@ export default function ParaCreadoresPage() {
                 Convierte tu contenido e influencia en dinero
               </h1>
               <p className="text-brand-accent text-base sm:text-xl font-semibold mb-8 text-balance max-w-lg mx-auto lg:mx-0">
-                Obtén códigos de descuento para tu comunidad y gana una comisión por cada compra
-                que realicen con ellos.
+                Obtén códigos de descuento para tu comunidad y gana una comisión
+                por cada compra que realicen con ellos.
               </p>
               <Link
                 href="/registro/creador"
@@ -150,7 +197,10 @@ export default function ParaCreadoresPage() {
               {/* Checklist de confianza — mismo patrón que /para-marcas. */}
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 mt-5">
                 {confianza.map((texto) => (
-                  <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
+                  <span
+                    key={texto}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink"
+                  >
                     <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
                     {texto}
                   </span>
@@ -161,20 +211,36 @@ export default function ParaCreadoresPage() {
             <div className="py-8 px-6">
               <div className="relative max-w-sm mx-auto">
                 <div className="rounded-2xl bg-brand-surface border border-brand-line p-5 sm:p-6 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)]">
-                  <p className="text-xs text-brand-ink-soft mb-2.5">Tu resumen</p>
+                  <p className="text-xs text-brand-ink-soft mb-2.5">
+                    Tu resumen
+                  </p>
                   <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-2.5">
-                    <p className="text-xs text-brand-ink-soft mb-0.5">Comisión confirmada</p>
-                    <p className="font-display text-2xl font-bold text-brand-accent">$340.000</p>
-                    <p className="text-xs text-brand-ink font-medium mt-0.5">lista para tu próximo pago</p>
+                    <p className="text-xs text-brand-ink-soft mb-0.5">
+                      Comisión confirmada
+                    </p>
+                    <p className="font-display text-2xl font-bold text-brand-accent">
+                      $340.000
+                    </p>
+                    <p className="text-xs text-brand-ink font-medium mt-0.5">
+                      lista para tu próximo pago
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-lg bg-brand-bg px-3 py-2">
-                      <p className="font-mono text-base font-medium text-brand-ink leading-tight">15 sep</p>
-                      <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Próximo pago</p>
+                      <p className="font-mono text-base font-medium text-brand-ink leading-tight">
+                        15 sep
+                      </p>
+                      <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">
+                        Próximo pago
+                      </p>
                     </div>
                     <div className="rounded-lg bg-brand-bg px-3 py-2">
-                      <p className="font-mono text-base font-medium text-brand-ink leading-tight">$1.820.000</p>
-                      <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">Pagado este año</p>
+                      <p className="font-mono text-base font-medium text-brand-ink leading-tight">
+                        $1.820.000
+                      </p>
+                      <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">
+                        Pagado este año
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -200,8 +266,12 @@ export default function ParaCreadoresPage() {
                     ))}
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-brand-ink leading-tight">3 creadores</p>
-                    <p className="text-[11px] text-brand-accent font-medium leading-tight">generando comisión</p>
+                    <p className="text-xs font-medium text-brand-ink leading-tight">
+                      3 creadores
+                    </p>
+                    <p className="text-[11px] text-brand-accent font-medium leading-tight">
+                      generando comisión
+                    </p>
                   </div>
                 </div>
 
@@ -209,17 +279,24 @@ export default function ParaCreadoresPage() {
                     /para-marcas, esta vez sobre las ventas propias del
                     creador. */}
                 <div className="hidden sm:block absolute bottom-0 right-0 translate-x-2/3 translate-y-1/2 z-10 rounded-xl bg-brand-surface border border-brand-line shadow-lg px-3.5 py-3">
-                  <p className="text-[11px] text-brand-ink-soft mb-1.5">Ventas del mes</p>
+                  <p className="text-[11px] text-brand-ink-soft mb-1.5">
+                    Ventas del mes
+                  </p>
                   <div className="flex items-end gap-1 h-8 mb-1">
                     {[4, 6, 5, 8, 9, 11, 13].map((h, i) => (
                       <div
                         key={i}
                         className="w-1.5 rounded-full bg-brand-accent"
-                        style={{ height: `${h * 2.4}px`, opacity: 0.4 + (i / 6) * 0.6 }}
+                        style={{
+                          height: `${h * 2.4}px`,
+                          opacity: 0.4 + (i / 6) * 0.6,
+                        }}
                       />
                     ))}
                   </div>
-                  <p className="text-xs font-semibold text-brand-accent">↑ 28% este mes</p>
+                  <p className="text-xs font-semibold text-brand-accent">
+                    ↑ 28% este mes
+                  </p>
                 </div>
               </div>
             </div>
@@ -233,8 +310,8 @@ export default function ParaCreadoresPage() {
             de pagos. */}
         <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
           <p className="font-display text-xl sm:text-2xl font-bold text-brand-ink text-center max-w-2xl mx-auto mb-12 text-balance">
-            Ya recomiendas marcas todos los días. Con Marcolini, conviertes esas recomendaciones en
-            ingresos.
+            Ya recomiendas marcas todos los días. Con Marcolini, conviertes esas
+            recomendaciones en ingresos.
           </p>
 
           {/* Comparación de riesgo, espejo de la de /para-marcas ("Un Reel
@@ -248,20 +325,34 @@ export default function ParaCreadoresPage() {
                 <span className="w-6 h-6 rounded-full border border-brand-line text-brand-ink-soft flex items-center justify-center text-xs shrink-0">
                   ✕
                 </span>
-                <span className="font-medium text-brand-ink-soft">Sin Marcolini</span>
+                <span className="font-medium text-brand-ink-soft">
+                  Sin Marcolini
+                </span>
               </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-brand-ink-soft">Recomiendas un producto</span>
-                  <span className="font-mono text-sm font-semibold text-brand-ink">$0</span>
+                  <span className="text-sm text-brand-ink-soft">
+                    Recomiendas un producto
+                  </span>
+                  <span className="font-mono text-sm font-semibold text-brand-ink">
+                    $0
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-brand-ink-soft">Tu comunidad compra</span>
-                  <span className="font-mono text-sm font-semibold text-brand-ink">$0</span>
+                  <span className="text-sm text-brand-ink-soft">
+                    Tu comunidad compra
+                  </span>
+                  <span className="font-mono text-sm font-semibold text-brand-ink">
+                    $0
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-brand-ink-soft">Seguimiento</span>
-                  <span className="text-sm font-semibold text-brand-ink">Ninguno</span>
+                  <span className="text-sm text-brand-ink-soft">
+                    Seguimiento
+                  </span>
+                  <span className="text-sm font-semibold text-brand-ink">
+                    Ninguno
+                  </span>
                 </div>
               </div>
             </div>
@@ -271,20 +362,30 @@ export default function ParaCreadoresPage() {
                 <span className="w-6 h-6 rounded-full bg-brand-accent text-white flex items-center justify-center shrink-0">
                   <IconCheck className="w-3.5 h-3.5" />
                 </span>
-                <span className="font-display font-semibold text-brand-accent">Con Marcolini</span>
+                <span className="font-display font-semibold text-brand-accent">
+                  Con Marcolini
+                </span>
               </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-brand-ink-soft">Recomiendas un producto</span>
+                  <span className="text-sm text-brand-ink-soft">
+                    Recomiendas un producto
+                  </span>
                   <IconCheck className="w-4 h-4 text-brand-ink shrink-0" />
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-brand-ink-soft">Generas una venta</span>
-                  <span className="text-sm font-semibold text-brand-ink">Comisión</span>
+                  <span className="text-sm text-brand-ink-soft">
+                    Generas una venta
+                  </span>
+                  <span className="text-sm font-semibold text-brand-ink">
+                    Comisión
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm text-brand-ink-soft">Cobro</span>
-                  <span className="text-sm font-semibold text-brand-ink">Automático</span>
+                  <span className="text-sm font-semibold text-brand-ink">
+                    Automático
+                  </span>
                 </div>
               </div>
             </div>
@@ -305,10 +406,15 @@ export default function ParaCreadoresPage() {
                 no quede tan larga. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Marketplace de marcas</p>
+                <p className="text-xs text-brand-ink-soft mb-4">
+                  Marketplace de marcas
+                </p>
                 <div className="space-y-3">
                   {previewOfertas.map((o) => (
-                    <div key={o.marca} className="rounded-xl bg-brand-bg px-4 py-3">
+                    <div
+                      key={o.marca}
+                      className="rounded-xl bg-brand-bg px-4 py-3"
+                    >
                       <BrandMiniProfile
                         companyName={o.marca}
                         description={o.categoria}
@@ -317,7 +423,9 @@ export default function ParaCreadoresPage() {
                       />
                       <div className="grid grid-cols-2 gap-2 mt-3">
                         <div className="rounded-lg bg-brand-surface px-2.5 py-2">
-                          <p className="font-mono text-base font-medium text-brand-ink leading-tight">{o.descuento}%</p>
+                          <p className="font-mono text-base font-medium text-brand-ink leading-tight">
+                            {o.descuento}%
+                          </p>
                           <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">
                             Descuento para tu comunidad
                           </p>
@@ -326,7 +434,9 @@ export default function ParaCreadoresPage() {
                           <p className="font-mono text-base font-medium text-brand-accent leading-tight">
                             {o.comision}%
                           </p>
-                          <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">Tu comisión por venta</p>
+                          <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">
+                            Tu comisión por venta
+                          </p>
                         </div>
                       </div>
                       <p className="w-full text-center bg-brand-accent text-white rounded-full px-4 py-2 text-sm font-medium mt-3">
@@ -341,9 +451,10 @@ export default function ParaCreadoresPage() {
                   Elige las marcas con las que quieres ganar dinero
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed mb-6">
-                  Explora el marketplace y descubre qué ofrece cada marca: el descuento que recibirá
-                  tu comunidad y la comisión que ganarás por cada venta. Únete a tantas marcas como
-                  quieras y empieza a compartir sus códigos y enlaces desde un solo lugar.
+                  Explora el marketplace y descubre qué ofrece cada marca: el
+                  descuento que recibirá tu comunidad y la comisión que ganarás
+                  por cada venta. Únete a tantas marcas como quieras y empieza a
+                  compartir sus códigos y enlaces desde un solo lugar.
                 </p>
                 <Link
                   href="/registro/creador"
@@ -365,19 +476,34 @@ export default function ParaCreadoresPage() {
                 marcas tenga la creadora. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Mis códigos y links</p>
+                <p className="text-xs text-brand-ink-soft mb-4">
+                  Mis códigos y links
+                </p>
                 <div className="space-y-4">
                   {previewCodigos.map((c) => (
-                    <div key={c.marca} className="rounded-xl border border-brand-line px-4 py-4">
-                      <p className="font-display font-semibold text-brand-ink mb-3">{c.marca}</p>
+                    <div
+                      key={c.marca}
+                      className="rounded-xl border border-brand-line px-4 py-4"
+                    >
+                      <p className="font-display font-semibold text-brand-ink mb-3">
+                        {c.marca}
+                      </p>
                       <div className="rounded-lg border border-brand-line px-3 py-2.5 mb-3 divide-y divide-brand-line">
                         <div className="pb-2">
-                          <span className="font-mono text-brand-accent font-medium">{c.code}</span>
-                          <p className="text-xs text-brand-ink-soft mt-0.5">Tu código para compartir</p>
+                          <span className="font-mono text-brand-accent font-medium">
+                            {c.code}
+                          </span>
+                          <p className="text-xs text-brand-ink-soft mt-0.5">
+                            Tu código para compartir
+                          </p>
                         </div>
                         <div className="pt-2">
-                          <span className="text-xs font-mono text-brand-ink block truncate">{c.link}</span>
-                          <p className="text-xs text-brand-ink-soft mt-0.5">Link de la tienda para compartir</p>
+                          <span className="text-xs font-mono text-brand-ink block truncate">
+                            {c.link}
+                          </span>
+                          <p className="text-xs text-brand-ink-soft mt-0.5">
+                            Link de la tienda para compartir
+                          </p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -407,10 +533,11 @@ export default function ParaCreadoresPage() {
                   Recibe un código y un enlace único para cada marca
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed mb-6">
-                  Cada vez que te unes a una marca obtienes tu propio código de descuento y un
-                  enlace personalizado. Compártelos en Instagram, TikTok, WhatsApp o donde quieras:
-                  las ventas quedan atribuidas automáticamente a tu perfil y tu comisión se registra
-                  sin tener que reclamar ni hacer seguimiento manual.
+                  Cada vez que te unes a una marca obtienes tu propio código de
+                  descuento y un enlace personalizado. Compártelos en Instagram,
+                  TikTok, WhatsApp o donde quieras: las ventas quedan atribuidas
+                  automáticamente a tu perfil y tu comisión se registra sin
+                  tener que reclamar ni hacer seguimiento manual.
                 </p>
                 <Link
                   href="/registro/creador"
@@ -434,21 +561,23 @@ export default function ParaCreadoresPage() {
                 tienda →"), y las mismas tarjetas de producto de las
                 colecciones (imagen, marca, nombre, precio, "Ver en
                 tienda →") — nada inventado. Las etiquetas de "códigos
-                activos" y "colecciones" salen del mockup como notas
-                flotantes a los lados (izquierda/derecha), centradas a
-                la altura de su zona y conectadas con una línea al
-                borde del mockup — en vez de vivir adentro como parte
-                de la interfaz. En mobile, sin espacio para flotar, la
-                misma nota baja al flujo normal justo encima de su
-                zona. */}
+                activos" y "colecciones" salen del mockup como burbujas
+                flotantes tipo satélite a los lados (izquierda/derecha)
+                — mismo tratamiento visual que los satélites del hero de
+                esta misma página (tarjeta blanca, borde, shadow-lg,
+                sobresaliendo del borde), centradas a la altura de su
+                zona. En mobile, sin espacio para flotar afuera del
+                mockup, la misma burbuja baja al flujo normal justo
+                encima de su zona. */}
             <div>
               <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-center mb-3">
                 Un solo link para todo lo que recomiendas
               </h3>
               <p className="text-brand-ink-soft text-center max-w-lg mx-auto mb-6">
-                Crea tu propia vitrina pública con tus marcas, códigos de descuento y colecciones de
-                productos favoritos en una sola página. Personalízala y ponla en la bio de
-                Instagram, TikTok o cualquier red para que tu comunidad encuentre todo lo que
+                Crea tu propia vitrina pública con tus marcas, códigos de
+                descuento y colecciones de productos favoritos en una sola
+                página. Personalízala y ponla en la bio de Instagram, TikTok o
+                cualquier red para que tu comunidad encuentre todo lo que
                 recomiendas desde un único enlace.
               </p>
               {/* "TU LINK" + el link en sí viven acá, arriba del CTA — es
@@ -458,7 +587,9 @@ export default function ParaCreadoresPage() {
                 <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5 mb-2.5">
                   TU LINK
                 </span>
-                <p className="font-mono text-base text-brand-accent">marcolini.lat/c/valentina</p>
+                <p className="font-mono text-base text-brand-accent">
+                  marcolini.lat/c/valentina
+                </p>
               </div>
               <div className="flex justify-center mb-10">
                 <Link
@@ -480,40 +611,48 @@ export default function ParaCreadoresPage() {
                   <div className="w-16 h-16 rounded-full bg-brand-accent-soft text-brand-accent flex items-center justify-center mx-auto mb-2.5">
                     <IconPhoto className="w-7 h-7" />
                   </div>
-                  <p className="font-display font-semibold text-brand-ink mb-2">@valentina</p>
+                  <p className="font-display font-semibold text-brand-ink mb-2">
+                    @valentina
+                  </p>
                   <p className="font-display text-lg font-semibold text-brand-ink text-balance">
                     Mis favoritos de skincare y beauty ✨
                   </p>
                 </div>
 
-                {/* Zona 2 — tus códigos activos. La nota flota lejos del
-                    mockup, centrada a la altura de esta zona (no
-                    pegada arriba), con una línea que la conecta
-                    directo con el borde — así se ve, a simple vista,
-                    a qué franja del mockup corresponde. */}
+                {/* Zona 2 — tus códigos activos. Burbuja flotante tipo
+                    satélite — mismo tratamiento visual que los satélites
+                    del hero de esta misma página (tarjeta blanca, borde,
+                    shadow-lg, sobresaliendo del borde) — en vez de una
+                    nota de texto conectada con una línea. En mobile, sin
+                    espacio para flotar afuera del mockup, la misma
+                    burbuja baja al flujo normal justo encima de su zona. */}
                 <div className="relative">
-                  {/* En mobile, sin espacio para flotar, la nota se
-                      convierte en su propia burbuja (mismo look que los
-                      satélites del hero: tarjeta blanca, borde, sombra)
-                      en vez de texto suelto sobre el fondo — en lg+ se
-                      despoja de esos estilos y vuelve a ser la nota
-                      flotante conectada con línea. */}
-                  <div className="mb-4 lg:mb-0 bg-brand-surface border border-brand-line shadow-lg rounded-2xl p-4 lg:bg-transparent lg:border-0 lg:shadow-none lg:rounded-none lg:p-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:right-full lg:w-64 lg:flex lg:items-center lg:gap-4">
-                    <div className="lg:text-right">
-                      <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
-                        TUS CÓDIGOS ACTIVOS
-                      </span>
-                      <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
-                        Todos tus códigos de descuento se organizan automáticamente en tu vitrina,
-                        para que tu comunidad siempre tenga acceso al código correcto de cada
-                        marca.
-                      </p>
-                    </div>
-                    <span aria-hidden className="hidden lg:block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40" />
+                  <div className="lg:hidden mb-4 bg-brand-surface border border-brand-line shadow-lg rounded-2xl p-4">
+                    <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
+                      TUS CÓDIGOS ACTIVOS
+                    </span>
+                    <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
+                      Todos tus códigos de descuento se organizan
+                      automáticamente en tu vitrina, para que tu comunidad
+                      siempre tenga acceso al código correcto de cada marca.
+                    </p>
+                  </div>
+                  <div className="hidden lg:block absolute top-1/2 left-0 -translate-x-2/3 -translate-y-1/2 z-10 w-64 rounded-2xl bg-brand-surface border border-brand-line shadow-lg p-4">
+                    <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5 mb-2">
+                      TUS CÓDIGOS ACTIVOS
+                    </span>
+                    <p className="text-sm text-brand-ink-soft leading-relaxed">
+                      Todos tus códigos de descuento se organizan
+                      automáticamente en tu vitrina, para que tu comunidad
+                      siempre tenga acceso al código correcto de cada marca.
+                    </p>
                   </div>
                   <div className="space-y-3 mb-6">
                     {previewVitrinaMarcas.map((m) => (
-                      <div key={m.marca} className="rounded-xl border border-brand-line bg-brand-bg px-4 py-3.5">
+                      <div
+                        key={m.marca}
+                        className="rounded-xl border border-brand-line bg-brand-bg px-4 py-3.5"
+                      >
                         <div className="flex items-center gap-2.5 mb-2">
                           <div className="w-8 h-8 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center shrink-0">
                             {m.marca
@@ -521,11 +660,16 @@ export default function ParaCreadoresPage() {
                               .map((w) => w[0])
                               .join("")}
                           </div>
-                          <p className="text-sm font-medium text-brand-ink">{m.marca}</p>
+                          <p className="text-sm font-medium text-brand-ink">
+                            {m.marca}
+                          </p>
                         </div>
                         <p className="text-xs text-brand-ink-soft mb-2.5">
-                          Obtén {m.descuento}% de descuento con esta marca usando mi código{" "}
-                          <span className="font-mono font-medium text-brand-accent">{m.code}</span>
+                          Obtén {m.descuento}% de descuento con esta marca
+                          usando mi código{" "}
+                          <span className="font-mono font-medium text-brand-accent">
+                            {m.code}
+                          </span>
                         </p>
                         <p className="text-center text-xs font-semibold text-white bg-brand-accent rounded-full py-2">
                           Ir a la tienda →
@@ -536,35 +680,56 @@ export default function ParaCreadoresPage() {
                 </div>
 
                 {/* Zona 3 — tus colecciones. Mismo tratamiento que la
-                    Zona 2, en espejo hacia la derecha. */}
+                    Zona 2 (burbuja tipo satélite), en espejo hacia la
+                    derecha. */}
                 <div className="relative">
-                  {/* Mismo tratamiento que la Zona 2: burbuja en mobile,
-                      nota flotante conectada con línea en lg+. */}
-                  <div className="mb-4 lg:mb-0 bg-brand-surface border border-brand-line shadow-lg rounded-2xl p-4 lg:bg-transparent lg:border-0 lg:shadow-none lg:rounded-none lg:p-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:w-64 lg:flex lg:items-center lg:gap-4">
-                    <span aria-hidden className="hidden lg:block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40" />
-                    <div>
-                      <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
-                        TUS COLECCIONES
-                      </span>
-                      <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
-                        Crea colecciones con tus productos favoritos y organízalos por tema, rutina
-                        o estilo. Comparte recomendaciones mucho más útiles y convierte tu vitrina
-                        en una verdadera guía de compra para tu comunidad.
-                      </p>
-                    </div>
+                  <div className="lg:hidden mb-4 bg-brand-surface border border-brand-line shadow-lg rounded-2xl p-4">
+                    <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
+                      TUS COLECCIONES
+                    </span>
+                    <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
+                      Crea colecciones con tus productos favoritos y organízalos
+                      por tema, rutina o estilo. Comparte recomendaciones mucho
+                      más útiles y convierte tu vitrina en una verdadera guía de
+                      compra para tu comunidad.
+                    </p>
                   </div>
-                  <p className="text-sm font-semibold text-brand-ink mb-0.5">{previewColeccion.nombre}</p>
-                  <p className="text-xs text-brand-ink-soft mb-3">{previewColeccion.descripcion}</p>
+                  <div className="hidden lg:block absolute top-1/2 right-0 translate-x-2/3 -translate-y-1/2 z-10 w-64 rounded-2xl bg-brand-surface border border-brand-line shadow-lg p-4">
+                    <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5 mb-2">
+                      TUS COLECCIONES
+                    </span>
+                    <p className="text-sm text-brand-ink-soft leading-relaxed">
+                      Crea colecciones con tus productos favoritos y organízalos
+                      por tema, rutina o estilo. Comparte recomendaciones mucho
+                      más útiles y convierte tu vitrina en una verdadera guía de
+                      compra para tu comunidad.
+                    </p>
+                  </div>
+                  <p className="text-sm font-semibold text-brand-ink mb-0.5">
+                    {previewColeccion.nombre}
+                  </p>
+                  <p className="text-xs text-brand-ink-soft mb-3">
+                    {previewColeccion.descripcion}
+                  </p>
                   <div className="grid grid-cols-2 gap-3">
                     {previewColeccion.productos.map((p) => (
-                      <div key={p.nombre} className="rounded-xl border border-brand-line overflow-hidden">
+                      <div
+                        key={p.nombre}
+                        className="rounded-xl border border-brand-line overflow-hidden"
+                      >
                         <div className="aspect-square bg-brand-bg flex items-center justify-center">
                           <IconProduct className="w-8 h-8 text-brand-ink-soft/35" />
                         </div>
                         <div className="p-2.5">
-                          <p className="text-[10px] text-brand-ink-soft mb-0.5">{p.marca}</p>
-                          <p className="text-xs font-medium text-brand-ink leading-snug mb-1.5">{p.nombre}</p>
-                          <p className="font-mono text-xs font-semibold text-brand-accent mb-2">{p.precio}</p>
+                          <p className="text-[10px] text-brand-ink-soft mb-0.5">
+                            {p.marca}
+                          </p>
+                          <p className="text-xs font-medium text-brand-ink leading-snug mb-1.5">
+                            {p.nombre}
+                          </p>
+                          <p className="font-mono text-xs font-semibold text-brand-accent mb-2">
+                            {p.precio}
+                          </p>
                           <p className="text-[10px] font-semibold text-center rounded-full py-1.5 bg-brand-accent-soft text-brand-accent">
                             Ver en tienda →
                           </p>
@@ -584,12 +749,21 @@ export default function ParaCreadoresPage() {
                   <span className="font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-3 py-1">
                     MISIÓN
                   </span>
-                  <span className="text-xs text-brand-accent font-medium">Activo</span>
+                  <span className="text-xs text-brand-accent font-medium">
+                    Activo
+                  </span>
                 </div>
-                <p className="font-display font-semibold text-brand-ink mb-1">Meta de agosto — Aurora Beauty</p>
-                <p className="text-xs text-brand-ink-soft mb-4">Meta $500.000 · Bono $50.000</p>
+                <p className="font-display font-semibold text-brand-ink mb-1">
+                  Meta de agosto — Aurora Beauty
+                </p>
+                <p className="text-xs text-brand-ink-soft mb-4">
+                  Meta $500.000 · Bono $50.000
+                </p>
                 <div className="h-2 rounded-full bg-brand-bg overflow-hidden mb-2">
-                  <div className="h-full rounded-full bg-brand-accent" style={{ width: "72%" }} />
+                  <div
+                    className="h-full rounded-full bg-brand-accent"
+                    style={{ width: "72%" }}
+                  />
                 </div>
                 <div className="flex items-center justify-between text-xs text-brand-ink-soft">
                   <span>$360.000 vendidos</span>
@@ -601,9 +775,10 @@ export default function ParaCreadoresPage() {
                   Gana bonos adicionales por cumplir metas de venta
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Además de tus comisiones, las marcas pueden lanzar campañas con objetivos y
-                  recompensas especiales. Sigue tu progreso en tiempo real y, cuando alcances la
-                  meta, el bono se acredita automáticamente a tu saldo junto con tus comisiones.
+                  Además de tus comisiones, las marcas pueden lanzar campañas
+                  con objetivos y recompensas especiales. Sigue tu progreso en
+                  tiempo real y, cuando alcances la meta, el bono se acredita
+                  automáticamente a tu saldo junto con tus comisiones.
                 </p>
               </div>
             </div>
@@ -619,17 +794,28 @@ export default function ParaCreadoresPage() {
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-2.5">Tu saldo</p>
                 <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-4">
-                  <p className="font-display text-2xl font-bold text-brand-ink">$1.248.000</p>
-                  <p className="text-sm font-semibold text-brand-accent mt-0.5">↑ 18% este mes</p>
+                  <p className="font-display text-2xl font-bold text-brand-ink">
+                    $1.248.000
+                  </p>
+                  <p className="text-sm font-semibold text-brand-accent mt-0.5">
+                    ↑ 18% este mes
+                  </p>
                 </div>
                 <div className="space-y-2">
                   {previewTransacciones.map((t) => (
-                    <div key={t.marca} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-2.5">
+                    <div
+                      key={t.marca}
+                      className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-2.5"
+                    >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-brand-ink truncate">{t.marca}</p>
+                        <p className="text-sm font-medium text-brand-ink truncate">
+                          {t.marca}
+                        </p>
                         <p className="text-xs text-brand-ink-soft">Comisión</p>
                       </div>
-                      <p className="text-sm font-mono font-medium text-emerald-600 shrink-0">+{t.comision}</p>
+                      <p className="text-sm font-mono font-medium text-emerald-600 shrink-0">
+                        +{t.comision}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -639,9 +825,10 @@ export default function ParaCreadoresPage() {
                   Lleva el control de tus comisiones en tiempo real
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed">
-                  Cada venta aparece automáticamente en tu panel con la marca, el valor de tu
-                  comisión, el estado del pago y tu saldo acumulado. Siempre sabrás cuánto has
-                  ganado, cuánto está pendiente y cuándo recibirás tu próximo pago.
+                  Cada venta aparece automáticamente en tu panel con la marca,
+                  el valor de tu comisión, el estado del pago y tu saldo
+                  acumulado. Siempre sabrás cuánto has ganado, cuánto está
+                  pendiente y cuándo recibirás tu próximo pago.
                 </p>
               </div>
             </div>
@@ -664,7 +851,10 @@ export default function ParaCreadoresPage() {
             <div
               aria-hidden
               className="pointer-events-none absolute -bottom-24 -left-24 h-[300px] w-[300px] rounded-full opacity-30 blur-3xl"
-              style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
+              style={{
+                background:
+                  "radial-gradient(closest-side, var(--brand-accent), transparent)",
+              }}
             />
             <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-9 text-balance">
               Convierte tu contenido e influencia en dinero.
