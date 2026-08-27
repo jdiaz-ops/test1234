@@ -55,12 +55,9 @@ export default function RegistroMarcaPage() {
 
   return (
     <div>
-      <h1 className="font-display text-lg font-semibold text-brand-ink text-center mb-1">
+      <h1 className="font-display text-lg font-semibold text-brand-ink text-center mb-6">
         Regístrate como Marca
       </h1>
-      <p className="text-sm text-brand-ink-soft text-center mb-6">
-        Solo pagas comisión cuando hay una venta real.
-      </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Nombre de la marca">

@@ -70,12 +70,9 @@ function RegistroCreadorForm() {
 
   return (
     <div>
-      <h1 className="font-display text-lg font-semibold text-brand-ink text-center mb-1">
+      <h1 className="font-display text-lg font-semibold text-brand-ink text-center mb-6">
         Regístrate como Creador
       </h1>
-      <p className="text-sm text-brand-ink-soft text-center mb-6">
-        Empieza a recomendar tus marcas favoritas — y a generar dinero gracias a tu audiencia.
-      </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Username (cómo te van a conocer)">
