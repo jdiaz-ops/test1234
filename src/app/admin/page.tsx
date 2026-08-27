@@ -29,33 +29,36 @@ export default async function AdminDashboardPage() {
         Marcolini en números
       </h1>
 
-      <div className="grid sm:grid-cols-4 gap-4 mb-10">
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+      {/* 2x2 en mobile (antes 4 tarjetas apiladas en una sola columna, una
+          debajo de la otra — mucho más largo de recorrer que una grilla
+          compacta); 4 en una fila desde sm+, como ya estaba. */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-10">
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
           <p className="text-xs text-brand-ink-soft mb-1">GMV total</p>
-          <p className="font-display text-xl font-semibold text-brand-ink">
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">
             {formatCOP(summary.gmv)}
           </p>
         </div>
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
           <p className="text-xs text-brand-ink-soft mb-1">
             Ingreso de plataforma
           </p>
-          <p className="font-display text-xl font-semibold text-brand-accent">
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-accent">
             {formatCOP(summary.platformRevenue)}
           </p>
         </div>
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
           <p className="text-xs text-brand-ink-soft mb-1">Marcas activas</p>
-          <p className="font-display text-xl font-semibold text-brand-ink">
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">
             {summary.activeBrandCount}
           </p>
           <p className="text-xs text-brand-ink-soft mt-1">
             +{summary.newBrandsThisMonth} este mes
           </p>
         </div>
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
           <p className="text-xs text-brand-ink-soft mb-1">Creadores</p>
-          <p className="font-display text-xl font-semibold text-brand-ink">
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">
             {summary.creatorCount}
           </p>
           <p className="text-xs text-brand-ink-soft mt-1">
