@@ -88,15 +88,21 @@ export function PortalShell({
             ${open ? "translate-x-0" : "-translate-x-full"}`}
         >
           <div className="flex items-center justify-between mb-8">
-            {/* Logo de texto sin cambios acá — este header vive dentro del
-                <aside>, que en desktop es el sidebar fijo de siempre (solo
-                se pidió cambiar la barra superior mobile, no el sidebar
-                de escritorio). */}
-            <Link
-              href={logoHref}
-              className="font-mono text-sm font-medium text-brand-accent tracking-wide"
-            >
-              {logoLabel}
+            {/* Este header vive dentro del <aside>, compartido entre el
+                drawer mobile y el sidebar fijo de desktop. En mobile
+                (drawer abierto) muestra el logo real; en desktop sigue
+                siendo el texto de siempre — no se pidió cambiar el
+                sidebar de escritorio. */}
+            <Link href={logoHref}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
+              <img
+                src="/marcolini-icon.png"
+                alt={logoLabel}
+                className="h-7 w-auto lg:hidden"
+              />
+              <span className="hidden lg:inline font-mono text-sm font-medium text-brand-accent tracking-wide">
+                {logoLabel}
+              </span>
             </Link>
             <button
               type="button"

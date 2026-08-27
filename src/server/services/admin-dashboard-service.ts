@@ -42,8 +42,12 @@ export async function getProfitabilityByMonth(monthsBack = 6) {
     months.push({ month: d, label: d.toLocaleDateString("es-CO", { month: "short", year: "2-digit" }) });
   }
 
-  const costs = await prisma.monthlyOperatingCost.findMany({
+  // Cada fila de MonthlyOperatingCost es un gasto puntual, no el total del
+  // mes — se agrupan acá para el total, y se devuelven también sueltas
+  // (costEntries) para que el panel pueda listar "en qué se fue la plata".
+  const costEntries = await prisma.monthlyOperatingCost.findMany({
     where: { month: { gte: months[0].month } },
+    orderBy: { createdAt: "desc" },
   });
 
   const rows = await Promise.all(
@@ -58,13 +62,15 @@ export async function getProfitabilityByMonth(monthsBack = 6) {
       });
       const income =
         Number(revenue._sum.platformFeeAmount ?? 0) + Number(revenue._sum.platformFeeVatAmount ?? 0);
-      const cost = costs.find((c) => c.month.getTime() === month.getTime());
+      const entriesThisMonth = costEntries.filter((c) => c.month.getTime() === month.getTime());
+      const cost = entriesThisMonth.reduce((sum, c) => sum + Number(c.amount), 0);
       return {
         label,
         month: month.toISOString(),
         income,
-        cost: cost ? Number(cost.amount) : 0,
-        hasCostEntry: !!cost,
+        cost,
+        hasCostEntry: entriesThisMonth.length > 0,
+        costEntries: entriesThisMonth.map((c) => ({ id: c.id, label: c.label, amount: Number(c.amount) })),
       };
     })
   );
@@ -72,17 +78,20 @@ export async function getProfitabilityByMonth(monthsBack = 6) {
   return rows;
 }
 
-/// Suma `amountToAdd` al costo ya registrado del mes (o lo crea si es el
-/// primer gasto del mes) — antes esto SOBREESCRIBÍA el monto, obligando al
-/// admin a ir sumando los gastos a mano y siempre cargar la cifra ya
-/// acumulada. Ahora cada gasto que registra se acumula solo.
-export async function addMonthlyCost(month: Date, amountToAdd: number, note?: string) {
+/// Registra UN gasto puntual del mes (ej. "Compra del dominio" $150.000) —
+/// no sobreescribe ni acumula en un solo número: cada llamada crea una
+/// fila nueva, y el total del mes sale de sumarlas todas (ver
+/// getProfitabilityByMonth). Así el admin puede ver después en qué se fue
+/// la plata, no solo el total.
+export async function createMonthlyCostEntry(month: Date, label: string, amount: number) {
   const normalized = new Date(month.getFullYear(), month.getMonth(), 1);
-  return prisma.monthlyOperatingCost.upsert({
-    where: { month: normalized },
-    update: { amount: { increment: amountToAdd }, ...(note ? { note } : {}) },
-    create: { month: normalized, amount: amountToAdd, note },
+  return prisma.monthlyOperatingCost.create({
+    data: { month: normalized, label, amount },
   });
+}
+
+export async function deleteMonthlyCostEntry(id: string) {
+  await prisma.monthlyOperatingCost.delete({ where: { id } });
 }
 
 /// Insight de mercado (solo para el admin, por ahora) — rangos de precio y

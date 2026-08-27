@@ -169,13 +169,13 @@ model CreatorProfile {
   /// muestra en la vitrina pública (ahí solo se ve displayName, que es como
   /// el creador es conocido — ej. "Laura" en la vida real, "dani15" en
   /// redes/vitrina).
-  legalName String?
+  legalName  String?
   /// Cédula del titular — la piden bancos/Bre-B para validar que la cuenta
   /// realmente es de esa persona antes de dejar transferir.
   documentId String?
   /// Celular/WhatsApp — para que una marca pueda coordinar logística
   /// (envío de producto, campañas) sin tener que pedirlo por chat.
-  phone String?
+  phone      String?
 
   /// Confirmación de Términos y Condiciones — se pone al registrarse, igual
   /// que BrandProfile.termsAcceptedAt.
@@ -213,8 +213,8 @@ model CreatorProfile {
   /// Personalización de la vitrina pública — paletas y fuentes prearmadas
   /// (ver src/lib/creator-storefront-themes.ts para las opciones válidas),
   /// nunca color/fuente libres, para que siempre se vea bien combinado.
-  storefrontPalette String  @default("rosa-marcolini")
-  storefrontFont    String  @default("clasica")
+  storefrontPalette  String  @default("rosa-marcolini")
+  storefrontFont     String  @default("clasica")
   storefrontHeadline String?
 
   // Datos de pago para el desembolso — el pago en sí es manual (ver
@@ -567,8 +567,8 @@ model Challenge {
   /// notifyCreatorsCampaignStarted en challenge-service.ts.
   startNotificationSent Boolean @default(false)
 
-  rewards       ChallengeReward[]
-  urgencyPings  ChallengeUrgencyPing[]
+  rewards      ChallengeReward[]
+  urgencyPings ChallengeUrgencyPing[]
 
   createdAt DateTime @default(now())
 }
@@ -982,19 +982,21 @@ model PlatformConfig {
   updatedAt DateTime @updatedAt
 }
 
-/// Costos operativos que el admin ingresa manualmente cada mes (hosting,
-/// herramientas, equipo...) — el ingreso (tarifa de plataforma) ya se
-/// calcula solo; el costo no puede saberlo el sistema por su cuenta, así
-/// que alimenta el Panel de Rentabilidad del Dashboard Global.
+/// Costos operativos que el admin ingresa manualmente — cada fila es UN
+/// gasto puntual (ej. "Compra del dominio" $150.000, "Pago servidor"
+/// $50.000), no el total del mes: el Panel de Rentabilidad suma todas las
+/// filas de un mes para el total y las lista aparte, para poder
+/// identificar en qué se fue la plata. El ingreso (tarifa de plataforma)
+/// ya se calcula solo; el costo no puede saberlo el sistema por su cuenta.
 model MonthlyOperatingCost {
   id     String   @id @default(cuid())
   month  DateTime // se guarda como el día 1 del mes correspondiente
+  label  String // qué es el gasto — ej. "Compra del dominio", "Pago servidor"
   amount Decimal  @db.Decimal(12, 2)
-  note   String?
 
   createdAt DateTime @default(now())
 
-  @@unique([month])
+  @@index([month])
 }
 
 /// Contenido legal editable desde el Panel Admin (ej. Términos y
@@ -1072,11 +1074,11 @@ model NotificationTypeConfig {
   id String @id @default(cuid())
 
   /// Coincide 1 a 1 con el `type` que se guarda en Notification.
-  key   String               @unique
-  label String // nombre legible para el panel admin, ej. "Venta generada (creador)"
+  key      String               @unique
+  label    String // nombre legible para el panel admin, ej. "Venta generada (creador)"
   audience NotificationAudience
 
-  enabled Boolean      @default(true)
+  enabled Boolean          @default(true)
   mode    NotificationMode @default(AUTOMATIC)
 
   /// Canal "App": queda en su bandeja de Notificaciones dentro de Marcolini
@@ -1142,7 +1144,7 @@ enum FraudFlagStatus {
 }
 
 model FraudFlag {
-  id String @id @default(cuid())
+  id            String  @id @default(cuid())
   /// Sin relación real en el schema (id suelto) — no todos los detectores
   /// tienen una venta puntual de la cual colgarse (ej. cuentas duplicadas).
   /// Null cuando la señal no viene de una transacción específica.
@@ -1244,9 +1246,9 @@ model Product {
   /// no duplicarlo en cada sincronización (ver @@unique abajo).
   externalId String
 
-  name     String
-  imageUrl String?
-  price    Decimal @db.Decimal(12, 2)
+  name           String
+  imageUrl       String?
+  price          Decimal  @db.Decimal(12, 2)
   /// Precio "antes" — Shopify: compare_at_price, WooCommerce: regular_price
   /// (cuando hay sale_price). Null si no está en oferta.
   compareAtPrice Decimal? @db.Decimal(12, 2)

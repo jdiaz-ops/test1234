@@ -54,8 +54,8 @@ export const fraudReviewSchema = z.object({
 
 export const monthlyCostSchema = z.object({
   month: z.string().min(1), // ISO date, día 1 del mes
-  amount: z.number().positive(), // gasto a SUMAR al mes, no el total (ver addMonthlyCost)
-  note: z.string().optional(),
+  label: z.string().min(1).max(120), // qué es el gasto — ej. "Compra del dominio"
+  amount: z.number().positive(),
 });
 
 export const adminRoleEnum = z.enum(["OWNER", "SUPPORT", "FINANCE", "BRAND_APPROVER", "CREATOR_APPROVER"]);
