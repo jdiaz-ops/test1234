@@ -103,8 +103,7 @@ export default function ParaCreadoresPage() {
         ctaHref="/registro/creador"
         ctaLabel="Únete gratis"
         mobileCtaLabel="Crear mi perfil"
-        loginLabel="Acceder Portal Creadores"
-        mobileLoginLabel="Portal Creadores"
+        loginLabel="Portal Creadores"
       />
 
       <main className="flex-1">
