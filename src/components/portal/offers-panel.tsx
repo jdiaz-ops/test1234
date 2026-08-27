@@ -82,20 +82,15 @@ export function OffersPanel({
             ) : (
               <>
                 <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <p className="text-xs text-brand-ink-soft mb-1">
-                      <span
-                        className={
-                          offer.status === "ACTIVE" ? "text-brand-accent" : ""
-                        }
-                      >
-                        {offer.status === "ACTIVE" ? "Activa" : "Pausada"}
-                      </span>
-                    </p>
-                    <p className="font-display font-semibold text-brand-ink">
-                      {offer.name}
-                    </p>
-                  </div>
+                  <p className="text-xs text-brand-ink-soft">
+                    <span
+                      className={
+                        offer.status === "ACTIVE" ? "text-brand-accent" : ""
+                      }
+                    >
+                      {offer.status === "ACTIVE" ? "Activa" : "Pausada"}
+                    </span>
+                  </p>
                   <button
                     onClick={() => setEditingId(offer.id)}
                     className="text-xs bg-brand-accent-soft text-brand-accent font-medium rounded-full px-4 py-1.5 hover:bg-brand-accent hover:text-white transition-colors shrink-0"

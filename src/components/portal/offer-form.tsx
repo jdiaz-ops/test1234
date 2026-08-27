@@ -28,13 +28,16 @@ export function OfferForm({
   vatPercent: number;
 }) {
   const router = useRouter();
+  // name/description ya no se piden en el formulario (ni al crear ni al
+  // editar) — sin uso visible en ningún lado del portal, solo quedan como
+  // valor interno porque la API todavía los requiere.
   const [form, setForm] = useState<OfferValues>(
     initial ?? {
-      name: "",
+      name: "Programa de afiliados",
       description: "",
       categoryId: null,
-      defaultCommissionPercent: 15,
-      defaultDiscountPercent: 15,
+      defaultCommissionPercent: 8,
+      defaultDiscountPercent: 10,
       joinMode: "OPEN",
       status: "ACTIVE",
     },
@@ -77,40 +80,9 @@ export function OfferForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Solo al crear: en edición el nombre/descripción ya quedaron
-          definidos y no aportan nada volver a mostrarlos acá — form.name
-          sigue viajando con el valor original al guardar. */}
-      {!offerId && (
-        <>
-          <div>
-            <label className="block text-sm text-brand-ink mb-1">
-              Nombre de la oferta
-            </label>
-            <input
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Programa de embajadoras 2026"
-              className="input"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-brand-ink mb-1">
-              Descripción
-            </label>
-            <textarea
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-              className="input min-h-16"
-            />
-          </div>
-        </>
-      )}
       <div>
         <p className="text-sm text-brand-ink font-medium mb-2">
-          Los dos números que definen tu oferta
+          Los dos números que definen tu programa
         </p>
         <div className="grid grid-cols-2 gap-px bg-brand-line rounded-2xl overflow-hidden border border-brand-line mb-4">
           <div className="bg-brand-accent-soft p-4">
@@ -251,7 +223,11 @@ export function OfferForm({
         disabled={saving}
         className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
       >
-        {saving ? "Guardando..." : offerId ? "Guardar cambios" : "Crear oferta"}
+        {saving
+          ? "Guardando..."
+          : offerId
+            ? "Guardar cambios"
+            : "Crear programa"}
       </button>
     </form>
   );

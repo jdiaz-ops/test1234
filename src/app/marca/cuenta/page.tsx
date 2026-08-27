@@ -105,18 +105,6 @@ export default async function MarcaCuentaPage() {
 
   const ofertaTab = (
     <div>
-      <p className="text-sm text-brand-ink-soft mb-2 max-w-lg">
-        La comisión que definas es 100% para el creador. La tarifa de Marcolini
-        se cobra aparte, nunca se descuenta de lo que él gana.
-      </p>
-      <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Marcolini cobra{" "}
-        <span className="font-mono text-brand-accent">
-          {summary.platformFeePercent}%
-        </span>{" "}
-        sobre cada venta, aparte de la comisión que tú definas para tus
-        creadores.
-      </p>
       <OffersPanel
         offers={offers.map((o) => ({
           ...o,
@@ -136,11 +124,11 @@ export default async function MarcaCuentaPage() {
           Tu tarifa
         </h2>
         <p className="text-sm text-brand-ink-soft">
+          El fee de servicio de Marcolini es de{" "}
           <span className="font-mono text-brand-accent">
             {summary.platformFeePercent}%
           </span>{" "}
-          sobre cada venta — se junta con la comisión de tus creadores en el
-          corte del día 1, y se paga por transferencia directa.
+          sobre cada venta confirmada.
         </p>
       </div>
 

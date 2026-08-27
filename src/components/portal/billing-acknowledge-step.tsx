@@ -24,7 +24,9 @@ export function BillingAcknowledgeStep({
   async function handleClick() {
     setSaving(true);
     setError(null);
-    const res = await fetch("/api/marca/facturacion/reconocer", { method: "POST" });
+    const res = await fetch("/api/marca/facturacion/reconocer", {
+      method: "POST",
+    });
     setSaving(false);
     if (!res.ok) {
       setError("No se pudo guardar — intenta de nuevo.");
@@ -38,26 +40,37 @@ export function BillingAcknowledgeStep({
     <div className="max-w-lg space-y-5">
       <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-3">
         <p className="text-sm text-brand-ink">
-          El día 1 de cada mes te mandamos el corte: la comisión de tus creadores de contenido + la tarifa
-          de Marcolini de ese período, con el desglose completo.
+          El día 1 de cada mes te mandamos el corte: la comisión de tus
+          creadores de contenido + la tarifa de Marcolini de ese período, con el
+          desglose completo.
         </p>
         <p className="text-sm text-brand-ink">
-          Pagas por transferencia directa — QR o Bre-B, sin tarjeta ni procesador de por medio — y subes tu
-          comprobante en la plataforma. Apenas lo verificamos, quedas al día.
+          Pagas por transferencia directa — QR o Bre-B — y subes tu comprobante
+          en la plataforma. Apenas lo verificamos, quedas al día.
         </p>
         <p className="text-sm text-brand-ink">
-          Si no verificamos tu pago dentro del plazo, tu marca se oculta del marketplace hasta que lo
-          regularices — el resto de tu portal sigue disponible normalmente mientras estés al día.
+          Si no verificamos tu pago dentro del plazo, tu marca se oculta del
+          marketplace hasta que lo regularices.
         </p>
       </div>
 
       {(paymentInstructions || paymentQrImageUrl) && (
         <div className="rounded-2xl border border-brand-line bg-brand-bg p-5 space-y-3">
-          <p className="text-xs font-medium text-brand-ink-soft">Así vas a recibir las instrucciones de pago:</p>
-          {paymentInstructions && <p className="text-sm text-brand-ink-soft whitespace-pre-line">{paymentInstructions}</p>}
+          <p className="text-xs font-medium text-brand-ink-soft">
+            Así vas a recibir las instrucciones de pago:
+          </p>
+          {paymentInstructions && (
+            <p className="text-sm text-brand-ink-soft whitespace-pre-line">
+              {paymentInstructions}
+            </p>
+          )}
           {paymentQrImageUrl && (
             // eslint-disable-next-line @next/next/no-img-element -- imagen subida por el admin
-            <img src={paymentQrImageUrl} alt="Código QR para pagar" className="w-28 h-28 rounded-lg border border-brand-line" />
+            <img
+              src={paymentQrImageUrl}
+              alt="Código QR para pagar"
+              className="w-28 h-28 rounded-lg border border-brand-line"
+            />
           )}
         </div>
       )}

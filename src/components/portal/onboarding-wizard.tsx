@@ -30,7 +30,9 @@ export function OnboardingWizard({
 }) {
   const order = steps.map((s) => s.key);
   const tiendaDone = steps.find((s) => s.key === "tienda")?.done ?? false;
-  const [open, setOpen] = useState<string | null>(steps.find((s) => !s.done)?.key ?? order[0]);
+  const [open, setOpen] = useState<string | null>(
+    steps.find((s) => !s.done)?.key ?? order[0],
+  );
 
   function goToNext(currentKey: string) {
     const idx = order.indexOf(currentKey);
@@ -49,7 +51,9 @@ export function OnboardingWizard({
           <div
             key={step.key}
             className={`rounded-2xl border overflow-hidden ${
-              step.done ? "border-brand-line bg-brand-surface" : "border-brand-accent bg-brand-accent-soft"
+              step.done
+                ? "border-brand-line bg-brand-surface"
+                : "border-brand-accent bg-brand-accent-soft"
             }`}
           >
             <button
@@ -59,23 +63,33 @@ export function OnboardingWizard({
             >
               <div
                 className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-mono text-sm font-medium ${
-                  step.done ? "bg-brand-accent text-white" : "bg-white border border-brand-accent text-brand-accent"
+                  step.done
+                    ? "bg-brand-accent text-white"
+                    : "bg-white border border-brand-accent text-brand-accent"
                 }`}
               >
                 {step.done ? "✓" : i + 1}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="font-display font-semibold text-brand-ink">{step.label}</p>
+                  <p className="font-display font-semibold text-brand-ink">
+                    {step.label}
+                  </p>
                   {step.key === "tienda" && tiendaDone && (
                     <span className="text-[10px] font-medium text-green-700 bg-green-50 rounded-full px-2 py-0.5">
                       ✓ Conectada
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-brand-ink-soft mt-0.5">{step.description}</p>
+                {step.description && (
+                  <p className="text-xs text-brand-ink-soft mt-0.5">
+                    {step.description}
+                  </p>
+                )}
               </div>
-              <span className={`shrink-0 text-brand-ink-soft transition-transform ${isOpen ? "rotate-180" : ""}`}>
+              <span
+                className={`shrink-0 text-brand-ink-soft transition-transform ${isOpen ? "rotate-180" : ""}`}
+              >
                 ▾
               </span>
             </button>
@@ -93,8 +107,12 @@ export function OnboardingWizard({
                   {step.key === "tienda" && (
                     <StoreConnectionForm
                       initial={store.initial}
-                      shopifyConnected={tiendaDone && store.initial.storeType === "SHOPIFY"}
-                      wooConnected={tiendaDone && store.initial.storeType === "WOOCOMMERCE"}
+                      shopifyConnected={
+                        tiendaDone && store.initial.storeType === "SHOPIFY"
+                      }
+                      wooConnected={
+                        tiendaDone && store.initial.storeType === "WOOCOMMERCE"
+                      }
                       onSaved={() => goToNext("tienda")}
                     />
                   )}
