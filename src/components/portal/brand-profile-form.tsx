@@ -71,10 +71,16 @@ export function BrandProfileForm({
   initial,
   files,
   onSaved,
+  hideWebsiteField = false,
 }: {
   initial: Values;
   files: Files;
   onSaved?: () => void;
+  // Onboarding: la marca todavía no conectó su tienda, así que no tiene
+  // sentido pedirle que escriba la web a mano y se arriesgue a un typo —
+  // se llena sola al conectarla (ver fillBrandWebsiteUrlIfMissing).
+  // Sigue editable después, desde Cuenta (ahí no se pasa esta prop).
+  hideWebsiteField?: boolean;
 }) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
@@ -136,13 +142,15 @@ export function BrandProfileForm({
           value={form.companyName}
           onChange={(v) => set("companyName", v)}
         />
-        <Field
-          label="Página web"
-          value={form.websiteUrl}
-          onChange={(v) => set("websiteUrl", v)}
-          placeholder="https://"
-          type="url"
-        />
+        {!hideWebsiteField && (
+          <Field
+            label="Página web"
+            value={form.websiteUrl}
+            onChange={(v) => set("websiteUrl", v)}
+            placeholder="https://"
+            type="url"
+          />
+        )}
         <div>
           <label className="block text-sm text-brand-ink mb-1">
             Descripción

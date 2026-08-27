@@ -26,9 +26,12 @@ export async function getBrandOnboardingStatus(profile: BrandProfile) {
       key: "perfil",
       label: "Perfil del negocio",
       description: "",
-      done: Boolean(
-        profile.logoUrl && profile.description && profile.websiteUrl,
-      ),
+      // Ya no exige websiteUrl acá — el campo se escondió de este paso
+      // (ver hideWebsiteField en BrandProfileForm) porque se llena solo
+      // al conectar la tienda, en el siguiente paso. El marketplace
+      // (listActiveOffers) sigue exigiendo websiteUrl aparte, para la
+      // visibilidad real — eso no cambia.
+      done: Boolean(profile.logoUrl && profile.description),
     },
     {
       key: "tienda",
