@@ -104,6 +104,7 @@ export default function ParaCreadoresPage() {
         ctaLabel="Únete gratis"
         mobileCtaLabel="Crear mi perfil"
         loginLabel="Portal Creadores"
+        showRoleLinks={false}
       />
 
       <main className="flex-1">
@@ -308,7 +309,12 @@ export default function ParaCreadoresPage() {
                 <div className="space-y-3">
                   {previewOfertas.map((o) => (
                     <div key={o.marca} className="rounded-xl bg-brand-bg px-4 py-3">
-                      <BrandMiniProfile companyName={o.marca} description={o.categoria} websiteUrl={`https://${o.web}`} />
+                      <BrandMiniProfile
+                        companyName={o.marca}
+                        description={o.categoria}
+                        websiteUrl={`https://${o.web}`}
+                        websiteLinkable={false}
+                      />
                       <div className="grid grid-cols-2 gap-2 mt-3">
                         <div className="rounded-lg bg-brand-surface px-2.5 py-2">
                           <p className="font-mono text-base font-medium text-brand-ink leading-tight">{o.descuento}%</p>
@@ -576,7 +582,7 @@ export default function ParaCreadoresPage() {
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-3 py-1">
-                    RETO
+                    MISIÓN
                   </span>
                   <span className="text-xs text-brand-accent font-medium">Activo</span>
                 </div>

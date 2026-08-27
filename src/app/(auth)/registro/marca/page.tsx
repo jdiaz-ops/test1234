@@ -8,7 +8,6 @@ export default function RegistroMarcaPage() {
     companyName: "",
     email: "",
     password: "",
-    city: "",
     termsAccepted: false,
   });
   const [error, setError] = useState<string | null>(null);
@@ -91,14 +90,6 @@ export default function RegistroMarcaPage() {
             className="input"
           />
         </Field>
-        <Field label="Ciudad (opcional)">
-          <input
-            value={form.city}
-            onChange={(e) => setForm({ ...form, city: e.target.value })}
-            className="input"
-          />
-        </Field>
-
         <label className="flex items-start gap-2 text-sm text-brand-ink-soft">
           <input
             type="checkbox"

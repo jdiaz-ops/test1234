@@ -13,6 +13,10 @@ import Link from "next/link";
 /// (ej. "Crear mi perfil" en vez de "Únete gratis", "Portal Creadores"
 /// en vez de "Acceder Portal Creadores") — en desktop se sigue viendo
 /// la versión completa.
+/// showRoleLinks: "Soy Creador"/"Soy Marca" ya estaban ocultos en mobile
+/// (no cabían); en /para-creadores tampoco se quieren en desktop —
+/// estando ya en esa landing son redundantes. Default true para no
+/// afectar a /para-marcas, que sí los conserva en desktop.
 export function SiteHeader({
   ctaHref,
   ctaLabel,
@@ -20,6 +24,7 @@ export function SiteHeader({
   loginHref = "/login",
   loginLabel = "Ya tengo cuenta",
   mobileLoginLabel,
+  showRoleLinks = true,
 }: {
   ctaHref?: string;
   ctaLabel?: string;
@@ -27,6 +32,7 @@ export function SiteHeader({
   loginHref?: string;
   loginLabel?: string;
   mobileLoginLabel?: string;
+  showRoleLinks?: boolean;
 } = {}) {
   return (
     // z-20, no z-10: con el mismo z-index que las tarjetas satélite
@@ -47,16 +53,20 @@ export function SiteHeader({
             <img src="/marcolini-icon.png" alt="Marcolini" className="h-8 w-auto" />
           </Link>
           <nav className="flex items-center gap-2 sm:gap-6 text-sm">
-            {/* "Soy Creador"/"Soy Marca" ocultos en mobile: en una barra
-                angosta compiten por espacio con el link de cuenta y el CTA
-                — y en mobile ya se llega a estas landings desde el link
-                correspondiente, así que son redundantes ahí. */}
-            <Link href="/para-creadores" className="hidden sm:inline text-brand-ink-soft hover:text-brand-ink">
-              Soy Creador
-            </Link>
-            <Link href="/para-marcas" className="hidden sm:inline text-brand-ink-soft hover:text-brand-ink">
-              Soy Marca
-            </Link>
+            {/* "Soy Creador"/"Soy Marca" ocultos en mobile siempre: en una
+                barra angosta compiten por espacio con el link de cuenta y
+                el CTA. En desktop, showRoleLinks=false los quita también
+                (ej. /para-creadores: ya estando ahí, son redundantes). */}
+            {showRoleLinks && (
+              <>
+                <Link href="/para-creadores" className="hidden sm:inline text-brand-ink-soft hover:text-brand-ink">
+                  Soy Creador
+                </Link>
+                <Link href="/para-marcas" className="hidden sm:inline text-brand-ink-soft hover:text-brand-ink">
+                  Soy Marca
+                </Link>
+              </>
+            )}
             <Link
               href={loginHref}
               className="inline-flex items-center text-brand-ink font-medium border border-brand-line rounded-full px-3 py-1 text-xs sm:px-4 sm:py-1.5 sm:text-sm hover:bg-brand-accent-soft whitespace-nowrap"
