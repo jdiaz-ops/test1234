@@ -329,7 +329,7 @@ export function StoreConnectionForm({
                       href={shopifyDevelopAppsUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="block mt-1 text-xs font-medium text-brand-accent hover:underline"
+                      className="inline-block mt-2 bg-brand-accent-soft text-brand-accent rounded-full px-4 py-2 text-sm font-medium hover:opacity-90"
                     >
                       Abrir esta pantalla en tu tienda →
                     </a>
