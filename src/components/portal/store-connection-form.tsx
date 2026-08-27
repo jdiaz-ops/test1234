@@ -3,17 +3,17 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
-// La conexión automática de Shopify (OAuth) queda en pausa mientras la app
-// de Marcolini no esté aprobada en la Shopify App Store — Shopify no deja
-// instalar por OAuth en una tienda real hasta pasar esa revisión (ver
-// conversación del 2026-08-27). El código de esa conexión sigue completo
-// acá abajo, sin tocar — apagado solo con este flag, para prender de
-// vuelta con una sola línea en cuanto la app quede aprobada. Mientras
-// tanto, la marca conecta pegando un token de una app privada que ella
-// misma crea en su propio admin de Shopify (ver las instrucciones en el
-// JSX) — ese camino no depende de ninguna revisión de Shopify, porque la
-// app privada vive adentro de su propia tienda.
-const SHOPIFY_OAUTH_ENABLED = false;
+// La conexión automática de Shopify (OAuth) requiere que la tienda esté
+// dentro del alcance del Partner (colaborador, o la app ya aprobada en la
+// App Store) — Shopify no deja instalar por OAuth en una tienda externa
+// cualquiera todavía. Se prueba primero pidiendo acceso de colaborador a
+// cada tienda real (ver conversación del 2026-08-27) mientras avanza la
+// revisión de la App Store. El camino manual (pegar un token de una app
+// privada) queda armado y probado más abajo, sin borrar — Shopify dejó de
+// dar un token estático ahí para apps nuevas (exige su propio intercambio
+// OAuth), así que por ahora no es una alternativa real, pero el código
+// sigue disponible por si eso cambia.
+const SHOPIFY_OAUTH_ENABLED = true;
 
 /// Los tres alcances que la marca debe marcar al crear su app privada — en
 /// un solo string separado por comas porque así es como Shopify espera
