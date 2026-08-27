@@ -79,9 +79,6 @@ export default async function MarcaLayout({
         }
         footer={
           <>
-            <p className="text-xs text-brand-ink-soft truncate mb-2">
-              {session.user.email}
-            </p>
             <form
               action={async () => {
                 "use server";

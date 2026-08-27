@@ -25,8 +25,7 @@ export async function getBrandOnboardingStatus(profile: BrandProfile) {
     {
       key: "perfil",
       label: "Perfil del negocio",
-      description:
-        "Logo, descripción y página web — así te ven los creadores en el marketplace.",
+      description: "",
       done: Boolean(
         profile.logoUrl && profile.description && profile.websiteUrl,
       ),
@@ -34,8 +33,7 @@ export async function getBrandOnboardingStatus(profile: BrandProfile) {
     {
       key: "tienda",
       label: "Conectar tu tienda",
-      description:
-        "Shopify o WooCommerce — sin esto no podemos rastrear las ventas de tus creadores.",
+      description: "",
       done: profile.storeConnectionStatus === "CONNECTED",
     },
     {
@@ -47,8 +45,7 @@ export async function getBrandOnboardingStatus(profile: BrandProfile) {
     {
       key: "oferta",
       label: "Configura tu programa",
-      description:
-        "Define la comisión para el creador y el descuento para tu cliente.",
+      description: "",
       done: offerCount > 0,
     },
   ];
