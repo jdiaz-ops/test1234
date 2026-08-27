@@ -14,15 +14,25 @@ const items = [
   { href: "/admin/referidos", label: "Referidos" },
   { href: "/admin/facturas", label: "Facturas" },
   { href: "/admin/fraude", label: "Antifraude" },
+  { href: "/admin/diagnostico-correo", label: "Diagnóstico de correo" },
   { href: "/admin/configuracion", label: "Configuración" },
   { href: "/admin/equipo", label: "Equipo" },
   { href: "/admin/comunicados", label: "Comunicados" },
   { href: "/admin/notificaciones", label: "Notificaciones", exact: true },
-  { href: "/admin/notificaciones/configuracion", label: "Config. notificaciones" },
+  {
+    href: "/admin/notificaciones/configuracion",
+    label: "Config. notificaciones",
+  },
   { href: "/admin/cuenta", label: "Cuenta" },
 ];
 
-export function AdminNav({ pendingCobros = 0, pendingPagos = 0 }: { pendingCobros?: number; pendingPagos?: number }) {
+export function AdminNav({
+  pendingCobros = 0,
+  pendingPagos = 0,
+}: {
+  pendingCobros?: number;
+  pendingPagos?: number;
+}) {
   const pathname = usePathname();
   const badges: Record<string, number> = {
     "/admin/cobros": pendingCobros,
@@ -32,7 +42,9 @@ export function AdminNav({ pendingCobros = 0, pendingPagos = 0 }: { pendingCobro
   return (
     <nav className="flex flex-col gap-0.5">
       {items.map((item) => {
-        const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+        const active = item.exact
+          ? pathname === item.href
+          : pathname.startsWith(item.href);
         const badge = badges[item.href] ?? 0;
         return (
           <Link
