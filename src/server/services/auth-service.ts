@@ -1,7 +1,17 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { createToken, consumeToken, ONE_DAY_MS, ONE_HOUR_MS } from "@/lib/tokens";
-import { sendVerificationEmail, sendPasswordResetEmail, sendAccountInviteEmail } from "@/lib/email";
+import {
+  createToken,
+  consumeToken,
+  ONE_DAY_MS,
+  ONE_HOUR_MS,
+} from "@/lib/tokens";
+import { normalizeEmail } from "@/lib/normalize-email";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendAccountInviteEmail,
+} from "@/lib/email";
 import {
   generateUniqueBaseCode,
   generateUniqueStorefrontSlug,
@@ -36,12 +46,14 @@ async function checkDuplicateCreatorAccount(newUserId: string, email: string) {
     where: { role: "CREATOR", id: { not: newUserId } },
     select: { email: true },
   });
-  const duplicate = otherCreators.find((u) => normalizeEmailForDedup(u.email) === normalized);
+  const duplicate = otherCreators.find(
+    (u) => normalizeEmailForDedup(u.email) === normalized,
+  );
   if (!duplicate) return;
 
   await flagPotentialFraud(
     null,
-    `Posible cuenta duplicada: ${email} parece ser la misma persona que ${duplicate.email} (variante del mismo correo)`
+    `Posible cuenta duplicada: ${email} parece ser la misma persona que ${duplicate.email} (variante del mismo correo)`,
   );
 }
 
@@ -57,11 +69,22 @@ export async function registerCreator(input: {
   refCode?: string;
 }) {
   if (!input.termsAccepted) {
-    throw new AuthServiceError("Debes aceptar los Términos y Condiciones para registrarte.");
+    throw new AuthServiceError(
+      "Debes aceptar los Términos y Condiciones para registrarte.",
+    );
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: input.email } });
-  if (existing) throw new AuthServiceError("Ya existe una cuenta con este correo.");
+  // Normalizado (trim + minúsculas) una sola vez acá y reusado en todo lo
+  // que sigue — así el registro nunca crea una cuenta "distinta" de una que
+  // ya existe solo porque alguien escribió el correo con otra mayúscula, y
+  // el propio dueño de la cuenta después la puede encontrar sin importar
+  // cómo la haya tipeado (ver mode: "insensitive" en auth.ts).
+  const email = normalizeEmail(input.email);
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
+  if (existing)
+    throw new AuthServiceError("Ya existe una cuenta con este correo.");
 
   const passwordHash = await bcrypt.hash(input.password, 10);
   // El código nace solo, a partir del nombre (ej. "Laura Gómez" -> "LAURAGOMEZ")
@@ -73,7 +96,7 @@ export async function registerCreator(input: {
 
   const user = await prisma.user.create({
     data: {
-      email: input.email,
+      email,
       passwordHash,
       role: "CREATOR",
       creatorProfile: {
@@ -95,7 +118,7 @@ export async function registerCreator(input: {
     await createReferralFromCode(input.refCode, user.creatorProfile!.id);
   }
 
-  await checkDuplicateCreatorAccount(user.id, input.email);
+  await checkDuplicateCreatorAccount(user.id, user.email);
 
   await sendVerificationForUser(user.email);
 
@@ -114,17 +137,23 @@ export async function registerBrand(input: {
   termsAccepted: boolean;
 }) {
   if (!input.termsAccepted) {
-    throw new AuthServiceError("Debes aceptar los Términos y Condiciones para registrarte.");
+    throw new AuthServiceError(
+      "Debes aceptar los Términos y Condiciones para registrarte.",
+    );
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: input.email } });
-  if (existing) throw new AuthServiceError("Ya existe una cuenta con este correo.");
+  const email = normalizeEmail(input.email);
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
+  if (existing)
+    throw new AuthServiceError("Ya existe una cuenta con este correo.");
 
   const passwordHash = await bcrypt.hash(input.password, 10);
 
   const user = await prisma.user.create({
     data: {
-      email: input.email,
+      email,
       passwordHash,
       role: "BRAND",
       brandProfile: {
@@ -145,7 +174,11 @@ export async function registerBrand(input: {
     select: { id: true },
   });
   await Promise.all(
-    admins.map((admin) => createNotification(admin.id, "BRAND_PENDING_ADMIN", { marca: input.companyName }))
+    admins.map((admin) =>
+      createNotification(admin.id, "BRAND_PENDING_ADMIN", {
+        marca: input.companyName,
+      }),
+    ),
   );
 
   await sendVerificationForUser(user.email);
@@ -166,7 +199,9 @@ async function sendVerificationForUser(email: string) {
 export async function verifyEmail(token: string) {
   const email = await consumeToken(token);
   if (!email) {
-    throw new AuthServiceError("El link de verificación es inválido o ya expiró.");
+    throw new AuthServiceError(
+      "El link de verificación es inválido o ya expiró.",
+    );
   }
 
   await prisma.user.update({
@@ -175,24 +210,38 @@ export async function verifyEmail(token: string) {
   });
 }
 
-export async function resendVerificationEmail(email: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
+export async function resendVerificationEmail(rawEmail: string) {
+  const email = normalizeEmail(rawEmail);
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
   // No revelamos si el correo existe o no, para no filtrar información.
   if (!user || user.emailVerified) return;
-  await sendVerificationForUser(email);
+  // Se manda al correo tal como quedó guardado (user.email), no al que
+  // acaban de tipear — importante para cuentas viejas cuya mayúscula
+  // original no coincide con la que están escribiendo ahora.
+  await sendVerificationForUser(user.email);
 }
 
 // --------------------------------------------------------------------------
 // Recuperación de contraseña
 // --------------------------------------------------------------------------
 
-export async function requestPasswordReset(email: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
+export async function requestPasswordReset(rawEmail: string) {
+  const email = normalizeEmail(rawEmail);
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
   if (!user) return; // no revelamos si el correo existe
 
-  const token = await createToken(email, ONE_HOUR_MS);
+  // El token y el correo de destino usan user.email (el valor real ya
+  // guardado), no el que la persona acaba de tipear — así el
+  // prisma.user.update({ where: { email } }) de resetPassword, más abajo,
+  // sí encuentra la misma fila sin importar con qué mayúscula/minúscula se
+  // haya creado la cuenta originalmente.
+  const token = await createToken(user.email, ONE_HOUR_MS);
   const resetUrl = `${APP_URL}/restablecer-password?token=${token}`;
-  await sendPasswordResetEmail(email, resetUrl);
+  await sendPasswordResetEmail(user.email, resetUrl);
 }
 
 /// Para cuentas que el admin crea a mano (marca o creador agregados
@@ -209,14 +258,21 @@ export async function sendAccountInvite(email: string) {
 // Cambio de contraseña (usuario ya autenticado, desde Configuración de cuenta)
 // --------------------------------------------------------------------------
 
-export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   if (!user.passwordHash) {
-    throw new AuthServiceError("Tu cuenta usa login con Google — no tiene contraseña que cambiar.");
+    throw new AuthServiceError(
+      "Tu cuenta usa login con Google — no tiene contraseña que cambiar.",
+    );
   }
 
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-  if (!valid) throw new AuthServiceError("La contraseña actual no es correcta.");
+  if (!valid)
+    throw new AuthServiceError("La contraseña actual no es correcta.");
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
@@ -225,7 +281,9 @@ export async function changePassword(userId: string, currentPassword: string, ne
 export async function resetPassword(token: string, newPassword: string) {
   const email = await consumeToken(token);
   if (!email) {
-    throw new AuthServiceError("El link para restablecer tu contraseña es inválido o ya expiró.");
+    throw new AuthServiceError(
+      "El link para restablecer tu contraseña es inválido o ya expiró.",
+    );
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 10);

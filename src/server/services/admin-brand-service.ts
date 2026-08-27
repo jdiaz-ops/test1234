@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendAccountInvite } from "@/server/services/auth-service";
 import { createNotification } from "@/server/services/notification-service";
+import { normalizeEmail } from "@/lib/normalize-email";
 
 export class AdminBrandError extends Error {}
 
@@ -8,13 +9,21 @@ export class AdminBrandError extends Error {}
 /// donde la marca ya se validó por fuera (llamada, reunión), así que nace
 /// ya Aprobada en vez de pasar por la cola de revisión. La persona recibe
 /// un correo para poner su propia contraseña, nunca se la inventa el admin.
-export async function createBrandManually(data: { email: string; companyName: string; city?: string }) {
-  const existing = await prisma.user.findUnique({ where: { email: data.email } });
-  if (existing) throw new AdminBrandError("Ya existe una cuenta con este correo.");
+export async function createBrandManually(data: {
+  email: string;
+  companyName: string;
+  city?: string;
+}) {
+  const email = normalizeEmail(data.email);
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
+  if (existing)
+    throw new AdminBrandError("Ya existe una cuenta con este correo.");
 
   const user = await prisma.user.create({
     data: {
-      email: data.email,
+      email,
       role: "BRAND",
       emailVerified: new Date(),
       brandProfile: {
@@ -30,7 +39,7 @@ export async function createBrandManually(data: { email: string; companyName: st
     include: { brandProfile: true },
   });
 
-  await sendAccountInvite(data.email);
+  await sendAccountInvite(email);
 
   return user;
 }
@@ -44,7 +53,11 @@ export async function listBrands(status?: string) {
       // Solo el corte abierto (si hay uno) — para mostrar en Marcas si se
       // puede "simular corte vencido" o hay que ofrecer "quitarlo" (ver
       // createTestOverdueCharge/removeTestCharge en payment-service.ts).
-      charges: { where: { status: { not: "PAID" } }, orderBy: { createdAt: "desc" }, take: 1 },
+      charges: {
+        where: { status: { not: "PAID" } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -76,11 +89,17 @@ export async function rejectBrand(brandId: string) {
 }
 
 export async function pauseBrand(brandId: string) {
-  return prisma.brandProfile.update({ where: { id: brandId }, data: { status: "PAUSED" } });
+  return prisma.brandProfile.update({
+    where: { id: brandId },
+    data: { status: "PAUSED" },
+  });
 }
 
 export async function reactivateBrand(brandId: string) {
-  return prisma.brandProfile.update({ where: { id: brandId }, data: { status: "APPROVED" } });
+  return prisma.brandProfile.update({
+    where: { id: brandId },
+    data: { status: "APPROVED" },
+  });
 }
 
 /// Le permite al admin forzar si una marca aparece o no en el marketplace de
@@ -90,7 +109,7 @@ export async function reactivateBrand(brandId: string) {
 /// listActiveOffers en marketplace-service.ts, que es quien lo respeta).
 export async function setBrandMarketplaceVisibility(
   brandId: string,
-  override: "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN"
+  override: "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN",
 ) {
   return prisma.brandProfile.update({
     where: { id: brandId },
@@ -98,7 +117,10 @@ export async function setBrandMarketplaceVisibility(
   });
 }
 
-export async function setBrandFeeOverride(brandId: string, feePercent: number | null) {
+export async function setBrandFeeOverride(
+  brandId: string,
+  feePercent: number | null,
+) {
   const brand = await prisma.brandProfile.update({
     where: { id: brandId },
     data: { platformFeePercentOverride: feePercent },

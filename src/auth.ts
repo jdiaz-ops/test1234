@@ -5,6 +5,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { consumeImpersonationToken } from "@/lib/impersonation";
+import { normalizeEmail } from "@/lib/normalize-email";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // El adapter guarda usuarios/cuentas OAuth (Google) en la base de datos,
@@ -33,12 +34,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // endpoint para el chequeo de permisos); aquí solo se consume, nunca
         // se acepta un token que venga de otro lado (verificación de correo,
         // recuperación de contraseña usan una tabla completamente aparte).
-        const impersonateToken = credentials?.impersonateToken as string | undefined;
+        const impersonateToken = credentials?.impersonateToken as
+          | string
+          | undefined;
         if (impersonateToken) {
           const record = await consumeImpersonationToken(impersonateToken);
           if (!record) return null;
 
-          const user = await prisma.user.findUnique({ where: { id: record.targetUserId } });
+          const user = await prisma.user.findUnique({
+            where: { id: record.targetUserId },
+          });
           if (!user) return null;
 
           // El mismo token sirve para "Entrar como" (admin -> cuenta) y para
@@ -55,15 +60,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             role: user.role,
             adminRole: user.adminRole,
             impersonated: !isReturnToAdmin,
-            impersonatorId: !isReturnToAdmin ? record.createdByUserId : undefined,
+            impersonatorId: !isReturnToAdmin
+              ? record.createdByUserId
+              : undefined,
           };
         }
 
-        const email = credentials?.email as string | undefined;
+        const rawEmail = credentials?.email as string | undefined;
         const password = credentials?.password as string | undefined;
-        if (!email || !password) return null;
+        if (!rawEmail || !password) return null;
 
-        const user = await prisma.user.findUnique({ where: { email } });
+        // mode: "insensitive" (no solo normalizar rawEmail) porque cuentas
+        // ya existentes pueden tener el correo guardado con otra
+        // mayúscula/minúscula de antes de este fix — así entran igual, sin
+        // tener que corregir esos registros a mano.
+        const email = normalizeEmail(rawEmail);
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: email, mode: "insensitive" } },
+        });
         if (!user || !user.passwordHash) return null;
 
         const validPassword = await bcrypt.compare(password, user.passwordHash);
@@ -89,10 +103,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id as string;
         token.role = (user as { role: import("@prisma/client").UserRole }).role;
-        token.adminRole = (user as { adminRole?: import("@prisma/client").AdminRole | null })
-          .adminRole;
-        token.impersonated = (user as { impersonated?: boolean }).impersonated ?? false;
-        token.impersonatorId = (user as { impersonatorId?: string }).impersonatorId;
+        token.adminRole = (
+          user as { adminRole?: import("@prisma/client").AdminRole | null }
+        ).adminRole;
+        token.impersonated =
+          (user as { impersonated?: boolean }).impersonated ?? false;
+        token.impersonatorId = (
+          user as { impersonatorId?: string }
+        ).impersonatorId;
       }
       return token;
     },
