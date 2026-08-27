@@ -8,16 +8,17 @@ import { usePathname } from "next/navigation";
 // ruta siguen intactos, solo se quitó del menú.
 //
 // Lista plana (sin encabezados de sección — quedaba confuso) — "Empieza
-// aquí" va primero, arriba de Dashboard, y Campañas justo debajo de
-// Dashboard porque es la acción que más queremos que el creador use.
+// aquí" va primero, arriba de Dashboard. Orden pedido explícitamente por
+// Juan: Dashboard, Mi vitrina, Campañas, Marketplace de marcas, Mis
+// Códigos y Links, Invita y gana.
 // "Cuenta" es el único ítem con subsecciones, y solo se expande cuando hace
 // falta — Transacciones vive ahí adentro, no en la lista principal.
 const flatItems = [
   { href: "/creador/onboarding", label: "Empieza aquí" },
   { href: "/creador", label: "Dashboard" },
+  { href: "/creador/storefront", label: "Mi vitrina" },
   { href: "/creador/retos", label: "Campañas" },
   { href: "/creador/marketplace", label: "Marketplace de marcas" },
-  { href: "/creador/storefront", label: "Mi vitrina" },
   { href: "/creador/codigos", label: "Mis Códigos y Links" },
   { href: "/creador/referidos", label: "Invita y gana" },
 ];
