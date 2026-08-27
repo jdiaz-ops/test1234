@@ -16,7 +16,12 @@ type Creator = {
 
 function AddCreatorForm({ onDone }: { onDone: () => void }) {
   const router = useRouter();
-  const [form, setForm] = useState({ email: "", displayName: "", desiredCode: "", city: "" });
+  const [form, setForm] = useState({
+    email: "",
+    displayName: "",
+    desiredCode: "",
+    city: "",
+  });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -44,7 +49,10 @@ function AddCreatorForm({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="p-5 border-b border-brand-line bg-brand-accent-soft/40 space-y-3">
+    <form
+      onSubmit={handleSubmit}
+      className="p-5 border-b border-brand-line bg-brand-accent-soft/40 space-y-3"
+    >
       <div className="grid sm:grid-cols-4 gap-3">
         <input
           type="email"
@@ -87,18 +95,29 @@ function AddCreatorForm({ onDone }: { onDone: () => void }) {
         >
           {saving ? "Creando..." : "Crear creador"}
         </button>
-        <button type="button" onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
+        <button
+          type="button"
+          onClick={onDone}
+          className="text-xs text-brand-ink-soft hover:underline"
+        >
           Cancelar
         </button>
         <p className="text-xs text-brand-ink-soft">
-          Queda activo de inmediato y le llega un correo para poner su contraseña.
+          Queda activo de inmediato y le llega un correo para poner su
+          contraseña.
         </p>
       </div>
     </form>
   );
 }
 
-export function AdminCreatorsPanel({ creators, isOwner }: { creators: Creator[]; isOwner: boolean }) {
+export function AdminCreatorsPanel({
+  creators,
+  isOwner,
+}: {
+  creators: Creator[];
+  isOwner: boolean;
+}) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [addingCreator, setAddingCreator] = useState(false);
@@ -131,58 +150,77 @@ export function AdminCreatorsPanel({ creators, isOwner }: { creators: Creator[];
             disabled={creatingTestCreators}
             className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
           >
-            {creatingTestCreators ? "Creando..." : "Crear 3 creadores de prueba"}
+            {creatingTestCreators
+              ? "Creando..."
+              : "Crear 3 creadores de prueba"}
           </button>
         )}
         {!addingCreator && (
-          <button onClick={() => setAddingCreator(true)} className="text-xs text-brand-accent font-medium hover:underline">
+          <button
+            onClick={() => setAddingCreator(true)}
+            className="text-xs text-brand-accent font-medium hover:underline"
+          >
             + Agregar creador manualmente
           </button>
         )}
       </div>
-      {addingCreator && <AddCreatorForm onDone={() => setAddingCreator(false)} />}
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
-            <th className="px-5 py-3 font-normal">Creador</th>
-            <th className="px-5 py-3 font-normal">Código</th>
-            <th className="px-5 py-3 font-normal">Marcas</th>
-            <th className="px-5 py-3 font-normal">Estado</th>
-            <th className="px-5 py-3 font-normal"></th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-brand-line">
-          {creators.map((c) => (
-            <tr key={c.id}>
-              <td className="px-5 py-3 text-brand-ink">
-                {c.displayName}
-                {c.city && <span className="text-brand-ink-soft"> · {c.city}</span>}
-              </td>
-              <td className="px-5 py-3 font-mono text-brand-accent">{c.baseCode}</td>
-              <td className="px-5 py-3 font-mono text-brand-ink-soft">{c._count.enrollments}</td>
-              <td className="px-5 py-3">
-                {c.suspended ? (
-                  <span className="text-red-600 font-medium">Suspendido</span>
-                ) : (
-                  <span className="text-brand-accent font-medium">Activo</span>
-                )}
-              </td>
-              <td className="px-5 py-3">
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => toggleSuspended(c.id, !c.suspended)}
-                    disabled={loadingId === c.id}
-                    className="text-xs text-brand-ink-soft hover:text-red-600 hover:underline"
-                  >
-                    {c.suspended ? "Reactivar" : "Suspender"}
-                  </button>
-                  {isOwner && <EnterAsButton userId={c.userId} role="CREATOR" />}
-                </div>
-              </td>
+      {addingCreator && (
+        <AddCreatorForm onDone={() => setAddingCreator(false)} />
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
+          <thead>
+            <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
+              <th className="px-5 py-3 font-normal">Creador</th>
+              <th className="px-5 py-3 font-normal">Código</th>
+              <th className="px-5 py-3 font-normal">Marcas</th>
+              <th className="px-5 py-3 font-normal">Estado</th>
+              <th className="px-5 py-3 font-normal"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-brand-line">
+            {creators.map((c) => (
+              <tr key={c.id}>
+                <td className="px-5 py-3 text-brand-ink">
+                  {c.displayName}
+                  {c.city && (
+                    <span className="text-brand-ink-soft"> · {c.city}</span>
+                  )}
+                </td>
+                <td className="px-5 py-3 font-mono text-brand-accent">
+                  {c.baseCode}
+                </td>
+                <td className="px-5 py-3 font-mono text-brand-ink-soft">
+                  {c._count.enrollments}
+                </td>
+                <td className="px-5 py-3">
+                  {c.suspended ? (
+                    <span className="text-red-600 font-medium">Suspendido</span>
+                  ) : (
+                    <span className="text-brand-accent font-medium">
+                      Activo
+                    </span>
+                  )}
+                </td>
+                <td className="px-5 py-3">
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => toggleSuspended(c.id, !c.suspended)}
+                      disabled={loadingId === c.id}
+                      className="text-xs text-brand-ink-soft hover:text-red-600 hover:underline"
+                    >
+                      {c.suspended ? "Reactivar" : "Suspender"}
+                    </button>
+                    {isOwner && (
+                      <EnterAsButton userId={c.userId} role="CREATOR" />
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

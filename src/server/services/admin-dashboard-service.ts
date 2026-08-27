@@ -72,12 +72,16 @@ export async function getProfitabilityByMonth(monthsBack = 6) {
   return rows;
 }
 
-export async function upsertMonthlyCost(month: Date, amount: number, note?: string) {
+/// Suma `amountToAdd` al costo ya registrado del mes (o lo crea si es el
+/// primer gasto del mes) — antes esto SOBREESCRIBÍA el monto, obligando al
+/// admin a ir sumando los gastos a mano y siempre cargar la cifra ya
+/// acumulada. Ahora cada gasto que registra se acumula solo.
+export async function addMonthlyCost(month: Date, amountToAdd: number, note?: string) {
   const normalized = new Date(month.getFullYear(), month.getMonth(), 1);
   return prisma.monthlyOperatingCost.upsert({
     where: { month: normalized },
-    update: { amount, note },
-    create: { month: normalized, amount, note },
+    update: { amount: { increment: amountToAdd }, ...(note ? { note } : {}) },
+    create: { month: normalized, amount: amountToAdd, note },
   });
 }
 

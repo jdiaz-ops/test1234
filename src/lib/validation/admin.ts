@@ -54,7 +54,7 @@ export const fraudReviewSchema = z.object({
 
 export const monthlyCostSchema = z.object({
   month: z.string().min(1), // ISO date, día 1 del mes
-  amount: z.number().min(0),
+  amount: z.number().positive(), // gasto a SUMAR al mes, no el total (ver addMonthlyCost)
   note: z.string().optional(),
 });
 

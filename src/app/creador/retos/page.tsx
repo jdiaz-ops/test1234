@@ -1,8 +1,14 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { listActiveChallengesForCreator, listRewardsForCreator } from "@/server/services/challenge-service";
+import {
+  listActiveChallengesForCreator,
+  listRewardsForCreator,
+} from "@/server/services/challenge-service";
 import { CreatorChallengesPanel } from "@/components/portal/creator-challenges-panel";
-import { HIDDEN_CHALLENGE_TYPES, type ChallengeType } from "@/lib/challenge-types";
+import {
+  HIDDEN_CHALLENGE_TYPES,
+  type ChallengeType,
+} from "@/lib/challenge-types";
 
 const rewardStatusLabel: Record<string, string> = {
   PENDING_REVIEW: "En revisión",
@@ -13,7 +19,11 @@ const rewardStatusLabel: Record<string, string> = {
 };
 
 function formatCOP(amount: number) {
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amount);
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
 export default async function CreadorRetosPage() {
@@ -29,47 +39,85 @@ export default async function CreadorRetosPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CAMPAÑAS</p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">Gana más</h1>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
+        CAMPAÑAS
+      </p>
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">
+        Gana más
+      </h1>
 
-      <h2 className="font-display font-semibold text-brand-ink mb-4">Campañas activas</h2>
+      <h2 className="font-display font-semibold text-brand-ink mb-4">
+        Campañas activas
+      </h2>
       <CreatorChallengesPanel
         activeChallenges={active
-          .filter((a) => !HIDDEN_CHALLENGE_TYPES.includes(a.challenge.type as ChallengeType))
+          .filter(
+            (a) =>
+              !HIDDEN_CHALLENGE_TYPES.includes(
+                a.challenge.type as ChallengeType,
+              ),
+          )
           .map((a) => ({
-          challenge: {
-            id: a.challenge.id,
-            name: a.challenge.name,
-            type: a.challenge.type as ChallengeType,
-            startDate: a.challenge.startDate.toISOString(),
-            endDate: a.challenge.endDate.toISOString(),
-            config: a.challenge.config as Record<string, unknown>,
-            offer: { name: a.challenge.offer.name, brand: { companyName: a.challenge.offer.brand.companyName } },
-          },
-          myReward: a.myReward ? { id: a.myReward.id, status: a.myReward.status, amount: Number(a.myReward.amount) } : null,
-          progress: a.progress,
-          discountCode: a.enrollment.discountCode,
-          baseCommissionPercent: Number(a.enrollment.commissionPercentOverride ?? a.challenge.offer.defaultCommissionPercent),
-          baseDiscountPercent: Number(a.enrollment.discountPercentOverride ?? a.challenge.offer.defaultDiscountPercent),
-        }))}
+            challenge: {
+              id: a.challenge.id,
+              name: a.challenge.name,
+              type: a.challenge.type as ChallengeType,
+              startDate: a.challenge.startDate.toISOString(),
+              endDate: a.challenge.endDate.toISOString(),
+              config: a.challenge.config as Record<string, unknown>,
+              offer: {
+                name: a.challenge.offer.name,
+                brand: { companyName: a.challenge.offer.brand.companyName },
+              },
+            },
+            myReward: a.myReward
+              ? {
+                  id: a.myReward.id,
+                  status: a.myReward.status,
+                  amount: Number(a.myReward.amount),
+                }
+              : null,
+            progress: a.progress,
+            discountCode: a.enrollment.discountCode,
+            baseCommissionPercent: Number(
+              a.enrollment.commissionPercentOverride ??
+                a.challenge.offer.defaultCommissionPercent,
+            ),
+            baseDiscountPercent: Number(
+              a.enrollment.discountPercentOverride ??
+                a.challenge.offer.defaultDiscountPercent,
+            ),
+          }))}
       />
 
       {rewards.length > 0 && (
         <div className="mt-10">
-          <h2 className="font-display font-semibold text-brand-ink mb-4">Tus premios</h2>
+          <h2 className="font-display font-semibold text-brand-ink mb-4">
+            Tus premios
+          </h2>
           <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
-            <table className="w-full text-sm">
-              <tbody className="divide-y divide-brand-line">
-                {rewards.map((r) => (
-                  <tr key={r.id}>
-                    <td className="px-5 py-3 text-brand-ink">{r.challenge.name}</td>
-                    <td className="px-5 py-3 text-brand-ink-soft">{r.challenge.offer.brand.companyName}</td>
-                    <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(r.amount))}</td>
-                    <td className="px-5 py-3 text-brand-ink-soft">{rewardStatusLabel[r.status]}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
+                <tbody className="divide-y divide-brand-line">
+                  {rewards.map((r) => (
+                    <tr key={r.id}>
+                      <td className="px-5 py-3 text-brand-ink">
+                        {r.challenge.name}
+                      </td>
+                      <td className="px-5 py-3 text-brand-ink-soft">
+                        {r.challenge.offer.brand.companyName}
+                      </td>
+                      <td className="px-5 py-3 font-mono text-brand-ink">
+                        {formatCOP(Number(r.amount))}
+                      </td>
+                      <td className="px-5 py-3 text-brand-ink-soft">
+                        {rewardStatusLabel[r.status]}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

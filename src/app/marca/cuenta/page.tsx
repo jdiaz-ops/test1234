@@ -2,7 +2,10 @@ import { Suspense } from "react";
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getBrandProfileByUserId } from "@/server/services/brand-profile-service";
-import { getBrandDashboardSummary, getBrandTransactions } from "@/server/services/brand-finance-service";
+import {
+  getBrandDashboardSummary,
+  getBrandTransactions,
+} from "@/server/services/brand-finance-service";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { listOffersForBrand } from "@/server/services/offer-service";
 import { listProductsForBrand } from "@/server/services/product-service";
@@ -24,9 +27,11 @@ const storeStatusLabel: Record<string, string> = {
 };
 
 function formatCOP(amount: number) {
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
-    amount
-  );
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
 const chargeStatusLabel: Record<string, string> = {
@@ -53,10 +58,25 @@ const transactionSourceLabel: Record<string, string> = {
 export default async function MarcaCuentaPage() {
   const session = await auth();
   const profile = await getBrandProfileByUserId(session!.user.id);
-  const [summary, charges, invoices, platformConfig, offers, products, transactions, enrollments] = await Promise.all([
+  const [
+    summary,
+    charges,
+    invoices,
+    platformConfig,
+    offers,
+    products,
+    transactions,
+    enrollments,
+  ] = await Promise.all([
     getBrandDashboardSummary(profile.id),
-    prisma.brandCharge.findMany({ where: { brandId: profile.id }, orderBy: { periodStart: "desc" } }),
-    prisma.brandInvoice.findMany({ where: { brandId: profile.id }, orderBy: { period: "desc" } }),
+    prisma.brandCharge.findMany({
+      where: { brandId: profile.id },
+      orderBy: { periodStart: "desc" },
+    }),
+    prisma.brandInvoice.findMany({
+      where: { brandId: profile.id },
+      orderBy: { period: "desc" },
+    }),
     getPlatformConfig(),
     listOffersForBrand(profile.id),
     listProductsForBrand(profile.id),
@@ -66,7 +86,11 @@ export default async function MarcaCuentaPage() {
   const openCharge = charges.find((c) => c.status !== "PAID") ?? null;
   const codeOptions = enrollments
     .filter((e) => e.status === "ACTIVE")
-    .map((e) => ({ discountCode: e.discountCode, creatorName: e.creator.displayName, offerName: e.offer.name }));
+    .map((e) => ({
+      discountCode: e.discountCode,
+      creatorName: e.creator.displayName,
+      offerName: e.offer.name,
+    }));
 
   const perfilTab = (
     <BrandProfileForm
@@ -93,13 +117,16 @@ export default async function MarcaCuentaPage() {
   const ofertaTab = (
     <div>
       <p className="text-sm text-brand-ink-soft mb-2 max-w-lg">
-        La comisión que definas es 100% para el creador. La tarifa de
-        Marcolini se cobra aparte, nunca se descuenta de lo que él gana.
+        La comisión que definas es 100% para el creador. La tarifa de Marcolini
+        se cobra aparte, nunca se descuenta de lo que él gana.
       </p>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Marcolini cobra <span className="font-mono text-brand-accent">{summary.platformFeePercent}%</span>{" "}
-        + IVA (<span className="font-mono">{summary.vatPercent}%</span>) sobre cada venta, aparte de la
-        comisión que tú definas para tus creadores.
+        Marcolini cobra{" "}
+        <span className="font-mono text-brand-accent">
+          {summary.platformFeePercent}%
+        </span>{" "}
+        + IVA (<span className="font-mono">{summary.vatPercent}%</span>) sobre
+        cada venta, aparte de la comisión que tú definas para tus creadores.
       </p>
       <OffersPanel
         offers={offers.map((o) => ({
@@ -116,12 +143,17 @@ export default async function MarcaCuentaPage() {
   const pagoTab = (
     <div className="max-w-lg space-y-6">
       <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
-        <h2 className="font-display font-semibold text-brand-ink mb-2">Tu tarifa</h2>
+        <h2 className="font-display font-semibold text-brand-ink mb-2">
+          Tu tarifa
+        </h2>
         <p className="text-sm text-brand-ink-soft">
-          <span className="font-mono text-brand-accent">{summary.platformFeePercent}%</span> + IVA (
-          <span className="font-mono">{summary.vatPercent}%</span>) sobre cada venta — se junta con la
-          comisión de tus creadores en el corte del día 1, y se paga por transferencia directa, sin
-          tarjeta ni procesador de por medio.
+          <span className="font-mono text-brand-accent">
+            {summary.platformFeePercent}%
+          </span>{" "}
+          + IVA (<span className="font-mono">{summary.vatPercent}%</span>) sobre
+          cada venta — se junta con la comisión de tus creadores en el corte del
+          día 1, y se paga por transferencia directa, sin tarjeta ni procesador
+          de por medio.
         </p>
       </div>
 
@@ -131,11 +163,13 @@ export default async function MarcaCuentaPage() {
             id: openCharge.id,
             totalAmount: Number(openCharge.totalAmount),
             dueAt: openCharge.dueAt.toISOString(),
-            deactivationDueAt: openCharge.deactivationDueAt?.toISOString() ?? null,
+            deactivationDueAt:
+              openCharge.deactivationDueAt?.toISOString() ?? null,
             deactivatedAt: openCharge.deactivatedAt?.toISOString() ?? null,
             status: openCharge.status,
             pdfUrl: openCharge.pdfUrl,
-            proofSubmittedAt: openCharge.proofSubmittedAt?.toISOString() ?? null,
+            proofSubmittedAt:
+              openCharge.proofSubmittedAt?.toISOString() ?? null,
             proofRejectedAt: openCharge.proofRejectedAt?.toISOString() ?? null,
             proofRejectedReason: openCharge.proofRejectedReason,
           }}
@@ -144,37 +178,51 @@ export default async function MarcaCuentaPage() {
         />
       ) : (
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
-          <p className="text-sm text-brand-accent font-medium">✓ Estás al día</p>
-          <p className="text-sm text-brand-ink-soft mt-1">No tienes ningún corte pendiente de pago.</p>
+          <p className="text-sm text-brand-accent font-medium">
+            ✓ Estás al día
+          </p>
+          <p className="text-sm text-brand-ink-soft mt-1">
+            No tienes ningún corte pendiente de pago.
+          </p>
         </div>
       )}
 
       <div>
-        <h2 className="font-display font-semibold text-brand-ink mb-4">Historial de cortes</h2>
+        <h2 className="font-display font-semibold text-brand-ink mb-4">
+          Historial de cortes
+        </h2>
         {charges.length === 0 ? (
-          <p className="text-sm text-brand-ink-soft">Aún no se ha generado ningún corte.</p>
+          <p className="text-sm text-brand-ink-soft">
+            Aún no se ha generado ningún corte.
+          </p>
         ) : (
           <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
-                  <th className="px-5 py-3 font-normal">Período</th>
-                  <th className="px-5 py-3 font-normal">Monto</th>
-                  <th className="px-5 py-3 font-normal">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-line">
-                {charges.map((c) => (
-                  <tr key={c.id}>
-                    <td className="px-5 py-3 text-brand-ink-soft font-mono">
-                      {c.periodStart.toLocaleDateString("es-CO")}
-                    </td>
-                    <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(c.totalAmount))}</td>
-                    <td className="px-5 py-3 text-brand-ink-soft">{chargeStatusLabel[c.status]}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[420px]">
+                <thead>
+                  <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
+                    <th className="px-5 py-3 font-normal">Período</th>
+                    <th className="px-5 py-3 font-normal">Monto</th>
+                    <th className="px-5 py-3 font-normal">Estado</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-brand-line">
+                  {charges.map((c) => (
+                    <tr key={c.id}>
+                      <td className="px-5 py-3 text-brand-ink-soft font-mono">
+                        {c.periodStart.toLocaleDateString("es-CO")}
+                      </td>
+                      <td className="px-5 py-3 font-mono text-brand-ink">
+                        {formatCOP(Number(c.totalAmount))}
+                      </td>
+                      <td className="px-5 py-3 text-brand-ink-soft">
+                        {chargeStatusLabel[c.status]}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -184,8 +232,8 @@ export default async function MarcaCuentaPage() {
   const transaccionesTab = (
     <div>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Las de tu tienda conectada aparecen solas. ¿Cerraste una venta por fuera (WhatsApp, en persona, etc.)?
-        Regístrala a mano abajo.
+        Las de tu tienda conectada aparecen solas. ¿Cerraste una venta por fuera
+        (WhatsApp, en persona, etc.)? Regístrala a mano abajo.
       </p>
 
       <ManualSaleForm codeOptions={codeOptions} />
@@ -197,39 +245,55 @@ export default async function MarcaCuentaPage() {
         </div>
       ) : (
         <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
-                <th className="px-5 py-3 font-normal">Fecha</th>
-                <th className="px-5 py-3 font-normal">Creador</th>
-                <th className="px-5 py-3 font-normal">Origen</th>
-                <th className="px-5 py-3 font-normal">Venta</th>
-                <th className="px-5 py-3 font-normal">Comisión</th>
-                <th className="px-5 py-3 font-normal">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-brand-line">
-              {transactions.map((t) => (
-                <tr key={t.id}>
-                  <td className="px-5 py-3 text-brand-ink-soft font-mono">
-                    {t.occurredAt.toLocaleDateString("es-CO")}
-                  </td>
-                  <td className="px-5 py-3 text-brand-ink">{t.creator.displayName}</td>
-                  <td className="px-5 py-3 text-brand-ink-soft">
-                    {transactionSourceLabel[t.source] ?? t.source}
-                    {t.note && <span className="block text-xs text-brand-ink-soft/70">{t.note}</span>}
-                  </td>
-                  <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(t.netAmount))}</td>
-                  <td className="px-5 py-3 font-mono text-brand-accent">
-                    {t.commission ? formatCOP(Number(t.commission.creatorCommissionAmount)) : "—"}
-                  </td>
-                  <td className="px-5 py-3 text-brand-ink-soft">
-                    {t.commission ? transactionStatusLabel[t.commission.status] : "—"}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[720px]">
+              <thead>
+                <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
+                  <th className="px-5 py-3 font-normal">Fecha</th>
+                  <th className="px-5 py-3 font-normal">Creador</th>
+                  <th className="px-5 py-3 font-normal">Origen</th>
+                  <th className="px-5 py-3 font-normal">Venta</th>
+                  <th className="px-5 py-3 font-normal">Comisión</th>
+                  <th className="px-5 py-3 font-normal">Estado</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-brand-line">
+                {transactions.map((t) => (
+                  <tr key={t.id}>
+                    <td className="px-5 py-3 text-brand-ink-soft font-mono">
+                      {t.occurredAt.toLocaleDateString("es-CO")}
+                    </td>
+                    <td className="px-5 py-3 text-brand-ink">
+                      {t.creator.displayName}
+                    </td>
+                    <td className="px-5 py-3 text-brand-ink-soft">
+                      {transactionSourceLabel[t.source] ?? t.source}
+                      {t.note && (
+                        <span className="block text-xs text-brand-ink-soft/70">
+                          {t.note}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-brand-ink">
+                      {formatCOP(Number(t.netAmount))}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-brand-accent">
+                      {t.commission
+                        ? formatCOP(
+                            Number(t.commission.creatorCommissionAmount),
+                          )
+                        : "—"}
+                    </td>
+                    <td className="px-5 py-3 text-brand-ink-soft">
+                      {t.commission
+                        ? transactionStatusLabel[t.commission.status]
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
@@ -237,17 +301,27 @@ export default async function MarcaCuentaPage() {
 
   const facturacionTab = (
     <div className="max-w-2xl">
-      <h2 className="font-display font-semibold text-brand-ink mb-4">Facturas electrónicas</h2>
-      <p className="text-sm text-brand-ink-soft mb-4">Descarga el PDF de la factura electrónica de cada período.</p>
-      <BrandInvoicesList invoices={invoices.map((i) => ({ ...i, amount: Number(i.amount), createdAt: i.createdAt.toISOString() }))} />
+      <h2 className="font-display font-semibold text-brand-ink mb-4">
+        Facturas electrónicas
+      </h2>
+      <p className="text-sm text-brand-ink-soft mb-4">
+        Descarga el PDF de la factura electrónica de cada período.
+      </p>
+      <BrandInvoicesList
+        invoices={invoices.map((i) => ({
+          ...i,
+          amount: Number(i.amount),
+          createdAt: i.createdAt.toISOString(),
+        }))}
+      />
     </div>
   );
 
   const tiendaTab = (
     <div className="max-w-lg">
       <p className="text-sm text-brand-ink-soft mb-2">
-        Conecta tu tienda para que el código de cada creador se cree automáticamente y las ventas se
-        detecten solas.
+        Conecta tu tienda para que el código de cada creador se cree
+        automáticamente y las ventas se detecten solas.
       </p>
       <p className="text-xs font-mono text-brand-ink-soft mb-6">
         Estado: {storeStatusLabel[profile.storeConnectionStatus]}
@@ -260,8 +334,14 @@ export default async function MarcaCuentaPage() {
           wooConsumerKey: profile.wooConsumerKey ?? "",
           wooConsumerSecret: profile.wooConsumerSecret ?? "",
         }}
-        shopifyConnected={profile.storeType === "SHOPIFY" && profile.storeConnectionStatus === "CONNECTED"}
-        wooConnected={profile.storeType === "WOOCOMMERCE" && profile.storeConnectionStatus === "CONNECTED"}
+        shopifyConnected={
+          profile.storeType === "SHOPIFY" &&
+          profile.storeConnectionStatus === "CONNECTED"
+        }
+        wooConnected={
+          profile.storeType === "WOOCOMMERCE" &&
+          profile.storeConnectionStatus === "CONNECTED"
+        }
       />
     </div>
   );
@@ -269,8 +349,9 @@ export default async function MarcaCuentaPage() {
   const productosTab = (
     <div>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Trae tus productos desde tu tienda para que los creadores puedan armar colecciones con fotos y
-        precios reales en su vitrina — y destaca hasta 3 para que aparezcan primero.
+        Trae tus productos desde tu tienda para que los creadores puedan armar
+        colecciones con fotos y precios reales en su vitrina — y destaca hasta 3
+        para que aparezcan primero.
       </p>
       <ProductsPanel
         products={products.map((p) => ({
@@ -282,7 +363,10 @@ export default async function MarcaCuentaPage() {
           available: p.available,
           featured: p.featured,
         }))}
-        storeConnected={profile.storeConnectionStatus === "CONNECTED" && profile.storeType !== "OTHER"}
+        storeConnected={
+          profile.storeConnectionStatus === "CONNECTED" &&
+          profile.storeType !== "OTHER"
+        }
         lastSyncedAt={profile.storeLastSyncedAt?.toISOString() ?? null}
       />
     </div>
@@ -290,7 +374,9 @@ export default async function MarcaCuentaPage() {
 
   const seguridadTab = (
     <div className="max-w-lg">
-      <p className="text-sm text-brand-ink-soft mb-4 font-mono">{session!.user.email}</p>
+      <p className="text-sm text-brand-ink-soft mb-4 font-mono">
+        {session!.user.email}
+      </p>
       <ChangePasswordForm />
 
       <form
@@ -300,15 +386,21 @@ export default async function MarcaCuentaPage() {
         }}
         className="mt-6"
       >
-        <button className="text-sm text-brand-ink-soft hover:text-red-600 hover:underline">Cerrar sesión</button>
+        <button className="text-sm text-brand-ink-soft hover:text-red-600 hover:underline">
+          Cerrar sesión
+        </button>
       </form>
     </div>
   );
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CUENTA</p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">{profile.companyName}</h1>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
+        CUENTA
+      </p>
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">
+        {profile.companyName}
+      </h1>
 
       <Suspense fallback={null}>
         <AccountTabs
@@ -316,8 +408,16 @@ export default async function MarcaCuentaPage() {
             { key: "perfil", label: "Perfil del negocio", content: perfilTab },
             { key: "oferta", label: "Oferta y comisión", content: ofertaTab },
             { key: "pago", label: "Pago", content: pagoTab },
-            { key: "transacciones", label: "Transacciones", content: transaccionesTab },
-            { key: "facturacion", label: "Facturación", content: facturacionTab },
+            {
+              key: "transacciones",
+              label: "Transacciones",
+              content: transaccionesTab,
+            },
+            {
+              key: "facturacion",
+              label: "Facturación",
+              content: facturacionTab,
+            },
             { key: "tienda", label: "Conexión de tienda", content: tiendaTab },
             { key: "productos", label: "Productos", content: productosTab },
             { key: "seguridad", label: "Seguridad", content: seguridadTab },

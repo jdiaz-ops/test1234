@@ -3,9 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getCreatorTransactions } from "@/server/services/creator-finance-service";
 
 function formatCOP(amount: number) {
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
-    amount
-  );
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
 const statusLabel: Record<string, string> = {
@@ -31,7 +33,9 @@ export default async function TransaccionesPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">TRANSACCIONES</p>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
+        TRANSACCIONES
+      </p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">
         Historial de ventas
       </h1>
@@ -43,34 +47,46 @@ export default async function TransaccionesPage() {
         </div>
       ) : (
         <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
-                <th className="px-5 py-3 font-normal">Fecha</th>
-                <th className="px-5 py-3 font-normal">Marca</th>
-                <th className="px-5 py-3 font-normal">Venta</th>
-                <th className="px-5 py-3 font-normal">Tu comisión</th>
-                <th className="px-5 py-3 font-normal">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-brand-line">
-              {transactions.map((t) => (
-                <tr key={t.id}>
-                  <td className="px-5 py-3 text-brand-ink-soft font-mono">
-                    {t.occurredAt.toLocaleDateString("es-CO")}
-                  </td>
-                  <td className="px-5 py-3 text-brand-ink">{t.offer.brand.companyName}</td>
-                  <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(t.netAmount))}</td>
-                  <td className="px-5 py-3 font-mono text-brand-accent">
-                    {t.commission ? formatCOP(Number(t.commission.creatorCommissionAmount)) : "—"}
-                  </td>
-                  <td className={`px-5 py-3 font-medium ${t.commission ? statusColor[t.commission.status] : ""}`}>
-                    {t.commission ? statusLabel[t.commission.status] : "—"}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[600px]">
+              <thead>
+                <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
+                  <th className="px-5 py-3 font-normal">Fecha</th>
+                  <th className="px-5 py-3 font-normal">Marca</th>
+                  <th className="px-5 py-3 font-normal">Venta</th>
+                  <th className="px-5 py-3 font-normal">Tu comisión</th>
+                  <th className="px-5 py-3 font-normal">Estado</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-brand-line">
+                {transactions.map((t) => (
+                  <tr key={t.id}>
+                    <td className="px-5 py-3 text-brand-ink-soft font-mono">
+                      {t.occurredAt.toLocaleDateString("es-CO")}
+                    </td>
+                    <td className="px-5 py-3 text-brand-ink">
+                      {t.offer.brand.companyName}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-brand-ink">
+                      {formatCOP(Number(t.netAmount))}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-brand-accent">
+                      {t.commission
+                        ? formatCOP(
+                            Number(t.commission.creatorCommissionAmount),
+                          )
+                        : "—"}
+                    </td>
+                    <td
+                      className={`px-5 py-3 font-medium ${t.commission ? statusColor[t.commission.status] : ""}`}
+                    >
+                      {t.commission ? statusLabel[t.commission.status] : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

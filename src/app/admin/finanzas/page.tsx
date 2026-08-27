@@ -10,9 +10,11 @@ import { ApproveCommissionsButton } from "@/components/portal/approve-commission
 import { RunPaymentsButtons } from "@/components/portal/run-payments-buttons";
 
 function formatCOP(amount: number) {
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
-    amount
-  );
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
 const healthLabel: Record<string, string> = {
@@ -41,33 +43,46 @@ const instantPayoutStatusLabel: Record<string, string> = {
 };
 
 export default async function AdminFinanzasPage() {
-  const [charges, payouts, instantPayouts, health, commissions, rewards] = await Promise.all([
-    listBrandCharges(),
-    listPayouts(),
-    listInstantPayoutRequests(),
-    listStoreHealth(),
-    getCommissionsSummary(),
-    getChallengeRewardsSummary(),
-  ]);
+  const [charges, payouts, instantPayouts, health, commissions, rewards] =
+    await Promise.all([
+      listBrandCharges(),
+      listPayouts(),
+      listInstantPayoutRequests(),
+      listStoreHealth(),
+      getCommissionsSummary(),
+      getChallengeRewardsSummary(),
+    ]);
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">FINANZAS</p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">Cobros, pagos y tiendas</h1>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
+        FINANZAS
+      </p>
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">
+        Cobros, pagos y tiendas
+      </h1>
 
-      <h2 className="font-display font-semibold text-brand-ink mb-3">Comisiones (Motor de Comisiones)</h2>
+      <h2 className="font-display font-semibold text-brand-ink mb-3">
+        Comisiones (Motor de Comisiones)
+      </h2>
       <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mb-3">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4 text-sm">
           <div>
-            <p className="text-xs text-brand-ink-soft mb-1">Pendientes (en espera)</p>
+            <p className="text-xs text-brand-ink-soft mb-1">
+              Pendientes (en espera)
+            </p>
             <p className="font-mono text-brand-ink">
-              {commissions.pending.count} · {formatCOP(commissions.pending.amount)}
+              {commissions.pending.count} ·{" "}
+              {formatCOP(commissions.pending.amount)}
             </p>
           </div>
           <div>
-            <p className="text-xs text-brand-ink-soft mb-1">Aprobadas (listas para pagar)</p>
+            <p className="text-xs text-brand-ink-soft mb-1">
+              Aprobadas (listas para pagar)
+            </p>
             <p className="font-mono text-brand-ink">
-              {commissions.approved.count} · {formatCOP(commissions.approved.amount)}
+              {commissions.approved.count} ·{" "}
+              {formatCOP(commissions.approved.amount)}
             </p>
           </div>
           <div>
@@ -77,22 +92,28 @@ export default async function AdminFinanzasPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs text-brand-ink-soft mb-1">Revertidas (reembolsos)</p>
+            <p className="text-xs text-brand-ink-soft mb-1">
+              Revertidas (reembolsos)
+            </p>
             <p className="font-mono text-brand-ink">
-              {commissions.reversed.count} · {formatCOP(commissions.reversed.amount)}
+              {commissions.reversed.count} ·{" "}
+              {formatCOP(commissions.reversed.amount)}
             </p>
           </div>
         </div>
         <ApproveCommissionsButton eligibleNow={commissions.eligibleNow} />
       </div>
 
-      <h2 className="font-display font-semibold text-brand-ink mb-3">Premios de campañas</h2>
+      <h2 className="font-display font-semibold text-brand-ink mb-3">
+        Premios de campañas
+      </h2>
       <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mb-8">
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
           <div>
             <p className="text-xs text-brand-ink-soft mb-1">En revisión</p>
             <p className="font-mono text-brand-ink">
-              {rewards.pendingReview.count} · {formatCOP(rewards.pendingReview.amount)}
+              {rewards.pendingReview.count} ·{" "}
+              {formatCOP(rewards.pendingReview.amount)}
             </p>
           </div>
           <div>
@@ -122,100 +143,149 @@ export default async function AdminFinanzasPage() {
         </div>
       </div>
 
-      <h2 className="font-display font-semibold text-brand-ink mb-3">Motor de Pagos (ePayco)</h2>
+      <h2 className="font-display font-semibold text-brand-ink mb-3">
+        Motor de Pagos (ePayco)
+      </h2>
       <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mb-8">
         <p className="text-sm text-brand-ink-soft mb-4">
-          En producción esto corre solo cada día vía cron. Mientras tanto, corrida manual:
+          En producción esto corre solo cada día vía cron. Mientras tanto,
+          corrida manual:
         </p>
         <RunPaymentsButtons />
       </div>
 
-      <h2 className="font-display font-semibold text-brand-ink mb-3">Cobros a marcas (día 1)</h2>
+      <h2 className="font-display font-semibold text-brand-ink mb-3">
+        Cobros a marcas (día 1)
+      </h2>
       {charges.length === 0 ? (
-        <p className="text-sm text-brand-ink-soft mb-8">Aún no se ha procesado ningún cobro.</p>
+        <p className="text-sm text-brand-ink-soft mb-8">
+          Aún no se ha procesado ningún cobro.
+        </p>
       ) : (
         <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden mb-8">
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-brand-line">
-              {charges.map((c) => (
-                <tr key={c.id}>
-                  <td className="px-5 py-3 text-brand-ink">{c.brand.companyName}</td>
-                  <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(c.totalAmount))}</td>
-                  <td className="px-5 py-3 text-brand-ink-soft">{chargeStatusLabel[c.status]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[420px]">
+              <tbody className="divide-y divide-brand-line">
+                {charges.map((c) => (
+                  <tr key={c.id}>
+                    <td className="px-5 py-3 text-brand-ink">
+                      {c.brand.companyName}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-brand-ink">
+                      {formatCOP(Number(c.totalAmount))}
+                    </td>
+                    <td className="px-5 py-3 text-brand-ink-soft">
+                      {chargeStatusLabel[c.status]}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      <h2 className="font-display font-semibold text-brand-ink mb-3">Pagos a creadores (día 15)</h2>
+      <h2 className="font-display font-semibold text-brand-ink mb-3">
+        Pagos a creadores (día 15)
+      </h2>
       {payouts.length === 0 ? (
-        <p className="text-sm text-brand-ink-soft mb-8">Aún no se ha procesado ningún pago.</p>
+        <p className="text-sm text-brand-ink-soft mb-8">
+          Aún no se ha procesado ningún pago.
+        </p>
       ) : (
         <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden mb-8">
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-brand-line">
-              {payouts.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-5 py-3 text-brand-ink">{p.creator.displayName}</td>
-                  <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(p.totalAmount))}</td>
-                  <td className="px-5 py-3 text-brand-ink-soft">{payoutStatusLabel[p.status]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[420px]">
+              <tbody className="divide-y divide-brand-line">
+                {payouts.map((p) => (
+                  <tr key={p.id}>
+                    <td className="px-5 py-3 text-brand-ink">
+                      {p.creator.displayName}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-brand-ink">
+                      {formatCOP(Number(p.totalAmount))}
+                    </td>
+                    <td className="px-5 py-3 text-brand-ink-soft">
+                      {payoutStatusLabel[p.status]}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      <h2 className="font-display font-semibold text-brand-ink mb-3">Pagos anticipados</h2>
+      <h2 className="font-display font-semibold text-brand-ink mb-3">
+        Pagos anticipados
+      </h2>
       {instantPayouts.length === 0 ? (
-        <p className="text-sm text-brand-ink-soft mb-8">Nadie ha pedido un pago anticipado todavía.</p>
+        <p className="text-sm text-brand-ink-soft mb-8">
+          Nadie ha pedido un pago anticipado todavía.
+        </p>
       ) : (
         <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden mb-8">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[480px]">
+              <thead>
+                <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
+                  <th className="px-5 py-3 font-normal">Creador</th>
+                  <th className="px-5 py-3 font-normal">Solicitado</th>
+                  <th className="px-5 py-3 font-normal">Fee</th>
+                  <th className="px-5 py-3 font-normal">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-line">
+                {instantPayouts.map((p) => (
+                  <tr key={p.id}>
+                    <td className="px-5 py-3 text-brand-ink">
+                      {p.creator.displayName}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-brand-ink">
+                      {formatCOP(Number(p.amountRequested))}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-brand-ink-soft">
+                      {formatCOP(Number(p.feeAmount))}
+                    </td>
+                    <td className="px-5 py-3 text-brand-ink-soft">
+                      {instantPayoutStatusLabel[p.status]}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <h2 className="font-display font-semibold text-brand-ink mb-3">
+        Salud de integraciones
+      </h2>
+      <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[420px]">
             <thead>
               <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
-                <th className="px-5 py-3 font-normal">Creador</th>
-                <th className="px-5 py-3 font-normal">Solicitado</th>
-                <th className="px-5 py-3 font-normal">Fee</th>
+                <th className="px-5 py-3 font-normal">Marca</th>
+                <th className="px-5 py-3 font-normal">Plataforma</th>
                 <th className="px-5 py-3 font-normal">Estado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-line">
-              {instantPayouts.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-5 py-3 text-brand-ink">{p.creator.displayName}</td>
-                  <td className="px-5 py-3 font-mono text-brand-ink">{formatCOP(Number(p.amountRequested))}</td>
-                  <td className="px-5 py-3 font-mono text-brand-ink-soft">{formatCOP(Number(p.feeAmount))}</td>
-                  <td className="px-5 py-3 text-brand-ink-soft">{instantPayoutStatusLabel[p.status]}</td>
+              {health.map((h) => (
+                <tr key={h.id}>
+                  <td className="px-5 py-3 text-brand-ink">{h.companyName}</td>
+                  <td className="px-5 py-3 text-brand-ink-soft">
+                    {h.storeType}
+                  </td>
+                  <td className="px-5 py-3">
+                    {healthLabel[h.storeConnectionStatus]}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
-
-      <h2 className="font-display font-semibold text-brand-ink mb-3">Salud de integraciones</h2>
-      <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
-              <th className="px-5 py-3 font-normal">Marca</th>
-              <th className="px-5 py-3 font-normal">Plataforma</th>
-              <th className="px-5 py-3 font-normal">Estado</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-brand-line">
-            {health.map((h) => (
-              <tr key={h.id}>
-                <td className="px-5 py-3 text-brand-ink">{h.companyName}</td>
-                <td className="px-5 py-3 text-brand-ink-soft">{h.storeType}</td>
-                <td className="px-5 py-3">{healthLabel[h.storeConnectionStatus]}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   );

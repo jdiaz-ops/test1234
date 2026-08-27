@@ -41,21 +41,34 @@ export function PortalShell({
   return (
     <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
       {/* Barra superior — solo mobile. En desktop el logo vive dentro del
-          sidebar fijo, como siempre. */}
+          sidebar fijo, como siempre. Hamburguesa a la izquierda, logo
+          (imagen real, no el texto "MARCOLINI ADMIN") a la derecha. */}
       <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between border-b border-brand-line bg-brand-surface px-4 h-14 shrink-0">
-        <Link href={logoHref} className="font-mono text-sm font-medium text-brand-accent tracking-wide">
-          {logoLabel}
-        </Link>
         <button
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Abrir menú"
-          className="p-2 -mr-2 text-brand-ink"
+          className="p-2 -ml-2 text-brand-ink"
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
+        <Link href={logoHref}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
+          <img
+            src="/marcolini-icon.png"
+            alt={logoLabel}
+            className="h-7 w-auto"
+          />
+        </Link>
       </div>
 
       <div className="flex flex-1 min-h-0 relative">
@@ -75,7 +88,14 @@ export function PortalShell({
             ${open ? "translate-x-0" : "-translate-x-full"}`}
         >
           <div className="flex items-center justify-between mb-8">
-            <Link href={logoHref} className="font-mono text-sm font-medium text-brand-accent tracking-wide">
+            {/* Logo de texto sin cambios acá — este header vive dentro del
+                <aside>, que en desktop es el sidebar fijo de siempre (solo
+                se pidió cambiar la barra superior mobile, no el sidebar
+                de escritorio). */}
+            <Link
+              href={logoHref}
+              className="font-mono text-sm font-medium text-brand-accent tracking-wide"
+            >
               {logoLabel}
             </Link>
             <button
@@ -84,13 +104,22 @@ export function PortalShell({
               aria-label="Cerrar menú"
               className="lg:hidden p-1 -mr-1 text-brand-ink-soft"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
               </svg>
             </button>
           </div>
           {nav}
-          <div className="mt-auto pt-5 border-t border-brand-line">{footer}</div>
+          <div className="mt-auto pt-5 border-t border-brand-line">
+            {footer}
+          </div>
         </aside>
 
         <main className="flex-1 min-w-0 bg-brand-bg">{children}</main>

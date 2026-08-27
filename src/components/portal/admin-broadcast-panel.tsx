@@ -13,10 +13,20 @@ type Broadcast = {
   createdAt: string;
 };
 
-const audienceLabel: Record<string, string> = { BRANDS: "Marcas", CREATORS: "Creadores" };
-const channelLabel: Record<string, string> = { EMAIL: "Correo", NOTIFICATION: "Notificación" };
+const audienceLabel: Record<string, string> = {
+  BRANDS: "Marcas",
+  CREATORS: "Creadores",
+};
+const channelLabel: Record<string, string> = {
+  EMAIL: "Correo",
+  NOTIFICATION: "Notificación",
+};
 
-export function AdminBroadcastPanel({ broadcasts }: { broadcasts: Broadcast[] }) {
+export function AdminBroadcastPanel({
+  broadcasts,
+}: {
+  broadcasts: Broadcast[];
+}) {
   const router = useRouter();
   const [form, setForm] = useState({
     audience: "CREATORS" as "BRANDS" | "CREATORS",
@@ -29,7 +39,10 @@ export function AdminBroadcastPanel({ broadcasts }: { broadcasts: Broadcast[] })
   const [sending, setSending] = useState(false);
 
   function toggleChannel(channel: "EMAIL" | "NOTIFICATION") {
-    setForm({ ...form, channels: { ...form.channels, [channel]: !form.channels[channel] } });
+    setForm({
+      ...form,
+      channels: { ...form.channels, [channel]: !form.channels[channel] },
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -38,14 +51,19 @@ export function AdminBroadcastPanel({ broadcasts }: { broadcasts: Broadcast[] })
     setError(null);
     setOk(null);
 
-    const channels = (Object.keys(form.channels) as ("EMAIL" | "NOTIFICATION")[]).filter(
-      (c) => form.channels[c]
-    );
+    const channels = (
+      Object.keys(form.channels) as ("EMAIL" | "NOTIFICATION")[]
+    ).filter((c) => form.channels[c]);
 
     const res = await fetch("/api/admin/comunicados", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ audience: form.audience, channels, subject: form.subject, body: form.body }),
+      body: JSON.stringify({
+        audience: form.audience,
+        channels,
+        subject: form.subject,
+        body: form.body,
+      }),
     });
 
     const data = await res.json();
@@ -56,16 +74,28 @@ export function AdminBroadcastPanel({ broadcasts }: { broadcasts: Broadcast[] })
       return;
     }
 
-    setOk(`Enviado a ${data.recipientCount} ${form.audience === "BRANDS" ? "marca(s)" : "creador(es)"}.`);
-    setForm({ audience: form.audience, channels: form.channels, subject: "", body: "" });
+    setOk(
+      `Enviado a ${data.recipientCount} ${form.audience === "BRANDS" ? "marca(s)" : "creador(es)"}.`,
+    );
+    setForm({
+      audience: form.audience,
+      channels: form.channels,
+      subject: "",
+      body: "",
+    });
     router.refresh();
   }
 
   return (
     <div>
-      <form onSubmit={handleSubmit} className="rounded-2xl border border-brand-line bg-brand-surface p-6 space-y-4 max-w-xl mb-10">
+      <form
+        onSubmit={handleSubmit}
+        className="rounded-2xl border border-brand-line bg-brand-surface p-6 space-y-4 max-w-xl mb-10"
+      >
         <div>
-          <label className="text-xs text-brand-ink-soft block mb-2">Enviar a</label>
+          <label className="text-xs text-brand-ink-soft block mb-2">
+            Enviar a
+          </label>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 text-sm text-brand-ink">
               <input
@@ -87,10 +117,16 @@ export function AdminBroadcastPanel({ broadcasts }: { broadcasts: Broadcast[] })
         </div>
 
         <div>
-          <label className="text-xs text-brand-ink-soft block mb-2">Canal</label>
+          <label className="text-xs text-brand-ink-soft block mb-2">
+            Canal
+          </label>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 text-sm text-brand-ink">
-              <input type="checkbox" checked={form.channels.EMAIL} onChange={() => toggleChannel("EMAIL")} />
+              <input
+                type="checkbox"
+                checked={form.channels.EMAIL}
+                onChange={() => toggleChannel("EMAIL")}
+              />
               Correo
             </label>
             <label className="flex items-center gap-2 text-sm text-brand-ink">
@@ -133,37 +169,52 @@ export function AdminBroadcastPanel({ broadcasts }: { broadcasts: Broadcast[] })
         </button>
       </form>
 
-      <h2 className="font-display font-semibold text-brand-ink mb-4">Historial</h2>
+      <h2 className="font-display font-semibold text-brand-ink mb-4">
+        Historial
+      </h2>
       <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
-              <th className="px-5 py-3 font-normal">Fecha</th>
-              <th className="px-5 py-3 font-normal">Para</th>
-              <th className="px-5 py-3 font-normal">Canal</th>
-              <th className="px-5 py-3 font-normal">Asunto</th>
-              <th className="px-5 py-3 font-normal">Destinatarios</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-brand-line">
-            {broadcasts.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-5 py-6 text-center text-brand-ink-soft">
-                  Todavía no se ha enviado ningún comunicado.
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
+            <thead>
+              <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
+                <th className="px-5 py-3 font-normal">Fecha</th>
+                <th className="px-5 py-3 font-normal">Para</th>
+                <th className="px-5 py-3 font-normal">Canal</th>
+                <th className="px-5 py-3 font-normal">Asunto</th>
+                <th className="px-5 py-3 font-normal">Destinatarios</th>
               </tr>
-            )}
-            {broadcasts.map((b) => (
-              <tr key={b.id}>
-                <td className="px-5 py-3 text-brand-ink-soft">{new Date(b.createdAt).toLocaleDateString("es-CO")}</td>
-                <td className="px-5 py-3 text-brand-ink">{audienceLabel[b.audience]}</td>
-                <td className="px-5 py-3 text-brand-ink-soft">{channelLabel[b.channel]}</td>
-                <td className="px-5 py-3 text-brand-ink">{b.subject}</td>
-                <td className="px-5 py-3 font-mono text-brand-ink-soft">{b.recipientCount}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-brand-line">
+              {broadcasts.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-5 py-6 text-center text-brand-ink-soft"
+                  >
+                    Todavía no se ha enviado ningún comunicado.
+                  </td>
+                </tr>
+              )}
+              {broadcasts.map((b) => (
+                <tr key={b.id}>
+                  <td className="px-5 py-3 text-brand-ink-soft">
+                    {new Date(b.createdAt).toLocaleDateString("es-CO")}
+                  </td>
+                  <td className="px-5 py-3 text-brand-ink">
+                    {audienceLabel[b.audience]}
+                  </td>
+                  <td className="px-5 py-3 text-brand-ink-soft">
+                    {channelLabel[b.channel]}
+                  </td>
+                  <td className="px-5 py-3 text-brand-ink">{b.subject}</td>
+                  <td className="px-5 py-3 font-mono text-brand-ink-soft">
+                    {b.recipientCount}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

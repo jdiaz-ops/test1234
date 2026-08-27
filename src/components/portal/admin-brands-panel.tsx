@@ -74,7 +74,10 @@ function AddBrandForm({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="p-5 border-b border-brand-line bg-brand-accent-soft/40 space-y-3">
+    <form
+      onSubmit={handleSubmit}
+      className="p-5 border-b border-brand-line bg-brand-accent-soft/40 space-y-3"
+    >
       <div className="grid sm:grid-cols-3 gap-3">
         <input
           type="email"
@@ -109,11 +112,16 @@ function AddBrandForm({ onDone }: { onDone: () => void }) {
         >
           {saving ? "Creando..." : "Crear marca"}
         </button>
-        <button type="button" onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
+        <button
+          type="button"
+          onClick={onDone}
+          className="text-xs text-brand-ink-soft hover:underline"
+        >
           Cancelar
         </button>
         <p className="text-xs text-brand-ink-soft">
-          Queda aprobada de inmediato y le llega un correo para poner su contraseña.
+          Queda aprobada de inmediato y le llega un correo para poner su
+          contraseña.
         </p>
       </div>
     </form>
@@ -145,20 +153,37 @@ function FeeEditor({ brand, onDone }: { brand: Brand; onDone: () => void }) {
         onChange={(e) => setFee(Number(e.target.value))}
         className="input w-16 font-mono py-1"
       />
-      <button onClick={() => save(fee)} disabled={saving} className="text-xs text-brand-accent hover:underline">
+      <button
+        onClick={() => save(fee)}
+        disabled={saving}
+        className="text-xs text-brand-accent hover:underline"
+      >
         Guardar
       </button>
-      <button onClick={() => save(null)} disabled={saving} className="text-xs text-brand-ink-soft hover:underline">
+      <button
+        onClick={() => save(null)}
+        disabled={saving}
+        className="text-xs text-brand-ink-soft hover:underline"
+      >
         Usar default
       </button>
-      <button onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
+      <button
+        onClick={onDone}
+        className="text-xs text-brand-ink-soft hover:underline"
+      >
         Cancelar
       </button>
     </div>
   );
 }
 
-export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner: boolean }) {
+export function AdminBrandsPanel({
+  brands,
+  isOwner,
+}: {
+  brands: Brand[];
+  isOwner: boolean;
+}) {
   const router = useRouter();
   const [editingFeeId, setEditingFeeId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -238,7 +263,10 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
     router.refresh();
   }
 
-  async function setVisibility(brandId: string, override: "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN") {
+  async function setVisibility(
+    brandId: string,
+    override: "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN",
+  ) {
     setLoadingId(brandId);
     await fetch("/api/admin/marcas/visibilidad", {
       method: "PATCH",
@@ -262,154 +290,187 @@ export function AdminBrandsPanel({ brands, isOwner }: { brands: Brand[]; isOwner
           </button>
         )}
         {!addingBrand && (
-          <button onClick={() => setAddingBrand(true)} className="text-xs text-brand-accent font-medium hover:underline">
+          <button
+            onClick={() => setAddingBrand(true)}
+            className="text-xs text-brand-accent font-medium hover:underline"
+          >
             + Agregar marca manualmente
           </button>
         )}
       </div>
       {addingBrand && <AddBrandForm onDone={() => setAddingBrand(false)} />}
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
-            <th className="px-5 py-3 font-normal">Marca</th>
-            <th className="px-5 py-3 font-normal">Tienda</th>
-            <th className="px-5 py-3 font-normal">Ofertas</th>
-            <th className="px-5 py-3 font-normal">Tarifa</th>
-            <th className="px-5 py-3 font-normal">Estado</th>
-            {isOwner && <th className="px-5 py-3 font-normal">Marketplace</th>}
-            <th className="px-5 py-3 font-normal"></th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-brand-line">
-          {brands.map((b) => (
-            <tr key={b.id}>
-              <td className="px-5 py-3 text-brand-ink">
-                {b.companyName}
-                {b.city && <span className="text-brand-ink-soft"> · {b.city}</span>}
-              </td>
-              <td className="px-5 py-3 text-brand-ink-soft">{b.storeType}</td>
-              <td className="px-5 py-3 font-mono text-brand-ink-soft">{b._count.offers}</td>
-              <td className="px-5 py-3">
-                {editingFeeId === b.id ? (
-                  <FeeEditor brand={b} onDone={() => setEditingFeeId(null)} />
-                ) : (
-                  <button
-                    onClick={() => setEditingFeeId(b.id)}
-                    className="font-mono text-brand-ink hover:text-brand-accent"
-                  >
-                    {b.platformFeePercentOverride ?? "5 (default)"}%
-                  </button>
-                )}
-              </td>
-              <td className={`px-5 py-3 font-medium ${statusColor[b.status]}`}>{statusLabel[b.status]}</td>
+      {/* overflow-x-auto en un wrapper propio (no en la tarjeta entera, que
+          necesita overflow-hidden para las esquinas redondeadas) — antes la
+          tabla se recortaba sin forma de deslizar hacia la derecha en
+          mobile, donde no cabían todas las columnas. */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[820px]">
+          <thead>
+            <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
+              <th className="px-5 py-3 font-normal">Marca</th>
+              <th className="px-5 py-3 font-normal">Tienda</th>
+              <th className="px-5 py-3 font-normal">Ofertas</th>
+              <th className="px-5 py-3 font-normal">Tarifa</th>
+              <th className="px-5 py-3 font-normal">Estado</th>
               {isOwner && (
-                <td className="px-5 py-3">
-                  <select
-                    value={b.marketplaceVisibilityOverride}
-                    onChange={(e) => setVisibility(b.id, e.target.value as "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN")}
-                    disabled={loadingId === b.id}
-                    title="Fuerza si esta marca aparece en el marketplace del creador, sin importar si completó su onboarding real — para pruebas visuales."
-                    className={`input py-1 text-xs ${
-                      b.marketplaceVisibilityOverride !== "AUTO" ? "border-brand-accent text-brand-accent font-medium" : ""
-                    }`}
-                  >
-                    <option value="AUTO">Auto (real)</option>
-                    <option value="FORCE_VISIBLE">Forzar visible</option>
-                    <option value="FORCE_HIDDEN">Forzar oculta</option>
-                  </select>
-                </td>
+                <th className="px-5 py-3 font-normal">Marketplace</th>
               )}
-              <td className="px-5 py-3">
-                <div className="flex gap-3">
-                  {b.status === "PENDING" && (
-                    <>
-                      <button
-                        onClick={() => decide(b.id, "APPROVE")}
-                        disabled={loadingId === b.id}
-                        className="text-xs text-brand-accent font-medium hover:underline"
-                      >
-                        Aprobar
-                      </button>
-                      <button
-                        onClick={() => decide(b.id, "REJECT")}
-                        disabled={loadingId === b.id}
-                        className="text-xs text-red-600 hover:underline"
-                      >
-                        Rechazar
-                      </button>
-                    </>
-                  )}
-                  {b.status === "APPROVED" && (
-                    <button
-                      onClick={() => decide(b.id, "PAUSE")}
-                      disabled={loadingId === b.id}
-                      className="text-xs text-brand-ink-soft hover:underline"
-                    >
-                      Pausar
-                    </button>
-                  )}
-                  {b.status === "PAUSED" && (
-                    <button
-                      onClick={() => decide(b.id, "REACTIVATE")}
-                      disabled={loadingId === b.id}
-                      className="text-xs text-brand-accent hover:underline"
-                    >
-                      Reactivar
-                    </button>
-                  )}
-                  {isOwner && b.status === "APPROVED" && (
-                    <>
-                      {b.openCharge ? (
-                        <button
-                          onClick={() => removeTestCharge(b.id, b.openCharge!.id)}
-                          disabled={loadingId === b.id}
-                          className="text-xs text-brand-ink-soft hover:text-red-600 hover:underline disabled:opacity-50"
-                          title={`Corte activo: ${chargeStatusLabel[b.openCharge.status] ?? b.openCharge.status}`}
-                        >
-                          Quitar corte de prueba
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => simulatePending(b.id)}
-                            disabled={loadingId === b.id}
-                            className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
-                          >
-                            Simular Nivel 1
-                          </button>
-                          <button
-                            onClick={() => simulateOverdue(b.id)}
-                            disabled={loadingId === b.id}
-                            className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
-                          >
-                            Simular Nivel 2
-                          </button>
-                          <button
-                            onClick={() => simulateDeactivated(b.id)}
-                            disabled={loadingId === b.id}
-                            className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
-                          >
-                            Simular Nivel 3
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={() => createTestProducts(b.id)}
-                        disabled={loadingId === b.id}
-                        className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
-                        title="Crea (o deja tal cual si ya existen) 12 productos de mentira para esta marca — para probar vitrina y colecciones sin tener una tienda real conectada."
-                      >
-                        Crear productos de prueba
-                      </button>
-                    </>
-                  )}
-                  {isOwner && <EnterAsButton userId={b.userId} role="BRAND" />}
-                </div>
-              </td>
+              <th className="px-5 py-3 font-normal"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-brand-line">
+            {brands.map((b) => (
+              <tr key={b.id}>
+                <td className="px-5 py-3 text-brand-ink">
+                  {b.companyName}
+                  {b.city && (
+                    <span className="text-brand-ink-soft"> · {b.city}</span>
+                  )}
+                </td>
+                <td className="px-5 py-3 text-brand-ink-soft">{b.storeType}</td>
+                <td className="px-5 py-3 font-mono text-brand-ink-soft">
+                  {b._count.offers}
+                </td>
+                <td className="px-5 py-3">
+                  {editingFeeId === b.id ? (
+                    <FeeEditor brand={b} onDone={() => setEditingFeeId(null)} />
+                  ) : (
+                    <button
+                      onClick={() => setEditingFeeId(b.id)}
+                      className="font-mono text-brand-ink hover:text-brand-accent"
+                    >
+                      {b.platformFeePercentOverride ?? "5 (default)"}%
+                    </button>
+                  )}
+                </td>
+                <td
+                  className={`px-5 py-3 font-medium ${statusColor[b.status]}`}
+                >
+                  {statusLabel[b.status]}
+                </td>
+                {isOwner && (
+                  <td className="px-5 py-3">
+                    <select
+                      value={b.marketplaceVisibilityOverride}
+                      onChange={(e) =>
+                        setVisibility(
+                          b.id,
+                          e.target.value as
+                            | "AUTO"
+                            | "FORCE_VISIBLE"
+                            | "FORCE_HIDDEN",
+                        )
+                      }
+                      disabled={loadingId === b.id}
+                      title="Fuerza si esta marca aparece en el marketplace del creador, sin importar si completó su onboarding real — para pruebas visuales."
+                      className={`input py-1 text-xs ${
+                        b.marketplaceVisibilityOverride !== "AUTO"
+                          ? "border-brand-accent text-brand-accent font-medium"
+                          : ""
+                      }`}
+                    >
+                      <option value="AUTO">Auto (real)</option>
+                      <option value="FORCE_VISIBLE">Forzar visible</option>
+                      <option value="FORCE_HIDDEN">Forzar oculta</option>
+                    </select>
+                  </td>
+                )}
+                <td className="px-5 py-3">
+                  <div className="flex gap-3">
+                    {b.status === "PENDING" && (
+                      <>
+                        <button
+                          onClick={() => decide(b.id, "APPROVE")}
+                          disabled={loadingId === b.id}
+                          className="text-xs text-brand-accent font-medium hover:underline"
+                        >
+                          Aprobar
+                        </button>
+                        <button
+                          onClick={() => decide(b.id, "REJECT")}
+                          disabled={loadingId === b.id}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Rechazar
+                        </button>
+                      </>
+                    )}
+                    {b.status === "APPROVED" && (
+                      <button
+                        onClick={() => decide(b.id, "PAUSE")}
+                        disabled={loadingId === b.id}
+                        className="text-xs text-brand-ink-soft hover:underline"
+                      >
+                        Pausar
+                      </button>
+                    )}
+                    {b.status === "PAUSED" && (
+                      <button
+                        onClick={() => decide(b.id, "REACTIVATE")}
+                        disabled={loadingId === b.id}
+                        className="text-xs text-brand-accent hover:underline"
+                      >
+                        Reactivar
+                      </button>
+                    )}
+                    {isOwner && b.status === "APPROVED" && (
+                      <>
+                        {b.openCharge ? (
+                          <button
+                            onClick={() =>
+                              removeTestCharge(b.id, b.openCharge!.id)
+                            }
+                            disabled={loadingId === b.id}
+                            className="text-xs text-brand-ink-soft hover:text-red-600 hover:underline disabled:opacity-50"
+                            title={`Corte activo: ${chargeStatusLabel[b.openCharge.status] ?? b.openCharge.status}`}
+                          >
+                            Quitar corte de prueba
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => simulatePending(b.id)}
+                              disabled={loadingId === b.id}
+                              className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+                            >
+                              Simular Nivel 1
+                            </button>
+                            <button
+                              onClick={() => simulateOverdue(b.id)}
+                              disabled={loadingId === b.id}
+                              className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+                            >
+                              Simular Nivel 2
+                            </button>
+                            <button
+                              onClick={() => simulateDeactivated(b.id)}
+                              disabled={loadingId === b.id}
+                              className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+                            >
+                              Simular Nivel 3
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => createTestProducts(b.id)}
+                          disabled={loadingId === b.id}
+                          className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+                          title="Crea (o deja tal cual si ya existen) 12 productos de mentira para esta marca — para probar vitrina y colecciones sin tener una tienda real conectada."
+                        >
+                          Crear productos de prueba
+                        </button>
+                      </>
+                    )}
+                    {isOwner && (
+                      <EnterAsButton userId={b.userId} role="BRAND" />
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
