@@ -140,7 +140,23 @@ export function PortalShell({
           </div>
         </aside>
 
-        <main className="flex-1 min-w-0 bg-brand-bg">{children}</main>
+        <main className="flex-1 min-w-0 bg-brand-bg flex flex-col">
+          {/* Mismo centerAction que la barra mobile, pero para desktop —
+              ahí no hay barra superior (el logo vive en el sidebar fijo),
+              así que sin esto el aviso de "Terminar onboarding" solo se
+              veía en mobile y desaparecía del todo en desktop. */}
+          {centerAction && (
+            <div className="hidden lg:flex justify-end px-8 py-3 border-b border-brand-line bg-brand-surface">
+              <Link
+                href={centerAction.href}
+                className="inline-flex items-center bg-brand-accent text-white text-xs font-medium rounded-full px-4 py-1.5 hover:opacity-90 transition"
+              >
+                {centerAction.label}
+              </Link>
+            </div>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );
