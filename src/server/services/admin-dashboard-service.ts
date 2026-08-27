@@ -32,12 +32,25 @@ export async function getGlobalDashboardSummary() {
   };
 }
 
+/// Mes en que arrancó a operar la plataforma — antes de esto no hay
+/// ingreso ni costo real que mostrar, así que el Panel de Rentabilidad no
+/// debe listar meses vacíos previos (no sirve de nada ver "marzo—julio:
+/// sin registrar" cuando ninguno tuvo actividad).
+const PLATFORM_LAUNCH_MONTH = new Date(2026, 7, 1); // agosto 2026
+
 /// Panel de Rentabilidad: ingreso automático (tarifa de plataforma) vs.
-/// costos que el admin ingresa manualmente mes a mes.
-export async function getProfitabilityByMonth(monthsBack = 6) {
+/// costos que el admin ingresa manualmente mes a mes. Sin `monthsBack`
+/// explícito, arranca en PLATFORM_LAUNCH_MONTH y crece un mes a la vez a
+/// medida que pasa el tiempo (nunca antes del lanzamiento).
+export async function getProfitabilityByMonth(monthsBack?: number) {
   const months: { month: Date; label: string }[] = [];
   const now = new Date();
-  for (let i = monthsBack - 1; i >= 0; i--) {
+  const monthsSinceLaunch =
+    (now.getFullYear() - PLATFORM_LAUNCH_MONTH.getFullYear()) * 12 +
+    (now.getMonth() - PLATFORM_LAUNCH_MONTH.getMonth()) +
+    1;
+  const effectiveMonthsBack = monthsBack ?? Math.max(1, monthsSinceLaunch);
+  for (let i = effectiveMonthsBack - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     months.push({ month: d, label: d.toLocaleDateString("es-CO", { month: "short", year: "2-digit" }) });
   }
