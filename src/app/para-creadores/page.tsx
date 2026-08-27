@@ -99,7 +99,12 @@ const faq = [
 export default function ParaCreadoresPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <SiteHeader ctaHref="/registro/creador" ctaLabel="Únete gratis" />
+      <SiteHeader
+        ctaHref="/registro/creador"
+        ctaLabel="Únete gratis"
+        mobileCtaLabel="Crear mi perfil"
+        loginLabel="Acceder Portal Creadores"
+      />
 
       <main className="flex-1">
         {/* Hero — misma estructura que /para-marcas: 2 columnas (texto +
@@ -117,16 +122,20 @@ export default function ParaCreadoresPage() {
             style={{ background: "radial-gradient(closest-side, var(--brand-accent-soft), transparent)" }}
           />
           <div className="relative max-w-6xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-14 items-center">
-            <div>
-              <div className="flex justify-start mb-6">
+            <div className="text-center lg:text-left">
+              <div className="flex justify-center lg:justify-start mb-6">
                 <span className="inline-flex items-center bg-brand-surface border border-brand-line rounded-full px-5 py-2.5 font-mono text-xs font-medium text-brand-accent tracking-widest">
                   PARA CREADORES
                 </span>
               </div>
-              <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
+              {/* En mobile el título ahora va más grande (text-3xl, antes
+                  text-2xl) y el subtítulo más chico (text-base, antes
+                  text-lg) para que la jerarquía título > subtítulo se note
+                  — antes quedaban casi al mismo tamaño visual. */}
+              <h1 className="font-display text-3xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
                 Convierte tu contenido e influencia en dinero
               </h1>
-              <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg">
+              <p className="text-brand-accent text-base sm:text-xl font-semibold mb-8 text-balance max-w-lg mx-auto lg:mx-0">
                 Obtén códigos de descuento para tu comunidad y gana una comisión por cada compra
                 que realicen con ellos.
               </p>
@@ -138,7 +147,7 @@ export default function ParaCreadoresPage() {
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
               {/* Checklist de confianza — mismo patrón que /para-marcas. */}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-5">
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 mt-5">
                 {confianza.map((texto) => (
                   <span key={texto} className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink">
                     <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
@@ -477,7 +486,13 @@ export default function ParaCreadoresPage() {
                     directo con el borde — así se ve, a simple vista,
                     a qué franja del mockup corresponde. */}
                 <div className="relative">
-                  <div className="mb-3 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:right-full lg:w-64 lg:flex lg:items-center lg:gap-4">
+                  {/* En mobile, sin espacio para flotar, la nota se
+                      convierte en su propia burbuja (mismo look que los
+                      satélites del hero: tarjeta blanca, borde, sombra)
+                      en vez de texto suelto sobre el fondo — en lg+ se
+                      despoja de esos estilos y vuelve a ser la nota
+                      flotante conectada con línea. */}
+                  <div className="mb-4 lg:mb-0 bg-brand-surface border border-brand-line shadow-lg rounded-2xl p-4 lg:bg-transparent lg:border-0 lg:shadow-none lg:rounded-none lg:p-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:right-full lg:w-64 lg:flex lg:items-center lg:gap-4">
                     <div className="lg:text-right">
                       <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
                         TUS CÓDIGOS ACTIVOS
@@ -517,7 +532,9 @@ export default function ParaCreadoresPage() {
                 {/* Zona 3 — tus colecciones. Mismo tratamiento que la
                     Zona 2, en espejo hacia la derecha. */}
                 <div className="relative">
-                  <div className="mb-3 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:w-64 lg:flex lg:items-center lg:gap-4">
+                  {/* Mismo tratamiento que la Zona 2: burbuja en mobile,
+                      nota flotante conectada con línea en lg+. */}
+                  <div className="mb-4 lg:mb-0 bg-brand-surface border border-brand-line shadow-lg rounded-2xl p-4 lg:bg-transparent lg:border-0 lg:shadow-none lg:rounded-none lg:p-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:w-64 lg:flex lg:items-center lg:gap-4">
                     <span aria-hidden className="hidden lg:block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40" />
                     <div>
                       <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
