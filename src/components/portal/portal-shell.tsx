@@ -15,18 +15,12 @@ import { usePathname } from "next/navigation";
 export function PortalShell({
   logoHref = "/",
   logoLabel,
-  centerAction,
   nav,
   footer,
   children,
 }: {
   logoHref?: string;
   logoLabel: string;
-  // Botón destacado al centro de la barra superior mobile — hoy solo lo
-  // usa /marca mientras el onboarding no esté completo ("Terminar
-  // onboarding"), visible en cualquier página del portal sin tener que
-  // abrir el menú para encontrar el link "Empieza aquí".
-  centerAction?: { label: string; href: string };
   nav: React.ReactNode;
   footer: React.ReactNode;
   children: React.ReactNode;
@@ -46,18 +40,15 @@ export function PortalShell({
 
   return (
     <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
-      {/* Barra superior — solo mobile. En desktop el logo vive dentro del
-          sidebar fijo, como siempre. Hamburguesa a la izquierda (columna
-          fija), logo a la derecha (columna fija), y centerAction — cuando
-          se pasa — centrado en la columna elástica del medio; grid en vez
-          de flex justify-between para que el logo se quede pegado a la
-          derecha exista o no el botón central. */}
-      <div className="lg:hidden sticky top-0 z-30 grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b border-brand-line bg-brand-surface px-4 h-14 shrink-0">
+      {/* Barra superior — solo mobile. En desktop el logo vive en su
+          propia franja arriba del contenido (ver más abajo). Hamburguesa
+          a la izquierda, logo a la derecha. */}
+      <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between border-b border-brand-line bg-brand-surface px-4 h-14 shrink-0">
         <button
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Abrir menú"
-          className="col-start-1 justify-self-start p-2 -ml-2 text-brand-ink"
+          className="p-2 -ml-2 text-brand-ink"
         >
           <svg
             width="22"
@@ -70,15 +61,7 @@ export function PortalShell({
             <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        {centerAction && (
-          <Link
-            href={centerAction.href}
-            className="col-start-2 justify-self-center inline-flex items-center bg-brand-accent text-white text-xs font-medium rounded-full px-3 py-1.5 whitespace-nowrap hover:opacity-90 transition"
-          >
-            {centerAction.label}
-          </Link>
-        )}
-        <Link href={logoHref} className="col-start-3 justify-self-end">
+        <Link href={logoHref}>
           {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
           <img
             src="/marcolini-icon.png"

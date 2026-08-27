@@ -25,11 +25,6 @@ export default async function CreadorLayout({
       <PortalShell
         logoHref="/creador"
         logoLabel="MARCOLINI"
-        centerAction={
-          onboarding.complete
-            ? undefined
-            : { label: "Terminar onboarding", href: "/creador/onboarding" }
-        }
         nav={
           <PortalNav
             onboardingRemaining={
