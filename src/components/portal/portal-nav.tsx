@@ -43,6 +43,14 @@ export function PortalNav({
   onboardingRemaining?: number;
 }) {
   const pathname = usePathname();
+  // "Empieza aquí" solo se ve mientras falte algo — antes quedaba en el
+  // menú para siempre, aunque el creador ya hubiera terminado los 4
+  // pasos (mismo criterio que ya usa BrandNav para el equivalente de
+  // marca: el link desaparece solo con onboarding.complete).
+  const items =
+    onboardingRemaining > 0
+      ? flatItems
+      : flatItems.filter((item) => item.href !== "/creador/onboarding");
   const cuentaHasActiveChild = cuentaSubItems.some((i) =>
     isActive(pathname, i.href),
   );
@@ -73,7 +81,7 @@ export function PortalNav({
 
   return (
     <nav className="flex flex-col gap-0.5">
-      {flatItems.map((item) =>
+      {items.map((item) =>
         renderLink(
           item,
           item.href === "/creador/onboarding" ? onboardingRemaining : 0,
