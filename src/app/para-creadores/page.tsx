@@ -561,14 +561,13 @@ export default function ParaCreadoresPage() {
                 tienda →"), y las mismas tarjetas de producto de las
                 colecciones (imagen, marca, nombre, precio, "Ver en
                 tienda →") — nada inventado. Las etiquetas de "códigos
-                activos" y "colecciones" salen del mockup como burbujas
-                flotantes tipo satélite a los lados (izquierda/derecha)
-                — mismo tratamiento visual que los satélites del hero de
-                esta misma página (tarjeta blanca, borde, shadow-lg,
-                sobresaliendo del borde), centradas a la altura de su
-                zona. En mobile, sin espacio para flotar afuera del
-                mockup, la misma burbuja baja al flujo normal justo
-                encima de su zona. */}
+                activos" y "colecciones" salen del mockup como notas
+                flotantes a los lados (izquierda/derecha), centradas a
+                la altura de su zona y conectadas con una línea al
+                borde del mockup — en vez de vivir adentro como parte
+                de la interfaz. En mobile, sin espacio para flotar, la
+                misma nota baja al flujo normal justo encima de su
+                zona. */}
             <div>
               <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-center mb-3">
                 Un solo link para todo lo que recomiendas
@@ -619,33 +618,30 @@ export default function ParaCreadoresPage() {
                   </p>
                 </div>
 
-                {/* Zona 2 — tus códigos activos. Burbuja flotante tipo
-                    satélite — mismo tratamiento visual que los satélites
-                    del hero de esta misma página (tarjeta blanca, borde,
-                    shadow-lg, sobresaliendo del borde) — en vez de una
-                    nota de texto conectada con una línea. En mobile, sin
-                    espacio para flotar afuera del mockup, la misma
-                    burbuja baja al flujo normal justo encima de su zona. */}
+                {/* Zona 2 — tus códigos activos. La nota flota lejos del
+                    mockup, centrada a la altura de esta zona (no
+                    pegada arriba), con una línea que la conecta
+                    directo con el borde — así se ve, a simple vista,
+                    a qué franja del mockup corresponde. En mobile, sin
+                    espacio para flotar, la misma nota baja al flujo
+                    normal justo encima de su zona, como texto simple
+                    (sin tarjeta ni borde — vuelve a la línea de tiempo). */}
                 <div className="relative">
-                  <div className="lg:hidden mb-4 bg-brand-surface border border-brand-line shadow-lg rounded-2xl p-4">
-                    <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
-                      TUS CÓDIGOS ACTIVOS
-                    </span>
-                    <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
-                      Todos tus códigos de descuento se organizan
-                      automáticamente en tu vitrina, para que tu comunidad
-                      siempre tenga acceso al código correcto de cada marca.
-                    </p>
-                  </div>
-                  <div className="hidden lg:block absolute top-1/2 left-0 -translate-x-2/3 -translate-y-1/2 z-10 w-64 rounded-2xl bg-brand-surface border border-brand-line shadow-lg p-4">
-                    <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5 mb-2">
-                      TUS CÓDIGOS ACTIVOS
-                    </span>
-                    <p className="text-sm text-brand-ink-soft leading-relaxed">
-                      Todos tus códigos de descuento se organizan
-                      automáticamente en tu vitrina, para que tu comunidad
-                      siempre tenga acceso al código correcto de cada marca.
-                    </p>
+                  <div className="mb-4 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:right-full lg:w-64 lg:flex lg:items-center lg:gap-4">
+                    <div className="lg:text-right">
+                      <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
+                        TUS CÓDIGOS ACTIVOS
+                      </span>
+                      <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
+                        Todos tus códigos de descuento se organizan
+                        automáticamente en tu vitrina, para que tu comunidad
+                        siempre tenga acceso al código correcto de cada marca.
+                      </p>
+                    </div>
+                    <span
+                      aria-hidden
+                      className="hidden lg:block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40"
+                    />
                   </div>
                   <div className="space-y-3 mb-6">
                     {previewVitrinaMarcas.map((m) => (
@@ -680,30 +676,24 @@ export default function ParaCreadoresPage() {
                 </div>
 
                 {/* Zona 3 — tus colecciones. Mismo tratamiento que la
-                    Zona 2 (burbuja tipo satélite), en espejo hacia la
-                    derecha. */}
+                    Zona 2, en espejo hacia la derecha. */}
                 <div className="relative">
-                  <div className="lg:hidden mb-4 bg-brand-surface border border-brand-line shadow-lg rounded-2xl p-4">
-                    <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
-                      TUS COLECCIONES
-                    </span>
-                    <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
-                      Crea colecciones con tus productos favoritos y organízalos
-                      por tema, rutina o estilo. Comparte recomendaciones mucho
-                      más útiles y convierte tu vitrina en una verdadera guía de
-                      compra para tu comunidad.
-                    </p>
-                  </div>
-                  <div className="hidden lg:block absolute top-1/2 right-0 translate-x-2/3 -translate-y-1/2 z-10 w-64 rounded-2xl bg-brand-surface border border-brand-line shadow-lg p-4">
-                    <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5 mb-2">
-                      TUS COLECCIONES
-                    </span>
-                    <p className="text-sm text-brand-ink-soft leading-relaxed">
-                      Crea colecciones con tus productos favoritos y organízalos
-                      por tema, rutina o estilo. Comparte recomendaciones mucho
-                      más útiles y convierte tu vitrina en una verdadera guía de
-                      compra para tu comunidad.
-                    </p>
+                  <div className="mb-4 lg:mb-0 lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:w-64 lg:flex lg:items-center lg:gap-4">
+                    <span
+                      aria-hidden
+                      className="hidden lg:block flex-1 min-w-[2.5rem] h-px bg-brand-accent/40"
+                    />
+                    <div>
+                      <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5">
+                        TUS COLECCIONES
+                      </span>
+                      <p className="text-sm text-brand-ink-soft leading-relaxed mt-2">
+                        Crea colecciones con tus productos favoritos y
+                        organízalos por tema, rutina o estilo. Comparte
+                        recomendaciones mucho más útiles y convierte tu vitrina
+                        en una verdadera guía de compra para tu comunidad.
+                      </p>
+                    </div>
                   </div>
                   <p className="text-sm font-semibold text-brand-ink mb-0.5">
                     {previewColeccion.nombre}
