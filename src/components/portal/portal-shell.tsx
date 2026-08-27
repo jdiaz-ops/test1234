@@ -104,10 +104,11 @@ export function PortalShell({
             lg:static lg:z-auto lg:translate-x-0
             ${open ? "translate-x-0" : "-translate-x-full"}`}
         >
-          <div className="flex items-center justify-between mb-8">
-            {/* Este header vive dentro del <aside>, compartido entre el
-                drawer mobile y el sidebar fijo de desktop — mismo logo en
-                los dos, no solo en mobile. */}
+          <div className="flex items-center justify-between mb-8 lg:hidden">
+            {/* Este header (logo + botón de cerrar) vive dentro del
+                <aside>, pero solo hace falta en el drawer mobile — en
+                desktop el logo ahora vive en la franja de arriba, no
+                acá (ver más abajo). */}
             <Link href={logoHref}>
               {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
               <img
@@ -120,7 +121,7 @@ export function PortalShell({
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Cerrar menú"
-              className="lg:hidden p-1 -mr-1 text-brand-ink-soft"
+              className="p-1 -mr-1 text-brand-ink-soft"
             >
               <svg
                 width="18"
@@ -141,20 +142,19 @@ export function PortalShell({
         </aside>
 
         <main className="flex-1 min-w-0 bg-brand-bg flex flex-col">
-          {/* Mismo centerAction que la barra mobile, pero para desktop —
-              ahí no hay barra superior (el logo vive en el sidebar fijo),
-              así que sin esto el aviso de "Terminar onboarding" solo se
-              veía en mobile y desaparecía del todo en desktop. */}
-          {centerAction && (
-            <div className="hidden lg:flex justify-end px-8 py-3 border-b border-brand-line bg-brand-surface">
-              <Link
-                href={centerAction.href}
-                className="inline-flex items-center bg-brand-accent text-white text-xs font-medium rounded-full px-4 py-1.5 hover:opacity-90 transition"
-              >
-                {centerAction.label}
-              </Link>
-            </div>
-          )}
+          {/* Franja superior — solo desktop (mobile ya tiene su propia
+              barra con el logo, sin cambios). El logo vive acá en vez de
+              en el sidebar (ver arriba, lg:hidden en ese header). */}
+          <div className="hidden lg:flex justify-end px-8 py-3 border-b border-brand-line bg-brand-surface">
+            <Link href={logoHref}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
+              <img
+                src="/marcolini-icon.png"
+                alt={logoLabel}
+                className="h-7 w-auto"
+              />
+            </Link>
+          </div>
           {children}
         </main>
       </div>
