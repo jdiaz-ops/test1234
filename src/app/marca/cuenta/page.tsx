@@ -9,7 +9,6 @@ import {
 import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { listOffersForBrand } from "@/server/services/offer-service";
 import { listProductsForBrand } from "@/server/services/product-service";
-import { listEnrollmentsForBrand } from "@/server/services/enrollment-management-service";
 import { BrandProfileForm } from "@/components/portal/brand-profile-form";
 import { ChargePaymentBox } from "@/components/portal/charge-payment-box";
 import { BrandInvoicesList } from "@/components/portal/brand-invoices-list";
@@ -17,7 +16,6 @@ import { StoreConnectionForm } from "@/components/portal/store-connection-form";
 import { ChangePasswordForm } from "@/components/portal/change-password-form";
 import { OffersPanel } from "@/components/portal/offers-panel";
 import { ProductsPanel } from "@/components/portal/products-panel";
-import { ManualSaleForm } from "@/components/portal/manual-sale-form";
 import { AccountTabs } from "@/components/portal/account-tabs";
 
 const storeStatusLabel: Record<string, string> = {
@@ -66,7 +64,6 @@ export default async function MarcaCuentaPage() {
     offers,
     products,
     transactions,
-    enrollments,
   ] = await Promise.all([
     getBrandDashboardSummary(profile.id),
     prisma.brandCharge.findMany({
@@ -81,16 +78,8 @@ export default async function MarcaCuentaPage() {
     listOffersForBrand(profile.id),
     listProductsForBrand(profile.id),
     getBrandTransactions(profile.id),
-    listEnrollmentsForBrand(profile.id),
   ]);
   const openCharge = charges.find((c) => c.status !== "PAID") ?? null;
-  const codeOptions = enrollments
-    .filter((e) => e.status === "ACTIVE")
-    .map((e) => ({
-      discountCode: e.discountCode,
-      creatorName: e.creator.displayName,
-      offerName: e.offer.name,
-    }));
 
   const perfilTab = (
     <BrandProfileForm
@@ -125,8 +114,8 @@ export default async function MarcaCuentaPage() {
         <span className="font-mono text-brand-accent">
           {summary.platformFeePercent}%
         </span>{" "}
-        + IVA (<span className="font-mono">{summary.vatPercent}%</span>) sobre
-        cada venta, aparte de la comisión que tú definas para tus creadores.
+        sobre cada venta, aparte de la comisión que tú definas para tus
+        creadores.
       </p>
       <OffersPanel
         offers={offers.map((o) => ({
@@ -150,10 +139,8 @@ export default async function MarcaCuentaPage() {
           <span className="font-mono text-brand-accent">
             {summary.platformFeePercent}%
           </span>{" "}
-          + IVA (<span className="font-mono">{summary.vatPercent}%</span>) sobre
-          cada venta — se junta con la comisión de tus creadores en el corte del
-          día 1, y se paga por transferencia directa, sin tarjeta ni procesador
-          de por medio.
+          sobre cada venta — se junta con la comisión de tus creadores en el
+          corte del día 1, y se paga por transferencia directa.
         </p>
       </div>
 
@@ -232,11 +219,9 @@ export default async function MarcaCuentaPage() {
   const transaccionesTab = (
     <div>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Las de tu tienda conectada aparecen solas. ¿Cerraste una venta por fuera
-        (WhatsApp, en persona, etc.)? Regístrala a mano abajo.
+        Las ventas de tu tienda conectada aparecen aquí automáticamente,
+        atribuidas al código del creador que usó cada cliente.
       </p>
-
-      <ManualSaleForm codeOptions={codeOptions} />
 
       {transactions.length === 0 ? (
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-6 text-sm text-brand-ink-soft">
@@ -374,9 +359,6 @@ export default async function MarcaCuentaPage() {
 
   const seguridadTab = (
     <div className="max-w-lg">
-      <p className="text-sm text-brand-ink-soft mb-4 font-mono">
-        {session!.user.email}
-      </p>
       <ChangePasswordForm />
 
       <form

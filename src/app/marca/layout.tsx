@@ -10,12 +10,18 @@ import { getBrandOnboardingStatus } from "@/server/services/onboarding-service";
 import { isBrandPaymentLocked } from "@/server/services/payment-service";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
 
-export default async function MarcaLayout({ children }: { children: React.ReactNode }) {
+export default async function MarcaLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await auth();
   if (!session?.user || session.user.role !== "BRAND") redirect("/login");
 
   const [profile, unreadNotifications] = await Promise.all([
-    prisma.brandProfile.findUniqueOrThrow({ where: { userId: session.user.id } }),
+    prisma.brandProfile.findUniqueOrThrow({
+      where: { userId: session.user.id },
+    }),
     countUnreadNotifications(session.user.id),
   ]);
 
@@ -39,12 +45,15 @@ export default async function MarcaLayout({ children }: { children: React.ReactN
             id: lockedCharge.id,
             totalAmount: Number(lockedCharge.totalAmount),
             dueAt: lockedCharge.dueAt.toISOString(),
-            deactivationDueAt: lockedCharge.deactivationDueAt?.toISOString() ?? null,
+            deactivationDueAt:
+              lockedCharge.deactivationDueAt?.toISOString() ?? null,
             deactivatedAt: lockedCharge.deactivatedAt?.toISOString() ?? null,
             status: lockedCharge.status,
             pdfUrl: lockedCharge.pdfUrl,
-            proofSubmittedAt: lockedCharge.proofSubmittedAt?.toISOString() ?? null,
-            proofRejectedAt: lockedCharge.proofRejectedAt?.toISOString() ?? null,
+            proofSubmittedAt:
+              lockedCharge.proofSubmittedAt?.toISOString() ?? null,
+            proofRejectedAt:
+              lockedCharge.proofRejectedAt?.toISOString() ?? null,
             proofRejectedReason: lockedCharge.proofRejectedReason,
           }}
           paymentInstructions={platformConfig.paymentInstructions}
@@ -60,6 +69,7 @@ export default async function MarcaLayout({ children }: { children: React.ReactN
     <div className="min-h-screen flex flex-col">
       {session.user.impersonated && <ImpersonationBanner />}
       <PortalShell
+        logoHref="/marca"
         logoLabel="MARCOLINI"
         nav={
           <BrandNav
@@ -69,7 +79,9 @@ export default async function MarcaLayout({ children }: { children: React.ReactN
         }
         footer={
           <>
-            <p className="text-xs text-brand-ink-soft truncate mb-2">{session.user.email}</p>
+            <p className="text-xs text-brand-ink-soft truncate mb-2">
+              {session.user.email}
+            </p>
             <form
               action={async () => {
                 "use server";
@@ -85,8 +97,9 @@ export default async function MarcaLayout({ children }: { children: React.ReactN
       >
         {profile.status === "PENDING" && (
           <div className="bg-brand-accent-soft border-b border-brand-line px-4 sm:px-8 py-3 text-sm text-brand-ink">
-            Tu marca está <strong>pendiente de aprobación</strong>. Puedes configurar todo mientras
-            tanto — en cuanto se apruebe, tu oferta queda visible en el marketplace.
+            Tu marca está <strong>pendiente de aprobación</strong>. Puedes
+            configurar todo mientras tanto — en cuanto se apruebe, tu oferta
+            queda visible en el marketplace.
           </div>
         )}
         {profile.status === "REJECTED" && (
@@ -94,7 +107,9 @@ export default async function MarcaLayout({ children }: { children: React.ReactN
             Tu marca no fue aprobada. Contáctanos si crees que fue un error.
           </div>
         )}
-        <div className="max-w-4xl mx-auto px-4 sm:px-8 py-6 sm:py-10">{children}</div>
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
+          {children}
+        </div>
       </PortalShell>
     </div>
   );

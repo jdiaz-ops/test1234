@@ -37,7 +37,7 @@ export function OfferForm({
       defaultDiscountPercent: 15,
       joinMode: "OPEN",
       status: "ACTIVE",
-    }
+    },
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +51,11 @@ export function OfferForm({
       ? await fetch("/api/marca/ofertas", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ offerId, ...form, status: form.status ?? "ACTIVE" }),
+          body: JSON.stringify({
+            offerId,
+            ...form,
+            status: form.status ?? "ACTIVE",
+          }),
         })
       : await fetch("/api/marca/ofertas", {
           method: "POST",
@@ -73,41 +77,70 @@ export function OfferForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Solo al crear: en edición el nombre/descripción ya quedaron
+          definidos y no aportan nada volver a mostrarlos acá — form.name
+          sigue viajando con el valor original al guardar. */}
+      {!offerId && (
+        <>
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">
+              Nombre de la oferta
+            </label>
+            <input
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Programa de embajadoras 2026"
+              className="input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">
+              Descripción
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
+              className="input min-h-16"
+            />
+          </div>
+        </>
+      )}
       <div>
-        <label className="block text-sm text-brand-ink mb-1">Nombre de la oferta</label>
-        <input
-          required
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="Programa de embajadoras 2026"
-          className="input"
-        />
-      </div>
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">Descripción</label>
-        <textarea
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          className="input min-h-16"
-        />
-      </div>
-      <div>
-        <p className="text-sm text-brand-ink font-medium mb-2">Los dos números que definen tu oferta</p>
+        <p className="text-sm text-brand-ink font-medium mb-2">
+          Los dos números que definen tu oferta
+        </p>
         <div className="grid grid-cols-2 gap-px bg-brand-line rounded-2xl overflow-hidden border border-brand-line mb-4">
           <div className="bg-brand-accent-soft p-4">
-            <p className="text-xs text-brand-ink-soft mb-1">Comisión para el creador de contenido</p>
-            <p className="font-mono text-2xl font-semibold text-brand-accent">{form.defaultCommissionPercent || 0}%</p>
-            <p className="text-xs text-brand-ink-soft mt-1">Lo que tú le pagas al creador de contenido por cada venta.</p>
+            <p className="text-xs text-brand-ink-soft mb-1">
+              Comisión para el creador de contenido
+            </p>
+            <p className="font-mono text-2xl font-semibold text-brand-accent">
+              {form.defaultCommissionPercent || 0}%
+            </p>
+            <p className="text-xs text-brand-ink-soft mt-1">
+              Lo que tú le pagas al creador de contenido por cada venta.
+            </p>
           </div>
           <div className="bg-brand-surface p-4">
-            <p className="text-xs text-brand-ink-soft mb-1">Descuento para compradores en tu página web</p>
-            <p className="font-mono text-2xl font-semibold text-brand-ink">{form.defaultDiscountPercent || 0}%</p>
-            <p className="text-xs text-brand-ink-soft mt-1">Lo que el código le descuenta al cliente final.</p>
+            <p className="text-xs text-brand-ink-soft mb-1">
+              Descuento para compradores en tu página web
+            </p>
+            <p className="font-mono text-2xl font-semibold text-brand-ink">
+              {form.defaultDiscountPercent || 0}%
+            </p>
+            <p className="text-xs text-brand-ink-soft mt-1">
+              Lo que el código le descuenta al cliente final.
+            </p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-brand-ink mb-1">% Comisión al creador de contenido</label>
+            <label className="block text-sm text-brand-ink mb-1">
+              % Comisión al creador de contenido
+            </label>
             <input
               type="number"
               min={0}
@@ -115,13 +148,22 @@ export function OfferForm({
               step={0.5}
               required
               value={form.defaultCommissionPercent}
-              onChange={(e) => setForm({ ...form, defaultCommissionPercent: Number(e.target.value) })}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  defaultCommissionPercent: Number(e.target.value),
+                })
+              }
               className="input font-mono"
             />
-            <p className="text-xs text-brand-ink-soft mt-1">100% es del creador de contenido — se factura aparte de tu tarifa.</p>
+            <p className="text-xs text-brand-ink-soft mt-1">
+              100% es del creador de contenido — se factura aparte de tu tarifa.
+            </p>
           </div>
           <div>
-            <label className="block text-sm text-brand-ink mb-1">% Descuento del código</label>
+            <label className="block text-sm text-brand-ink mb-1">
+              % Descuento del código
+            </label>
             <input
               type="number"
               min={0}
@@ -129,16 +171,24 @@ export function OfferForm({
               step={0.5}
               required
               value={form.defaultDiscountPercent}
-              onChange={(e) => setForm({ ...form, defaultDiscountPercent: Number(e.target.value) })}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  defaultDiscountPercent: Number(e.target.value),
+                })
+              }
               className="input font-mono"
             />
             <p className="text-xs text-brand-ink-soft mt-1">
-              El descuento que se aplicaría en la compra en tu página web, para el consumidor final.
+              El descuento que se aplicaría en la compra en tu página web, para
+              el consumidor final.
             </p>
           </div>
         </div>
 
-        <p className="text-sm text-brand-ink font-medium mb-2">Prueba con un ticket de compra real</p>
+        <p className="text-sm text-brand-ink font-medium mb-2">
+          Prueba con un ticket de compra real
+        </p>
         <CostCalculator
           commission={form.defaultCommissionPercent || 0}
           discount={form.defaultDiscountPercent || 0}
@@ -148,14 +198,25 @@ export function OfferForm({
       </div>
 
       <div>
-        <label className="block text-sm text-brand-ink mb-1">Vinculación de creadores</label>
+        <label className="block text-sm text-brand-ink mb-1">
+          Vinculación de creadores
+        </label>
         <select
           value={form.joinMode}
-          onChange={(e) => setForm({ ...form, joinMode: e.target.value as "OPEN" | "APPROVAL" })}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              joinMode: e.target.value as "OPEN" | "APPROVAL",
+            })
+          }
           className="input"
         >
-          <option value="OPEN">Abierta — cualquier creador se une automáticamente</option>
-          <option value="APPROVAL">Con aprobación — tú revisas cada creador antes de aceptarlo</option>
+          <option value="OPEN">
+            Abierta — cualquier creador se une automáticamente
+          </option>
+          <option value="APPROVAL">
+            Con aprobación — tú revisas cada creador antes de aceptarlo
+          </option>
         </select>
         <p className="text-xs text-brand-ink-soft mt-1">
           {form.joinMode === "OPEN"
@@ -169,7 +230,12 @@ export function OfferForm({
           <label className="block text-sm text-brand-ink mb-1">Estado</label>
           <select
             value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value as "ACTIVE" | "PAUSED" })}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                status: e.target.value as "ACTIVE" | "PAUSED",
+              })
+            }
             className="input"
           >
             <option value="ACTIVE">Activa</option>

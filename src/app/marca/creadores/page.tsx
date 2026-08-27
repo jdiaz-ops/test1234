@@ -12,7 +12,9 @@ export default async function CreadoresVinculadosPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CREADORES VINCULADOS</p>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
+        CREADORES VINCULADOS
+      </p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">
         Creadores en tu programa
       </h1>
@@ -20,8 +22,12 @@ export default async function CreadoresVinculadosPage() {
       <EnrollmentsPanel
         enrollments={enrollments.map((e) => ({
           ...e,
-          commissionPercentOverride: e.commissionPercentOverride ? Number(e.commissionPercentOverride) : null,
-          discountPercentOverride: e.discountPercentOverride ? Number(e.discountPercentOverride) : null,
+          commissionPercentOverride: e.commissionPercentOverride
+            ? Number(e.commissionPercentOverride)
+            : null,
+          discountPercentOverride: e.discountPercentOverride
+            ? Number(e.discountPercentOverride)
+            : null,
           orderCount: e.orderCount,
           revenue: e.revenue,
           offer: {

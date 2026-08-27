@@ -10,13 +10,18 @@ import { getOpenBrandCharge } from "@/server/services/payment-service";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { getRecentEndedChallengeForBrand } from "@/server/services/challenge-service";
 import { ChargePaymentBox } from "@/components/portal/charge-payment-box";
-import { ChallengeResultsGrid, type ChallengeResults } from "@/components/portal/challenge-results-grid";
+import {
+  ChallengeResultsGrid,
+  type ChallengeResults,
+} from "@/components/portal/challenge-results-grid";
 import type { ChallengeType } from "@/lib/challenge-types";
 
 function formatCOP(amount: number) {
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
-    amount
-  );
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
 function initials(name: string) {
@@ -46,7 +51,9 @@ function RecentCampaignRecapBox({
     <div className="rounded-2xl border border-brand-accent/30 bg-brand-accent-soft/40 p-5 mb-6">
       <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
         <div>
-          <p className="text-sm font-medium text-brand-ink">Así te fue con tu última campaña</p>
+          <p className="text-sm font-medium text-brand-ink">
+            Así te fue con tu última campaña
+          </p>
           <p className="text-xs text-brand-ink-soft mt-1">&quot;{name}&quot;</p>
         </div>
         <Link
@@ -66,7 +73,14 @@ export default async function MarcaDashboardPage() {
   const profile = await prisma.brandProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },
   });
-  const [summary, topCreators, pendingApprovals, openCharge, activeCampaigns, recentChallenge] = await Promise.all([
+  const [
+    summary,
+    topCreators,
+    pendingApprovals,
+    openCharge,
+    activeCampaigns,
+    recentChallenge,
+  ] = await Promise.all([
     getBrandDashboardSummary(profile.id),
     getTopCreatorsForBrand(profile.id, 3),
     countPendingApprovalsForBrand(profile.id),
@@ -75,7 +89,9 @@ export default async function MarcaDashboardPage() {
     // que si hay algo aquí, es Nivel 1 (PENDING) o un comprobante recién
     // subido en revisión (PROOF_SUBMITTED), y el panel sigue sin bloquear.
     getOpenBrandCharge(profile.id),
-    prisma.challenge.count({ where: { offer: { brandId: profile.id }, status: "ACTIVE" } }),
+    prisma.challenge.count({
+      where: { offer: { brandId: profile.id }, status: "ACTIVE" },
+    }),
     getRecentEndedChallengeForBrand(profile.id),
   ]);
   const platformConfig = openCharge ? await getPlatformConfig() : null;
@@ -86,8 +102,12 @@ export default async function MarcaDashboardPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">DASHBOARD</p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">{profile.companyName}</h1>
+      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
+        DASHBOARD
+      </p>
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
+        {profile.companyName}
+      </h1>
 
       {openCharge && platformConfig && (
         <div className="mb-6">
@@ -96,12 +116,15 @@ export default async function MarcaDashboardPage() {
               id: openCharge.id,
               totalAmount: Number(openCharge.totalAmount),
               dueAt: openCharge.dueAt.toISOString(),
-              deactivationDueAt: openCharge.deactivationDueAt?.toISOString() ?? null,
+              deactivationDueAt:
+                openCharge.deactivationDueAt?.toISOString() ?? null,
               deactivatedAt: openCharge.deactivatedAt?.toISOString() ?? null,
               status: openCharge.status,
               pdfUrl: openCharge.pdfUrl,
-              proofSubmittedAt: openCharge.proofSubmittedAt?.toISOString() ?? null,
-              proofRejectedAt: openCharge.proofRejectedAt?.toISOString() ?? null,
+              proofSubmittedAt:
+                openCharge.proofSubmittedAt?.toISOString() ?? null,
+              proofRejectedAt:
+                openCharge.proofRejectedAt?.toISOString() ?? null,
               proofRejectedReason: openCharge.proofRejectedReason,
             }}
             paymentInstructions={platformConfig.paymentInstructions}
@@ -134,9 +157,12 @@ export default async function MarcaDashboardPage() {
         ) : (
           <div className="flex items-center justify-between gap-4 rounded-2xl border border-brand-accent/30 bg-brand-accent-soft/40 p-5 mb-6">
             <div>
-              <p className="text-sm font-medium text-brand-ink">Motiva a tus creadores con una campaña</p>
+              <p className="text-sm font-medium text-brand-ink">
+                Motiva a tus creadores con una campaña
+              </p>
               <p className="text-xs text-brand-ink-soft mt-1">
-                Una Misión, un Flash Sale o un Mix por tiempo limitado — para que vendan más ahora.
+                Una Misión, un Flash Sale o un Mix por tiempo limitado — para
+                que vendan más ahora.
               </p>
             </div>
             <Link
@@ -148,67 +174,102 @@ export default async function MarcaDashboardPage() {
           </div>
         ))}
 
-      <div className="grid sm:grid-cols-3 gap-4 mb-4">
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 sm:col-span-1">
-          <p className="text-xs text-brand-ink-soft mb-1">Ventas generadas vía Marcolini</p>
-          <p className="font-display text-xl font-semibold text-brand-ink">{formatCOP(summary.gmv)}</p>
+      {/* 2 columnas desde el arranque (antes se apilaban una debajo de
+          otra en mobile) — mismo tratamiento que el dashboard de admin. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-4">
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5 sm:col-span-1">
+          <p className="text-xs text-brand-ink-soft mb-1">
+            Ventas generadas vía Marcolini
+          </p>
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">
+            {formatCOP(summary.gmv)}
+          </p>
         </div>
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
-          <p className="text-xs text-brand-ink-soft mb-1">Transacciones / órdenes vía Marcolini</p>
-          <p className="font-display text-xl font-semibold text-brand-ink">{summary.orderCount}</p>
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
+          <p className="text-xs text-brand-ink-soft mb-1">
+            Transacciones / órdenes vía Marcolini
+          </p>
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">
+            {summary.orderCount}
+          </p>
         </div>
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
           <p className="text-xs text-brand-ink-soft mb-1">Ticket promedio</p>
-          <p className="font-display text-xl font-semibold text-brand-ink">
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">
             {aov ? formatCOP(aov) : "—"}
           </p>
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-4 mb-10">
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-10">
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
           <p className="text-xs text-brand-ink-soft mb-1">Nuevos embajadores</p>
-          <p className="font-display text-xl font-semibold text-brand-ink">{summary.newCreatorsThisMonth}</p>
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">
+            {summary.newCreatorsThisMonth}
+          </p>
           <p className="text-xs text-brand-ink-soft mt-1">este mes</p>
         </div>
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
           <p className="text-xs text-brand-ink-soft mb-1">Retorno</p>
-          <p className="font-display text-xl font-semibold text-brand-accent">
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-accent">
             {roi ? `${roi.toFixed(1)}x` : "—"}
           </p>
-          <p className="text-xs text-brand-ink-soft mt-1">por cada $1 invertido en comisión + tarifa</p>
+          <p className="text-xs text-brand-ink-soft mt-1">
+            por cada $1 invertido en comisión + tarifa
+          </p>
         </div>
       </div>
 
       <div className="rounded-2xl border border-brand-line bg-brand-accent-soft/40 p-6 mb-10">
         <p className="text-sm text-brand-ink">
           Este mes invertiste{" "}
-          <span className="font-mono text-brand-accent font-medium">{formatCOP(totalCost)}</span>{" "}
+          <span className="font-mono text-brand-accent font-medium">
+            {formatCOP(totalCost)}
+          </span>{" "}
           (comisiones a creadores + tarifa Marcolini) y generaste{" "}
-          <span className="font-mono text-brand-accent font-medium">{formatCOP(summary.gmv)}</span> en
-          ventas.
+          <span className="font-mono text-brand-accent font-medium">
+            {formatCOP(summary.gmv)}
+          </span>{" "}
+          en ventas.
         </p>
       </div>
 
       {topCreators.length > 0 && (
         <div>
-          <h2 className="font-display font-semibold text-brand-ink mb-4">Tus creadores top</h2>
+          <h2 className="font-display font-semibold text-brand-ink mb-4">
+            Tus creadores top
+          </h2>
           <div className="grid sm:grid-cols-3 gap-4">
             {topCreators.map((c) => (
-              <div key={c.id} className="rounded-2xl border border-brand-line bg-brand-surface p-5 text-center">
+              <div
+                key={c.id}
+                className="rounded-2xl border border-brand-line bg-brand-surface p-5 text-center"
+              >
                 {c.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={c.photoUrl} alt={c.displayName} className="w-14 h-14 rounded-full object-cover mx-auto mb-3" />
+                  <img
+                    src={c.photoUrl}
+                    alt={c.displayName}
+                    className="w-14 h-14 rounded-full object-cover mx-auto mb-3"
+                  />
                 ) : (
                   <div className="w-14 h-14 rounded-full bg-brand-accent-soft text-brand-accent font-display font-semibold flex items-center justify-center mx-auto mb-3">
                     {initials(c.displayName)}
                   </div>
                 )}
-                <p className="font-display font-semibold text-brand-ink mb-2">{c.displayName}</p>
+                <p className="font-display font-semibold text-brand-ink mb-2">
+                  {c.displayName}
+                </p>
                 <p className="text-xs text-brand-ink-soft">
-                  Te generó <span className="font-mono text-brand-ink">{c.orderCount}</span>{" "}
+                  Te generó{" "}
+                  <span className="font-mono text-brand-ink">
+                    {c.orderCount}
+                  </span>{" "}
                   {c.orderCount === 1 ? "orden" : "órdenes"} ·{" "}
-                  <span className="font-mono text-brand-accent">{formatCOP(c.revenue)}</span> en ingresos
+                  <span className="font-mono text-brand-accent">
+                    {formatCOP(c.revenue)}
+                  </span>{" "}
+                  en ingresos
                 </p>
               </div>
             ))}

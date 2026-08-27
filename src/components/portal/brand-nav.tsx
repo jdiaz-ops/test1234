@@ -43,7 +43,9 @@ export function BrandNav({
         </Link>
       )}
       {items.map((item) => {
-        const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+        const active = item.exact
+          ? pathname === item.href
+          : pathname.startsWith(item.href);
         return (
           <Link
             key={item.href}
@@ -72,16 +74,6 @@ export function BrandNav({
             {unreadNotifications > 99 ? "99+" : unreadNotifications}
           </span>
         )}
-      </Link>
-      <Link
-        href="/marca/como-funciona"
-        className={`rounded-lg px-3 py-2 text-sm ${
-          pathname.startsWith("/marca/como-funciona")
-            ? "bg-brand-accent-soft text-brand-accent font-medium"
-            : "text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink"
-        }`}
-      >
-        Cómo funciona
       </Link>
     </nav>
   );

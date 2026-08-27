@@ -132,11 +132,10 @@ export function EnrollmentsPanel({
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[920px]">
+        <table className="w-full text-sm min-w-[800px]">
           <thead>
             <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
               <th className="px-5 py-3 font-normal">Creador</th>
-              <th className="px-5 py-3 font-normal">Oferta</th>
               <th className="px-5 py-3 font-normal">Código</th>
               <th className="px-5 py-3 font-normal">Órdenes</th>
               <th className="px-5 py-3 font-normal">Ingreso generado</th>
@@ -150,15 +149,6 @@ export function EnrollmentsPanel({
               <tr key={e.id}>
                 <td className="px-5 py-3 text-brand-ink">
                   {e.creator.displayName}
-                  {e.creator.city && (
-                    <span className="text-brand-ink-soft">
-                      {" "}
-                      · {e.creator.city}
-                    </span>
-                  )}
-                </td>
-                <td className="px-5 py-3 text-brand-ink-soft">
-                  {e.offer.name}
                 </td>
                 <td className="px-5 py-3 font-mono text-brand-accent">
                   {e.discountCode}
