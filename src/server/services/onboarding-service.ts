@@ -58,3 +58,43 @@ export async function getBrandOnboardingStatus(profile: BrandProfile) {
     total: steps.length,
   };
 }
+
+/// SOLO PARA PRUEBAS — llena de una vez las mismas condiciones que
+/// getBrandOnboardingStatus revisa arriba (perfil, tienda, cómo-te-cobramos,
+/// oferta) para poder ver en vivo el portal de una marca "en vivo" (activa
+/// en el marketplace, "Empieza aquí" fuera del sidebar, etc.) sin tener que
+/// llenar cada paso del wizard a mano. Nunca se llama desde el onboarding
+/// real — respeta lo que la marca ya haya completado (no pisa un logo o
+/// tienda ya cargados) y solo rellena lo que falte.
+export async function forceCompleteBrandOnboarding(brandId: string) {
+  const profile = await prisma.brandProfile.findUniqueOrThrow({
+    where: { id: brandId },
+  });
+
+  await prisma.brandProfile.update({
+    where: { id: brandId },
+    data: {
+      logoUrl: profile.logoUrl || "/marcolini-icon.png",
+      description:
+        profile.description ||
+        `${profile.companyName} — marca de prueba, onboarding forzado desde el panel admin.`,
+      websiteUrl: profile.websiteUrl || "https://marcolini.lat",
+      storeConnectionStatus: "CONNECTED",
+      storeUrl: profile.storeUrl || "https://tienda-de-prueba.myshopify.com",
+      billingAcknowledgedAt: profile.billingAcknowledgedAt ?? new Date(),
+    },
+  });
+
+  const offerCount = await prisma.offer.count({ where: { brandId } });
+  if (offerCount === 0) {
+    await prisma.offer.create({
+      data: {
+        brandId,
+        name: "Programa de afiliados",
+        defaultCommissionPercent: 8,
+        defaultDiscountPercent: 10,
+        joinMode: "OPEN",
+      },
+    });
+  }
+}

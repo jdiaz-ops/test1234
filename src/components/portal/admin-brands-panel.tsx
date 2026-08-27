@@ -252,6 +252,17 @@ export function AdminBrandsPanel({
     router.refresh();
   }
 
+  async function completeOnboarding(brandId: string) {
+    setLoadingId(brandId);
+    await fetch("/api/admin/marcas/prueba/onboarding", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandId }),
+    });
+    setLoadingId(null);
+    router.refresh();
+  }
+
   async function removeTestCharge(brandId: string, chargeId: string) {
     setLoadingId(brandId);
     await fetch("/api/admin/marcas/prueba/moroso/quitar", {
@@ -415,6 +426,14 @@ export function AdminBrandsPanel({
                     )}
                     {isOwner && b.status === "APPROVED" && (
                       <>
+                        <button
+                          onClick={() => completeOnboarding(b.id)}
+                          disabled={loadingId === b.id}
+                          className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline disabled:opacity-50"
+                          title="Rellena perfil, tienda, cómo-te-cobramos y crea una oferta si no tiene — para ver el portal y el marketplace de esta marca como si ya hubiera terminado el onboarding real."
+                        >
+                          Completar onboarding
+                        </button>
                         {b.openCharge ? (
                           <button
                             onClick={() =>
