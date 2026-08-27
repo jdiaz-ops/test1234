@@ -138,7 +138,7 @@ function RegistroCreadorForm() {
           disabled={loading}
           className="w-full bg-brand-accent text-white rounded-md py-2 text-sm font-medium disabled:opacity-50"
         >
-          {loading ? "Creando cuenta..." : "Crear mi cuenta"}
+          {loading ? "Creando perfil..." : "Crear mi perfil"}
         </button>
       </form>
 
