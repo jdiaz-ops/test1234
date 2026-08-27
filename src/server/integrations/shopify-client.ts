@@ -24,34 +24,42 @@ export async function createShopifyDiscountCode(params: {
   code: string;
   discountPercent: number;
 }): Promise<{ priceRuleId: string }> {
-  const priceRuleRes = await fetch(adminApiUrl(params.storeUrl, "price_rules.json"), {
-    method: "POST",
-    headers: {
-      "X-Shopify-Access-Token": params.accessToken,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      price_rule: {
-        title: params.code,
-        target_type: "line_item",
-        target_selection: "all",
-        allocation_method: "across",
-        value_type: "percentage",
-        value: `-${params.discountPercent}`,
-        customer_selection: "all",
-        starts_at: new Date().toISOString(),
+  const priceRuleRes = await fetch(
+    adminApiUrl(params.storeUrl, "price_rules.json"),
+    {
+      method: "POST",
+      headers: {
+        "X-Shopify-Access-Token": params.accessToken,
+        "Content-Type": "application/json",
       },
-    }),
-  });
+      body: JSON.stringify({
+        price_rule: {
+          title: params.code,
+          target_type: "line_item",
+          target_selection: "all",
+          allocation_method: "across",
+          value_type: "percentage",
+          value: `-${params.discountPercent}`,
+          customer_selection: "all",
+          starts_at: new Date().toISOString(),
+        },
+      }),
+    },
+  );
 
   if (!priceRuleRes.ok) {
-    throw new ShopifyApiError(`No se pudo crear la regla de precio (${priceRuleRes.status})`);
+    throw new ShopifyApiError(
+      `No se pudo crear la regla de precio (${priceRuleRes.status})`,
+    );
   }
   const priceRuleBody = await priceRuleRes.json();
   const priceRuleId = priceRuleBody.price_rule.id;
 
   const discountRes = await fetch(
-    adminApiUrl(params.storeUrl, `price_rules/${priceRuleId}/discount_codes.json`),
+    adminApiUrl(
+      params.storeUrl,
+      `price_rules/${priceRuleId}/discount_codes.json`,
+    ),
     {
       method: "POST",
       headers: {
@@ -59,11 +67,13 @@ export async function createShopifyDiscountCode(params: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ discount_code: { code: params.code } }),
-    }
+    },
   );
 
   if (!discountRes.ok) {
-    throw new ShopifyApiError(`No se pudo crear el código de descuento (${discountRes.status})`);
+    throw new ShopifyApiError(
+      `No se pudo crear el código de descuento (${discountRes.status})`,
+    );
   }
 
   return { priceRuleId: String(priceRuleId) };
@@ -83,19 +93,28 @@ export async function setShopifyDiscountCodeActive(params: {
   priceRuleId: string;
   active: boolean;
 }): Promise<void> {
-  const res = await fetch(adminApiUrl(params.storeUrl, `price_rules/${params.priceRuleId}.json`), {
-    method: "PUT",
-    headers: {
-      "X-Shopify-Access-Token": params.accessToken,
-      "Content-Type": "application/json",
+  const res = await fetch(
+    adminApiUrl(params.storeUrl, `price_rules/${params.priceRuleId}.json`),
+    {
+      method: "PUT",
+      headers: {
+        "X-Shopify-Access-Token": params.accessToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        price_rule: {
+          ends_at: params.active
+            ? null
+            : new Date(Date.now() - 60_000).toISOString(),
+        },
+      }),
     },
-    body: JSON.stringify({
-      price_rule: { ends_at: params.active ? null : new Date(Date.now() - 60_000).toISOString() },
-    }),
-  });
+  );
 
   if (!res.ok) {
-    throw new ShopifyApiError(`No se pudo ${params.active ? "reactivar" : "desactivar"} la regla de precio (${res.status})`);
+    throw new ShopifyApiError(
+      `No se pudo ${params.active ? "reactivar" : "desactivar"} la regla de precio (${res.status})`,
+    );
   }
 }
 
@@ -112,19 +131,24 @@ export async function setShopifyDiscountValue(params: {
   priceRuleId: string;
   discountPercent: number;
 }): Promise<void> {
-  const res = await fetch(adminApiUrl(params.storeUrl, `price_rules/${params.priceRuleId}.json`), {
-    method: "PUT",
-    headers: {
-      "X-Shopify-Access-Token": params.accessToken,
-      "Content-Type": "application/json",
+  const res = await fetch(
+    adminApiUrl(params.storeUrl, `price_rules/${params.priceRuleId}.json`),
+    {
+      method: "PUT",
+      headers: {
+        "X-Shopify-Access-Token": params.accessToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        price_rule: { value: `-${params.discountPercent}` },
+      }),
     },
-    body: JSON.stringify({
-      price_rule: { value: `-${params.discountPercent}` },
-    }),
-  });
+  );
 
   if (!res.ok) {
-    throw new ShopifyApiError(`No se pudo actualizar el % de descuento de la regla de precio (${res.status})`);
+    throw new ShopifyApiError(
+      `No se pudo actualizar el % de descuento de la regla de precio (${res.status})`,
+    );
   }
 }
 
@@ -146,15 +170,47 @@ export interface ShopifyProduct {
   }[];
 }
 
-/// Trae hasta 250 productos activos de la tienda — suficiente para el
-/// catálogo de una marca chica/mediana en esta fase. Si más adelante hace
-/// falta paginar más allá, Shopify usa cursores (Link header), no offset.
-export async function fetchShopifyProducts(params: { storeUrl: string; accessToken: string }): Promise<ShopifyProduct[]> {
-  const res = await fetch(adminApiUrl(params.storeUrl, "products.json?limit=250"), {
+/// El dominio con el que se autoriza el acceso (storeUrl, ej.
+/// "hlacosedora.myshopify.com") casi nunca es el que la marca le muestra
+/// a sus clientes — la mayoría de tiendas Shopify tienen un dominio propio
+/// configurado (ej. "hlacosedora.com.co"), y ese es el campo `domain` del
+/// objeto `shop` (distinto de `myshopify_domain`, que sí es el técnico).
+/// Se usa para llenar solo el campo "Página web" del perfil al conectar la
+/// tienda, en vez de dejar que la marca lo escriba a mano (y se equivoque).
+export async function fetchShopifyShopDomain(params: {
+  storeUrl: string;
+  accessToken: string;
+}): Promise<string | null> {
+  const res = await fetch(adminApiUrl(params.storeUrl, "shop.json"), {
     headers: { "X-Shopify-Access-Token": params.accessToken },
   });
   if (!res.ok) {
-    throw new ShopifyApiError(`No se pudieron traer los productos (${res.status})`);
+    throw new ShopifyApiError(
+      `No se pudo traer la información de la tienda (${res.status})`,
+    );
+  }
+  const body = await res.json();
+  const domain = body.shop?.domain as string | undefined;
+  return domain || null;
+}
+
+/// Trae hasta 250 productos activos de la tienda — suficiente para el
+/// catálogo de una marca chica/mediana en esta fase. Si más adelante hace
+/// falta paginar más allá, Shopify usa cursores (Link header), no offset.
+export async function fetchShopifyProducts(params: {
+  storeUrl: string;
+  accessToken: string;
+}): Promise<ShopifyProduct[]> {
+  const res = await fetch(
+    adminApiUrl(params.storeUrl, "products.json?limit=250"),
+    {
+      headers: { "X-Shopify-Access-Token": params.accessToken },
+    },
+  );
+  if (!res.ok) {
+    throw new ShopifyApiError(
+      `No se pudieron traer los productos (${res.status})`,
+    );
   }
   const body = await res.json();
   return body.products ?? [];
@@ -163,9 +219,16 @@ export async function fetchShopifyProducts(params: { storeUrl: string; accessTok
 /// Verifica que un webhook realmente venga de Shopify (firma HMAC-SHA256
 /// sobre el cuerpo crudo de la petición, comparada con el secreto guardado
 /// para esa marca) — sin esto, cualquiera podría inventarse ventas falsas.
-export function verifyShopifyWebhookSignature(rawBody: string, hmacHeader: string | null, secret: string) {
+export function verifyShopifyWebhookSignature(
+  rawBody: string,
+  hmacHeader: string | null,
+  secret: string,
+) {
   if (!hmacHeader) return false;
-  const digest = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("base64");
+  const digest = crypto
+    .createHmac("sha256", secret)
+    .update(rawBody, "utf8")
+    .digest("base64");
   try {
     return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(hmacHeader));
   } catch {
