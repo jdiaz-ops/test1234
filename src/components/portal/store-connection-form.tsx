@@ -15,6 +15,11 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 // app privada vive adentro de su propia tienda.
 const SHOPIFY_OAUTH_ENABLED = false;
 
+/// Los tres alcances que la marca debe marcar al crear su app privada — en
+/// un solo string separado por comas porque así es como Shopify espera
+/// pegarlos en "Configurar alcances de API de Admin".
+const SHOPIFY_MANUAL_SCOPES = "write_price_rules,read_orders,read_products";
+
 type StoreType = "SHOPIFY" | "WOOCOMMERCE" | "OTHER";
 
 interface FormState {
@@ -56,6 +61,8 @@ export function StoreConnectionForm({
   const [manualToken, setManualToken] = useState("");
   const [manualSaving, setManualSaving] = useState(false);
   const [manualSuccess, setManualSuccess] = useState(false);
+  const [copiedName, setCopiedName] = useState(false);
+  const [copiedScopes, setCopiedScopes] = useState(false);
   // Si ya está conectada, el formulario para conectar (de nuevo) empieza
   // escondido — si no, lo que se ve es "aquí está tu tienda conectada" y,
   // justo debajo, un formulario pidiendo conectarla otra vez, que confunde.
@@ -159,6 +166,30 @@ export function StoreConnectionForm({
     }
   }
 
+  /// Copia al portapapeles y muestra "Copiado ✓" un par de segundos. Si el
+  /// navegador bloquea el portapapeles (poco común), el texto sigue visible
+  /// al lado del botón para copiarlo a mano — no hace falta manejar el error.
+  async function copyText(text: string, setCopied: (v: boolean) => void) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // silencioso a propósito — ver comentario arriba.
+    }
+  }
+
+  // Solo con el dominio ya escrito podemos armar el link directo a la
+  // pantalla de "Desarrollar apps" de esa tienda — por eso el dominio va
+  // primero en el formulario, antes de las instrucciones.
+  const manualDomainClean = manualDomain.trim().toLowerCase();
+  const manualDomainValid = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(
+    manualDomainClean,
+  );
+  const shopifyDevelopAppsUrl = manualDomainValid
+    ? `https://admin.shopify.com/store/${manualDomainClean.replace(/\.myshopify\.com$/, "")}/settings/apps/development`
+    : null;
+
   function connectWooCommerce() {
     const url = wooStoreUrl.trim().replace(/\/$/, "");
     if (!/^https:\/\/.+\..+/.test(url)) {
@@ -234,7 +265,7 @@ export function StoreConnectionForm({
             <p className="text-sm text-brand-ink-soft">
               {SHOPIFY_OAUTH_ENABLED
                 ? "Conéctate directo con tu tienda — nada de copiar tokens a mano. Solo autorizas el acceso desde Shopify y quedas conectada."
-                : "Conecta tu tienda pegando un token de acceso que generas tú misma desde tu propio panel de Shopify — toma unos minutos y el token queda solo en tu cuenta."}
+                : "Sigue estos pasos para conectar tu tienda Shopify en segundos."}
             </p>
           )}
 
@@ -269,33 +300,7 @@ export function StoreConnectionForm({
           )}
 
           {showShopifyForm && !SHOPIFY_OAUTH_ENABLED && (
-            <div className="space-y-4">
-              <ol className="text-sm text-brand-ink-soft list-decimal list-inside space-y-1.5">
-                <li>
-                  En tu admin de Shopify, ve a{" "}
-                  <strong>
-                    Configuración → Apps y canales de venta → Desarrollar apps
-                  </strong>
-                  .
-                </li>
-                <li>
-                  Clic en <strong>Crear una app</strong> (el nombre no importa,
-                  puedes poner &quot;Marcolini&quot;).
-                </li>
-                <li>
-                  En <strong>Configurar alcances de API de Admin</strong>,
-                  marca: <code>write_price_rules</code>,{" "}
-                  <code>read_orders</code> y <code>read_products</code>.
-                </li>
-                <li>
-                  Clic en <strong>Instalar app</strong> (arriba a la derecha).
-                </li>
-                <li>
-                  Copia el <strong>Token de acceso a la API de Admin</strong> —
-                  empieza con <code>shpat_</code> y solo se muestra una vez.
-                </li>
-              </ol>
-
+            <div className="space-y-5">
               <div>
                 <label className="block text-sm text-brand-ink mb-1">
                   Dominio de tu tienda
@@ -306,7 +311,77 @@ export function StoreConnectionForm({
                   placeholder="tu-tienda.myshopify.com"
                   className="input"
                 />
+                <p className="text-xs text-brand-ink-soft mt-1">
+                  Lo encuentras en tu panel de Shopify, en la barra de
+                  direcciones, o en Configuración → Dominios. Escríbelo primero
+                  — con él armamos el acceso directo del paso 1.
+                </p>
               </div>
+
+              <ol className="text-sm text-brand-ink-soft list-decimal list-inside space-y-3">
+                <li>
+                  Ve a{" "}
+                  <strong>
+                    Configuración → Apps y canales de venta → Desarrollar apps
+                  </strong>{" "}
+                  en tu admin de Shopify.
+                  {shopifyDevelopAppsUrl ? (
+                    <a
+                      href={shopifyDevelopAppsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block mt-1 text-xs font-medium text-brand-accent hover:underline"
+                    >
+                      Abrir esta pantalla en tu tienda →
+                    </a>
+                  ) : (
+                    <span className="block mt-1 text-xs text-brand-ink-soft">
+                      Escribe tu dominio arriba para habilitar el acceso
+                      directo.
+                    </span>
+                  )}
+                </li>
+                <li>
+                  Clic en <strong>Crear una app</strong>. En el nombre pon:
+                  <span className="flex items-center gap-2 mt-1">
+                    <code className="bg-brand-surface border border-brand-line rounded px-2 py-1 text-xs">
+                      Marcolini
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => copyText("Marcolini", setCopiedName)}
+                      className="text-xs text-brand-accent hover:underline"
+                    >
+                      {copiedName ? "Copiado ✓" : "Copiar"}
+                    </button>
+                  </span>
+                </li>
+                <li>
+                  En <strong>Configurar alcances de API de Admin</strong>, copia
+                  lo siguiente y pégalo ahí:
+                  <span className="flex items-center gap-2 mt-1">
+                    <code className="bg-brand-surface border border-brand-line rounded px-2 py-1 text-xs break-all">
+                      {SHOPIFY_MANUAL_SCOPES}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyText(SHOPIFY_MANUAL_SCOPES, setCopiedScopes)
+                      }
+                      className="text-xs text-brand-accent hover:underline shrink-0"
+                    >
+                      {copiedScopes ? "Copiado ✓" : "Copiar"}
+                    </button>
+                  </span>
+                </li>
+                <li>
+                  Clic en <strong>Instalar app</strong> (arriba a la derecha) —
+                  te va a dar un{" "}
+                  <strong>Token de acceso a la API de Admin</strong>, empieza
+                  con <code>shpat_</code> y solo se muestra una vez. Cópialo y
+                  pégalo abajo.
+                </li>
+              </ol>
 
               <div>
                 <label className="block text-sm text-brand-ink mb-1">
