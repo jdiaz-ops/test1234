@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
@@ -6,6 +6,19 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { consumeImpersonationToken } from "@/lib/impersonation";
 import { normalizeEmail } from "@/lib/normalize-email";
+
+/// Auth.js v5: un `throw new Error("lo que sea")` dentro de authorize() NO
+/// llega al cliente con ese mensaje — signIn(..., {redirect:false}) siempre
+/// devuelve result.error = "CredentialsSignin" (el `type` genérico), sin
+/// importar qué se haya tirado. Lo que SÍ llega es result.code, y solo si
+/// se tira una subclase de CredentialsSignin con su propio `code` (ver
+/// login/page.tsx, que ya lee result.code en vez de result.error). Antes de
+/// este fix, el login SIEMPRE mostraba "Correo o contraseña incorrectos"
+/// para un correo sin verificar, aunque la contraseña fuera la correcta —
+/// nunca llegaba a mostrar el mensaje real.
+class EmailNotVerifiedSignin extends CredentialsSignin {
+  code = "EMAIL_NOT_VERIFIED";
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // El adapter guarda usuarios/cuentas OAuth (Google) en la base de datos,
@@ -86,7 +99,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!user.emailVerified) {
           // Verificación de email obligatoria: no se permite iniciar sesión
           // hasta confirmar el correo.
-          throw new Error("EMAIL_NOT_VERIFIED");
+          throw new EmailNotVerifiedSignin();
         }
 
         return {

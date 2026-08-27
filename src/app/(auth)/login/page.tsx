@@ -36,10 +36,14 @@ function LoginForm() {
 
     if (result?.error) {
       setLoading(false);
+      // result.error siempre es "CredentialsSignin" (el tipo genérico de
+      // Auth.js) — el motivo real viene en result.code, que solo se llena
+      // si authorize() tiró una subclase de CredentialsSignin con su
+      // propio código (ver EmailNotVerifiedSignin en auth.ts).
       setError(
-        result.error === "EMAIL_NOT_VERIFIED"
+        result.code === "EMAIL_NOT_VERIFIED"
           ? "Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada."
-          : "Correo o contraseña incorrectos."
+          : "Correo o contraseña incorrectos.",
       );
       return;
     }
@@ -73,7 +77,10 @@ function LoginForm() {
         <div>
           <div className="flex justify-between items-center mb-1">
             <label className="block text-sm text-brand-ink">Contraseña</label>
-            <Link href="/recuperar-password" className="text-xs text-brand-ink-soft hover:underline">
+            <Link
+              href="/recuperar-password"
+              className="text-xs text-brand-ink-soft hover:underline"
+            >
               ¿Olvidaste tu contraseña?
             </Link>
           </div>
@@ -104,7 +111,9 @@ function LoginForm() {
       </div>
 
       <button
-        onClick={() => signIn("google", { callbackUrl: explicitCallbackUrl ?? "/creador" })}
+        onClick={() =>
+          signIn("google", { callbackUrl: explicitCallbackUrl ?? "/creador" })
+        }
         className="w-full border border-brand-line rounded-md py-2 text-sm font-medium hover:bg-brand-accent-soft"
       >
         Continuar con Google
@@ -112,11 +121,17 @@ function LoginForm() {
 
       <p className="text-center text-sm text-brand-ink-soft mt-6">
         ¿No tienes cuenta?{" "}
-        <Link href="/registro/creador" className="text-brand-accent font-medium hover:underline">
+        <Link
+          href="/registro/creador"
+          className="text-brand-accent font-medium hover:underline"
+        >
           Soy Creador
         </Link>{" "}
         ·{" "}
-        <Link href="/registro/marca" className="text-brand-accent font-medium hover:underline">
+        <Link
+          href="/registro/marca"
+          className="text-brand-accent font-medium hover:underline"
+        >
           Soy Marca
         </Link>
       </p>
