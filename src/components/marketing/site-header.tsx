@@ -9,21 +9,24 @@ import Link from "next/link";
 /// loginHref/loginLabel: mismo patrón, para que cada landing pueda
 /// personalizar el link de "ya tengo cuenta" (ej. "Acceder Portal
 /// Creadores" en /para-creadores) sin tocar el componente compartido.
-/// mobileCtaLabel: versión corta del CTA solo para mobile (ej. "Crear mi
-/// perfil" en vez de "Únete gratis") — en desktop se sigue viendo
-/// ctaLabel.
+/// mobileCtaLabel/mobileLoginLabel: versiones cortas solo para mobile
+/// (ej. "Crear mi perfil" en vez de "Únete gratis", "Portal Creadores"
+/// en vez de "Acceder Portal Creadores") — en desktop se sigue viendo
+/// la versión completa.
 export function SiteHeader({
   ctaHref,
   ctaLabel,
   mobileCtaLabel,
   loginHref = "/login",
   loginLabel = "Ya tengo cuenta",
+  mobileLoginLabel,
 }: {
   ctaHref?: string;
   ctaLabel?: string;
   mobileCtaLabel?: string;
   loginHref?: string;
   loginLabel?: string;
+  mobileLoginLabel?: string;
 } = {}) {
   return (
     // z-20, no z-10: con el mismo z-index que las tarjetas satélite
@@ -71,13 +74,18 @@ export function SiteHeader({
             )}
           </nav>
         </div>
-        {/* Fila secundaria solo mobile: el link de cuenta, centrado y más
-            discreto debajo de la fila principal — antes era una pill
-            metida entre "Soy Creador"/"Soy Marca" y el CTA que no cabía
-            bien en una barra angosta. */}
+        {/* Fila secundaria solo mobile: el link de cuenta como botón
+            chico, centrado, debajo de la fila principal — antes era una
+            pill metida entre "Soy Creador"/"Soy Marca" y el CTA que no
+            cabía bien en una barra angosta, y luego texto suelto sin
+            forma de botón. Usa mobileLoginLabel (label corto) cuando se
+            pasa, para que quepa cómodo como pill. */}
         <div className="sm:hidden pb-2.5 -mt-1 text-center">
-          <Link href={loginHref} className="text-xs text-brand-ink-soft hover:text-brand-accent hover:underline">
-            {loginLabel}
+          <Link
+            href={loginHref}
+            className="inline-flex text-xs font-medium text-brand-ink-soft border border-brand-line rounded-full px-3 py-1 hover:bg-brand-accent-soft hover:text-brand-ink transition"
+          >
+            {mobileLoginLabel ?? loginLabel}
           </Link>
         </div>
       </div>

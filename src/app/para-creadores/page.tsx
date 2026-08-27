@@ -104,6 +104,7 @@ export default function ParaCreadoresPage() {
         ctaLabel="Únete gratis"
         mobileCtaLabel="Crear mi perfil"
         loginLabel="Acceder Portal Creadores"
+        mobileLoginLabel="Portal Creadores"
       />
 
       <main className="flex-1">
