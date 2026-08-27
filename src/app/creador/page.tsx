@@ -1,9 +1,7 @@
 import { auth } from "@/auth";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCreatorDashboardSummary } from "@/server/services/creator-finance-service";
-import { getCreatorOnboardingStatus } from "@/server/services/creator-onboarding-service";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -29,14 +27,11 @@ export default async function CreadorDashboardPage() {
     where: { userId: session!.user.id },
   });
 
-  // Al entrar al dashboard (que es a donde aterriza el login) con el
-  // onboarding sin terminar, se manda directo a "Empieza aquí" — pero
-  // solo acá, en la raíz del portal: si el creador navega a cualquier
-  // otra página desde ahí, no lo volvemos a interceptar (nada bloquea
-  // nada, ver getCreatorOnboardingStatus).
-  const onboarding = await getCreatorOnboardingStatus(profile);
-  if (!onboarding.complete) redirect("/creador/onboarding");
-
+  // Aunque el onboarding no esté terminado, el creador puede navegar
+  // libremente todo el portal (mismo criterio que marca) — el único
+  // empujón hacia "Empieza aquí" es el link en el sidebar y el botón
+  // "Terminar onboarding" del centro de la barra superior. Nada
+  // redirige por la fuerza, ni siquiera el dashboard.
   const summary = await getCreatorDashboardSummary(profile.id);
 
   // Igual que la invitación del dashboard de marca (ver /marca), pero en
