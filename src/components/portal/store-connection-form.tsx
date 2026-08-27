@@ -265,7 +265,7 @@ export function StoreConnectionForm({
             <p className="text-sm text-brand-ink-soft">
               {SHOPIFY_OAUTH_ENABLED
                 ? "Conéctate directo con tu tienda — nada de copiar tokens a mano. Solo autorizas el acceso desde Shopify y quedas conectada."
-                : "Sigue estos pasos para conectar tu tienda Shopify en segundos."}
+                : "Sigue estos pasos para conectar tu tienda Shopify. Necesitarás las credenciales de acceso a tu cuenta de Shopify."}
             </p>
           )}
 
