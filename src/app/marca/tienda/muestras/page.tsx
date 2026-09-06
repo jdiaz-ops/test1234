@@ -38,6 +38,9 @@ export default async function TiendaMuestrasPage() {
           manual: p.manual,
           sampleEnabled: p.sampleEnabled,
           sampleStock: p.sampleStock,
+          sampleContentType: p.sampleContentType,
+          sampleInstructions: p.sampleInstructions,
+          sampleDeadlineDays: p.sampleDeadlineDays,
         }))}
         initialRequests={requests.map((r) => ({
           id: r.id,

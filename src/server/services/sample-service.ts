@@ -24,7 +24,14 @@ export async function listBrandSampleCatalog(brandId: string) {
 
 export async function updateProductSampleSettings(
   brandId: string,
-  data: { productId: string; sampleEnabled: boolean; sampleStock: number },
+  data: {
+    productId: string;
+    sampleEnabled: boolean;
+    sampleStock: number;
+    sampleContentType?: string | null;
+    sampleInstructions?: string | null;
+    sampleDeadlineDays?: number | null;
+  },
 ) {
   const product = await prisma.product.findFirst({
     where: { id: data.productId, brandId },
@@ -36,6 +43,9 @@ export async function updateProductSampleSettings(
     data: {
       sampleEnabled: data.sampleEnabled,
       sampleStock: data.sampleStock,
+      sampleContentType: data.sampleContentType || null,
+      sampleInstructions: data.sampleInstructions || null,
+      sampleDeadlineDays: data.sampleDeadlineDays ?? null,
     },
   });
 }

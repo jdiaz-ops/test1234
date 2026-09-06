@@ -10,6 +10,9 @@ export type SampleCatalogProduct = {
   manual: boolean;
   sampleEnabled: boolean;
   sampleStock: number;
+  sampleContentType: string | null;
+  sampleInstructions: string | null;
+  sampleDeadlineDays: number | null;
 };
 
 export type SampleRequestRow = {
@@ -52,10 +55,21 @@ function ProductRow({
 }) {
   const [enabled, setEnabled] = useState(product.sampleEnabled);
   const [stock, setStock] = useState(String(product.sampleStock));
+  const [contentType, setContentType] = useState(
+    product.sampleContentType ?? "",
+  );
+  const [instructions, setInstructions] = useState(
+    product.sampleInstructions ?? "",
+  );
+  const [deadlineDays, setDeadlineDays] = useState(
+    product.sampleDeadlineDays != null
+      ? String(product.sampleDeadlineDays)
+      : "",
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function save(nextEnabled: boolean, nextStock: string) {
+  async function save(overrides?: { enabled?: boolean; stock?: string }) {
     setSaving(true);
     setError(null);
     try {
@@ -64,8 +78,14 @@ function ProductRow({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: product.id,
-          sampleEnabled: nextEnabled,
-          sampleStock: nextStock === "" ? 0 : nextStock,
+          sampleEnabled: overrides?.enabled ?? enabled,
+          sampleStock:
+            (overrides?.stock ?? stock) === ""
+              ? 0
+              : (overrides?.stock ?? stock),
+          sampleContentType: contentType,
+          sampleInstructions: instructions,
+          sampleDeadlineDays: deadlineDays === "" ? null : deadlineDays,
         }),
       });
       const body = await res.json();
@@ -82,53 +102,102 @@ function ProductRow({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-brand-line bg-brand-surface p-3">
-      {product.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- foto del producto
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          className="w-12 h-12 rounded-lg object-cover border border-brand-line shrink-0"
+    <div className="rounded-xl border border-brand-line bg-brand-surface p-3">
+      <div className="flex items-center gap-3">
+        {product.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- foto del producto
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="w-12 h-12 rounded-lg object-cover border border-brand-line shrink-0"
+          />
+        ) : (
+          <div className="w-12 h-12 rounded-lg bg-brand-accent-soft shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-brand-ink truncate">
+            {product.name}
+          </p>
+          <p className="text-xs text-brand-ink-soft font-mono">
+            {formatCOP(product.price)} ·{" "}
+            {product.manual ? "Mi tienda" : "Sincronizado"}
+          </p>
+        </div>
+
+        <label className="flex items-center gap-2 text-xs text-brand-ink-soft shrink-0">
+          <input
+            type="checkbox"
+            checked={enabled}
+            disabled={saving}
+            onChange={(e) => {
+              setEnabled(e.target.checked);
+              save({ enabled: e.target.checked });
+            }}
+          />
+          Habilitada
+        </label>
+
+        <input
+          type="number"
+          min="0"
+          step="1"
+          value={stock}
+          disabled={saving || !enabled}
+          onChange={(e) => setStock(e.target.value)}
+          onBlur={() => save({ stock })}
+          placeholder="Cant."
+          className="input w-20 text-sm shrink-0"
         />
-      ) : (
-        <div className="w-12 h-12 rounded-lg bg-brand-accent-soft shrink-0" />
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-brand-ink truncate">
-          {product.name}
-        </p>
-        <p className="text-xs text-brand-ink-soft font-mono">
-          {formatCOP(product.price)} ·{" "}
-          {product.manual ? "Mi tienda" : "Sincronizado"}
-        </p>
       </div>
 
-      <label className="flex items-center gap-2 text-xs text-brand-ink-soft shrink-0">
-        <input
-          type="checkbox"
-          checked={enabled}
-          disabled={saving}
-          onChange={(e) => {
-            setEnabled(e.target.checked);
-            save(e.target.checked, stock);
-          }}
-        />
-        Habilitada
-      </label>
+      {enabled && (
+        <div className="mt-3 pt-3 border-t border-brand-line grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-brand-ink mb-1">
+              Tipo de contenido esperado (opcional)
+            </label>
+            <input
+              value={contentType}
+              disabled={saving}
+              onChange={(e) => setContentType(e.target.value)}
+              onBlur={() => save()}
+              placeholder="Ej. Reel de unboxing, review en Stories..."
+              className="input text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-brand-ink mb-1">
+              Plazo para publicar, en días (opcional)
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="90"
+              value={deadlineDays}
+              disabled={saving}
+              onChange={(e) => setDeadlineDays(e.target.value)}
+              onBlur={() => save()}
+              placeholder="Ej. 15"
+              className="input text-sm"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs text-brand-ink mb-1">
+              Instrucciones / mensajes clave (opcional)
+            </label>
+            <textarea
+              value={instructions}
+              disabled={saving}
+              onChange={(e) => setInstructions(e.target.value.slice(0, 500))}
+              onBlur={() => save()}
+              placeholder="Ej. menciona el ingrediente activo, usa #MarcaNatural, muestra el empaque..."
+              className="input text-sm min-h-16"
+            />
+          </div>
+        </div>
+      )}
 
-      <input
-        type="number"
-        min="0"
-        step="1"
-        value={stock}
-        disabled={saving || !enabled}
-        onChange={(e) => setStock(e.target.value)}
-        onBlur={() => save(enabled, stock)}
-        placeholder="Cant."
-        className="input w-20 text-sm shrink-0"
-      />
-
-      {error && <p className="text-xs text-red-600 shrink-0">{error}</p>}
+      {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
     </div>
   );
 }

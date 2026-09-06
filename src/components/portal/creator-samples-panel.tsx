@@ -7,6 +7,9 @@ export type SampleEligibleProduct = {
   name: string;
   imageUrl: string | null;
   sampleStock: number;
+  sampleContentType: string | null;
+  sampleInstructions: string | null;
+  sampleDeadlineDays: number | null;
   brand: { companyName: string; logoUrl: string | null };
 };
 
@@ -266,6 +269,30 @@ export function CreatorSamplesPanel({
                       </p>
                     </div>
                   </div>
+
+                  {(p.sampleContentType ||
+                    p.sampleInstructions ||
+                    p.sampleDeadlineDays) && (
+                    <div className="mt-3 rounded-lg bg-brand-bg p-2.5 text-xs text-brand-ink-soft space-y-1">
+                      {p.sampleContentType && (
+                        <p>
+                          <span className="text-brand-ink font-medium">
+                            Contenido esperado:
+                          </span>{" "}
+                          {p.sampleContentType}
+                        </p>
+                      )}
+                      {p.sampleDeadlineDays && (
+                        <p>
+                          <span className="text-brand-ink font-medium">
+                            Plazo:
+                          </span>{" "}
+                          {p.sampleDeadlineDays} días después de recibirla
+                        </p>
+                      )}
+                      {p.sampleInstructions && <p>{p.sampleInstructions}</p>}
+                    </div>
+                  )}
 
                   {requested ? (
                     <p className="mt-3 text-xs text-brand-accent">

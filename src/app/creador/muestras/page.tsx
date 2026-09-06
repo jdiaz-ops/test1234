@@ -33,6 +33,9 @@ export default async function CreadorMuestrasPage() {
           name: p.name,
           imageUrl: p.imageUrl,
           sampleStock: p.sampleStock,
+          sampleContentType: p.sampleContentType,
+          sampleInstructions: p.sampleInstructions,
+          sampleDeadlineDays: p.sampleDeadlineDays,
           brand: {
             companyName: p.brand.companyName,
             logoUrl: p.brand.logoUrl,

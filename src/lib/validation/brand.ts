@@ -273,6 +273,16 @@ export const sampleSettingsSchema = z.object({
   productId: z.string().min(1),
   sampleEnabled: z.boolean(),
   sampleStock: z.coerce.number().int().min(0, "No puede ser negativo"),
+  /// Instrucciones para quien pida la muestra — el creador las ve ANTES de
+  /// pedirla, en su tarjeta de producto.
+  sampleContentType: z.string().max(80).optional().or(z.literal("")),
+  sampleInstructions: z.string().max(500).optional().or(z.literal("")),
+  sampleDeadlineDays: z
+    .preprocess(
+      (val) => (val === "" || val == null ? undefined : val),
+      z.coerce.number().int().min(1, "Mínimo 1 día").max(90, "Máximo 90 días"),
+    )
+    .optional(),
 });
 
 export const respondSampleRequestSchema = z.object({

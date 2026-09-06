@@ -1523,6 +1523,15 @@ model Product {
   sampleEnabled Boolean @default(false)
   sampleStock   Int     @default(0)
 
+  /// Instrucciones de la marca para quien pida la muestra — qué contenido
+  /// espera, mensajes clave/hashtags, y en cuántos días espera que se
+  /// publique. Todo opcional; se le muestra al creador ANTES de pedir la
+  /// muestra (no solo después de aprobada), para que sepa a qué se está
+  /// comprometiendo.
+  sampleContentType  String?
+  sampleInstructions String?
+  sampleDeadlineDays Int?
+
   collectionItems CollectionProduct[]
   storeOrderItems StoreOrderItem[]
   sampleRequests  SampleRequest[]
