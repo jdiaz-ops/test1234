@@ -6,7 +6,11 @@ export const updateBrandProfileSchema = z.object({
   taxId: z.string().optional().or(z.literal("")),
   description: z.string().max(150).optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
-  websiteUrl: z.string().url("Ingresa una URL válida (https://...)").optional().or(z.literal("")),
+  websiteUrl: z
+    .string()
+    .url("Ingresa una URL válida (https://...)")
+    .optional()
+    .or(z.literal("")),
   phone: z.string().optional().or(z.literal("")),
   fiscalAddress: z.string().optional().or(z.literal("")),
   taxRegime: z.string().optional().or(z.literal("")),
@@ -29,7 +33,92 @@ export const updateStoreSchema = z.object({
   wooConsumerSecret: z.string().optional().or(z.literal("")),
 });
 
-const percent = z.number().min(0, "Debe ser 0 o más").max(100, "No puede superar 100");
+// ----------------------------------------------------------------------------
+// "Mi tienda" — catálogo, pagos y envíos propios de Marcolini (ver
+// conversación del 2026-09-06). Independiente de tener o no una tienda
+// Shopify/WooCommerce conectada.
+// ----------------------------------------------------------------------------
+
+/// slug: minúsculas, números y guiones — nada de espacios ni acentos, para
+/// que sirva directo en una URL (marcolini.lat/{slug} o
+/// marcolini.lat/{storefrontSlug}/{slug}).
+const slugField = z
+  .string()
+  .min(2, "Mínimo 2 caracteres")
+  .max(60, "Máximo 60 caracteres")
+  .regex(
+    /^[a-z0-9]+(-[a-z0-9]+)*$/,
+    "Solo minúsculas, números y guiones — sin espacios ni acentos",
+  );
+
+export const createProductSchema = z.object({
+  name: z.string().min(2, "Ingresa el nombre del producto"),
+  description: z
+    .string()
+    .max(1000, "Máximo 1000 caracteres")
+    .optional()
+    .or(z.literal("")),
+  price: z.coerce.number().positive("El precio debe ser mayor a cero"),
+  compareAtPrice: z.coerce.number().positive().optional().nullable(),
+  imageUrl: z.string().optional().or(z.literal("")),
+  slug: slugField,
+  stock: z.coerce
+    .number()
+    .int()
+    .min(0, "No puede ser negativo")
+    .optional()
+    .nullable(),
+  available: z.boolean(),
+});
+
+export const updateProductSchema = createProductSchema.extend({
+  productId: z.string().min(1),
+});
+
+export const deleteManualProductSchema = z.object({
+  productId: z.string().min(1),
+});
+
+/// Todos los campos opcionales — la marca puede guardar solo las llaves de
+/// prueba primero, y agregar las de producción después sin perder nada.
+export const wompiCredentialsSchema = z.object({
+  paymentMode: z.enum(["TEST", "PRODUCTION"]),
+  wompiPublicKeyTest: z.string().optional().or(z.literal("")),
+  wompiPrivateKeyTest: z.string().optional().or(z.literal("")),
+  wompiEventsKeyTest: z.string().optional().or(z.literal("")),
+  wompiIntegrityKeyTest: z.string().optional().or(z.literal("")),
+  wompiPublicKeyProd: z.string().optional().or(z.literal("")),
+  wompiPrivateKeyProd: z.string().optional().or(z.literal("")),
+  wompiEventsKeyProd: z.string().optional().or(z.literal("")),
+  wompiIntegrityKeyProd: z.string().optional().or(z.literal("")),
+});
+
+export const shippingConfigSchema = z.object({
+  shippingFlatRate: z.coerce
+    .number()
+    .min(0, "No puede ser negativo")
+    .optional()
+    .nullable(),
+  freeShippingThreshold: z.coerce
+    .number()
+    .min(0, "No puede ser negativo")
+    .optional()
+    .nullable(),
+  shippingNotes: z
+    .string()
+    .max(500, "Máximo 500 caracteres")
+    .optional()
+    .or(z.literal("")),
+});
+
+export const storeConfigSchema = z.object({
+  storefrontSlug: slugField,
+});
+
+const percent = z
+  .number()
+  .min(0, "Debe ser 0 o más")
+  .max(100, "No puede superar 100");
 
 export const offerSchema = z.object({
   name: z.string().min(2, "Ingresa un nombre para la oferta"),
@@ -58,11 +147,19 @@ export const enrollmentDecisionSchema = z.object({
 const money = z.number().positive("Debe ser mayor a 0");
 
 const challengeConfigSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("GOAL_BONUS"), goalAmount: money, bonusAmount: money }),
+  z.object({
+    type: z.literal("GOAL_BONUS"),
+    goalAmount: money,
+    bonusAmount: money,
+  }),
   // FLASH_SALE y MIX traen los dos campos como opcionales — la validación de
   // "al menos uno de los dos" va en los .refine() de abajo, porque
   // discriminatedUnion necesita que cada rama sea un z.object() plano.
-  z.object({ type: z.literal("FLASH_SALE"), newCommissionPercent: percent.optional(), newDiscountPercent: percent.optional() }),
+  z.object({
+    type: z.literal("FLASH_SALE"),
+    newCommissionPercent: percent.optional(),
+    newDiscountPercent: percent.optional(),
+  }),
   z.object({
     type: z.literal("MIX"),
     goalAmount: money,
@@ -75,7 +172,11 @@ const challengeConfigSchema = z.discriminatedUnion("type", [
     winnersCount: z.number().int().min(1).max(20),
     prizes: z.array(money).min(1).max(20),
   }),
-  z.object({ type: z.literal("WELCOME_BONUS"), slotsCount: z.number().int().min(1), bonusPerSlot: money }),
+  z.object({
+    type: z.literal("WELCOME_BONUS"),
+    slotsCount: z.number().int().min(1),
+    bonusPerSlot: money,
+  }),
   z.object({
     type: z.literal("CONTENT_CHALLENGE"),
     instructions: z.string().min(5, "Describe qué debe hacer el creador"),
@@ -96,15 +197,17 @@ export const challengeSchema = z
     path: ["endDate"],
   })
   .refine(
-    (data) => data.config.type !== "LEADERBOARD" || data.config.prizes.length === data.config.winnersCount,
-    { message: "Debes poner un premio por cada ganador", path: ["config"] }
+    (data) =>
+      data.config.type !== "LEADERBOARD" ||
+      data.config.prizes.length === data.config.winnersCount,
+    { message: "Debes poner un premio por cada ganador", path: ["config"] },
   )
   .refine(
     (data) =>
       (data.config.type !== "FLASH_SALE" && data.config.type !== "MIX") ||
       data.config.newCommissionPercent != null ||
       data.config.newDiscountPercent != null,
-    { message: "Sube la comisión, el descuento, o ambos", path: ["config"] }
+    { message: "Sube la comisión, el descuento, o ambos", path: ["config"] },
   );
 
 export const reviewSubmissionSchema = z.object({
@@ -140,14 +243,25 @@ export const recordManualSaleSchema = z.object({
   occurredAt: z
     .string()
     .refine((v) => !isNaN(Date.parse(v)), "Fecha inválida")
-    .refine((v) => new Date(v).getTime() <= Date.now() + 24 * 60 * 60 * 1000, "La fecha no puede ser futura")
+    .refine(
+      (v) => new Date(v).getTime() <= Date.now() + 24 * 60 * 60 * 1000,
+      "La fecha no puede ser futura",
+    )
     .refine(
       (v) => new Date(v).getTime() >= Date.now() - 90 * 24 * 60 * 60 * 1000,
-      "La fecha es demasiado vieja — revisa que sea correcta"
+      "La fecha es demasiado vieja — revisa que sea correcta",
     ),
-  note: z.string().max(200, "Máximo 200 caracteres").optional().or(z.literal("")),
+  note: z
+    .string()
+    .max(200, "Máximo 200 caracteres")
+    .optional()
+    .or(z.literal("")),
   /// Opcional — si la marca lo sabe (ej. lo tiene en el pedido de
   /// WhatsApp/Instagram), ayuda al detector de fraude "comprador =
   /// creador" (ver checkBuyerIsCreator en attribution-service.ts).
-  customerEmail: z.string().email("Correo inválido").optional().or(z.literal("")),
+  customerEmail: z
+    .string()
+    .email("Correo inválido")
+    .optional()
+    .or(z.literal("")),
 });

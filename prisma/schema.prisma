@@ -330,6 +330,26 @@ enum StoreConnectionStatus {
   ERROR
 }
 
+/// Pasarela de pago que la marca conectó para cobrar en su propia tienda
+/// Marcolini ("Mi tienda") — a diferencia de storeType (que es sobre DETECTAR
+/// ventas de una tienda externa), esto es sobre COBRAR de verdad dentro de
+/// Marcolini. Por ahora solo Wompi — ePayco, Mercado Pago y Addi quedan para
+/// después (ver conversación del 2026-09-06: cada marca trae su propia
+/// cuenta, el cobro se hace con SUS credenciales, la plata nunca pasa por
+/// Marcolini).
+enum PaymentProvider {
+  NONE
+  WOMPI
+}
+
+/// TEST usa las llaves de sandbox de la marca (para probar sin cobrar de
+/// verdad) — PRODUCTION usa las reales. La marca puede dejar cargadas las
+/// dos y cambiar de modo sin perder ninguna.
+enum PaymentMode {
+  TEST
+  PRODUCTION
+}
+
 /// Modalidad de vinculación de creadores a una oferta (se explica con texto
 /// claro en el Portal Marca al elegir).
 enum JoinMode {
@@ -401,6 +421,39 @@ model BrandProfile {
   invoices     BrandInvoice[]
   transactions Transaction[]
   products     Product[]
+
+  // --------------------------------------------------------------------
+  // "Mi tienda" — catálogo y checkout propios de Marcolini, independientes
+  // de tener (o no) una tienda Shopify/WooCommerce conectada. Ver
+  // conversación del 2026-09-06.
+  // --------------------------------------------------------------------
+
+  /// Slug único para la vitrina pública de la marca en Marcolini —
+  /// marcolini.lat/{storefrontSlug}. Null hasta que la marca lo configure
+  /// en "Mi tienda → Configuración".
+  storefrontSlug String? @unique
+
+  /// Envío — modelo simple por ahora (tarifa plana + umbral de envío
+  /// gratis), no zonas por ciudad/región. Null = todavía no lo configuró.
+  shippingFlatRate      Decimal? @db.Decimal(12, 2)
+  freeShippingThreshold Decimal? @db.Decimal(12, 2)
+  shippingNotes         String?
+
+  /// Pasarela de pago de "Mi tienda" — ver PaymentProvider/PaymentMode
+  /// arriba. Las 8 llaves (4 de prueba + 4 de producción) son las que Wompi
+  /// le da a cada comercio en su propio panel — mismo criterio que
+  /// shopifyAccessToken/wooConsumerKey arriba: en producción real,
+  /// cifradas / en un vault, no en texto plano.
+  paymentProvider       PaymentProvider @default(NONE)
+  paymentMode           PaymentMode     @default(TEST)
+  wompiPublicKeyTest    String?
+  wompiPrivateKeyTest   String?
+  wompiEventsKeyTest    String?
+  wompiIntegrityKeyTest String?
+  wompiPublicKeyProd    String?
+  wompiPrivateKeyProd   String?
+  wompiEventsKeyProd    String?
+  wompiIntegrityKeyProd String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1247,6 +1300,9 @@ model Product {
   externalId String
 
   name           String
+  /// Solo lo llenan los productos creados a mano en "Mi tienda" — los
+  /// sincronizados de Shopify/WooCommerce no traen descripción hoy.
+  description    String?
   imageUrl       String?
   price          Decimal  @db.Decimal(12, 2)
   /// Precio "antes" — Shopify: compare_at_price, WooCommerce: regular_price
@@ -1279,6 +1335,22 @@ model Product {
   /// creador arma una colección.
   featured Boolean @default(false)
 
+  /// true = lo creó la marca a mano en "Mi tienda" (ver
+  /// brand-store-product-service.ts) — false = vino sincronizado de
+  /// Shopify/WooCommerce. Separa los dos mundos: la sincronización nunca
+  /// toca un producto manual, y "Mi tienda" nunca deja editar uno
+  /// sincronizado (se edita desde la tienda real, no desde acá).
+  manual Boolean @default(false)
+
+  /// Solo para productos manuales — la ruta de su página dentro de la
+  /// vitrina de Marcolini (marcolini.lat/{storefrontSlug}/{slug}). Null en
+  /// productos sincronizados (esos usan `url`, el link real de su tienda).
+  slug String?
+
+  /// Solo para productos manuales — null = no se controla stock (siempre
+  /// disponible). 0 no bloquea la venta solo, lo hace junto con `available`.
+  stock Int?
+
   collectionItems CollectionProduct[]
 
   lastSyncedAt DateTime @default(now())
@@ -1286,6 +1358,7 @@ model Product {
   updatedAt    DateTime @updatedAt
 
   @@unique([brandId, externalId])
+  @@unique([brandId, slug])
   @@index([brandId, featured])
 }
 

@@ -16,6 +16,16 @@ const items = [
   { href: "/marca/cuenta", label: "Cuenta" },
 ];
 
+/// "Mi tienda" — catálogo, pagos y envíos propios de Marcolini, aparte de
+/// la conexión con Shopify/WooCommerce (esa sigue viviendo en Cuenta). Ver
+/// conversación del 2026-09-06.
+const storeItems = [
+  { href: "/marca/tienda/productos", label: "Crear productos" },
+  { href: "/marca/tienda/pagos", label: "Pagos" },
+  { href: "/marca/tienda/envios", label: "Envíos" },
+  { href: "/marca/tienda/configuracion", label: "Configuración" },
+];
+
 export function BrandNav({
   unreadNotifications = 0,
   onboarding,
@@ -60,6 +70,27 @@ export function BrandNav({
           </Link>
         );
       })}
+
+      <p className="px-3 pt-4 pb-1 text-[11px] font-mono uppercase tracking-widest text-brand-ink-soft">
+        Mi tienda
+      </p>
+      {storeItems.map((item) => {
+        const active = pathname === item.href;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`rounded-lg px-3 py-2 text-sm ${
+              active
+                ? "bg-brand-accent-soft text-brand-accent font-medium"
+                : "text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+
       <Link
         href="/marca/notificaciones"
         className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
