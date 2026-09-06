@@ -14,6 +14,7 @@ export async function generateBrandChargeDoc(params: {
   platformFeeTotal: number;
   vatTotal: number;
   rewardsTotal: number;
+  licenseFeesTotal?: number;
   totalAmount: number;
   dueAt: Date;
   paymentInstructions: string | null;
@@ -52,6 +53,8 @@ export async function generateBrandChargeDoc(params: {
   line(`Tarifa Marcolini: ${money(params.platformFeeTotal)}`);
   line(`IVA sobre la tarifa: ${money(params.vatTotal)}`);
   if (params.rewardsTotal > 0) line(`Premios de retos: ${money(params.rewardsTotal)}`);
+  if (params.licenseFeesTotal && params.licenseFeesTotal > 0)
+    line(`Licencias de contenido alquiladas: ${money(params.licenseFeesTotal)}`);
   y -= 6;
   line(`Total a pagar: ${money(params.totalAmount)}`, { size: 14, f: bold, dy: 30 });
 
@@ -87,7 +90,7 @@ export async function generateBrandChargeDoc(params: {
   }
 
   line(
-    "Una vez pagues, sube el comprobante desde Cuenta → Pago en tu portal de Marcolini para que se verifique y se reactive tu marca.",
+    "Una vez pagues, sube el comprobante desde Cuenta > Pago en tu portal de Marcolini para que se verifique y se reactive tu marca.",
     { size: 9, color: soft, dy: 14 }
   );
 

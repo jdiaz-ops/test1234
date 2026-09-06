@@ -16,6 +16,10 @@ const items = [
   // Nuevo — buscador para reclutar creadores en vez de solo esperar a que
   // te encuentren. Ver conversación del 2026-09-06.
   { href: "/marca/creadores/buscar", label: "Buscar creadores" },
+  // Nuevo — alquilar contenido ya publicado de un creador vinculado para
+  // pauta paga. Va junto a "Creadores vinculados" porque solo aplica ahí,
+  // no es parte de "Mi tienda". Ver conversación del 2026-09-06.
+  { href: "/marca/licencias", label: "Licencias de contenido" },
   { href: "/marca/cuenta", label: "Cuenta" },
 ];
 

@@ -251,6 +251,8 @@ model CreatorProfile {
   collections           Collection[]
   sampleRequests        SampleRequest[]
   invitations           EnrollmentInvitation[]
+  licensableContent     LicensableContent[]
+  contentLicenses       ContentLicense[]
 
   /// Programa de referidos — a quiénes invitó este creador (referrer) y,
   /// como mucho, por quién fue invitado él mismo (referred, único).
@@ -462,8 +464,9 @@ model BrandProfile {
   wompiEventsKeyProd    String?
   wompiIntegrityKeyProd String?
 
-  storeOrders    StoreOrder[]
-  sampleRequests SampleRequest[]
+  storeOrders     StoreOrder[]
+  sampleRequests  SampleRequest[]
+  contentLicenses ContentLicense[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1104,6 +1107,7 @@ model Payout {
 
   commissions      Commission[]
   challengeRewards ChallengeReward[]
+  contentLicenses  ContentLicense[]
 
   createdAt DateTime @default(now())
 }
@@ -1178,6 +1182,7 @@ model BrandCharge {
 
   commissions      Commission[]
   challengeRewards ChallengeReward[]
+  contentLicenses  ContentLicense[]
 
   createdAt DateTime @default(now())
 }
@@ -1243,6 +1248,14 @@ model PlatformConfig {
   refundHoldDays            Int     @default(15)
   instantPayoutFeePercent   Decimal @default(5.0) @db.Decimal(5, 2)
 
+  /// % que se queda Marcolini de cada licencia de contenido (ver
+  /// ContentLicense) — se descuenta del fee que paga la marca antes de
+  /// liquidarle su parte al creador. Aparte de defaultPlatformFeePercent
+  /// porque ahí el modelo es distinto (Awin: la marca paga la comisión del
+  /// creador completa + la tarifa de Marcolini aparte); acá Marcolini
+  /// retiene su parte del mismo fee, no cobra algo adicional.
+  contentLicenseCommissionPercent Decimal @default(20.0) @db.Decimal(5, 2)
+
   /// Cómo le pagan las marcas a Marcolini — texto libre (cuenta bancaria,
   /// Nequi, llave Bre-B, lo que aplique) más un QR opcional, mostrados en
   /// cada aviso de cobro. Editable desde el Panel Admin, sin depender de un
@@ -1279,6 +1292,93 @@ model MonthlyOperatingCost {
   createdAt DateTime @default(now())
 
   @@index([month])
+}
+
+// ----------------------------------------------------------------------------
+// LICENCIAMIENTO DE CONTENIDO (alquiler de video/post para pauta paga)
+// ----------------------------------------------------------------------------
+
+enum ContentPlatform {
+  INSTAGRAM
+  TIKTOK
+}
+
+/// Una pieza de contenido YA publicada (Instagram/TikTok) que el creador
+/// ofrece para que una marca "alquile" el derecho de reusarla como pauta
+/// paga (Meta/TikTok Ads) por un tiempo determinado. No se sube el video de
+/// nuevo — el link al post ya publicado, más una captura tomada al momento
+/// de publicar el listado, es lo que identifica exactamente de qué pieza se
+/// trata (y sirve de evidencia si el creador la borra o edita después de
+/// cobrar). El creador fija su propio precio, por bloques de 30 días — ver
+/// ContentLicense.pricePer30Days y content-license-service.ts.
+model LicensableContent {
+  id String @id @default(cuid())
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id])
+
+  platform   ContentPlatform
+  contentUrl String
+
+  screenshotUrl String
+
+  caption String? // para que la marca sepa de qué se trata sin salir a ver el link
+
+  pricePer30Days Decimal @db.Decimal(12, 2)
+
+  /// El creador lo puede retirar del catálogo sin borrar el historial de
+  /// licencias ya vendidas sobre él.
+  active Boolean @default(true)
+
+  licenses ContentLicense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ContentLicenseStatus {
+  APPROVED // ya se puede facturar a la marca y liquidar al creador
+  PAID // el corte de la marca y el payout del creador ya se liquidaron
+  VOIDED // un admin lo anuló (disputa, contenido dado de baja, etc.) — no se cobra ni se paga
+}
+
+/// Una marca alquiló el derecho de uso de un LicensableContent por
+/// `durationDays`. Es un fee fijo aparte del motor de atribución por código
+/// de descuento — no hay venta ni comisión de por medio. El fee lo paga la
+/// marca en su próximo corte (se suma a chargeBrandForPeriod, igual que un
+/// ChallengeReward) y la parte del creador se liquida en su próximo pago
+/// (se suma en payoutCreator) — sin ventana de espera por reembolso, porque
+/// no hay producto que puedan devolver.
+model ContentLicense {
+  id String @id @default(cuid())
+
+  contentId String
+  content   LicensableContent @relation(fields: [contentId], references: [id])
+
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id])
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id])
+
+  durationDays Int // múltiplo de 30 (30 / 60 / 90)
+
+  feeAmount         Decimal @db.Decimal(12, 2) // lo que paga la marca
+  platformCutAmount Decimal @db.Decimal(12, 2) // comisión de Marcolini (contentLicenseCommissionPercent)
+  creatorNetAmount  Decimal @db.Decimal(12, 2) // feeAmount - platformCutAmount, lo que recibe el creador
+
+  status ContentLicenseStatus @default(APPROVED)
+
+  startsAt DateTime @default(now())
+  endsAt   DateTime // startsAt + durationDays — pasada esta fecha el permiso de uso vence
+
+  brandChargeId String?
+  brandCharge   BrandCharge? @relation(fields: [brandChargeId], references: [id])
+
+  payoutId String?
+  payout   Payout? @relation(fields: [payoutId], references: [id])
+
+  createdAt DateTime @default(now())
 }
 
 /// Contenido legal editable desde el Panel Admin (ej. Términos y

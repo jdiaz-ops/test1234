@@ -185,3 +185,23 @@ export const respondInvitationSchema = z.object({
 export const setDiscoverableSchema = z.object({
   discoverable: z.boolean(),
 });
+
+// ----------------------------------------------------------------------------
+// Licenciamiento de contenido — el creador ofrece un post ya publicado para
+// que una marca lo alquile como pauta paga (ver content-license-service.ts).
+// ----------------------------------------------------------------------------
+
+export const createLicensableContentSchema = z.object({
+  platform: z.enum(["INSTAGRAM", "TIKTOK"]),
+  contentUrl: z.string().url("Ingresa un link válido"),
+  screenshotUrl: z.string().min(1, "Sube una captura del post"),
+  caption: z.string().max(200).optional().or(z.literal("")),
+  pricePer30Days: z.coerce.number().positive("Debe ser mayor a 0"),
+});
+
+export const updateLicensableContentSchema = z.object({
+  contentId: z.string().min(1),
+  active: z.boolean().optional(),
+  pricePer30Days: z.coerce.number().positive("Debe ser mayor a 0").optional(),
+  caption: z.string().max(200).optional().or(z.literal("")),
+});

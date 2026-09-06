@@ -73,6 +73,14 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "marca",
   },
   {
+    key: "CONTENT_LICENSE_RENTED",
+    label: "Una marca alquiló uno de tus contenidos",
+    audience: "CREATOR",
+    messageTemplate:
+      "{marca} alquiló tu contenido por {dias} días — te pagan {monto} en tu próximo pago.",
+    placeholders: "marca,dias,monto",
+  },
+  {
     key: "NEW_MESSAGE_CREATOR",
     label: "Mensaje nuevo de una marca",
     audience: "CREATOR",

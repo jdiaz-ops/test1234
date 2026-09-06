@@ -317,3 +317,16 @@ export const offerSampleToCreatorSchema = z.object({
   quantity: z.coerce.number().int().min(1).max(5),
   message: z.string().max(300).optional().or(z.literal("")),
 });
+
+// ----------------------------------------------------------------------------
+// Licenciamiento de contenido — la marca alquila un post ya publicado de un
+// creador vinculado para reusarlo como pauta paga (ver
+// content-license-service.ts).
+// ----------------------------------------------------------------------------
+
+export const rentContentLicenseSchema = z.object({
+  contentId: z.string().min(1),
+  durationDays: z.coerce.number().int().refine((n) => [30, 60, 90].includes(n), {
+    message: "Elige 30, 60 o 90 días",
+  }),
+});
