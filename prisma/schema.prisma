@@ -455,6 +455,8 @@ model BrandProfile {
   wompiEventsKeyProd    String?
   wompiIntegrityKeyProd String?
 
+  storeOrders StoreOrder[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -736,6 +738,7 @@ enum TransactionSource {
   SHOPIFY
   WOOCOMMERCE
   MANUAL // reporte manual para marcas sin integración (StoreType.OTHER)
+  MARCOLINI // venta nativa por el checkout de "Mi tienda" (ver StoreOrder)
 }
 
 enum TransactionStatus {
@@ -785,12 +788,103 @@ model Transaction {
 
   commission Commission?
 
+  /// Solo cuando source = MARCOLINI — el pedido nativo de "Mi tienda" que
+  /// generó esta Transaction.
+  storeOrder StoreOrder?
+
   createdAt DateTime @default(now())
 
   /// El mismo pedido nunca puede convertirse en dos Transactions — protege
   /// contra reintentos de webhook (Shopify/WooCommerce reenvían si no
   /// reciben 200 a tiempo).
   @@unique([brandId, source, externalOrderId])
+}
+
+// ----------------------------------------------------------------------------
+// "MI TIENDA" — CHECKOUT NATIVO (carrito, pedidos y pago con Wompi)
+// ----------------------------------------------------------------------------
+
+enum StoreOrderStatus {
+  PENDING // se creó, esperando que el comprador pague en Wompi
+  PAID // Wompi confirmó la transacción como aprobada
+  FAILED // Wompi la rechazó / declinó / dio error
+  EXPIRED // nunca se completó y el link/reference quedó vencido
+}
+
+/// Un pedido hecho directo en la vitrina pública de una marca
+/// (marcolini.lat/t/{storefrontSlug}) — pago con Wompi usando las llaves
+/// propias de la marca (Wompi*KeyTest/Prod en BrandProfile). Si el
+/// comprador escribe el código de un creador y es válido, al confirmarse el
+/// pago se crea una Transaction (source MARCOLINI) igual que con Shopify/
+/// WooCommerce, para que el Motor de Comisiones la procese normal.
+model StoreOrder {
+  id String @id @default(cuid())
+
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  /// Referencia única enviada a Wompi como `reference` — también es la que
+  /// llega de vuelta en el webhook para encontrar este pedido.
+  reference String @unique
+
+  buyerName       String
+  buyerEmail      String
+  buyerPhone      String
+  shippingAddress String
+  shippingCity    String
+  shippingNotes   String?
+
+  /// Código de descuento del creador, tal como lo escribió el comprador —
+  /// null si compró directo, sin código. Ver findEnrollmentByDiscountCode.
+  discountCode String?
+
+  subtotalCents Int // suma de los productos, precio de lista
+  discountCents Int @default(0)
+  shippingCents Int @default(0)
+  totalCents    Int // lo que realmente se le cobra a Wompi
+
+  currency String @default("COP")
+
+  /// Modo de la marca al momento de crear el pedido (TEST/PRODUCTION) — se
+  /// guarda aparte de BrandProfile.paymentMode porque la marca lo pudo
+  /// cambiar después y el pedido ya viejo debe seguir apuntando a las
+  /// llaves con las que en verdad se cobró.
+  paymentMode PaymentMode
+
+  status StoreOrderStatus @default(PENDING)
+
+  wompiTransactionId String? // id que devuelve Wompi — para consultarla por API
+  wompiStatus        String? // estado crudo que mandó Wompi (APPROVED/DECLINED/...)
+
+  /// Se llena solo si status = PAID y el pedido logró atribuirse (o no —
+  /// ver TransactionSource.MARCOLINI arriba). Null en ventas sin código.
+  transactionId String?      @unique
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  items StoreOrderItem[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  paidAt    DateTime?
+
+  @@index([brandId, status])
+}
+
+model StoreOrderItem {
+  id String @id @default(cuid())
+
+  orderId String
+  order   StoreOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /// Puede quedar null si el producto se borra después — el pedido guarda
+  /// su propia foto de nombre/precio, así que no depende de que exista.
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  name           String // foto del nombre al momento de la compra
+  unitPriceCents Int // foto del precio unitario
+  quantity       Int
+  imageUrl       String?
 }
 
 // ----------------------------------------------------------------------------
@@ -1352,6 +1446,7 @@ model Product {
   stock Int?
 
   collectionItems CollectionProduct[]
+  storeOrderItems StoreOrderItem[]
 
   lastSyncedAt DateTime @default(now())
   createdAt    DateTime @default(now())

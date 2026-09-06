@@ -19,6 +19,16 @@ export default async function TiendaConfiguracionPage() {
         El link público de tu tienda dentro de Marcolini.
       </p>
       <StoreSubNav />
+      {profile.storefrontSlug && (
+        <a
+          href={`/t/${profile.storefrontSlug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block mb-4 text-sm text-brand-accent hover:underline"
+        >
+          Ver tu tienda en vivo →
+        </a>
+      )}
       <StoreConfigForm initialSlug={profile.storefrontSlug ?? ""} />
     </div>
   );

@@ -28,7 +28,7 @@ export class AttributionError extends Error {}
 
 interface RecordOrderParams {
   brandId: string;
-  source: "SHOPIFY" | "WOOCOMMERCE" | "MANUAL";
+  source: "SHOPIFY" | "WOOCOMMERCE" | "MANUAL" | "MARCOLINI";
   externalOrderId: string;
   /// Código de descuento tal como vino en el pedido — puede venir con
   /// mayúsculas/espacios distintos a como se guardó, por eso se normaliza.

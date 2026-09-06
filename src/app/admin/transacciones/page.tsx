@@ -19,6 +19,7 @@ const sourceLabel: Record<string, string> = {
   SHOPIFY: "Shopify",
   WOOCOMMERCE: "WooCommerce",
   MANUAL: "Manual",
+  MARCOLINI: "Mi tienda",
 };
 
 export default async function AdminTransaccionesPage() {
