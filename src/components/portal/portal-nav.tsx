@@ -19,6 +19,10 @@ const flatItems = [
   { href: "/creador/storefront", label: "Mi vitrina" },
   { href: "/creador/retos", label: "Campañas" },
   { href: "/creador/marketplace", label: "Marketplace de marcas" },
+  // Nuevo — no estaba en el orden original que pidió Juan, se agregó justo
+  // después de Marketplace por ser temáticamente parecido (descubrir algo
+  // de una marca). Ver conversación sobre muestras estilo TikTok Shop.
+  { href: "/creador/muestras", label: "Muestras" },
   { href: "/creador/codigos", label: "Mis Códigos y Links" },
   { href: "/creador/referidos", label: "Invita y gana" },
 ];

@@ -244,6 +244,7 @@ model CreatorProfile {
   badges                CreatorBadge[]
   challengeUrgencyPings ChallengeUrgencyPing[]
   collections           Collection[]
+  sampleRequests        SampleRequest[]
 
   /// Programa de referidos — a quiénes invitó este creador (referrer) y,
   /// como mucho, por quién fue invitado él mismo (referred, único).
@@ -455,7 +456,8 @@ model BrandProfile {
   wompiEventsKeyProd    String?
   wompiIntegrityKeyProd String?
 
-  storeOrders StoreOrder[]
+  storeOrders    StoreOrder[]
+  sampleRequests SampleRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -806,22 +808,30 @@ model Transaction {
 
 enum StoreOrderStatus {
   PENDING // se creó, esperando que el comprador pague en Wompi
-  PAID // Wompi confirmó la transacción como aprobada
+  PAID // Wompi confirmó la transacción como aprobada (o es una muestra, $0)
   FAILED // Wompi la rechazó / declinó / dio error
   EXPIRED // nunca se completó y el link/reference quedó vencido
 }
 
-/// Un pedido hecho directo en la vitrina pública de una marca
-/// (marcolini.lat/t/{storefrontSlug}) — pago con Wompi usando las llaves
-/// propias de la marca (Wompi*KeyTest/Prod en BrandProfile). Si el
-/// comprador escribe el código de un creador y es válido, al confirmarse el
-/// pago se crea una Transaction (source MARCOLINI) igual que con Shopify/
-/// WooCommerce, para que el Motor de Comisiones la procese normal.
+enum StoreOrderKind {
+  PURCHASE // pedido real, cobrado con Wompi
+  SAMPLE // muestra gratis aprobada — ver SampleRequest
+}
+
+/// Un pedido dentro de "Mi tienda" — normal (PURCHASE, pagado con Wompi
+/// desde la vitrina pública en marcolini.lat/t/{storefrontSlug}) o una
+/// muestra gratis aprobada (SAMPLE, $0, ver SampleRequest). Si el
+/// comprador escribe el código de un creador en un PURCHASE y es válido,
+/// al confirmarse el pago se crea una Transaction (source MARCOLINI) igual
+/// que con Shopify/WooCommerce, para que el Motor de Comisiones la procese
+/// normal — las muestras nunca generan Transaction/comisión, son gratis.
 model StoreOrder {
   id String @id @default(cuid())
 
   brandId String
   brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  kind StoreOrderKind @default(PURCHASE)
 
   /// Referencia única enviada a Wompi como `reference` — también es la que
   /// llega de vuelta en el webhook para encontrar este pedido.
@@ -863,6 +873,9 @@ model StoreOrder {
 
   items StoreOrderItem[]
 
+  /// Solo cuando kind = SAMPLE — la solicitud que originó este pedido.
+  sampleRequest SampleRequest?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   paidAt    DateTime?
@@ -885,6 +898,62 @@ model StoreOrderItem {
   unitPriceCents Int // foto del precio unitario
   quantity       Int
   imageUrl       String?
+}
+
+// ----------------------------------------------------------------------------
+// MUESTRAS (inspirado en TikTok Shop) — la marca habilita un producto de su
+// catálogo (manual o sincronizado) con un pool de unidades solo para
+// regalar; los creadores lo ven en su portal y piden una con un clic; la
+// marca acepta o rechaza; si acepta, se crea un StoreOrder $0 (kind SAMPLE)
+// con los datos de envío que dio el creador.
+// ----------------------------------------------------------------------------
+
+enum SampleRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model SampleRequest {
+  id String @id @default(cuid())
+
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  quantity Int @default(1)
+
+  /// Nota opcional del creador a la marca — para qué la va a usar (ej. "la
+  /// voy a probar en un video de rutina").
+  message String?
+
+  /// Igual que StoreOrder — se captura en el momento, no depende de un
+  /// perfil de direcciones aparte.
+  shippingName    String
+  shippingPhone   String
+  shippingAddress String
+  shippingCity    String
+  shippingNotes   String?
+
+  status         SampleRequestStatus @default(PENDING)
+  rejectedReason String?
+  reviewedAt     DateTime?
+
+  /// Se llena solo si status = APPROVED — el pedido $0 que se creó.
+  orderId String?     @unique
+  order   StoreOrder? @relation(fields: [orderId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  /// Evita que el mismo creador spamee el mismo producto con solicitudes
+  /// mientras ya tiene una pendiente sin resolver.
+  @@index([brandId, status])
+  @@index([creatorId, status])
 }
 
 // ----------------------------------------------------------------------------
@@ -1445,8 +1514,18 @@ model Product {
   /// disponible). 0 no bloquea la venta solo, lo hace junto con `available`.
   stock Int?
 
+  /// Muestras (inspirado en TikTok Shop) — cualquier producto (manual o
+  /// sincronizado) se puede habilitar para que los creadores lo pidan
+  /// gratis. `sampleStock` es un pool aparte del stock/venta normal, y
+  /// nunca se toca en la sincronización de Shopify/WooCommerce (ver
+  /// product-sync-service.ts, que no incluye estos campos en su update).
+  /// Solo visible en el portal de creador, nunca en la vitrina pública.
+  sampleEnabled Boolean @default(false)
+  sampleStock   Int     @default(0)
+
   collectionItems CollectionProduct[]
   storeOrderItems StoreOrderItem[]
+  sampleRequests  SampleRequest[]
 
   lastSyncedAt DateTime @default(now())
   createdAt    DateTime @default(now())

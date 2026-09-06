@@ -265,3 +265,18 @@ export const recordManualSaleSchema = z.object({
     .optional()
     .or(z.literal("")),
 });
+
+/// Muestras (ver sample-service.ts) — el toggle rápido en Mi tienda →
+/// Muestras se aplica a cualquier producto del catálogo (manual o
+/// sincronizado), no solo a los creados a mano.
+export const sampleSettingsSchema = z.object({
+  productId: z.string().min(1),
+  sampleEnabled: z.boolean(),
+  sampleStock: z.coerce.number().int().min(0, "No puede ser negativo"),
+});
+
+export const respondSampleRequestSchema = z.object({
+  requestId: z.string().min(1),
+  decision: z.enum(["APPROVED", "REJECTED"]),
+  rejectedReason: z.string().max(300).optional().or(z.literal("")),
+});

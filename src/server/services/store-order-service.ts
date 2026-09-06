@@ -204,6 +204,17 @@ export async function getStoreOrder(orderId: string) {
   });
 }
 
+/// Para el submódulo "Pedidos" del portal de marca — incluye compras
+/// (kind PURCHASE) y muestras aprobadas (kind SAMPLE) en la misma lista,
+/// más recientes primero.
+export async function listBrandOrders(brandId: string) {
+  return prisma.storeOrder.findMany({
+    where: { brandId },
+    include: { items: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 /// Idempotente — puede llamarse desde el webhook y desde el respaldo por
 /// consulta directa a la API de Wompi sin duplicar nada: si el pedido ya
 /// no está PENDING, no vuelve a procesarlo.

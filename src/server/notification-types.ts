@@ -21,7 +21,8 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "SALE_COMMISSION",
     label: "Venta con su código",
     audience: "CREATOR",
-    messageTemplate: "¡Alguien compró con tu código en {marca}! Ganaste {monto} de comisión.",
+    messageTemplate:
+      "¡Alguien compró con tu código en {marca}! Ganaste {monto} de comisión.",
     placeholders: "marca,monto",
   },
   {
@@ -38,6 +39,22 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     audience: "CREATOR",
     messageTemplate: '{marca} te envió tu producto: "{descripcion}"{guia}',
     placeholders: "marca,descripcion,guia",
+  },
+  {
+    key: "SAMPLE_APPROVED",
+    label: "Muestra aprobada",
+    audience: "CREATOR",
+    messageTemplate:
+      '{marca} aprobó tu solicitud de muestra: "{producto}" — te la envían pronto.',
+    placeholders: "marca,producto",
+  },
+  {
+    key: "SAMPLE_REJECTED",
+    label: "Muestra rechazada",
+    audience: "CREATOR",
+    messageTemplate:
+      '{marca} no pudo enviarte la muestra de "{producto}" esta vez.{razon}',
+    placeholders: "marca,producto,razon",
   },
   {
     key: "NEW_MESSAGE_CREATOR",
@@ -59,7 +76,8 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     label: "Nueva campaña activa",
     audience: "CREATOR",
     channelEmail: true,
-    messageTemplate: '¡Nueva campaña en {marca}: "{campana}"! {detalle} Termina el {fecha} — buen momento para avisarle a tu audiencia.',
+    messageTemplate:
+      '¡Nueva campaña en {marca}: "{campana}"! {detalle} Termina el {fecha} — buen momento para avisarle a tu audiencia.',
     placeholders: "marca,campana,detalle,fecha",
   },
   {
@@ -73,14 +91,16 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "CHALLENGE_REWARD_APPROVED",
     label: "Contenido de campaña aprobado",
     audience: "CREATOR",
-    messageTemplate: 'Tu participación en "{reto}" fue aprobada — {monto} en camino.',
+    messageTemplate:
+      'Tu participación en "{reto}" fue aprobada — {monto} en camino.',
     placeholders: "reto,monto",
   },
   {
     key: "CHALLENGE_CONTENT_REJECTED",
     label: "Contenido de campaña rechazado",
     audience: "CREATOR",
-    messageTemplate: 'Tu participación en "{reto}" no fue aprobada esta vez. Puedes intentarlo de nuevo si la campaña sigue activa.',
+    messageTemplate:
+      'Tu participación en "{reto}" no fue aprobada esta vez. Puedes intentarlo de nuevo si la campaña sigue activa.',
     placeholders: "reto",
   },
   {
@@ -105,14 +125,16 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     label: "Recordatorio de onboarding (2da vez)",
     audience: "CREATOR",
     channelEmail: true,
-    messageTemplate: 'Todavía te falta terminar tu perfil de creador ({faltantes}) — cuando quieras, está en "Empieza aquí".',
+    messageTemplate:
+      'Todavía te falta terminar tu perfil de creador ({faltantes}) — cuando quieras, está en "Empieza aquí".',
     placeholders: "faltantes",
   },
   {
     key: "PAYOUT_PENDING",
     label: "Pago en camino",
     audience: "CREATOR",
-    messageTemplate: "Tienes {monto} en camino — lo transferimos manualmente en los próximos días.",
+    messageTemplate:
+      "Tienes {monto} en camino — lo transferimos manualmente en los próximos días.",
     placeholders: "monto",
   },
   {
@@ -126,14 +148,16 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "INSTANT_PAYOUT_PAID",
     label: "Adelanto de pago procesado",
     audience: "CREATOR",
-    messageTemplate: "Pago anticipado procesado: {neto} (se descontó {fee} de fee por adelanto).",
+    messageTemplate:
+      "Pago anticipado procesado: {neto} (se descontó {fee} de fee por adelanto).",
     placeholders: "neto,fee",
   },
   {
     key: "ACCOUNT_SUSPENDED",
     label: "Cuenta suspendida",
     audience: "CREATOR",
-    messageTemplate: "Tu cuenta fue suspendida. Contáctanos si crees que es un error.",
+    messageTemplate:
+      "Tu cuenta fue suspendida. Contáctanos si crees que es un error.",
     placeholders: "",
   },
   {
@@ -147,14 +171,16 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "ENROLLMENT_APPROVED_CREATOR",
     label: "Solicitud de unión aprobada",
     audience: "CREATOR",
-    messageTemplate: "{marca} aprobó tu solicitud para unirte a su programa — ya puedes usar tu código.",
+    messageTemplate:
+      "{marca} aprobó tu solicitud para unirte a su programa — ya puedes usar tu código.",
     placeholders: "marca",
   },
   {
     key: "ENROLLMENT_REJECTED_CREATOR",
     label: "Solicitud de unión rechazada",
     audience: "CREATOR",
-    messageTemplate: "{marca} no aprobó tu solicitud para unirte a su programa esta vez.",
+    messageTemplate:
+      "{marca} no aprobó tu solicitud para unirte a su programa esta vez.",
     placeholders: "marca",
   },
   {
@@ -169,7 +195,8 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "BRAND_RESUMED_CREATOR",
     label: "Marca disponible de nuevo",
     audience: "CREATOR",
-    messageTemplate: "¡{marca} ya está disponible de nuevo! Tu código vuelve a funcionar normal.",
+    messageTemplate:
+      "¡{marca} ya está disponible de nuevo! Tu código vuelve a funcionar normal.",
     placeholders: "marca",
   },
 
@@ -180,6 +207,14 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     audience: "BRAND",
     messageTemplate: '{creador} pidió un producto: "{descripcion}"',
     placeholders: "creador,descripcion",
+  },
+  {
+    key: "SAMPLE_REQUESTED",
+    label: "Creador solicitó una muestra",
+    audience: "BRAND",
+    messageTemplate:
+      '{creador} solicitó una muestra de "{producto}" — revísalo en Mi tienda → Muestras.',
+    placeholders: "creador,producto",
   },
   {
     key: "NEW_MESSAGE_BRAND",
@@ -193,7 +228,8 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     label: "Nuevo corte a pagar",
     audience: "BRAND",
     channelEmail: true,
-    messageTemplate: "Nuevo corte: debes {monto} (comisiones, tarifa y premios de campañas). Fecha límite: {fecha}",
+    messageTemplate:
+      "Nuevo corte: debes {monto} (comisiones, tarifa y premios de campañas). Fecha límite: {fecha}",
     placeholders: "monto,fecha",
   },
   {
@@ -208,7 +244,8 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "BRAND_PAYMENT_REJECTED",
     label: "Comprobante rechazado",
     audience: "BRAND",
-    messageTemplate: "Tu comprobante no se pudo verificar: {razon}. Sube uno nuevo desde Cuenta → Pago.",
+    messageTemplate:
+      "Tu comprobante no se pudo verificar: {razon}. Sube uno nuevo desde Cuenta → Pago.",
     placeholders: "razon",
   },
   {
@@ -216,7 +253,8 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     label: "Recordatorio de corte por vencer",
     audience: "BRAND",
     channelEmail: true,
-    messageTemplate: "Te quedan {horas} para pagar tu corte de {monto} — vence {fecha}",
+    messageTemplate:
+      "Te quedan {horas} para pagar tu corte de {monto} — vence {fecha}",
     placeholders: "horas,monto,fecha",
   },
   {
@@ -250,7 +288,8 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "BRAND_APPROVED",
     label: "Marca aprobada",
     audience: "BRAND",
-    messageTemplate: "¡Tu marca fue aprobada! Ya apareces activa en el marketplace.",
+    messageTemplate:
+      "¡Tu marca fue aprobada! Ya apareces activa en el marketplace.",
     placeholders: "",
   },
   {
@@ -264,7 +303,8 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "ENROLLMENT_REQUESTED_BRAND",
     label: "Solicitud de unión de un creador",
     audience: "BRAND",
-    messageTemplate: '{creador} solicitó unirse a tu programa "{oferta}" — revísalo en Creadores.',
+    messageTemplate:
+      '{creador} solicitó unirse a tu programa "{oferta}" — revísalo en Creadores.',
     placeholders: "creador,oferta",
   },
 
@@ -273,14 +313,16 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "SALE_ADMIN",
     label: "Venta generada (aviso a admin)",
     audience: "ADMIN",
-    messageTemplate: "{creador} generó una venta para {marca} — ganaste {monto} de comisión.",
+    messageTemplate:
+      "{creador} generó una venta para {marca} — ganaste {monto} de comisión.",
     placeholders: "creador,marca,monto",
   },
   {
     key: "REFERRAL_ADMIN",
     label: "Bono de referido por pagar",
     audience: "ADMIN",
-    messageTemplate: "Bono de referido por pagar: {referidor} invitó a {referido} — {monto}.",
+    messageTemplate:
+      "Bono de referido por pagar: {referidor} invitó a {referido} — {monto}.",
     placeholders: "referidor,referido,monto",
   },
   {
@@ -294,21 +336,24 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "BRAND_PROOF_SUBMITTED_ADMIN",
     label: "Comprobante de pago subido por una marca",
     audience: "ADMIN",
-    messageTemplate: "{marca} subió un comprobante de pago por {monto} — revísalo en Facturas.",
+    messageTemplate:
+      "{marca} subió un comprobante de pago por {monto} — revísalo en Facturas.",
     placeholders: "marca,monto",
   },
   {
     key: "BRAND_DEACTIVATED_ADMIN",
     label: "Marca con servicio desactivado (Nivel 3)",
     audience: "ADMIN",
-    messageTemplate: "{marca} llegó al Nivel 3: servicio desactivado por falta de pago. Debe {monto}.",
+    messageTemplate:
+      "{marca} llegó al Nivel 3: servicio desactivado por falta de pago. Debe {monto}.",
     placeholders: "marca,monto",
   },
   {
     key: "STORE_CONNECTION_ERROR_ADMIN",
     label: "Falla al conectar la tienda de una marca",
     audience: "ADMIN",
-    messageTemplate: "No se pudo crear el código de descuento en la tienda de {marca} — la conexión falló. Revísalo en Marcas → Tienda.",
+    messageTemplate:
+      "No se pudo crear el código de descuento en la tienda de {marca} — la conexión falló. Revísalo en Marcas → Tienda.",
     placeholders: "marca",
   },
   {
@@ -324,7 +369,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     label: "Falla al subir/bajar un descuento por campaña",
     audience: "ADMIN",
     messageTemplate:
-      "No se pudo {accion} el % de descuento del código {codigo} de {creador} en la tienda de {marca} (campaña \"{campana}\") — revísalo manualmente en la tienda.",
+      'No se pudo {accion} el % de descuento del código {codigo} de {creador} en la tienda de {marca} (campaña "{campana}") — revísalo manualmente en la tienda.',
     placeholders: "accion,codigo,creador,marca,campana",
   },
   {

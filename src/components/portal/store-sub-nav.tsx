@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/marca/tienda/productos", label: "Crear productos" },
+  { href: "/marca/tienda/pedidos", label: "Pedidos" },
+  { href: "/marca/tienda/muestras", label: "Muestras" },
   { href: "/marca/tienda/pagos", label: "Pagos" },
   { href: "/marca/tienda/envios", label: "Envíos" },
   { href: "/marca/tienda/configuracion", label: "Configuración" },

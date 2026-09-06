@@ -4,7 +4,11 @@ export const updateProfileSchema = z.object({
   displayName: z.string().min(2, "Ingresa tu nombre"),
   legalName: z.string().optional().or(z.literal("")),
   phone: z.string().optional().or(z.literal("")),
-  bio: z.string().max(280, "Máximo 280 caracteres").optional().or(z.literal("")),
+  bio: z
+    .string()
+    .max(280, "Máximo 280 caracteres")
+    .optional()
+    .or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
   verticalId: z.string().nullable().optional(),
   // Opcional — PaymentForm también le pega a este endpoint (para nombre
@@ -16,7 +20,7 @@ export const updateProfileSchema = z.object({
         platform: z.string().min(1),
         handle: z.string().min(1),
         approxFollowers: z.number().int().nonnegative().nullable().optional(),
-      })
+      }),
     )
     .max(10)
     .optional(),
@@ -40,28 +44,56 @@ export const updatePaymentSchema = z
     message: "Ingresa tu llave Bre-B",
     path: ["breBKey"],
   })
-  .refine((data) => data.payoutMethod !== "BANK" || (data.bankName && data.bankAccountNumber && data.paymentHolderName), {
-    message: "Completa los datos de la cuenta bancaria",
-    path: ["bankName"],
-  });
+  .refine(
+    (data) =>
+      data.payoutMethod !== "BANK" ||
+      (data.bankName && data.bankAccountNumber && data.paymentHolderName),
+    {
+      message: "Completa los datos de la cuenta bancaria",
+      path: ["bankName"],
+    },
+  );
 
 export const updateStorefrontSchema = z.object({
   storefrontPalette: z.string().min(1),
   storefrontFont: z.string().min(1),
   // Cortos a propósito — el título se lee de un vistazo arriba de la
   // vitrina, y la descripción es solo un par de líneas, no una biografía.
-  storefrontHeadline: z.string().max(60, "Máximo 60 caracteres").optional().or(z.literal("")),
-  bio: z.string().max(160, "Máximo 160 caracteres").optional().or(z.literal("")),
+  storefrontHeadline: z
+    .string()
+    .max(60, "Máximo 60 caracteres")
+    .optional()
+    .or(z.literal("")),
+  bio: z
+    .string()
+    .max(160, "Máximo 160 caracteres")
+    .optional()
+    .or(z.literal("")),
 });
 
 export const createCollectionSchema = z.object({
-  name: z.string().min(2, "Ingresa un nombre para la colección").max(60, "Máximo 60 caracteres"),
-  description: z.string().max(160, "Máximo 160 caracteres").optional().or(z.literal("")),
+  name: z
+    .string()
+    .min(2, "Ingresa un nombre para la colección")
+    .max(60, "Máximo 60 caracteres"),
+  description: z
+    .string()
+    .max(160, "Máximo 160 caracteres")
+    .optional()
+    .or(z.literal("")),
 });
 
 export const updateCollectionSchema = z.object({
-  name: z.string().min(2, "Ingresa un nombre para la colección").max(60, "Máximo 60 caracteres").optional(),
-  description: z.string().max(160, "Máximo 160 caracteres").optional().or(z.literal("")),
+  name: z
+    .string()
+    .min(2, "Ingresa un nombre para la colección")
+    .max(60, "Máximo 60 caracteres")
+    .optional(),
+  description: z
+    .string()
+    .max(160, "Máximo 160 caracteres")
+    .optional()
+    .or(z.literal("")),
   visible: z.boolean().optional(),
 });
 
@@ -70,7 +102,9 @@ export const moveCollectionSchema = z.object({
 });
 
 export const setCollectionProductsSchema = z.object({
-  productIds: z.array(z.string().min(1)).max(30, "Máximo 30 productos por colección"),
+  productIds: z
+    .array(z.string().min(1))
+    .max(30, "Máximo 30 productos por colección"),
 });
 
 export const updateEnrollmentDisplaySchema = z.object({
@@ -80,7 +114,7 @@ export const updateEnrollmentDisplaySchema = z.object({
         enrollmentId: z.string().min(1),
         storefrontVisible: z.boolean(),
         storefrontOrder: z.number().int(),
-      })
+      }),
     )
     .max(200),
 });
@@ -114,4 +148,19 @@ export const requestProductSchema = z.object({
   enrollmentId: z.string().min(1),
   description: z.string().min(2, "Describe qué producto necesitas"),
   shippingAddress: z.string().min(5, "Ingresa la dirección de envío"),
+});
+
+/// Solicitud de muestra gratis (ver sample-service.ts) — a diferencia de
+/// requestProductSchema (arriba, dentro de una relación ya vinculada por
+/// oferta), esto aplica a cualquier producto que una marca haya habilitado
+/// para muestras, sin necesitar estar unido a su programa todavía.
+export const requestSampleSchema = z.object({
+  productId: z.string().min(1),
+  quantity: z.coerce.number().int().min(1).max(5),
+  message: z.string().max(300).optional().or(z.literal("")),
+  shippingName: z.string().min(2, "Ingresa tu nombre"),
+  shippingPhone: z.string().min(7, "Ingresa un teléfono válido"),
+  shippingAddress: z.string().min(5, "Ingresa tu dirección"),
+  shippingCity: z.string().min(2, "Ingresa tu ciudad"),
+  shippingNotes: z.string().max(300).optional().or(z.literal("")),
 });
