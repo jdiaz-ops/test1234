@@ -4,9 +4,11 @@ import {
   listActiveOffers,
   getEnrollmentsForCreator,
 } from "@/server/services/marketplace-service";
+import { listCreatorInvitations } from "@/server/services/recruit-service";
 import { JoinOfferButton } from "@/components/portal/join-offer-button";
 import { LeaveOfferButton } from "@/components/portal/leave-offer-button";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
+import { InvitationsPanel } from "@/components/portal/invitations-panel";
 
 export default async function MarketplacePage({
   searchParams,
@@ -19,13 +21,14 @@ export default async function MarketplacePage({
     where: { userId: session!.user.id },
   });
 
-  const [offers, enrollments, verticals] = await Promise.all([
+  const [offers, enrollments, verticals, invitations] = await Promise.all([
     listActiveOffers({
       verticalIds: params.vertical ? [params.vertical] : undefined,
       search: params.buscar,
     }),
     getEnrollmentsForCreator(profile.id),
     prisma.vertical.findMany({ orderBy: { name: "asc" } }),
+    listCreatorInvitations(profile.id),
   ]);
 
   // Solo ACTIVE/PENDING_APPROVAL cuentan como "unido" — un creador que se
@@ -143,6 +146,32 @@ export default async function MarketplacePage({
           Filtrar
         </button>
       </form>
+
+      <InvitationsPanel
+        initialInvitations={invitations.map((inv) => ({
+          id: inv.id,
+          commissionPercentOverride: inv.commissionPercentOverride
+            ? Number(inv.commissionPercentOverride)
+            : null,
+          discountPercentOverride: inv.discountPercentOverride
+            ? Number(inv.discountPercentOverride)
+            : null,
+          message: inv.message,
+          createdAt: inv.createdAt.toISOString(),
+          offer: {
+            name: inv.offer.name,
+            defaultCommissionPercent: Number(
+              inv.offer.defaultCommissionPercent,
+            ),
+            defaultDiscountPercent: Number(inv.offer.defaultDiscountPercent),
+            brand: {
+              companyName: inv.offer.brand.companyName,
+              logoUrl: inv.offer.brand.logoUrl,
+            },
+          },
+        }))}
+        suggestedCode={profile.baseCode}
+      />
 
       {offers.length === 0 ? (
         <p className="text-sm text-brand-ink-soft">

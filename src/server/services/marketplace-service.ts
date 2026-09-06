@@ -13,7 +13,10 @@ export class MarketplaceError extends Error {}
 /// marca, no todas las de la plataforma. Se incluyen PENDING_APPROVAL además
 /// de ACTIVE para no dejar que dos solicitudes en cola se pisen el código
 /// antes de que la marca las revise.
-async function isDiscountCodeTakenInBrand(brandId: string, code: string) {
+export async function isDiscountCodeTakenInBrand(
+  brandId: string,
+  code: string,
+) {
   const clash = await prisma.creatorOfferEnrollment.findFirst({
     where: {
       offer: { brandId },
@@ -24,7 +27,11 @@ async function isDiscountCodeTakenInBrand(brandId: string, code: string) {
   return Boolean(clash);
 }
 
-export async function listActiveOffers(filters: { categorySlug?: string; search?: string; verticalIds?: string[] }) {
+export async function listActiveOffers(filters: {
+  categorySlug?: string;
+  search?: string;
+  verticalIds?: string[];
+}) {
   return prisma.offer.findMany({
     where: {
       status: "ACTIVE",
@@ -76,12 +83,21 @@ export async function listActiveOffers(filters: { categorySlug?: string; search?
           ? { verticalId: { in: filters.verticalIds } }
           : {}),
       },
-      ...(filters.categorySlug ? { category: { slug: filters.categorySlug } } : {}),
+      ...(filters.categorySlug
+        ? { category: { slug: filters.categorySlug } }
+        : {}),
       ...(filters.search
         ? {
             OR: [
               { name: { contains: filters.search, mode: "insensitive" } },
-              { brand: { companyName: { contains: filters.search, mode: "insensitive" } } },
+              {
+                brand: {
+                  companyName: {
+                    contains: filters.search,
+                    mode: "insensitive",
+                  },
+                },
+              },
             ],
           }
         : {}),
@@ -100,7 +116,14 @@ export async function getEnrollmentsForCreator(creatorId: string) {
           // Solo para que el creador vea si la marca está en Nivel 3
           // (ver Mis Códigos y Links) — un array vacío significa que no
           // está desactivada.
-          brand: { include: { charges: { where: { status: "DEACTIVATED" }, select: { id: true } } } },
+          brand: {
+            include: {
+              charges: {
+                where: { status: "DEACTIVATED" },
+                select: { id: true },
+              },
+            },
+          },
         },
       },
     },
@@ -114,13 +137,21 @@ export async function getEnrollmentsForCreator(creatorId: string) {
 /// ACTIVE al toque) el Motor de Atribución intenta crear ese código de
 /// verdad en la tienda de la marca. Si es APPROVAL, eso se dispara recién
 /// cuando la marca aprueba (ver enrollment-management-service).
-export async function joinOffer(creatorId: string, offerId: string, desiredCode?: string) {
+export async function joinOffer(
+  creatorId: string,
+  offerId: string,
+  desiredCode?: string,
+) {
   const offer = await prisma.offer.findUnique({
     where: { id: offerId },
     include: { brand: true },
   });
 
-  if (!offer || offer.status !== "ACTIVE" || offer.brand.status !== "APPROVED") {
+  if (
+    !offer ||
+    offer.status !== "ACTIVE" ||
+    offer.brand.status !== "APPROVED"
+  ) {
     throw new MarketplaceError("Esta oferta ya no está disponible.");
   }
   // Nivel 3: aunque listActiveOffers ya la saca del marketplace, esto es
@@ -139,25 +170,38 @@ export async function joinOffer(creatorId: string, offerId: string, desiredCode?
   const existing = await prisma.creatorOfferEnrollment.findUnique({
     where: { offerId_creatorId: { offerId, creatorId } },
   });
-  if (existing && (existing.status === "ACTIVE" || existing.status === "PENDING_APPROVAL")) {
+  if (
+    existing &&
+    (existing.status === "ACTIVE" || existing.status === "PENDING_APPROVAL")
+  ) {
     throw new MarketplaceError("Ya estás unido a esta oferta.");
   }
 
-  const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: creatorId } });
+  const creator = await prisma.creatorProfile.findUniqueOrThrow({
+    where: { id: creatorId },
+  });
 
   const normalized = normalizeDiscountCode(desiredCode || creator.baseCode);
   if (!normalized) {
     throw new MarketplaceError("Ingresa un código válido.");
   }
   if (await isDiscountCodeTakenInBrand(offer.brandId, normalized)) {
-    throw new MarketplaceError("Ese código ya está en uso en esta marca — elige otro.");
+    throw new MarketplaceError(
+      "Ese código ya está en uso en esta marca — elige otro.",
+    );
   }
 
-  const status: "ACTIVE" | "PENDING_APPROVAL" = offer.joinMode === "OPEN" ? "ACTIVE" : "PENDING_APPROVAL";
+  const status: "ACTIVE" | "PENDING_APPROVAL" =
+    offer.joinMode === "OPEN" ? "ACTIVE" : "PENDING_APPROVAL";
   const data = { status, discountCode: normalized };
   const enrollment = existing
-    ? await prisma.creatorOfferEnrollment.update({ where: { id: existing.id }, data })
-    : await prisma.creatorOfferEnrollment.create({ data: { creatorId, offerId, ...data } });
+    ? await prisma.creatorOfferEnrollment.update({
+        where: { id: existing.id },
+        data,
+      })
+    : await prisma.creatorOfferEnrollment.create({
+        data: { creatorId, offerId, ...data },
+      });
 
   if (enrollment.status === "ACTIVE") {
     await provisionDiscountCodeForEnrollment(enrollment.id);
@@ -184,7 +228,10 @@ export async function leaveOffer(creatorId: string, enrollmentId: string) {
   if (!enrollment) {
     throw new MarketplaceError("No encontramos esa inscripción.");
   }
-  if (enrollment.status !== "ACTIVE" && enrollment.status !== "PENDING_APPROVAL") {
+  if (
+    enrollment.status !== "ACTIVE" &&
+    enrollment.status !== "PENDING_APPROVAL"
+  ) {
     throw new MarketplaceError("Ya no estás en este programa.");
   }
   return prisma.creatorOfferEnrollment.update({

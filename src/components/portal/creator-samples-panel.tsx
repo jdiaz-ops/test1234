@@ -16,9 +16,23 @@ export type SampleEligibleProduct = {
 export type CreatorSampleRequestRow = {
   id: string;
   productId: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  // "OFFERED" nunca aparece acá en la práctica (esta lista solo trae las
+  // que el creador mismo pidió) — se incluye en el tipo porque viene del
+  // mismo enum de Prisma que SampleOfferRow.
+  status: "PENDING" | "OFFERED" | "APPROVED" | "REJECTED";
   quantity: number;
   rejectedReason: string | null;
+  createdAt: string;
+  product: { name: string; imageUrl: string | null };
+  brand: { companyName: string };
+};
+
+/// Ofertas que una marca le mandó al creador (push, encontrado en su
+/// buscador) — todavía sin resolver, así que siempre están en OFFERED.
+export type SampleOfferRow = {
+  id: string;
+  quantity: number;
+  message: string | null;
   createdAt: string;
   product: { name: string; imageUrl: string | null };
   brand: { companyName: string };
@@ -33,12 +47,14 @@ function formatDate(iso: string) {
 
 const STATUS_LABEL: Record<CreatorSampleRequestRow["status"], string> = {
   PENDING: "Pendiente",
+  OFFERED: "Ofrecida",
   APPROVED: "Aprobada",
   REJECTED: "Rechazada",
 };
 
 const STATUS_CLASS: Record<CreatorSampleRequestRow["status"], string> = {
   PENDING: "bg-amber-100 text-amber-700",
+  OFFERED: "bg-purple-100 text-purple-700",
   APPROVED: "bg-brand-accent-soft text-brand-accent",
   REJECTED: "bg-red-100 text-red-700",
 };
@@ -204,17 +220,252 @@ function RequestForm({
   );
 }
 
+function AcceptOfferForm({
+  offer,
+  defaultPhone,
+  defaultCity,
+  onDone,
+  onCancel,
+}: {
+  offer: SampleOfferRow;
+  defaultPhone: string;
+  defaultCity: string;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [shippingName, setShippingName] = useState("");
+  const [shippingPhone, setShippingPhone] = useState(defaultPhone);
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [shippingCity, setShippingCity] = useState(defaultCity);
+  const [shippingNotes, setShippingNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/creador/muestras/ofertas/${offer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision: "accept",
+          shippingName,
+          shippingPhone,
+          shippingAddress,
+          shippingCity,
+          shippingNotes,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setError(body?.error ?? "No se pudo aceptar.");
+        return;
+      }
+      onDone();
+    } catch {
+      setError("No se pudo aceptar — revisa tu conexión.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mt-3 space-y-3 rounded-xl border border-brand-line bg-brand-bg p-4"
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-brand-ink mb-1">
+            Nombre completo
+          </label>
+          <input
+            required
+            value={shippingName}
+            onChange={(e) => setShippingName(e.target.value)}
+            className="input text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-brand-ink mb-1">Teléfono</label>
+          <input
+            required
+            value={shippingPhone}
+            onChange={(e) => setShippingPhone(e.target.value)}
+            className="input text-sm"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-brand-ink mb-1">Ciudad</label>
+          <input
+            required
+            value={shippingCity}
+            onChange={(e) => setShippingCity(e.target.value)}
+            className="input text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-brand-ink mb-1">
+            Notas de envío (opcional)
+          </label>
+          <input
+            value={shippingNotes}
+            onChange={(e) => setShippingNotes(e.target.value)}
+            className="input text-sm"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs text-brand-ink mb-1">
+          Dirección de envío
+        </label>
+        <input
+          required
+          value={shippingAddress}
+          onChange={(e) => setShippingAddress(e.target.value)}
+          className="input text-sm"
+        />
+      </div>
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={saving}
+          className="bg-brand-accent text-white rounded-full px-5 py-2 text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? "Enviando..." : "Aceptar y confirmar"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-xs text-brand-ink-soft hover:underline"
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function OfferCard({
+  offer,
+  defaultPhone,
+  defaultCity,
+  onResolved,
+}: {
+  offer: SampleOfferRow;
+  defaultPhone: string;
+  defaultCity: string;
+  onResolved: (offerId: string) => void;
+}) {
+  const [accepting, setAccepting] = useState(false);
+  const [declining, setDeclining] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function decline() {
+    setDeclining(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/creador/muestras/ofertas/${offer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: "decline" }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setError(body?.error ?? "No se pudo rechazar.");
+        return;
+      }
+      onResolved(offer.id);
+    } catch {
+      setError("No se pudo rechazar — revisa tu conexión.");
+    } finally {
+      setDeclining(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-brand-line bg-brand-surface p-4">
+      <div className="flex items-center gap-3">
+        {offer.product.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- foto del producto
+          <img
+            src={offer.product.imageUrl}
+            alt={offer.product.name}
+            className="w-14 h-14 rounded-lg object-cover border border-brand-line shrink-0"
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-lg bg-brand-accent-soft shrink-0" />
+        )}
+        <div className="min-w-0">
+          <p className="text-xs text-brand-ink-soft truncate">
+            {offer.brand.companyName} te quiere regalar
+          </p>
+          <p className="text-sm font-medium text-brand-ink truncate">
+            {offer.product.name} × {offer.quantity}
+          </p>
+        </div>
+      </div>
+
+      {offer.message && (
+        <p className="mt-3 text-xs text-brand-ink-soft italic">
+          &ldquo;{offer.message}&rdquo;
+        </p>
+      )}
+
+      {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+
+      {accepting ? (
+        <AcceptOfferForm
+          offer={offer}
+          defaultPhone={defaultPhone}
+          defaultCity={defaultCity}
+          onCancel={() => setAccepting(false)}
+          onDone={() => onResolved(offer.id)}
+        />
+      ) : (
+        <div className="flex gap-2 mt-3">
+          <button
+            type="button"
+            onClick={() => setAccepting(true)}
+            className="bg-brand-accent text-white rounded-full px-4 py-1.5 text-xs font-semibold hover:opacity-90"
+          >
+            Aceptar
+          </button>
+          <button
+            type="button"
+            onClick={decline}
+            disabled={declining}
+            className="border border-brand-line rounded-full px-4 py-1.5 text-xs font-medium hover:bg-red-50 hover:border-red-200 hover:text-red-700 disabled:opacity-50"
+          >
+            {declining ? "..." : "Rechazar"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CreatorSamplesPanel({
   initialProducts,
   initialRequests,
+  initialOffers,
   defaultPhone,
   defaultCity,
 }: {
   initialProducts: SampleEligibleProduct[];
   initialRequests: CreatorSampleRequestRow[];
+  initialOffers: SampleOfferRow[];
   defaultPhone: string;
   defaultCity: string;
 }) {
+  const [offers, setOffers] = useState(initialOffers);
   const [requests, setRequests] = useState(initialRequests);
   const [openProductId, setOpenProductId] = useState<string | null>(null);
   const [justRequestedIds, setJustRequestedIds] = useState<Set<string>>(
@@ -228,6 +479,30 @@ export function CreatorSamplesPanel({
 
   return (
     <div className="space-y-10">
+      {offers.length > 0 && (
+        <div>
+          <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
+            Ofertas recibidas
+          </h2>
+          <p className="text-sm text-brand-ink-soft mb-4">
+            Marcas que te quieren regalar una muestra directamente a ti.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {offers.map((o) => (
+              <OfferCard
+                key={o.id}
+                offer={o}
+                defaultPhone={defaultPhone}
+                defaultCity={defaultCity}
+                onResolved={(offerId) =>
+                  setOffers((prev) => prev.filter((x) => x.id !== offerId))
+                }
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
           Muestras disponibles

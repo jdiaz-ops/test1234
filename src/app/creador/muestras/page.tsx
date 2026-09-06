@@ -4,15 +4,17 @@ import { CreatorSamplesPanel } from "@/components/portal/creator-samples-panel";
 import {
   listSampleEligibleProducts,
   listCreatorSampleRequests,
+  listCreatorSampleOffers,
 } from "@/server/services/sample-service";
 
 export default async function CreadorMuestrasPage() {
   const profile = await requireCreatorProfile();
   if (!profile) redirect("/login");
 
-  const [products, requests] = await Promise.all([
+  const [products, requests, offers] = await Promise.all([
     listSampleEligibleProducts(),
     listCreatorSampleRequests(profile.id),
+    listCreatorSampleOffers(profile.id),
   ]);
 
   return (
@@ -50,6 +52,14 @@ export default async function CreadorMuestrasPage() {
           createdAt: r.createdAt.toISOString(),
           product: { name: r.product.name, imageUrl: r.product.imageUrl },
           brand: { companyName: r.brand.companyName },
+        }))}
+        initialOffers={offers.map((o) => ({
+          id: o.id,
+          quantity: o.quantity,
+          message: o.message,
+          createdAt: o.createdAt.toISOString(),
+          product: { name: o.product.name, imageUrl: o.product.imageUrl },
+          brand: { companyName: o.brand.companyName },
         }))}
         defaultPhone={profile.phone ?? ""}
         defaultCity={profile.city ?? ""}

@@ -45,6 +45,7 @@ export default async function TiendaMuestrasPage() {
         initialRequests={requests.map((r) => ({
           id: r.id,
           status: r.status,
+          initiatedBy: r.initiatedBy,
           quantity: r.quantity,
           message: r.message,
           shippingName: r.shippingName,

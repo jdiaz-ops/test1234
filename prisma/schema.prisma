@@ -197,11 +197,16 @@ model CreatorProfile {
   /// es independiente por marca, porque cada tienda tiene sus propias reglas.
   baseCode String @unique
 
-  /// "Modo Descubrible" (Fase 2 — Marcolini Discover): apagado por defecto.
-  /// Mientras esté en false, ninguna marca puede encontrar este perfil en un
-  /// directorio de búsqueda — solo aparece en "Creadores vinculados" de las
-  /// marcas a las que él mismo decidió unirse.
-  discoverable Boolean @default(false)
+  /// "Modo Descubrible" (Fase 2 — Marcolini Discover, construido 2026-09-06):
+  /// mientras esté en false, ninguna marca puede encontrar este perfil en el
+  /// buscador de creadores — solo aparece en "Creadores vinculados" de las
+  /// marcas a las que él mismo decidió unirse. Prende por defecto para
+  /// cuentas NUEVAS (@default(true) — resuelve el problema de arranque en
+  /// frío de un directorio vacío); las cuentas que ya existían de antes de
+  /// este cambio conservan el valor que tenían guardado (la migración NO
+  /// las toca), así que siguen invisibles hasta que ellas mismas lo
+  /// prendan — ver el aviso en /creador/perfil.
+  discoverable Boolean @default(true)
 
   /// El admin puede suspender una cuenta (ej. fraude detectado, código
   /// compartido/vendido) sin necesidad de eliminarla.
@@ -245,6 +250,7 @@ model CreatorProfile {
   challengeUrgencyPings ChallengeUrgencyPing[]
   collections           Collection[]
   sampleRequests        SampleRequest[]
+  invitations           EnrollmentInvitation[]
 
   /// Programa de referidos — a quiénes invitó este creador (referrer) y,
   /// como mucho, por quién fue invitado él mismo (referred, único).
@@ -502,6 +508,7 @@ model Offer {
   enrollments  CreatorOfferEnrollment[]
   challenges   Challenge[]
   transactions Transaction[]
+  invitations  EnrollmentInvitation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -553,9 +560,54 @@ model CreatorOfferEnrollment {
   conversations Conversation[]
   shipments     ProductShipment[]
 
+  /// Se llena solo si esta vinculación nació de que la marca invitó al
+  /// creador desde el buscador (ver EnrollmentInvitation) — null si el
+  /// creador se unió por su cuenta.
+  invitation EnrollmentInvitation?
+
   joinedAt DateTime @default(now())
 
   @@unique([offerId, creatorId])
+}
+
+// ----------------------------------------------------------------------------
+// BUSCADOR DE CREADORES (la marca recluta, en vez de esperar a que el
+// creador la encuentre) — ver conversación sobre Creator Score y
+// reclutamiento estilo TikTok Shop "Target Collaboration".
+// ----------------------------------------------------------------------------
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+/// La marca invita directo a un creador (encontrado en el buscador) a
+/// unirse a una de sus ofertas, opcionalmente con comisión/descuento mejor
+/// que el estándar — el creador solo acepta o rechaza, sin pasar por el
+/// filtro normal de JoinMode.APPROVAL (la marca ya lo está aprobando de
+/// entrada, al invitarlo). Si acepta, se crea la CreatorOfferEnrollment
+/// real con esos valores ya aplicados.
+model EnrollmentInvitation {
+  id String @id @default(cuid())
+
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  commissionPercentOverride Decimal? @db.Decimal(5, 2)
+  discountPercentOverride   Decimal? @db.Decimal(5, 2)
+  message                   String?
+
+  status InvitationStatus @default(PENDING)
+
+  enrollmentId String?                 @unique
+  enrollment   CreatorOfferEnrollment? @relation(fields: [enrollmentId], references: [id])
+
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
 }
 
 // ----------------------------------------------------------------------------
@@ -901,17 +953,26 @@ model StoreOrderItem {
 }
 
 // ----------------------------------------------------------------------------
-// MUESTRAS (inspirado en TikTok Shop) — la marca habilita un producto de su
-// catálogo (manual o sincronizado) con un pool de unidades solo para
-// regalar; los creadores lo ven en su portal y piden una con un clic; la
-// marca acepta o rechaza; si acepta, se crea un StoreOrder $0 (kind SAMPLE)
-// con los datos de envío que dio el creador.
+// MUESTRAS (inspirado en TikTok Shop) — dos direcciones posibles:
+// - CREATOR pide (pull): la marca habilita un producto con un pool de
+//   unidades, el creador lo ve en su portal y lo pide con un clic.
+// - BRAND ofrece (push, "reclutamiento" desde el buscador de creadores): la
+//   marca le ofrece la muestra a un creador puntual sin que él la haya
+//   pedido; el creador solo acepta (pone sus datos de envío) o rechaza.
+// En ambos casos, si termina aprobada, se crea un StoreOrder $0 (kind
+// SAMPLE) con los datos de envío del creador.
 // ----------------------------------------------------------------------------
 
 enum SampleRequestStatus {
-  PENDING
+  PENDING // el creador la pidió, la marca todavía no decide
+  OFFERED // la marca se la ofreció, el creador todavía no responde
   APPROVED
   REJECTED
+}
+
+enum SampleRequestInitiator {
+  CREATOR
+  BRAND
 }
 
 model SampleRequest {
@@ -928,16 +989,21 @@ model SampleRequest {
 
   quantity Int @default(1)
 
-  /// Nota opcional del creador a la marca — para qué la va a usar (ej. "la
-  /// voy a probar en un video de rutina").
+  initiatedBy SampleRequestInitiator @default(CREATOR)
+
+  /// Nota opcional — del creador a la marca cuando él la pide, o de la
+  /// marca al creador cuando ella la ofrece (ej. "queremos que la pruebes
+  /// para tu contenido de skincare").
   message String?
 
   /// Igual que StoreOrder — se captura en el momento, no depende de un
-  /// perfil de direcciones aparte.
-  shippingName    String
-  shippingPhone   String
-  shippingAddress String
-  shippingCity    String
+  /// perfil de direcciones aparte. Quedan null mientras la oferta está en
+  /// OFFERED (la marca todavía no sabe la dirección) — se llenan cuando el
+  /// creador acepta, justo antes de aprobar y crear el pedido.
+  shippingName    String?
+  shippingPhone   String?
+  shippingAddress String?
+  shippingCity    String?
   shippingNotes   String?
 
   status         SampleRequestStatus @default(PENDING)

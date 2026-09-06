@@ -12,7 +12,10 @@ import { usePathname } from "next/navigation";
 const items = [
   { href: "/marca", label: "Dashboard", exact: true },
   { href: "/marca/retos", label: "Campañas" },
-  { href: "/marca/creadores", label: "Creadores vinculados" },
+  { href: "/marca/creadores", label: "Creadores vinculados", exact: true },
+  // Nuevo — buscador para reclutar creadores en vez de solo esperar a que
+  // te encuentren. Ver conversación del 2026-09-06.
+  { href: "/marca/creadores/buscar", label: "Buscar creadores" },
   { href: "/marca/cuenta", label: "Cuenta" },
 ];
 

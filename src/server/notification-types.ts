@@ -57,6 +57,22 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "marca,producto,razon",
   },
   {
+    key: "SAMPLE_OFFERED",
+    label: "Una marca te ofreció una muestra",
+    audience: "CREATOR",
+    messageTemplate:
+      '{marca} te quiere regalar una muestra de "{producto}" — revísalo en Muestras.',
+    placeholders: "marca,producto",
+  },
+  {
+    key: "ENROLLMENT_INVITED_CREATOR",
+    label: "Una marca te invitó a unirte",
+    audience: "CREATOR",
+    messageTemplate:
+      "{marca} te invitó directo a unirte a su programa — revísalo en Marketplace de marcas.",
+    placeholders: "marca",
+  },
+  {
     key: "NEW_MESSAGE_CREATOR",
     label: "Mensaje nuevo de una marca",
     audience: "CREATOR",
@@ -215,6 +231,22 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     messageTemplate:
       '{creador} solicitó una muestra de "{producto}" — revísalo en Mi tienda → Muestras.',
     placeholders: "creador,producto",
+  },
+  {
+    key: "SAMPLE_OFFER_ACCEPTED",
+    label: "Creador aceptó tu oferta de muestra",
+    audience: "BRAND",
+    messageTemplate:
+      '{creador} aceptó tu oferta de muestra de "{producto}" — ya puedes ver el pedido en Pedidos.',
+    placeholders: "creador,producto",
+  },
+  {
+    key: "ENROLLMENT_INVITATION_DECLINED",
+    label: "Creador rechazó tu invitación",
+    audience: "BRAND",
+    messageTemplate:
+      "{creador} no aceptó tu invitación a unirse a tu programa.",
+    placeholders: "creador",
   },
   {
     key: "NEW_MESSAGE_BRAND",

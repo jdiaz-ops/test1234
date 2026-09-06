@@ -164,3 +164,24 @@ export const requestSampleSchema = z.object({
   shippingCity: z.string().min(2, "Ingresa tu ciudad"),
   shippingNotes: z.string().max(300).optional().or(z.literal("")),
 });
+
+/// El creador acepta una oferta de muestra que le mandó la marca — pone
+/// sus datos de envío recién ahora (la marca no los tenía al ofrecerla).
+export const acceptSampleOfferSchema = z.object({
+  shippingName: z.string().min(2, "Ingresa tu nombre"),
+  shippingPhone: z.string().min(7, "Ingresa un teléfono válido"),
+  shippingAddress: z.string().min(5, "Ingresa tu dirección"),
+  shippingCity: z.string().min(2, "Ingresa tu ciudad"),
+  shippingNotes: z.string().max(300).optional().or(z.literal("")),
+});
+
+/// Respuesta a una invitación directa de una marca a unirse a su programa
+/// (ver recruit-service.ts) — desiredCode solo hace falta si acepta.
+export const respondInvitationSchema = z.object({
+  decision: z.enum(["ACCEPT", "DECLINE"]),
+  desiredCode: z.string().optional().or(z.literal("")),
+});
+
+export const setDiscoverableSchema = z.object({
+  discoverable: z.boolean(),
+});

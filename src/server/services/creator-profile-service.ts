@@ -3,7 +3,11 @@ import { prisma } from "@/lib/prisma";
 export async function getCreatorProfileByUserId(userId: string) {
   return prisma.creatorProfile.findUniqueOrThrow({
     where: { userId },
-    include: { socialLinks: true, vertical: true, interests: { include: { vertical: true } } },
+    include: {
+      socialLinks: true,
+      vertical: true,
+      interests: { include: { vertical: true } },
+    },
   });
 }
 
@@ -16,7 +20,7 @@ export async function updateCreatorProfile(
     bio?: string;
     city?: string;
     verticalId?: string | null;
-  }
+  },
 ) {
   return prisma.creatorProfile.update({
     where: { userId },
@@ -24,14 +28,35 @@ export async function updateCreatorProfile(
   });
 }
 
+/// "Modo Descubrible" — si una marca puede encontrar a este creador en el
+/// buscador (ver creator-directory-service.ts). Aparte del resto del
+/// perfil porque es una decisión de privacidad, no un dato de perfil.
+export async function setCreatorDiscoverable(
+  userId: string,
+  discoverable: boolean,
+) {
+  return prisma.creatorProfile.update({
+    where: { userId },
+    data: { discoverable },
+  });
+}
+
 export async function replaceSocialLinks(
   userId: string,
-  links: { platform: string; handle: string; approxFollowers?: number | null }[]
+  links: {
+    platform: string;
+    handle: string;
+    approxFollowers?: number | null;
+  }[],
 ) {
-  const profile = await prisma.creatorProfile.findUniqueOrThrow({ where: { userId } });
+  const profile = await prisma.creatorProfile.findUniqueOrThrow({
+    where: { userId },
+  });
 
   await prisma.$transaction([
-    prisma.creatorSocialLink.deleteMany({ where: { creatorProfileId: profile.id } }),
+    prisma.creatorSocialLink.deleteMany({
+      where: { creatorProfileId: profile.id },
+    }),
     prisma.creatorSocialLink.createMany({
       data: links.map((l) => ({ ...l, creatorProfileId: profile.id })),
     }),
@@ -41,15 +66,25 @@ export async function replaceSocialLinks(
 /// Categorías de interés (multi-selección) — reemplaza el set completo cada
 /// vez, más simple que calcular diffs y suficiente para un puñado de
 /// categorías.
-export async function replaceCreatorInterests(userId: string, verticalIds: string[]) {
-  const profile = await prisma.creatorProfile.findUniqueOrThrow({ where: { userId } });
+export async function replaceCreatorInterests(
+  userId: string,
+  verticalIds: string[],
+) {
+  const profile = await prisma.creatorProfile.findUniqueOrThrow({
+    where: { userId },
+  });
 
   await prisma.$transaction([
-    prisma.creatorInterest.deleteMany({ where: { creatorProfileId: profile.id } }),
+    prisma.creatorInterest.deleteMany({
+      where: { creatorProfileId: profile.id },
+    }),
     ...(verticalIds.length > 0
       ? [
           prisma.creatorInterest.createMany({
-            data: verticalIds.map((verticalId) => ({ creatorProfileId: profile.id, verticalId })),
+            data: verticalIds.map((verticalId) => ({
+              creatorProfileId: profile.id,
+              verticalId,
+            })),
           }),
         ]
       : []),
@@ -66,7 +101,7 @@ export async function updatePaymentInfo(
     bankAccountType?: string;
     bankAccountNumber?: string;
     paymentHolderName?: string;
-  }
+  },
 ) {
   return prisma.creatorProfile.update({
     where: { userId },
@@ -80,7 +115,12 @@ export async function updatePaymentInfo(
 /// ofrece en este paso en vez de como pregunta obligatoria).
 export async function updateStorefrontSettings(
   userId: string,
-  data: { storefrontPalette: string; storefrontFont: string; storefrontHeadline?: string; bio?: string }
+  data: {
+    storefrontPalette: string;
+    storefrontFont: string;
+    storefrontHeadline?: string;
+    bio?: string;
+  },
 ) {
   return prisma.creatorProfile.update({
     where: { userId },
@@ -91,9 +131,15 @@ export async function updateStorefrontSettings(
 /// Qué marcas se muestran en la vitrina y en qué orden — el creador decide.
 export async function updateEnrollmentDisplay(
   userId: string,
-  items: { enrollmentId: string; storefrontVisible: boolean; storefrontOrder: number }[]
+  items: {
+    enrollmentId: string;
+    storefrontVisible: boolean;
+    storefrontOrder: number;
+  }[],
 ) {
-  const profile = await prisma.creatorProfile.findUniqueOrThrow({ where: { userId } });
+  const profile = await prisma.creatorProfile.findUniqueOrThrow({
+    where: { userId },
+  });
 
   await prisma.$transaction(
     items.map((item) =>
@@ -102,9 +148,12 @@ export async function updateEnrollmentDisplay(
         // suelto, para que un creador nunca pueda tocar la vitrina de otro
         // aunque mande un enrollmentId ajeno.
         where: { id: item.enrollmentId, creatorId: profile.id },
-        data: { storefrontVisible: item.storefrontVisible, storefrontOrder: item.storefrontOrder },
-      })
-    )
+        data: {
+          storefrontVisible: item.storefrontVisible,
+          storefrontOrder: item.storefrontOrder,
+        },
+      }),
+    ),
   );
 }
 

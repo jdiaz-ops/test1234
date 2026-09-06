@@ -290,3 +290,30 @@ export const respondSampleRequestSchema = z.object({
   decision: z.enum(["APPROVED", "REJECTED"]),
   rejectedReason: z.string().max(300).optional().or(z.literal("")),
 });
+
+// ----------------------------------------------------------------------------
+// Buscador de creadores — la marca "recluta" en vez de solo esperar (ver
+// conversación del 2026-09-06).
+// ----------------------------------------------------------------------------
+
+const overridePercent = z.coerce
+  .number()
+  .min(0, "Debe ser 0 o más")
+  .max(100, "No puede superar 100")
+  .optional()
+  .nullable();
+
+export const inviteCreatorSchema = z.object({
+  offerId: z.string().min(1),
+  creatorId: z.string().min(1),
+  commissionPercentOverride: overridePercent,
+  discountPercentOverride: overridePercent,
+  message: z.string().max(300).optional().or(z.literal("")),
+});
+
+export const offerSampleToCreatorSchema = z.object({
+  creatorId: z.string().min(1),
+  productId: z.string().min(1),
+  quantity: z.coerce.number().int().min(1).max(5),
+  message: z.string().max(300).optional().or(z.literal("")),
+});

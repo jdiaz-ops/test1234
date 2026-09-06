@@ -3,13 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/server/services/notification-service";
 import { isBrandServiceDeactivated } from "@/server/services/payment-service";
 
-/// Muestras gratis (inspirado en TikTok Shop) — la marca habilita cualquier
-/// producto de su catálogo (manual o sincronizado) con un pool de unidades
-/// solo para regalar; los creadores lo ven en su portal y piden una con un
-/// clic; la marca acepta o rechaza; si acepta, se crea un StoreOrder $0
-/// (kind SAMPLE) con los datos de envío que dio el creador — ese pedido
-/// aparece en Mi tienda → Pedidos igual que uno pagado, para que la marca
-/// gestione el despacho desde el mismo lugar.
+/// Muestras gratis (inspirado en TikTok Shop) — dos direcciones posibles:
+/// - CREATOR pide (pull): la marca habilita un producto de su catálogo
+///   (manual o sincronizado) con un pool de unidades solo para regalar, el
+///   creador lo ve en su portal y lo pide con un clic.
+/// - BRAND ofrece (push, reclutamiento desde el buscador de creadores): la
+///   marca le ofrece la muestra a un creador puntual sin que él la haya
+///   pedido; el creador solo acepta (pone sus datos de envío) o rechaza.
+/// En ambos casos, si termina aprobada, se crea un StoreOrder $0 (kind
+/// SAMPLE) con los datos de envío del creador — aparece en Mi tienda →
+/// Pedidos igual que uno pagado.
 
 export class SampleError extends Error {}
 
@@ -50,13 +53,95 @@ export async function updateProductSampleSettings(
   });
 }
 
-/// PENDING primero (orden de declaración del enum en Postgres), luego
-/// resueltas más recientes arriba.
+/// PENDING/OFFERED primero (orden de declaración del enum en Postgres),
+/// luego resueltas más recientes arriba.
 export async function listBrandSampleRequests(brandId: string) {
   return prisma.sampleRequest.findMany({
     where: { brandId },
     include: { creator: true, product: true },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+  });
+}
+
+/// Se llama tanto desde que la marca aprueba una solicitud que el creador
+/// pidió, como desde que el creador acepta una oferta que la marca le
+/// mandó — en ambos casos el resultado es el mismo: descontar el pool y
+/// crear el pedido $0. Vuelve a chequear el stock por dentro de la
+/// transacción (pudo cambiar desde que se creó la solicitud).
+async function finalizeApprovedSample(requestId: string) {
+  return prisma.$transaction(async (tx) => {
+    const request = await tx.sampleRequest.findUniqueOrThrow({
+      where: { id: requestId },
+      include: { brand: true, product: true },
+    });
+
+    if (
+      !request.shippingName ||
+      !request.shippingPhone ||
+      !request.shippingAddress ||
+      !request.shippingCity
+    ) {
+      throw new SampleError("Faltan los datos de envío.");
+    }
+
+    const freshProduct = await tx.product.findUniqueOrThrow({
+      where: { id: request.productId },
+    });
+    if (
+      !freshProduct.sampleEnabled ||
+      freshProduct.sampleStock < request.quantity
+    ) {
+      throw new SampleError(
+        "Ya no hay suficiente stock de muestras para este producto.",
+      );
+    }
+
+    await tx.product.update({
+      where: { id: freshProduct.id },
+      data: { sampleStock: { decrement: request.quantity } },
+    });
+
+    const creator = await tx.creatorProfile.findUniqueOrThrow({
+      where: { id: request.creatorId },
+      include: { user: true },
+    });
+
+    const order = await tx.storeOrder.create({
+      data: {
+        brandId: request.brandId,
+        kind: "SAMPLE",
+        reference: `sample_${randomUUID()}`,
+        buyerName: request.shippingName,
+        buyerEmail: creator.user.email,
+        buyerPhone: request.shippingPhone,
+        shippingAddress: request.shippingAddress,
+        shippingCity: request.shippingCity,
+        shippingNotes: request.shippingNotes,
+        subtotalCents: 0,
+        discountCents: 0,
+        shippingCents: 0,
+        totalCents: 0,
+        paymentMode: request.brand.paymentMode,
+        status: "PAID",
+        paidAt: new Date(),
+        items: {
+          create: [
+            {
+              productId: freshProduct.id,
+              name: freshProduct.name,
+              unitPriceCents: 0,
+              quantity: request.quantity,
+              imageUrl: freshProduct.imageUrl,
+            },
+          ],
+        },
+      },
+    });
+
+    return tx.sampleRequest.update({
+      where: { id: request.id },
+      data: { status: "APPROVED", reviewedAt: new Date(), orderId: order.id },
+    });
   });
 }
 
@@ -67,7 +152,7 @@ export async function respondToSampleRequest(
   rejectedReason?: string | null,
 ) {
   const request = await prisma.sampleRequest.findFirst({
-    where: { id: requestId, brandId },
+    where: { id: requestId, brandId, initiatedBy: "CREATOR" },
     include: {
       product: true,
       brand: true,
@@ -96,66 +181,7 @@ export async function respondToSampleRequest(
     return updated;
   }
 
-  // APPROVED — vuelve a chequear el stock por dentro de la transacción (pudo
-  // cambiar entre que se pidió la muestra y que la marca decide) y crea el
-  // pedido $0 atómicamente con el descuento del pool.
-  const { request: updatedRequest } = await prisma.$transaction(async (tx) => {
-    const freshProduct = await tx.product.findUniqueOrThrow({
-      where: { id: request.productId },
-    });
-    if (
-      !freshProduct.sampleEnabled ||
-      freshProduct.sampleStock < request.quantity
-    ) {
-      throw new SampleError(
-        "Ya no hay suficiente stock de muestras para este producto.",
-      );
-    }
-
-    await tx.product.update({
-      where: { id: freshProduct.id },
-      data: { sampleStock: { decrement: request.quantity } },
-    });
-
-    const order = await tx.storeOrder.create({
-      data: {
-        brandId: request.brandId,
-        kind: "SAMPLE",
-        reference: `sample_${randomUUID()}`,
-        buyerName: request.shippingName,
-        buyerEmail: request.creator.user.email,
-        buyerPhone: request.shippingPhone,
-        shippingAddress: request.shippingAddress,
-        shippingCity: request.shippingCity,
-        shippingNotes: request.shippingNotes,
-        subtotalCents: 0,
-        discountCents: 0,
-        shippingCents: 0,
-        totalCents: 0,
-        paymentMode: request.brand.paymentMode,
-        status: "PAID",
-        paidAt: new Date(),
-        items: {
-          create: [
-            {
-              productId: freshProduct.id,
-              name: freshProduct.name,
-              unitPriceCents: 0,
-              quantity: request.quantity,
-              imageUrl: freshProduct.imageUrl,
-            },
-          ],
-        },
-      },
-    });
-
-    const updated = await tx.sampleRequest.update({
-      where: { id: request.id },
-      data: { status: "APPROVED", reviewedAt: new Date(), orderId: order.id },
-    });
-
-    return { request: updated, order };
-  });
+  const updatedRequest = await finalizeApprovedSample(request.id);
 
   await createNotification(request.creator.user.id, "SAMPLE_APPROVED", {
     marca: request.brand.companyName,
@@ -163,6 +189,143 @@ export async function respondToSampleRequest(
   });
 
   return updatedRequest;
+}
+
+/// La marca le ofrece proactivamente una muestra a un creador puntual —
+/// encontrado en el buscador — sin que él la haya pedido. Reusa el mismo
+/// SampleRequest, solo que arranca en OFFERED (no PENDING) y sin datos de
+/// envío todavía — el creador los llena si acepta.
+export async function offerSampleToCreator(
+  brandId: string,
+  data: {
+    creatorId: string;
+    productId: string;
+    quantity: number;
+    message?: string | null;
+  },
+) {
+  const product = await prisma.product.findFirst({
+    where: { id: data.productId, brandId },
+  });
+  if (!product) throw new SampleError("Producto no encontrado.");
+  if (!product.sampleEnabled || product.sampleStock < data.quantity) {
+    throw new SampleError("No hay suficiente stock de muestras para ofrecer.");
+  }
+
+  const creator = await prisma.creatorProfile.findUnique({
+    where: { id: data.creatorId },
+  });
+  if (!creator || !creator.discoverable || creator.suspended) {
+    throw new SampleError("Ese creador no está disponible.");
+  }
+
+  const existing = await prisma.sampleRequest.findFirst({
+    where: {
+      creatorId: data.creatorId,
+      productId: product.id,
+      status: { in: ["PENDING", "OFFERED"] },
+    },
+  });
+  if (existing) {
+    throw new SampleError(
+      "Ya hay una solicitud/oferta abierta con este creador para este producto.",
+    );
+  }
+
+  const brand = await prisma.brandProfile.findUniqueOrThrow({
+    where: { id: brandId },
+  });
+
+  const request = await prisma.sampleRequest.create({
+    data: {
+      brandId,
+      creatorId: data.creatorId,
+      productId: product.id,
+      quantity: data.quantity,
+      message: data.message || null,
+      initiatedBy: "BRAND",
+      status: "OFFERED",
+    },
+  });
+
+  await createNotification(creator.userId, "SAMPLE_OFFERED", {
+    marca: brand.companyName,
+    producto: product.name,
+  });
+
+  return request;
+}
+
+/// Ofertas que la marca le mandó al creador y todavía esperan su respuesta.
+export async function listCreatorSampleOffers(creatorId: string) {
+  return prisma.sampleRequest.findMany({
+    where: { creatorId, initiatedBy: "BRAND", status: "OFFERED" },
+    include: { product: true, brand: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function acceptSampleOffer(
+  creatorId: string,
+  requestId: string,
+  shipping: {
+    shippingName: string;
+    shippingPhone: string;
+    shippingAddress: string;
+    shippingCity: string;
+    shippingNotes?: string | null;
+  },
+) {
+  const request = await prisma.sampleRequest.findFirst({
+    where: { id: requestId, creatorId, initiatedBy: "BRAND" },
+    include: { product: true, brand: true },
+  });
+  if (!request) throw new SampleError("Oferta no encontrada.");
+  if (request.status !== "OFFERED") {
+    throw new SampleError("Esta oferta ya no está disponible.");
+  }
+
+  await prisma.sampleRequest.update({
+    where: { id: request.id },
+    data: {
+      shippingName: shipping.shippingName,
+      shippingPhone: shipping.shippingPhone,
+      shippingAddress: shipping.shippingAddress,
+      shippingCity: shipping.shippingCity,
+      shippingNotes: shipping.shippingNotes || null,
+    },
+  });
+
+  const updated = await finalizeApprovedSample(request.id);
+
+  const brandUser = await prisma.brandProfile.findUniqueOrThrow({
+    where: { id: request.brandId },
+    include: { user: true },
+  });
+  const creator = await prisma.creatorProfile.findUniqueOrThrow({
+    where: { id: creatorId },
+  });
+  await createNotification(brandUser.user.id, "SAMPLE_OFFER_ACCEPTED", {
+    creador: creator.displayName,
+    producto: request.product.name,
+  });
+
+  return updated;
+}
+
+export async function declineSampleOffer(creatorId: string, requestId: string) {
+  const request = await prisma.sampleRequest.findFirst({
+    where: { id: requestId, creatorId, initiatedBy: "BRAND" },
+  });
+  if (!request) throw new SampleError("Oferta no encontrada.");
+  if (request.status !== "OFFERED") {
+    throw new SampleError("Esta oferta ya no está disponible.");
+  }
+
+  return prisma.sampleRequest.update({
+    where: { id: request.id },
+    data: { status: "REJECTED", reviewedAt: new Date() },
+  });
 }
 
 // -------------------------------------------------------------- CREADOR
@@ -198,7 +361,7 @@ export async function listSampleEligibleProducts() {
 
 export async function listCreatorSampleRequests(creatorId: string) {
   return prisma.sampleRequest.findMany({
-    where: { creatorId },
+    where: { creatorId, initiatedBy: "CREATOR" },
     include: { product: true, brand: true },
     orderBy: { createdAt: "desc" },
   });

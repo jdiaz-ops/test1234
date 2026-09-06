@@ -4,6 +4,7 @@ import { requestSampleSchema } from "@/lib/validation/creator";
 import {
   listSampleEligibleProducts,
   listCreatorSampleRequests,
+  listCreatorSampleOffers,
   createSampleRequest,
   SampleError,
 } from "@/server/services/sample-service";
@@ -13,11 +14,12 @@ export async function GET() {
   if (!profile)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const [products, requests] = await Promise.all([
+  const [products, requests, offers] = await Promise.all([
     listSampleEligibleProducts(),
     listCreatorSampleRequests(profile.id),
+    listCreatorSampleOffers(profile.id),
   ]);
-  return NextResponse.json({ products, requests });
+  return NextResponse.json({ products, requests, offers });
 }
 
 export async function POST(req: Request) {

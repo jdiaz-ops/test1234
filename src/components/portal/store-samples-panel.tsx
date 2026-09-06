@@ -17,13 +17,14 @@ export type SampleCatalogProduct = {
 
 export type SampleRequestRow = {
   id: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "OFFERED" | "APPROVED" | "REJECTED";
+  initiatedBy: "CREATOR" | "BRAND";
   quantity: number;
   message: string | null;
-  shippingName: string;
-  shippingPhone: string;
-  shippingAddress: string;
-  shippingCity: string;
+  shippingName: string | null;
+  shippingPhone: string | null;
+  shippingAddress: string | null;
+  shippingCity: string | null;
   shippingNotes: string | null;
   rejectedReason: string | null;
   createdAt: string;
@@ -256,13 +257,25 @@ function RequestCard({
             className={`text-xs font-medium rounded-full px-2.5 py-1 shrink-0 ${
               request.status === "APPROVED"
                 ? "bg-brand-accent-soft text-brand-accent"
-                : "bg-red-100 text-red-700"
+                : request.status === "OFFERED"
+                  ? "bg-purple-100 text-purple-700"
+                  : "bg-red-100 text-red-700"
             }`}
           >
-            {request.status === "APPROVED" ? "Aprobada" : "Rechazada"}
+            {request.status === "APPROVED"
+              ? "Aprobada"
+              : request.status === "OFFERED"
+                ? "Ofrecida — esperando respuesta"
+                : "Rechazada"}
           </span>
         )}
       </div>
+
+      {request.initiatedBy === "BRAND" && request.status === "OFFERED" && (
+        <p className="text-xs text-brand-ink-soft">
+          Se la ofreciste tú — todavía no ha respondido.
+        </p>
+      )}
 
       {request.message && (
         <p className="text-xs text-brand-ink-soft italic">
@@ -270,15 +283,17 @@ function RequestCard({
         </p>
       )}
 
-      <div className="text-xs text-brand-ink-soft">
-        <p>
-          {request.shippingName} · {request.shippingPhone}
-        </p>
-        <p>
-          {request.shippingAddress}, {request.shippingCity}
-        </p>
-        {request.shippingNotes && <p>{request.shippingNotes}</p>}
-      </div>
+      {request.shippingName && (
+        <div className="text-xs text-brand-ink-soft">
+          <p>
+            {request.shippingName} · {request.shippingPhone}
+          </p>
+          <p>
+            {request.shippingAddress}, {request.shippingCity}
+          </p>
+          {request.shippingNotes && <p>{request.shippingNotes}</p>}
+        </div>
+      )}
 
       {request.status === "REJECTED" && request.rejectedReason && (
         <p className="text-xs text-brand-ink-soft">
