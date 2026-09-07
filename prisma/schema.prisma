@@ -868,6 +868,16 @@ enum StoreOrderStatus {
   EXPIRED // nunca se completó y el link/reference quedó vencido
 }
 
+enum ProductType {
+  PHYSICAL // se despacha por envío — comportamiento de siempre
+  SERVICE // clase/asesoría presencial o virtual — se "cumple" con una reserva, no con un envío
+}
+
+enum ServiceModality {
+  VIRTUAL // por videollamada — ver Product.serviceLocation para el link
+  PRESENCIAL // en un lugar físico — ver Product.serviceLocation para la dirección
+}
+
 enum StoreOrderKind {
   PURCHASE // pedido real, cobrado con Wompi
   SAMPLE // muestra gratis aprobada — ver SampleRequest
@@ -892,12 +902,23 @@ model StoreOrder {
   /// llega de vuelta en el webhook para encontrar este pedido.
   reference String @unique
 
-  buyerName       String
-  buyerEmail      String
-  buyerPhone      String
-  shippingAddress String
-  shippingCity    String
+  buyerName  String
+  buyerEmail String
+  buyerPhone String
+
+  /// Null en un pedido 100% de servicios — ver createStoreOrder, que exige
+  /// dirección solo cuando el carrito trae al menos un producto PHYSICAL.
+  /// Un carrito nunca mezcla PHYSICAL con SERVICE (ver la misma función),
+  /// así que nunca hace falta envío Y reserva a la vez en el mismo pedido.
+  shippingAddress String?
+  shippingCity    String?
   shippingNotes   String?
+
+  /// Solo en un pedido de servicios — la fecha/hora que pidió el
+  /// comprador al pagar. Es una preferencia, no una reserva confirmada:
+  /// la marca la confirma (o ajusta) desde Pedidos — ver
+  /// StoreOrderItem.serviceConfirmedAt.
+  servicePreferredAt DateTime?
 
   /// Código de descuento del creador, tal como lo escribió el comprador —
   /// null si compró directo, sin código. Ver findEnrollmentByDiscountCode.
@@ -953,6 +974,13 @@ model StoreOrderItem {
   unitPriceCents Int // foto del precio unitario
   quantity       Int
   imageUrl       String?
+
+  /// Solo si el producto era tipo SERVICE al momento de la compra — la
+  /// marca confirma acá la fecha/hora real (puede ajustar la que pidió el
+  /// comprador en StoreOrder.servicePreferredAt) y, si es virtual, el link
+  /// de la reunión. Null hasta que la marca confirme desde Pedidos.
+  serviceConfirmedAt DateTime?
+  serviceMeetingInfo String?
 }
 
 // ----------------------------------------------------------------------------
@@ -1678,7 +1706,25 @@ model Product {
 
   /// Solo para productos manuales — null = no se controla stock (siempre
   /// disponible). 0 no bloquea la venta solo, lo hace junto con `available`.
+  /// En un producto SERVICE, este mismo campo se reusa como "cupos
+  /// disponibles" (cuántas reservas se pueden vender) — mismo concepto de
+  /// disponibilidad limitada, sin agregar un campo aparte.
   stock Int?
+
+  /// Solo lo trae un producto manual — los sincronizados de Shopify/
+  /// WooCommerce son siempre PHYSICAL (no hay forma de marcar un producto
+  /// como servicio desde esas plataformas todavía).
+  type ProductType @default(PHYSICAL)
+
+  /// Los tres siguientes solo aplican cuando type = SERVICE — null en
+  /// cualquier producto PHYSICAL.
+  serviceModality        ServiceModality?
+  serviceDurationMinutes Int?
+  /// Dirección si serviceModality = PRESENCIAL, o el link/instrucciones
+  /// por defecto de la videollamada si es VIRTUAL — la marca lo puede
+  /// ajustar por reserva puntual al confirmarla (ver
+  /// StoreOrderItem.serviceMeetingInfo).
+  serviceLocation        String?
 
   /// Muestras (inspirado en TikTok Shop) — cualquier producto (manual o
   /// sincronizado) se puede habilitar para que los creadores lo pidan

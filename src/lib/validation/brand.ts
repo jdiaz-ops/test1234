@@ -51,7 +51,7 @@ const slugField = z
     "Solo minúsculas, números y guiones — sin espacios ni acentos",
   );
 
-export const createProductSchema = z.object({
+const productBaseSchema = z.object({
   name: z.string().min(2, "Ingresa el nombre del producto"),
   description: z
     .string()
@@ -62,6 +62,8 @@ export const createProductSchema = z.object({
   compareAtPrice: z.coerce.number().positive().optional().nullable(),
   imageUrl: z.string().optional().or(z.literal("")),
   slug: slugField,
+  /// En un producto SERVICE, esto son "cupos disponibles" — mismo campo,
+  /// otro nombre en la interfaz.
   stock: z.coerce
     .number()
     .int()
@@ -69,11 +71,48 @@ export const createProductSchema = z.object({
     .optional()
     .nullable(),
   available: z.boolean(),
+  type: z.enum(["PHYSICAL", "SERVICE"]).default("PHYSICAL"),
+  serviceModality: z.enum(["VIRTUAL", "PRESENCIAL"]).optional().nullable(),
+  serviceDurationMinutes: z.coerce
+    .number()
+    .int()
+    .min(1, "Mínimo 1 minuto")
+    .max(600, "Máximo 600 minutos")
+    .optional()
+    .nullable(),
+  serviceLocation: z.string().max(300).optional().or(z.literal("")),
 });
 
-export const updateProductSchema = createProductSchema.extend({
-  productId: z.string().min(1),
-});
+/// Un producto SERVICE necesita decir si es virtual o presencial, y dónde
+/// (dirección, o el link/instrucciones de la videollamada) — se valida acá
+/// en vez de con campos requeridos en el schema base porque solo aplica
+/// cuando type = SERVICE.
+function requireServiceFields(
+  data: z.infer<typeof productBaseSchema>,
+  ctx: z.RefinementCtx,
+) {
+  if (data.type !== "SERVICE") return;
+  if (!data.serviceModality) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["serviceModality"],
+      message: "Elige si es virtual o presencial",
+    });
+  }
+  if (!data.serviceLocation || !data.serviceLocation.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["serviceLocation"],
+      message: "Ingresa la dirección o el link de la videollamada",
+    });
+  }
+}
+
+export const createProductSchema = productBaseSchema.superRefine(requireServiceFields);
+
+export const updateProductSchema = productBaseSchema
+  .extend({ productId: z.string().min(1) })
+  .superRefine(requireServiceFields);
 
 export const deleteManualProductSchema = z.object({
   productId: z.string().min(1),
@@ -113,6 +152,16 @@ export const shippingConfigSchema = z.object({
 
 export const storeConfigSchema = z.object({
   storefrontSlug: slugField,
+});
+
+/// La marca confirma (o ajusta) la fecha/hora real de una reserva de
+/// servicio ya pagada, desde Pedidos — ver confirmServiceBooking en
+/// store-order-service.ts.
+export const confirmServiceBookingSchema = z.object({
+  orderId: z.string().min(1),
+  itemId: z.string().min(1),
+  confirmedAt: z.string().min(1, "Elige fecha y hora"),
+  meetingInfo: z.string().max(300).optional().or(z.literal("")),
 });
 
 const percent = z

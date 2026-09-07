@@ -86,6 +86,11 @@ export default async function StorefrontCatalogPage({
                   </Link>
                   <div className="p-3 flex flex-col gap-2 flex-1">
                     <Link href={`/t/${slug}/${product.slug}`}>
+                      {product.type === "SERVICE" && (
+                        <p className="text-[10px] font-mono text-brand-accent mb-0.5">
+                          SERVICIO
+                        </p>
+                      )}
                       <p className="text-xs font-medium text-brand-ink leading-snug line-clamp-2">
                         {product.name}
                       </p>
@@ -102,6 +107,7 @@ export default async function StorefrontCatalogPage({
                           price: Number(product.price),
                           imageUrl: product.imageUrl,
                           stock: product.stock,
+                          type: product.type,
                         }}
                         className="w-full bg-brand-accent text-white rounded-full px-3 py-1.5 text-[11px] font-semibold hover:opacity-90 disabled:opacity-40"
                       />

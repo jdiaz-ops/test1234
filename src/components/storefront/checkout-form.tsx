@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/storefront/cart-context";
 import {
   WompiCheckoutButton,
@@ -27,6 +27,9 @@ export function CheckoutForm({
   paymentsReady: boolean;
 }) {
   const { items, subtotal } = useCart();
+  // Un carrito nunca mezcla tipos (ver cart-context.tsx) — con que mire el
+  // primer ítem alcanza para saber si este pedido es de servicios o no.
+  const isServiceOrder = items[0]?.type === "SERVICE";
 
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
@@ -34,6 +37,15 @@ export function CheckoutForm({
   const [shippingAddress, setShippingAddress] = useState("");
   const [shippingCity, setShippingCity] = useState("");
   const [shippingNotes, setShippingNotes] = useState("");
+  const [servicePreferredAt, setServicePreferredAt] = useState("");
+  // Date.now() es impuro — no se puede llamar en render ni en un useMemo
+  // (las reglas de pureza de React lo bloquean). Se lee una sola vez, tras
+  // montar, igual que se hace con localStorage en cart-context.tsx.
+  const [minServiceDate, setMinServiceDate] = useState("");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Date.now() es impuro, solo se puede leer tras montar
+    setMinServiceDate(new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16));
+  }, []);
 
   const [code, setCode] = useState("");
   const [checkingCode, setCheckingCode] = useState(false);
@@ -51,10 +63,11 @@ export function CheckoutForm({
     : 0;
   const afterDiscount = subtotal - discountAmount;
   const shippingCost = useMemo(() => {
+    if (isServiceOrder) return 0;
     if (freeShippingThreshold != null && afterDiscount >= freeShippingThreshold)
       return 0;
     return shippingFlatRate ?? 0;
-  }, [afterDiscount, freeShippingThreshold, shippingFlatRate]);
+  }, [afterDiscount, freeShippingThreshold, shippingFlatRate, isServiceOrder]);
   const total = afterDiscount + shippingCost;
 
   async function handleApplyCode() {
@@ -98,9 +111,17 @@ export function CheckoutForm({
           buyerName,
           buyerEmail,
           buyerPhone,
-          shippingAddress,
-          shippingCity,
+          shippingAddress: isServiceOrder ? "" : shippingAddress,
+          shippingCity: isServiceOrder ? "" : shippingCity,
           shippingNotes,
+          // Colombia no tiene horario de verano — UTC-5 todo el año, así
+          // que un offset fijo alcanza para que el datetime-local (que no
+          // trae zona horaria) llegue al servidor como un instante sin
+          // ambigüedad, sin importar en qué zona corra el servidor.
+          servicePreferredAt:
+            isServiceOrder && servicePreferredAt
+              ? `${servicePreferredAt}:00-05:00`
+              : "",
           discountCode: discountPercent ? code : "",
         }),
       });
@@ -168,31 +189,53 @@ export function CheckoutForm({
               />
             </div>
 
-            <div>
-              <label className="block text-sm text-brand-ink mb-1">
-                Dirección de envío
-              </label>
-              <input
-                required
-                value={shippingAddress}
-                onChange={(e) => setShippingAddress(e.target.value)}
-                className="input"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            {isServiceOrder ? (
               <div>
                 <label className="block text-sm text-brand-ink mb-1">
-                  Ciudad
+                  Fecha y hora que prefieres
                 </label>
                 <input
                   required
-                  value={shippingCity}
-                  onChange={(e) => setShippingCity(e.target.value)}
+                  type="datetime-local"
+                  min={minServiceDate}
+                  value={servicePreferredAt}
+                  onChange={(e) => setServicePreferredAt(e.target.value)}
+                  className="input"
+                />
+                <p className="text-xs text-brand-ink-soft mt-1">
+                  Es tu preferencia — la marca la confirma (o te propone otra)
+                  después de tu pago.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm text-brand-ink mb-1">
+                  Dirección de envío
+                </label>
+                <input
+                  required
+                  value={shippingAddress}
+                  onChange={(e) => setShippingAddress(e.target.value)}
                   className="input"
                 />
               </div>
-              <div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              {!isServiceOrder && (
+                <div>
+                  <label className="block text-sm text-brand-ink mb-1">
+                    Ciudad
+                  </label>
+                  <input
+                    required
+                    value={shippingCity}
+                    onChange={(e) => setShippingCity(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              )}
+              <div className={isServiceOrder ? "col-span-2" : ""}>
                 <label className="block text-sm text-brand-ink mb-1">
                   Notas (opcional)
                 </label>
@@ -292,12 +335,14 @@ export function CheckoutForm({
               <span className="font-mono">-{formatCOP(discountAmount)}</span>
             </div>
           )}
-          <div className="flex justify-between text-brand-ink-soft">
-            <span>Envío</span>
-            <span className="font-mono">
-              {shippingCost === 0 ? "Gratis" : formatCOP(shippingCost)}
-            </span>
-          </div>
+          {!isServiceOrder && (
+            <div className="flex justify-between text-brand-ink-soft">
+              <span>Envío</span>
+              <span className="font-mono">
+                {shippingCost === 0 ? "Gratis" : formatCOP(shippingCost)}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between font-semibold text-brand-ink pt-1">
             <span>Total</span>
             <span className="font-mono">{formatCOP(total)}</span>

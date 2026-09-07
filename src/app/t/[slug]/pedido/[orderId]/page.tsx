@@ -79,6 +79,8 @@ export default async function StorefrontOrderStatusPage({
   if (!order) notFound();
 
   const copy = STATUS_COPY[order.status] ?? STATUS_COPY.PENDING;
+  const isService = order.servicePreferredAt != null;
+  const allServicesConfirmed = order.items.every((i) => i.serviceConfirmedAt != null);
 
   return (
     <div className="min-h-screen bg-brand-bg flex items-center justify-center px-6 py-16">
@@ -90,17 +92,51 @@ export default async function StorefrontOrderStatusPage({
         <h1 className="font-display text-xl font-semibold text-brand-ink mb-2">
           {copy.title}
         </h1>
-        <p className="text-sm text-brand-ink-soft mb-6">{copy.body}</p>
+        <p className="text-sm text-brand-ink-soft mb-6">
+          {order.status === "PAID" && isService
+            ? allServicesConfirmed
+              ? "Tu reserva quedó confirmada — mira los detalles abajo."
+              : "La marca va a confirmar (o proponerte otra) la fecha y hora — te avisamos por correo."
+            : copy.body}
+        </p>
 
         <div className="text-left rounded-xl border border-brand-line p-4 mb-6 space-y-1.5 text-sm">
           {order.items.map((item) => (
-            <div key={item.id} className="flex justify-between">
-              <span className="text-brand-ink-soft">
-                {item.name} × {item.quantity}
-              </span>
-              <span className="font-mono">
-                {formatCOP((item.unitPriceCents * item.quantity) / 100)}
-              </span>
+            <div key={item.id}>
+              <div className="flex justify-between">
+                <span className="text-brand-ink-soft">
+                  {item.name} × {item.quantity}
+                </span>
+                <span className="font-mono">
+                  {formatCOP((item.unitPriceCents * item.quantity) / 100)}
+                </span>
+              </div>
+              {isService && order.status === "PAID" && (
+                <p className="text-xs mt-0.5">
+                  {item.serviceConfirmedAt ? (
+                    <span className="text-brand-accent">
+                      Confirmado:{" "}
+                      {new Date(item.serviceConfirmedAt).toLocaleString("es-CO", {
+                        dateStyle: "long",
+                        timeStyle: "short",
+                        timeZone: "America/Bogota",
+                      })}
+                      {item.serviceMeetingInfo && ` — ${item.serviceMeetingInfo}`}
+                    </span>
+                  ) : (
+                    <span className="text-brand-ink-soft">
+                      Pediste:{" "}
+                      {order.servicePreferredAt &&
+                        new Date(order.servicePreferredAt).toLocaleString("es-CO", {
+                          dateStyle: "long",
+                          timeStyle: "short",
+                          timeZone: "America/Bogota",
+                        })}{" "}
+                      — pendiente de confirmar
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
           ))}
           <div className="flex justify-between font-semibold text-brand-ink pt-2 border-t border-brand-line mt-2">

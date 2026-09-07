@@ -29,9 +29,10 @@ export async function POST(
       buyerName: parsed.data.buyerName,
       buyerEmail: parsed.data.buyerEmail,
       buyerPhone: parsed.data.buyerPhone,
-      shippingAddress: parsed.data.shippingAddress,
-      shippingCity: parsed.data.shippingCity,
+      shippingAddress: parsed.data.shippingAddress || undefined,
+      shippingCity: parsed.data.shippingCity || undefined,
       shippingNotes: parsed.data.shippingNotes || null,
+      servicePreferredAt: parsed.data.servicePreferredAt || undefined,
       discountCode: parsed.data.discountCode || null,
     });
     return NextResponse.json({ ok: true, orderId: order.id, wompi });

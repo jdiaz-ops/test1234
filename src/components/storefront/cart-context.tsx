@@ -14,7 +14,14 @@ type CartContextValue = {
   items: CartItem[];
   count: number;
   subtotal: number;
-  addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
+  /// Devuelve un error legible si el ítem es de un tipo distinto (físico
+  /// vs. servicio) al resto del carrito — un carrito nunca mezcla los dos,
+  /// porque el checkout necesita datos distintos para cada uno (envío vs.
+  /// fecha/hora).
+  addItem: (
+    item: Omit<CartItem, "quantity">,
+    quantity?: number,
+  ) => { ok: true } | { ok: false; error: string };
   updateQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
   clear: () => void;
@@ -51,7 +58,20 @@ export function CartProvider({
   }, [brandSlug, items, hydrated]);
 
   const addItem = useCallback(
-    (item: Omit<CartItem, "quantity">, quantity = 1) => {
+    (
+      item: Omit<CartItem, "quantity">,
+      quantity = 1,
+    ): { ok: true } | { ok: false; error: string } => {
+      const existingType = items[0]?.type;
+      if (existingType && existingType !== item.type) {
+        return {
+          ok: false,
+          error:
+            item.type === "SERVICE"
+              ? "Ya tienes productos en tu carrito — paga ese pedido antes de reservar un servicio."
+              : "Ya tienes una reserva de servicio en tu carrito — complétala antes de agregar productos.",
+        };
+      }
       setItems((prev) => {
         const existing = prev.find((i) => i.productId === item.productId);
         if (existing) {
@@ -64,8 +84,9 @@ export function CartProvider({
         }
         return [...prev, { ...item, quantity }];
       });
+      return { ok: true };
     },
-    [],
+    [items],
   );
 
   const updateQuantity = useCallback((productId: string, quantity: number) => {

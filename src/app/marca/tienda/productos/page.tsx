@@ -35,6 +35,10 @@ export default async function TiendaProductosPage() {
           slug: p.slug,
           stock: p.stock,
           available: p.available,
+          type: p.type,
+          serviceModality: p.serviceModality,
+          serviceDurationMinutes: p.serviceDurationMinutes,
+          serviceLocation: p.serviceLocation,
         }))}
       />
     </div>

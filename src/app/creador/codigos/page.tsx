@@ -4,6 +4,10 @@ import { getEnrollmentsForCreator } from "@/server/services/marketplace-service"
 import { CopyButton } from "@/components/portal/copy-button";
 import { LeaveOfferButton } from "@/components/portal/leave-offer-button";
 import { buildBrandStoreLink } from "@/lib/brand-store-link";
+import { BookmarkletButton } from "@/components/portal/bookmarklet-button";
+
+const APP_ORIGIN =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
 
 export default async function CodigosPage() {
   const session = await auth();
@@ -25,11 +29,15 @@ export default async function CodigosPage() {
           </a>
         </div>
       ) : (
-        // Tarjetas en vez de tabla — así la explicación de a quién le
-        // corresponde cada número (descuento/comisión) puede ir pegada al
-        // número mismo, en vez de una nota aparte arriba que quedaba lejos
-        // de las columnas. Mismas etiquetas exactas que en el marketplace y
-        // "únete a marcas", para que sea consistente en todo el ecosistema.
+        <>
+        <div className="mb-6">
+          <BookmarkletButton creatorId={profile.id} appOrigin={APP_ORIGIN} />
+        </div>
+        {/* Tarjetas en vez de tabla — así la explicación de a quién le
+            corresponde cada número (descuento/comisión) puede ir pegada al
+            número mismo, en vez de una nota aparte arriba que quedaba lejos
+            de las columnas. Mismas etiquetas exactas que en el marketplace y
+            "únete a marcas", para que sea consistente en todo el ecosistema. */}
         <div className="space-y-4">
           {active.map((e) => {
             const commission = e.commissionPercentOverride ?? e.offer.defaultCommissionPercent;
@@ -95,6 +103,7 @@ export default async function CodigosPage() {
             );
           })}
         </div>
+        </>
       )}
     </div>
   );

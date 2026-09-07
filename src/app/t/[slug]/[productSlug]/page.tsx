@@ -45,6 +45,7 @@ export default async function StorefrontProductPage({
   if (!product || !product.available) notFound();
 
   const outOfStock = product.stock != null && product.stock <= 0;
+  const isService = product.type === "SERVICE";
 
   return (
     <CartProvider brandSlug={slug}>
@@ -70,7 +71,7 @@ export default async function StorefrontProductPage({
           <div className="flex flex-col gap-4">
             <div>
               <p className="font-mono text-xs text-brand-accent tracking-widest mb-1">
-                {brand.companyName.toUpperCase()}
+                {isService ? "SERVICIO" : brand.companyName.toUpperCase()}
               </p>
               <h1 className="font-display text-2xl font-semibold text-brand-ink">
                 {product.name}
@@ -94,13 +95,35 @@ export default async function StorefrontProductPage({
               </p>
             )}
 
+            {isService && (
+              <div className="rounded-xl border border-brand-line p-3 space-y-1.5 text-sm">
+                <p className="text-brand-ink">
+                  {product.serviceModality === "PRESENCIAL"
+                    ? "📍 Presencial"
+                    : "💻 Virtual (por videollamada)"}
+                  {product.serviceDurationMinutes
+                    ? ` · ${product.serviceDurationMinutes} min`
+                    : ""}
+                </p>
+                {product.serviceLocation && (
+                  <p className="text-brand-ink-soft text-xs">
+                    {product.serviceModality === "PRESENCIAL"
+                      ? product.serviceLocation
+                      : "Te llega el link de la videollamada al confirmar tu reserva."}
+                  </p>
+                )}
+              </div>
+            )}
+
             {outOfStock ? (
               <p className="text-sm text-brand-ink-soft">
-                Este producto está agotado por ahora.
+                {isService
+                  ? "Sin cupos disponibles por ahora."
+                  : "Este producto está agotado por ahora."}
               </p>
             ) : product.stock != null ? (
               <p className="text-xs text-brand-ink-soft">
-                {product.stock} disponibles
+                {product.stock} {isService ? "cupos disponibles" : "disponibles"}
               </p>
             ) : null}
 
@@ -112,6 +135,7 @@ export default async function StorefrontProductPage({
                 price: Number(product.price),
                 imageUrl: product.imageUrl,
                 stock: product.stock,
+                type: product.type,
               }}
             />
           </div>

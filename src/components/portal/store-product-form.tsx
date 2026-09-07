@@ -12,6 +12,10 @@ export type ManualProduct = {
   slug: string | null;
   stock: number | null;
   available: boolean;
+  type: "PHYSICAL" | "SERVICE";
+  serviceModality: "VIRTUAL" | "PRESENCIAL" | null;
+  serviceDurationMinutes: number | null;
+  serviceLocation: string | null;
 };
 
 /// Slug automático a partir del nombre — la marca lo puede corregir a mano
@@ -48,9 +52,25 @@ export function StoreProductForm({
     initial?.stock != null ? String(initial.stock) : "",
   );
   const [available, setAvailable] = useState(initial?.available ?? true);
+  const [type, setType] = useState<"PHYSICAL" | "SERVICE">(
+    initial?.type ?? "PHYSICAL",
+  );
+  const [serviceModality, setServiceModality] = useState<
+    "VIRTUAL" | "PRESENCIAL"
+  >(initial?.serviceModality ?? "VIRTUAL");
+  const [serviceDurationMinutes, setServiceDurationMinutes] = useState(
+    initial?.serviceDurationMinutes != null
+      ? String(initial.serviceDurationMinutes)
+      : "",
+  );
+  const [serviceLocation, setServiceLocation] = useState(
+    initial?.serviceLocation ?? "",
+  );
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isService = type === "SERVICE";
 
   function handleNameChange(value: string) {
     setName(value);
@@ -99,6 +119,14 @@ export function StoreProductForm({
       slug,
       stock: stock === "" ? null : stock,
       available,
+      type,
+      serviceModality: isService ? serviceModality : null,
+      serviceDurationMinutes: isService
+        ? serviceDurationMinutes === ""
+          ? null
+          : serviceDurationMinutes
+        : null,
+      serviceLocation: isService ? serviceLocation : "",
     };
 
     try {
@@ -128,8 +156,34 @@ export function StoreProductForm({
       className="space-y-4 rounded-2xl border border-brand-line bg-brand-surface p-5"
     >
       <div>
+        <label className="block text-sm text-brand-ink mb-1">Tipo</label>
+        <div className="flex gap-2">
+          {(["PHYSICAL", "SERVICE"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              disabled={Boolean(initial)}
+              onClick={() => setType(t)}
+              className={`text-sm rounded-full px-4 py-1.5 border disabled:opacity-50 disabled:cursor-not-allowed ${
+                type === t
+                  ? "bg-brand-accent text-white border-brand-accent"
+                  : "border-brand-line text-brand-ink-soft hover:bg-brand-accent-soft"
+              }`}
+            >
+              {t === "PHYSICAL" ? "Producto físico" : "Servicio"}
+            </button>
+          ))}
+        </div>
+        {initial && (
+          <p className="text-xs text-brand-ink-soft mt-1">
+            El tipo no se puede cambiar después de crear el producto.
+          </p>
+        )}
+      </div>
+
+      <div>
         <label className="block text-sm text-brand-ink mb-1">
-          Nombre del producto
+          {isService ? "Nombre del servicio" : "Nombre del producto"}
         </label>
         <input
           required
@@ -175,6 +229,70 @@ export function StoreProductForm({
           </label>
         </div>
       </div>
+
+      {isService && (
+        <div className="space-y-4 rounded-xl border border-brand-line p-4">
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">
+              Modalidad
+            </label>
+            <div className="flex gap-2">
+              {(["VIRTUAL", "PRESENCIAL"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setServiceModality(m)}
+                  className={`text-sm rounded-full px-4 py-1.5 border ${
+                    serviceModality === m
+                      ? "bg-brand-accent text-white border-brand-accent"
+                      : "border-brand-line text-brand-ink-soft hover:bg-brand-accent-soft"
+                  }`}
+                >
+                  {m === "VIRTUAL" ? "Virtual" : "Presencial"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-brand-ink mb-1">
+                Duración (min, opcional)
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={serviceDurationMinutes}
+                onChange={(e) => setServiceDurationMinutes(e.target.value)}
+                className="input"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-brand-ink mb-1">
+                {serviceModality === "PRESENCIAL"
+                  ? "Dirección"
+                  : "Link o instrucciones de la videollamada"}
+              </label>
+              <input
+                required
+                value={serviceLocation}
+                onChange={(e) => setServiceLocation(e.target.value)}
+                placeholder={
+                  serviceModality === "PRESENCIAL"
+                    ? "Calle 10 #5-20, Bogotá"
+                    : "Se agenda por Zoom — te llega el link al confirmar"
+                }
+                className="input"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-brand-ink-soft">
+            Cuando alguien reserve, elige la fecha y hora que prefiere — tú la
+            confirmas (o propones otra) desde Pedidos.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -224,7 +342,7 @@ export function StoreProductForm({
         </div>
         <div>
           <label className="block text-sm text-brand-ink mb-1">
-            Stock (opcional)
+            {isService ? "Cupos disponibles (opcional)" : "Stock (opcional)"}
           </label>
           <input
             type="number"

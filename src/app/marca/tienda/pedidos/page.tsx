@@ -35,6 +35,7 @@ export default async function TiendaPedidosPage() {
           shippingAddress: o.shippingAddress,
           shippingCity: o.shippingCity,
           shippingNotes: o.shippingNotes,
+          servicePreferredAt: o.servicePreferredAt?.toISOString() ?? null,
           discountCode: o.discountCode,
           totalCents: o.totalCents,
           createdAt: o.createdAt.toISOString(),
@@ -43,6 +44,8 @@ export default async function TiendaPedidosPage() {
             name: i.name,
             unitPriceCents: i.unitPriceCents,
             quantity: i.quantity,
+            serviceConfirmedAt: i.serviceConfirmedAt?.toISOString() ?? null,
+            serviceMeetingInfo: i.serviceMeetingInfo,
           })),
         }))}
       />

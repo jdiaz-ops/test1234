@@ -121,9 +121,16 @@ export function StoreProductsPanel({
                 <div className="w-16 h-16 rounded-lg bg-brand-bg shrink-0" />
               )}
               <div className="min-w-0 flex-1">
-                <p className="font-display font-semibold text-brand-ink truncate">
-                  {product.name}
-                </p>
+                <div className="flex items-center gap-2">
+                  {product.type === "SERVICE" && (
+                    <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-purple-100 text-purple-700 shrink-0">
+                      SERVICIO
+                    </span>
+                  )}
+                  <p className="font-display font-semibold text-brand-ink truncate">
+                    {product.name}
+                  </p>
+                </div>
                 <p className="text-sm text-brand-ink-soft">
                   {formatCOP(product.price)}
                 </p>
@@ -132,7 +139,7 @@ export function StoreProductsPanel({
                 )}
                 {product.stock != null && (
                   <p className="text-xs text-brand-ink-soft mt-0.5">
-                    Stock: {product.stock}
+                    {product.type === "SERVICE" ? "Cupos" : "Stock"}: {product.stock}
                   </p>
                 )}
                 <div className="flex items-center gap-3 mt-2">

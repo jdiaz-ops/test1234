@@ -116,6 +116,22 @@ export async function sendBrandPaymentVerifiedEmail(to: string, companyName: str
   );
 }
 
+/// Se manda cuando la marca confirma una reserva de servicio (clase
+/// presencial o virtual) desde Pedidos — el comprador no tiene cuenta en
+/// Marcolini, así que este correo es la única forma de avisarle.
+export async function sendServiceBookingConfirmedEmail(
+  to: string,
+  params: { companyName: string; serviceName: string; confirmedAt: string; meetingInfo: string | null }
+) {
+  await send(
+    to,
+    `${params.companyName} confirmó tu reserva — ${params.serviceName}`,
+    `<p>¡Buenas noticias! ${params.companyName} confirmó tu reserva de "${params.serviceName}".</p>
+     <p><strong>Fecha y hora: ${params.confirmedAt}</strong></p>
+     ${params.meetingInfo ? `<p>${params.meetingInfo.replace(/\n/g, "<br/>")}</p>` : ""}`
+  );
+}
+
 /// Se manda cada vez que evaluateCreatorBadges (creator-badge-service.ts)
 /// le otorga una insignia nueva a un creador — el cron diario es el único
 /// lugar que la dispara.

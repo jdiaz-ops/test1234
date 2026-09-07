@@ -8,6 +8,7 @@ import {
   findEnrollmentByDiscountCode,
   recordOrderFromWebhook,
 } from "@/server/services/attribution-service";
+import { sendServiceBookingConfirmedEmail } from "@/lib/email";
 
 /// Carrito y checkout nativos de "Mi tienda" — la vitrina pública de una
 /// marca en marcolini.lat/t/{storefrontSlug}. El carrito vive en el
@@ -58,9 +59,13 @@ type CreateOrderInput = {
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string;
-  shippingAddress: string;
-  shippingCity: string;
+  /// Solo hace falta si el carrito trae algún producto PHYSICAL — ver el
+  /// chequeo de "no mezclar tipos" más abajo.
+  shippingAddress?: string;
+  shippingCity?: string;
   shippingNotes?: string | null;
+  /// Solo hace falta si el carrito es 100% de servicios.
+  servicePreferredAt?: string | null;
   discountCode?: string | null;
 };
 
@@ -110,7 +115,9 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     }
     if (product.stock != null && product.stock < item.quantity) {
       throw new StoreOrderError(
-        `No hay suficiente stock de "${product.name}".`,
+        product.type === "SERVICE"
+          ? `No quedan cupos de "${product.name}".`
+          : `No hay suficiente stock de "${product.name}".`,
       );
     }
     const unitPriceCents = Math.round(Number(product.price) * 100);
@@ -122,6 +129,33 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
       quantity: item.quantity,
       imageUrl: product.imageUrl,
     });
+  }
+
+  // Un carrito nunca mezcla productos físicos con servicios — necesitan
+  // datos distintos al pagar (envío vs. fecha/hora) y sería confuso
+  // resolver ambos en un mismo formulario. Si el comprador quiere las dos
+  // cosas, hace dos pedidos separados.
+  const cartTypes = new Set(input.items.map((i) => productMap.get(i.productId)!.type));
+  if (cartTypes.size > 1) {
+    throw new StoreOrderError(
+      "No puedes mezclar productos y servicios en el mismo pedido — hazlos por separado.",
+    );
+  }
+  const isServiceOrder = cartTypes.has("SERVICE");
+
+  let servicePreferredAt: Date | null = null;
+  if (isServiceOrder) {
+    if (!input.servicePreferredAt) {
+      throw new StoreOrderError("Elige la fecha y hora que prefieres.");
+    }
+    servicePreferredAt = new Date(input.servicePreferredAt);
+    if (Number.isNaN(servicePreferredAt.getTime()) || servicePreferredAt.getTime() < Date.now()) {
+      throw new StoreOrderError("Elige una fecha y hora válida, más adelante en el tiempo.");
+    }
+  } else {
+    if (!input.shippingAddress?.trim() || !input.shippingCity?.trim()) {
+      throw new StoreOrderError("Ingresa tu dirección y ciudad de envío.");
+    }
   }
 
   let discountCode: string | null = null;
@@ -142,8 +176,11 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   const flatRateCents = brand.shippingFlatRate
     ? Math.round(Number(brand.shippingFlatRate) * 100)
     : 0;
-  const shippingCents =
-    freeThresholdCents != null && afterDiscount >= freeThresholdCents
+  // Un servicio no se envía — nunca cobra flete, sin importar la
+  // configuración de envíos de la marca.
+  const shippingCents = isServiceOrder
+    ? 0
+    : freeThresholdCents != null && afterDiscount >= freeThresholdCents
       ? 0
       : flatRateCents;
 
@@ -162,8 +199,9 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
         buyerName: input.buyerName.trim(),
         buyerEmail: input.buyerEmail.trim().toLowerCase(),
         buyerPhone: input.buyerPhone.trim(),
-        shippingAddress: input.shippingAddress.trim(),
-        shippingCity: input.shippingCity.trim(),
+        shippingAddress: isServiceOrder ? null : input.shippingAddress!.trim(),
+        shippingCity: isServiceOrder ? null : input.shippingCity!.trim(),
+        servicePreferredAt,
         shippingNotes: input.shippingNotes?.trim() || null,
         discountCode,
         subtotalCents,
@@ -213,6 +251,48 @@ export async function listBrandOrders(brandId: string) {
     include: { items: true },
     orderBy: { createdAt: "desc" },
   });
+}
+
+/// La marca confirma (o ajusta) la fecha/hora de una reserva de servicio
+/// ya pagada, y si es virtual deja el link de la videollamada — el
+/// comprador se entera por correo (no tiene cuenta en Marcolini, así que
+/// no hay notificación dentro de la plataforma para él) y también lo ve si
+/// vuelve a su página de confirmación del pedido.
+export async function confirmServiceBooking(
+  brandId: string,
+  data: { orderId: string; itemId: string; confirmedAt: string; meetingInfo?: string | null },
+) {
+  const item = await prisma.storeOrderItem.findFirst({
+    where: { id: data.itemId, orderId: data.orderId, order: { brandId } },
+    include: { order: { include: { brand: true } } },
+  });
+  if (!item) throw new StoreOrderError("Reserva no encontrada.");
+  if (item.order.status !== "PAID") {
+    throw new StoreOrderError("Solo se pueden confirmar reservas ya pagadas.");
+  }
+
+  const confirmedAt = new Date(data.confirmedAt);
+  if (Number.isNaN(confirmedAt.getTime())) {
+    throw new StoreOrderError("Fecha y hora inválidas.");
+  }
+
+  const updated = await prisma.storeOrderItem.update({
+    where: { id: item.id },
+    data: { serviceConfirmedAt: confirmedAt, serviceMeetingInfo: data.meetingInfo?.trim() || null },
+  });
+
+  await sendServiceBookingConfirmedEmail(item.order.buyerEmail, {
+    companyName: item.order.brand.companyName,
+    serviceName: item.name,
+    confirmedAt: confirmedAt.toLocaleString("es-CO", {
+      dateStyle: "long",
+      timeStyle: "short",
+      timeZone: "America/Bogota",
+    }),
+    meetingInfo: updated.serviceMeetingInfo,
+  });
+
+  return updated;
 }
 
 /// Idempotente — puede llamarse desde el webhook y desde el respaldo por

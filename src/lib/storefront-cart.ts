@@ -12,6 +12,10 @@ export type CartItem = {
   imageUrl: string | null;
   stock: number | null;
   quantity: number;
+  /// Un carrito nunca mezcla PHYSICAL con SERVICE (ver addItem en
+  /// cart-context.tsx) — se guarda por ítem porque el carrito es la única
+  /// fuente de verdad del lado del navegador antes de llegar al checkout.
+  type: "PHYSICAL" | "SERVICE";
 };
 
 function storageKey(brandSlug: string) {

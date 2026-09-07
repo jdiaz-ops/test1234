@@ -12,6 +12,10 @@ type ManualProductInput = {
   slug: string;
   stock?: number | null;
   available: boolean;
+  type?: "PHYSICAL" | "SERVICE";
+  serviceModality?: "VIRTUAL" | "PRESENCIAL" | null;
+  serviceDurationMinutes?: number | null;
+  serviceLocation?: string;
 };
 
 /// Productos que la marca creó a mano en "Mi tienda" (manual = true) — nunca
@@ -79,6 +83,10 @@ export async function createManualProduct(
       slug: data.slug,
       stock: data.stock ?? null,
       available: data.available,
+      type: data.type ?? "PHYSICAL",
+      serviceModality: data.type === "SERVICE" ? (data.serviceModality ?? null) : null,
+      serviceDurationMinutes: data.type === "SERVICE" ? (data.serviceDurationMinutes ?? null) : null,
+      serviceLocation: data.type === "SERVICE" ? data.serviceLocation || null : null,
     },
   });
 }
@@ -108,6 +116,10 @@ export async function updateManualProduct(
       url,
       stock: data.stock ?? null,
       available: data.available,
+      type: data.type ?? "PHYSICAL",
+      serviceModality: data.type === "SERVICE" ? (data.serviceModality ?? null) : null,
+      serviceDurationMinutes: data.type === "SERVICE" ? (data.serviceDurationMinutes ?? null) : null,
+      serviceLocation: data.type === "SERVICE" ? data.serviceLocation || null : null,
     },
   });
 }
