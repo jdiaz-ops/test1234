@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { getActiveWompiKeys } from "@/server/integrations/wompi-client";
 import { CartProvider } from "@/components/storefront/cart-context";
@@ -17,6 +18,12 @@ export default async function StorefrontCheckoutPage({
 
   const paymentsReady = getActiveWompiKeys(brand) !== null;
   const basePath = await getStoreBasePath(slug);
+
+  // Atribución por cookie de primera parte (ver src/proxy.ts) — si el
+  // comprador llegó por el link de un creador y no escribe el código a
+  // mano, se lo aplicamos solos.
+  const cookieStore = await cookies();
+  const referredCode = cookieStore.get("mkl_ref")?.value ?? null;
 
   return (
     <CartProvider brandSlug={slug}>
@@ -47,6 +54,7 @@ export default async function StorefrontCheckoutPage({
                 : null
             }
             paymentsReady={paymentsReady}
+            referredCode={referredCode}
           />
         </div>
       </div>

@@ -20,11 +20,17 @@ export function CheckoutForm({
   shippingFlatRate,
   freeShippingThreshold,
   paymentsReady,
+  referredCode,
 }: {
   brandSlug: string;
   shippingFlatRate: number | null;
   freeShippingThreshold: number | null;
   paymentsReady: boolean;
+  /// Código de la cookie de atribución de primera parte (ver src/proxy.ts
+  /// y buildProductLink en lib/brand-store-link.ts) — si el comprador
+  /// llegó por el link de un creador y no escribe un código a mano, se
+  /// aplica solo al montar.
+  referredCode?: string | null;
 }) {
   const { items, subtotal } = useCart();
   // Un carrito nunca mezcla tipos (ver cart-context.tsx) — con que mire el
@@ -52,6 +58,19 @@ export function CheckoutForm({
   const [discountPercent, setDiscountPercent] = useState<number | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
 
+  // Atribución por cookie — el comprador no escribió ningún código, pero
+  // llegó con uno de la cookie (ver src/proxy.ts): se lo aplicamos solos,
+  // como si lo hubiera escrito él. Nunca pisa uno que ya haya escrito a
+  // mano (por eso solo corre una vez, al montar).
+  useEffect(() => {
+    if (referredCode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- refleja la cookie de atribución, solo se puede leer tras montar
+      setCode(referredCode);
+      handleApplyCode(referredCode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar, a propósito
+  }, []);
+
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [wompiParams, setWompiParams] = useState<WompiWidgetParams | null>(
@@ -70,15 +89,16 @@ export function CheckoutForm({
   }, [afterDiscount, freeShippingThreshold, shippingFlatRate, isServiceOrder]);
   const total = afterDiscount + shippingCost;
 
-  async function handleApplyCode() {
-    if (!code.trim()) return;
+  async function handleApplyCode(codeOverride?: string) {
+    const toApply = codeOverride ?? code;
+    if (!toApply.trim()) return;
     setCheckingCode(true);
     setCodeError(null);
     try {
       const res = await fetch(`/api/tienda/${brandSlug}/codigo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code: toApply }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -263,7 +283,7 @@ export function CheckoutForm({
                 />
                 <button
                   type="button"
-                  onClick={handleApplyCode}
+                  onClick={() => handleApplyCode()}
                   disabled={checkingCode || !code.trim()}
                   className="rounded-full border border-brand-line px-4 text-sm font-medium hover:bg-brand-accent-soft disabled:opacity-50"
                 >

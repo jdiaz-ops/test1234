@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { extractSubdomainSlug, isPlatformHost, ROOT_DOMAIN } from "@/lib/subdomain";
 import { prisma } from "@/lib/prisma";
 
@@ -8,6 +8,27 @@ const roleHome: Record<string, string> = {
   BRAND: "/marca",
   ADMIN: "/admin",
 };
+
+/// Atribución por cookie de primera parte (complementa el código de
+/// descuento escrito a mano — ver checkout-form.tsx): si el link con el
+/// que llegó el comprador trae ?ref={código} (ver buildProductLink en
+/// lib/brand-store-link.ts), se lo guardamos en una cookie propia de este
+/// origen — subdominio o dominio propio, cada marca ya vive en el suyo,
+/// así que Path=/ no se cruza entre marcas — por 30 días. Si compra sin
+/// escribir el código a mano, igual se le atribuye a este creador.
+const REF_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+
+function withRefCookie(response: NextResponse, req: NextRequest) {
+  const ref = req.nextUrl.searchParams.get("ref");
+  if (ref) {
+    response.cookies.set("mkl_ref", ref, {
+      path: "/",
+      maxAge: REF_COOKIE_MAX_AGE,
+      sameSite: "lax",
+    });
+  }
+  return response;
+}
 
 export default auth(async (req) => {
   const { pathname, search } = req.nextUrl;
@@ -39,7 +60,7 @@ export default auth(async (req) => {
     // subdominio en vez de saltar de vuelta al dominio raíz.
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set("x-marcolini-subdomain", "1");
-    return NextResponse.rewrite(rewritten, { request: { headers: requestHeaders } });
+    return withRefCookie(NextResponse.rewrite(rewritten, { request: { headers: requestHeaders } }), req);
   }
 
   // ---- Dominio propio de una marca (ya verificado) ----
@@ -62,7 +83,7 @@ export default auth(async (req) => {
       rewritten.pathname = alreadyPrefixed ? pathname : `/t/${slug}${pathname === "/" ? "" : pathname}`;
       const requestHeaders = new Headers(req.headers);
       requestHeaders.set("x-marcolini-subdomain", "1");
-      return NextResponse.rewrite(rewritten, { request: { headers: requestHeaders } });
+      return withRefCookie(NextResponse.rewrite(rewritten, { request: { headers: requestHeaders } }), req);
     }
   }
 

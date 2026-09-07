@@ -27,7 +27,15 @@ export function buildBrandStoreLink(
 /// colecciones y del catálogo. En Shopify usa el parámetro `redirect` del
 /// mismo link nativo de descuento, así llega directo al producto CON el
 /// código ya aplicado. En el resto, es el link real del producto, sin
-/// código (igual que buildBrandStoreLink para esos casos).
+/// código (igual que buildBrandStoreLink para esos casos) — EXCEPTO
+/// cuando el producto vive en Mi tienda (product.url empieza con "/t/",
+/// nuestro propio checkout): ahí sí podemos dejar un rastro con `?ref=`,
+/// que src/proxy.ts convierte en una cookie de primera parte al aterrizar
+/// — así, si el comprador navega un rato y paga sin escribir el código a
+/// mano, la venta igual se le atribuye a este creador (ver
+/// checkout-form.tsx, que la lee y la aplica sola). No hace falta esto
+/// para Shopify/WooCommerce reales: esos ya sea llevan el código puesto
+/// (Shopify) o no son first-party (no hay cookie de Marcolini posible ahí).
 export function buildProductLink(
   brand: { storeType: string },
   product: { url: string },
@@ -42,6 +50,9 @@ export function buildProductLink(
     } catch {
       return product.url;
     }
+  }
+  if (product.url.startsWith("/t/")) {
+    return `${product.url}?ref=${encodeURIComponent(discountCode)}`;
   }
   return product.url;
 }
