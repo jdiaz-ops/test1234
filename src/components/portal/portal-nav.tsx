@@ -27,6 +27,7 @@ const flatItems = [
   // aparte de la comisión por venta. Ver conversación sobre licenciamiento
   // de contenido para pauta paga (2026-09-06).
   { href: "/creador/licencias", label: "Licencias" },
+  { href: "/creador/encargos", label: "Encargos" },
   { href: "/creador/codigos", label: "Mis Códigos y Links" },
   { href: "/creador/referidos", label: "Invita y gana" },
 ];

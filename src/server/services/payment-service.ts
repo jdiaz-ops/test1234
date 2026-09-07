@@ -117,7 +117,7 @@ export async function chargeBrandForPeriod(brandId: string) {
   });
   if (openCharge) return null;
 
-  const [pending, pendingRewards, pendingLicenses] = await Promise.all([
+  const [pending, pendingRewards, pendingLicenses, pendingPaidContent] = await Promise.all([
     prisma.commission.findMany({
       where: { brandChargeId: null, status: { in: ["PENDING", "APPROVED"] }, transaction: { brandId } },
       include: { transaction: true },
@@ -136,21 +136,35 @@ export async function chargeBrandForPeriod(brandId: string) {
     prisma.contentLicense.findMany({
       where: { brandChargeId: null, status: "APPROVED", brandId },
     }),
+    // Encargos de contenido nuevo ya entregados (ver paid-content-service.ts)
+    // y todavía no facturados — antes de DELIVERED no se factura nada.
+    prisma.paidContentRequest.findMany({
+      where: { brandChargeId: null, status: "DELIVERED", brandId },
+    }),
   ]);
 
-  if (pending.length === 0 && pendingRewards.length === 0 && pendingLicenses.length === 0) return null;
+  if (
+    pending.length === 0 &&
+    pendingRewards.length === 0 &&
+    pendingLicenses.length === 0 &&
+    pendingPaidContent.length === 0
+  )
+    return null;
 
   const commissionsTotal = pending.reduce((sum, c) => sum + Number(c.creatorCommissionAmount), 0);
   const platformFeeTotal = pending.reduce((sum, c) => sum + Number(c.platformFeeAmount), 0);
   const vatTotal = pending.reduce((sum, c) => sum + Number(c.platformFeeVatAmount), 0);
   const rewardsTotal = pendingRewards.reduce((sum, r) => sum + Number(r.amount), 0);
-  const licenseFeesTotal = pendingLicenses.reduce((sum, l) => sum + Number(l.feeAmount), 0);
+  const licenseFeesTotal =
+    pendingLicenses.reduce((sum, l) => sum + Number(l.feeAmount), 0) +
+    pendingPaidContent.reduce((sum, p) => sum + Number(p.feeAmount), 0);
   const totalAmount = round2(commissionsTotal + platformFeeTotal + vatTotal + rewardsTotal + licenseFeesTotal);
 
   const occurredDates = [
     ...pending.map((c) => c.transaction.occurredAt.getTime()),
     ...pendingRewards.map((r) => r.createdAt.getTime()),
     ...pendingLicenses.map((l) => l.createdAt.getTime()),
+    ...pendingPaidContent.map((p) => p.createdAt.getTime()),
   ];
   const periodStart = new Date(Math.min(...occurredDates));
   const periodEnd = new Date(Math.max(...occurredDates));
@@ -173,6 +187,10 @@ export async function chargeBrandForPeriod(brandId: string) {
     }),
     prisma.contentLicense.updateMany({
       where: { id: { in: pendingLicenses.map((l) => l.id) } },
+      data: { brandChargeId: charge.id },
+    }),
+    prisma.paidContentRequest.updateMany({
+      where: { id: { in: pendingPaidContent.map((p) => p.id) } },
       data: { brandChargeId: charge.id },
     }),
   ]);
@@ -201,7 +219,7 @@ export async function chargeBrandForPeriod(brandId: string) {
     console.error(`[pagos] no se pudo generar el aviso de cobro de ${brand.companyName}:`, err);
   }
 
-  const itemCount = pending.length + pendingRewards.length + pendingLicenses.length;
+  const itemCount = pending.length + pendingRewards.length + pendingLicenses.length + pendingPaidContent.length;
   const dueAtLabel = dueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" });
 
   await createNotification(
@@ -221,8 +239,8 @@ export async function chargeBrandForPeriod(brandId: string) {
 }
 
 /// Corre el corte del día 1 para todas las marcas con algo pendiente de
-/// facturar (ventas de creadores, premios de retos o licencias de
-/// contenido alquiladas).
+/// facturar (ventas de creadores, premios de retos, licencias de contenido
+/// alquiladas o encargos de contenido ya entregados).
 export async function runBrandCharges() {
   const brandIds = await prisma.brandProfile.findMany({
     where: {
@@ -231,6 +249,7 @@ export async function runBrandCharges() {
         { transactions: { some: { commission: { brandChargeId: null, status: { in: ["PENDING", "APPROVED"] } } } } },
         { offers: { some: { challenges: { some: { rewards: { some: { brandChargeId: null, status: { in: ["PENDING", "APPROVED"] } } } } } } } },
         { contentLicenses: { some: { brandChargeId: null, status: "APPROVED" } } },
+        { paidContentRequests: { some: { brandChargeId: null, status: "DELIVERED" } } },
       ],
     },
     select: { id: true },
@@ -723,7 +742,7 @@ export async function getOpenBrandCharge(brandId: string) {
 export async function payoutCreator(creatorId: string) {
   const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: creatorId } });
 
-  const [eligible, eligibleRewards, eligibleLicenses] = await Promise.all([
+  const [eligible, eligibleRewards, eligibleLicenses, eligiblePaidContent] = await Promise.all([
     prisma.commission.findMany({
       where: { status: "APPROVED", payoutId: null, instantPayoutRequestId: null, transaction: { creatorId } },
       include: { transaction: true },
@@ -736,9 +755,20 @@ export async function payoutCreator(creatorId: string) {
     prisma.contentLicense.findMany({
       where: { status: "APPROVED", payoutId: null, creatorId },
     }),
+    // Encargos de contenido ya entregados (DELIVERED) — mismo criterio,
+    // sin ventana de espera.
+    prisma.paidContentRequest.findMany({
+      where: { status: "DELIVERED", payoutId: null, creatorId },
+    }),
   ]);
 
-  if (eligible.length === 0 && eligibleRewards.length === 0 && eligibleLicenses.length === 0) return null;
+  if (
+    eligible.length === 0 &&
+    eligibleRewards.length === 0 &&
+    eligibleLicenses.length === 0 &&
+    eligiblePaidContent.length === 0
+  )
+    return null;
 
   const payoutReady =
     creator.payoutMethod === "BRE_B"
@@ -754,18 +784,22 @@ export async function payoutCreator(creatorId: string) {
 
   const commissionsTotal = eligible.reduce((sum, c) => sum + Number(c.creatorCommissionAmount), 0);
   const rewardsTotal = eligibleRewards.reduce((sum, r) => sum + Number(r.amount), 0);
-  const licenseFeesTotal = eligibleLicenses.reduce((sum, l) => sum + Number(l.creatorNetAmount), 0);
+  const licenseFeesTotal =
+    eligibleLicenses.reduce((sum, l) => sum + Number(l.creatorNetAmount), 0) +
+    eligiblePaidContent.reduce((sum, p) => sum + Number(p.creatorNetAmount), 0);
   const totalAmount = round2(commissionsTotal + rewardsTotal + licenseFeesTotal);
 
   const occurredDates = [
     ...eligible.map((c) => c.transaction.occurredAt.getTime()),
     ...eligibleRewards.map((r) => r.createdAt.getTime()),
     ...eligibleLicenses.map((l) => l.createdAt.getTime()),
+    ...eligiblePaidContent.map((p) => p.createdAt.getTime()),
   ];
   const periodStart = new Date(Math.min(...occurredDates));
   const periodEnd = new Date(Math.max(...occurredDates));
 
-  const itemCount = eligible.length + eligibleRewards.length + eligibleLicenses.length;
+  const itemCount =
+    eligible.length + eligibleRewards.length + eligibleLicenses.length + eligiblePaidContent.length;
 
   const payout = await prisma.payout.create({
     data: { creatorId, periodStart, periodEnd, totalAmount: new Prisma.Decimal(totalAmount), status: "PENDING" },
@@ -785,6 +819,10 @@ export async function payoutCreator(creatorId: string) {
     }),
     prisma.contentLicense.updateMany({
       where: { id: { in: eligibleLicenses.map((l) => l.id) } },
+      data: { payoutId: payout.id },
+    }),
+    prisma.paidContentRequest.updateMany({
+      where: { id: { in: eligiblePaidContent.map((p) => p.id) } },
       data: { payoutId: payout.id },
     }),
   ]);
@@ -807,6 +845,7 @@ export async function markPayoutPaid(payoutId: string) {
     prisma.commission.updateMany({ where: { payoutId }, data: { status: "PAID" } }),
     prisma.challengeReward.updateMany({ where: { payoutId }, data: { status: "PAID" } }),
     prisma.contentLicense.updateMany({ where: { payoutId }, data: { status: "PAID" } }),
+    prisma.paidContentRequest.updateMany({ where: { payoutId }, data: { status: "PAID" } }),
   ]);
 
   await createNotification(payout.creator.userId, "PAYOUT_PAID", { monto: formatCOP(Number(payout.totalAmount)) });

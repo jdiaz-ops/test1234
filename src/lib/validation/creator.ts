@@ -205,3 +205,19 @@ export const updateLicensableContentSchema = z.object({
   pricePer30Days: z.coerce.number().positive("Debe ser mayor a 0").optional(),
   caption: z.string().max(200).optional().or(z.literal("")),
 });
+
+// ----------------------------------------------------------------------------
+// Contenido pagado encargado — respuesta y entrega del creador (ver
+// paid-content-service.ts).
+// ----------------------------------------------------------------------------
+
+export const respondPaidContentRequestSchema = z.object({
+  requestId: z.string().min(1),
+  decision: z.enum(["ACCEPT", "DECLINE"]),
+});
+
+export const deliverPaidContentSchema = z.object({
+  requestId: z.string().min(1),
+  deliveryUrl: z.string().url("Ingresa un link válido"),
+  deliveryScreenshotUrl: z.string().min(1, "Sube una captura de evidencia"),
+});

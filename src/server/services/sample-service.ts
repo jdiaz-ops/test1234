@@ -215,8 +215,20 @@ export async function offerSampleToCreator(
   const creator = await prisma.creatorProfile.findUnique({
     where: { id: data.creatorId },
   });
-  if (!creator || !creator.discoverable || creator.suspended) {
+  if (!creator || creator.suspended) {
     throw new SampleError("Ese creador no está disponible.");
+  }
+
+  // El gate de discoverable es para el buscador (reclutar creadores
+  // nuevos) — no debería bloquear a una marca que ya trabaja con este
+  // creador (ver conversación del 2026-09-06: el creador no tiene por qué
+  // haberse hecho público solo porque ya está vinculado). Si ya tiene un
+  // enrollment ACTIVE con esta marca, se salta el chequeo.
+  if (!creator.discoverable) {
+    const linked = await prisma.creatorOfferEnrollment.findFirst({
+      where: { creatorId: data.creatorId, status: "ACTIVE", offer: { brandId } },
+    });
+    if (!linked) throw new SampleError("Ese creador no está disponible.");
   }
 
   const existing = await prisma.sampleRequest.findFirst({

@@ -253,6 +253,7 @@ model CreatorProfile {
   invitations           EnrollmentInvitation[]
   licensableContent     LicensableContent[]
   contentLicenses       ContentLicense[]
+  paidContentRequests   PaidContentRequest[]
 
   /// Programa de referidos — a quiénes invitó este creador (referrer) y,
   /// como mucho, por quién fue invitado él mismo (referred, único).
@@ -464,9 +465,10 @@ model BrandProfile {
   wompiEventsKeyProd    String?
   wompiIntegrityKeyProd String?
 
-  storeOrders     StoreOrder[]
-  sampleRequests  SampleRequest[]
-  contentLicenses ContentLicense[]
+  storeOrders         StoreOrder[]
+  sampleRequests      SampleRequest[]
+  contentLicenses     ContentLicense[]
+  paidContentRequests PaidContentRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1133,9 +1135,10 @@ model Payout {
   epaycoTransactionRef String?
   paidAt               DateTime?
 
-  commissions      Commission[]
-  challengeRewards ChallengeReward[]
-  contentLicenses  ContentLicense[]
+  commissions         Commission[]
+  challengeRewards    ChallengeReward[]
+  contentLicenses     ContentLicense[]
+  paidContentRequests PaidContentRequest[]
 
   createdAt DateTime @default(now())
 }
@@ -1208,9 +1211,10 @@ model BrandCharge {
   paidAt           DateTime?
   verifiedByUserId String? // userId del admin que verificó el comprobante
 
-  commissions      Commission[]
-  challengeRewards ChallengeReward[]
-  contentLicenses  ContentLicense[]
+  commissions         Commission[]
+  challengeRewards    ChallengeReward[]
+  contentLicenses     ContentLicense[]
+  paidContentRequests PaidContentRequest[]
 
   createdAt DateTime @default(now())
 }
@@ -1399,6 +1403,67 @@ model ContentLicense {
 
   startsAt DateTime @default(now())
   endsAt   DateTime // startsAt + durationDays — pasada esta fecha el permiso de uso vence
+
+  brandChargeId String?
+  brandCharge   BrandCharge? @relation(fields: [brandChargeId], references: [id])
+
+  payoutId String?
+  payout   Payout? @relation(fields: [payoutId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+enum PaidContentRequestStatus {
+  REQUESTED // la marca lo pidió, esperando que el creador acepte o rechace
+  ACCEPTED // el creador aceptó — el fee ya quedó acordado, pendiente de entrega
+  DELIVERED // el creador ya subió el contenido — acá se factura a la marca y se le paga al creador
+  DECLINED // el creador rechazó
+  CANCELLED // la marca lo canceló antes de que el creador respondiera
+  PAID // el corte de la marca y el payout del creador ya se liquidaron
+}
+
+/// La marca encarga contenido NUEVO (no uno ya publicado, a diferencia de
+/// ContentLicense) a un creador ya vinculado, por un fee fijo que ella
+/// misma propone — inspirado en "Creator Connections" de Amazon. A
+/// diferencia de una licencia (que se factura de una, porque el contenido
+/// ya existe), acá el fee solo se factura/paga cuando el creador entrega
+/// de verdad (status DELIVERED) — hay más riesgo de que nunca llegue nada,
+/// así que Marcolini no cobra por adelantado. Sin contraoferta en v1: el
+/// creador solo acepta o rechaza el monto que propuso la marca.
+model PaidContentRequest {
+  id String @id @default(cuid())
+
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id])
+
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id])
+
+  /// Qué quiere la marca — tipo de contenido, mensaje clave, para dónde es
+  /// (Reels, TikTok, etc.), lo que haga falta para que el creador sepa qué
+  /// está aceptando.
+  briefing String
+
+  feeAmount    Decimal @db.Decimal(12, 2)
+  deadlineDays Int? // días para entregar, contados desde que el creador acepta
+
+  status PaidContentRequestStatus @default(REQUESTED)
+
+  respondedAt DateTime?
+  deliveredAt DateTime?
+
+  /// Llenos solo al entregar — mismo criterio que LicensableContent: un
+  /// link al contenido ya publicado más una captura, como evidencia de qué
+  /// se entregó exactamente.
+  deliveryUrl           String?
+  deliveryScreenshotUrl String?
+
+  /// Se calculan recién al entregar (DELIVERED), con la tarifa vigente en
+  /// ese momento — reusa PlatformConfig.contentLicenseCommissionPercent,
+  /// mismo concepto que en ContentLicense (Marcolini retiene su parte del
+  /// mismo fee, no cobra algo aparte).
+  platformCutAmount Decimal? @db.Decimal(12, 2)
+  creatorNetAmount  Decimal? @db.Decimal(12, 2)
 
   brandChargeId String?
   brandCharge   BrandCharge? @relation(fields: [brandChargeId], references: [id])

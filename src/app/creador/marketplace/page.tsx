@@ -13,7 +13,7 @@ import { InvitationsPanel } from "@/components/portal/invitations-panel";
 export default async function MarketplacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ vertical?: string; buscar?: string }>;
+  searchParams: Promise<{ vertical?: string; buscar?: string; muestras?: string }>;
 }) {
   const params = await searchParams;
   const session = await auth();
@@ -21,7 +21,7 @@ export default async function MarketplacePage({
     where: { userId: session!.user.id },
   });
 
-  const [offers, enrollments, verticals, invitations] = await Promise.all([
+  const [allOffers, enrollments, verticals, invitations] = await Promise.all([
     listActiveOffers({
       verticalIds: params.vertical ? [params.vertical] : undefined,
       search: params.buscar,
@@ -30,6 +30,14 @@ export default async function MarketplacePage({
     prisma.vertical.findMany({ orderBy: { name: "asc" } }),
     listCreatorInvitations(profile.id),
   ]);
+
+  // Filtro "solo con muestras" — aparte del query de Prisma porque es un
+  // cruce con datos que ya vienen incluidos (brand.products), no hace
+  // falta otra vuelta a la base de datos.
+  const soloMuestras = params.muestras === "1";
+  const offers = soloMuestras
+    ? allOffers.filter((o) => o.brand.products.length > 0)
+    : allOffers;
 
   // Solo ACTIVE/PENDING_APPROVAL cuentan como "unido" — un creador que se
   // retiró (REMOVED) o que fue rechazado (REJECTED) debe poder volver a ver
@@ -56,6 +64,22 @@ export default async function MarketplacePage({
           websiteUrl={offer.brand.websiteUrl}
           websiteLinkable={false}
         />
+
+        {/* Tipos de oportunidad — hoy toda oferta es afiliado (comisión),
+            pero algunas marcas TAMBIÉN regalan muestras a quien se una. No
+            es información nueva (ya existía en Mi tienda → Muestras de esa
+            marca), solo se hace visible acá para que el creador sepa de una
+            qué más puede sacar de esa marca, sin tener que ir a buscarlo. */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-brand-accent-soft text-brand-accent">
+            Afiliado
+          </span>
+          {offer.brand.products.length > 0 && (
+            <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-purple-100 text-purple-700">
+              + Muestras gratis
+            </span>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 gap-2 my-4">
           <div className="rounded-xl bg-brand-bg px-2.5 py-2">
@@ -139,6 +163,15 @@ export default async function MarketplacePage({
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-2 text-sm text-brand-ink-soft px-1">
+          <input
+            type="checkbox"
+            name="muestras"
+            value="1"
+            defaultChecked={soloMuestras}
+          />
+          Solo con muestras gratis
+        </label>
         <button
           type="submit"
           className="border border-brand-line rounded-md px-4 py-2 text-sm hover:bg-brand-accent-soft"

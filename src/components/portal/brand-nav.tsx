@@ -20,6 +20,7 @@ const items = [
   // pauta paga. Va junto a "Creadores vinculados" porque solo aplica ahí,
   // no es parte de "Mi tienda". Ver conversación del 2026-09-06.
   { href: "/marca/licencias", label: "Licencias de contenido" },
+  { href: "/marca/encargos", label: "Encargos de contenido" },
   { href: "/marca/cuenta", label: "Cuenta" },
 ];
 

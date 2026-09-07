@@ -54,7 +54,7 @@ export async function generateBrandChargeDoc(params: {
   line(`IVA sobre la tarifa: ${money(params.vatTotal)}`);
   if (params.rewardsTotal > 0) line(`Premios de retos: ${money(params.rewardsTotal)}`);
   if (params.licenseFeesTotal && params.licenseFeesTotal > 0)
-    line(`Licencias de contenido alquiladas: ${money(params.licenseFeesTotal)}`);
+    line(`Contenido pagado (licencias + encargos): ${money(params.licenseFeesTotal)}`);
   y -= 6;
   line(`Total a pagar: ${money(params.totalAmount)}`, { size: 14, f: bold, dy: 30 });
 

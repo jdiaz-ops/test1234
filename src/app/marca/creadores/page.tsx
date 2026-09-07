@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listEnrollmentsForBrand } from "@/server/services/enrollment-management-service";
+import { listBrandSampleCatalog } from "@/server/services/sample-service";
 import { EnrollmentsPanel } from "@/components/portal/enrollments-panel";
 
 export default async function CreadoresVinculadosPage() {
@@ -8,7 +9,13 @@ export default async function CreadoresVinculadosPage() {
   const profile = await prisma.brandProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },
   });
-  const enrollments = await listEnrollmentsForBrand(profile.id);
+  const [enrollments, products] = await Promise.all([
+    listEnrollmentsForBrand(profile.id),
+    listBrandSampleCatalog(profile.id),
+  ]);
+  const sampleProducts = products.filter(
+    (p) => p.sampleEnabled && p.sampleStock > 0,
+  );
 
   return (
     <div>
@@ -35,6 +42,11 @@ export default async function CreadoresVinculadosPage() {
             defaultCommissionPercent: Number(e.offer.defaultCommissionPercent),
             defaultDiscountPercent: Number(e.offer.defaultDiscountPercent),
           },
+        }))}
+        sampleProducts={sampleProducts.map((p) => ({
+          id: p.id,
+          name: p.name,
+          sampleStock: p.sampleStock,
         }))}
       />
     </div>

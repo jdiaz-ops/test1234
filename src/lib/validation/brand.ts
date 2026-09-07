@@ -379,3 +379,19 @@ export const rentContentLicenseSchema = z.object({
     message: "Elige 30, 60 o 90 días",
   }),
 });
+
+// ----------------------------------------------------------------------------
+// Contenido pagado encargado — la marca le pide a un creador vinculado que
+// haga algo nuevo por un fee fijo (ver paid-content-service.ts).
+// ----------------------------------------------------------------------------
+
+export const requestPaidContentSchema = z.object({
+  creatorId: z.string().min(1),
+  briefing: z.string().min(10, "Cuéntale al creador qué necesitas (mínimo 10 caracteres)").max(1000),
+  feeAmount: z.coerce.number().positive("Debe ser mayor a 0"),
+  deadlineDays: z.coerce.number().int().min(1).max(90).optional().nullable(),
+});
+
+export const cancelPaidContentSchema = z.object({
+  requestId: z.string().min(1),
+});

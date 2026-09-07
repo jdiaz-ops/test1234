@@ -81,6 +81,14 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "marca,dias,monto",
   },
   {
+    key: "PAID_CONTENT_REQUESTED",
+    label: "Una marca te encargó contenido pagado",
+    audience: "CREATOR",
+    messageTemplate:
+      "{marca} te quiere encargar contenido por {monto} — revísalo en Contenido pagado.",
+    placeholders: "marca,monto",
+  },
+  {
     key: "NEW_MESSAGE_CREATOR",
     label: "Mensaje nuevo de una marca",
     audience: "CREATOR",
@@ -247,6 +255,29 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     messageTemplate:
       '{creador} aceptó tu oferta de muestra de "{producto}" — ya puedes ver el pedido en Pedidos.',
     placeholders: "creador,producto",
+  },
+  {
+    key: "PAID_CONTENT_REQUEST_ACCEPTED",
+    label: "Creador aceptó tu encargo de contenido",
+    audience: "BRAND",
+    messageTemplate:
+      "{creador} aceptó tu encargo de contenido por {monto}.",
+    placeholders: "creador,monto",
+  },
+  {
+    key: "PAID_CONTENT_REQUEST_DECLINED",
+    label: "Creador rechazó tu encargo de contenido",
+    audience: "BRAND",
+    messageTemplate: "{creador} no aceptó tu encargo de contenido.",
+    placeholders: "creador",
+  },
+  {
+    key: "PAID_CONTENT_DELIVERED",
+    label: "Creador entregó el contenido encargado",
+    audience: "BRAND",
+    messageTemplate:
+      "{creador} entregó el contenido que le encargaste — revísalo en Contenido pagado.",
+    placeholders: "creador",
   },
   {
     key: "ENROLLMENT_INVITATION_DECLINED",

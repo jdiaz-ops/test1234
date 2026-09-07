@@ -102,7 +102,20 @@ export async function listActiveOffers(filters: {
           }
         : {}),
     },
-    include: { brand: true, category: true },
+    include: {
+      brand: {
+        include: {
+          // Solo para armar el badge "Regala muestras" en el marketplace
+          // (ver /creador/marketplace) — no es una relación de comisión,
+          // es otra forma en la que esa marca ya trabaja con creadores.
+          products: {
+            where: { sampleEnabled: true, sampleStock: { gt: 0 } },
+            select: { id: true },
+          },
+        },
+      },
+      category: true,
+    },
     orderBy: { createdAt: "desc" },
   });
 }
