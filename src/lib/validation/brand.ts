@@ -154,6 +154,10 @@ export const storeConfigSchema = z.object({
   storefrontSlug: slugField,
 });
 
+export const setCustomDomainSchema = z.object({
+  domain: z.string().min(3, "Ingresa un dominio").max(255),
+});
+
 /// La marca confirma (o ajusta) la fecha/hora real de una reserva de
 /// servicio ya pagada, desde Pedidos — ver confirmServiceBooking en
 /// store-order-service.ts.

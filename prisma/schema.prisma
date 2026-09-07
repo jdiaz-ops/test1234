@@ -439,9 +439,26 @@ model BrandProfile {
   // --------------------------------------------------------------------
 
   /// Slug único para la vitrina pública de la marca en Marcolini —
-  /// marcolini.lat/{storefrontSlug}. Null hasta que la marca lo configure
-  /// en "Mi tienda → Configuración".
+  /// {storefrontSlug}.marcolini.lat (y marcolini.lat/t/{storefrontSlug},
+  /// que redirige ahí — ver src/proxy.ts). Null hasta que la marca lo
+  /// configure en "Mi tienda → Configuración".
   storefrontSlug String? @unique
+
+  /// Dominio propio de la marca (ej. "tienda.marcauno.com"), gratis —
+  /// alternativa al subdominio de arriba. Null hasta que la marca lo
+  /// configure. Queda registrado apenas lo pide, pero src/proxy.ts solo lo
+  /// resuelve como su tienda una vez verificado (ver
+  /// customDomainVerifiedAt) — evita que alguien reclame un dominio que no
+  /// es suyo con solo escribirlo acá.
+  customDomain String? @unique
+
+  /// Token al azar que se genera junto con customDomain — la marca lo
+  /// pone en un registro TXT de su propio DNS
+  /// (_marcolini-verify.{customDomain}) para probar que es dueña del
+  /// dominio, sin necesitar mover el tráfico real todavía. Ver
+  /// verifyCustomDomain en custom-domain-service.ts.
+  customDomainVerificationToken String?
+  customDomainVerifiedAt        DateTime?
 
   /// Envío — modelo simple por ahora (tarifa plana + umbral de envío
   /// gratis), no zonas por ciudad/región. Null = todavía no lo configuró.

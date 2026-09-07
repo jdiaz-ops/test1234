@@ -41,6 +41,18 @@ export const RESERVED_SUBDOMAINS = new Set([
   "marcolini",
 ]);
 
+/// true si el host es de Marcolini mismo (dominio raíz, cualquier
+/// subdominio suyo, o localhost en desarrollo) — lo que NO sea esto es
+/// candidato a dominio propio de una marca (ver custom-domain-service.ts).
+export function isPlatformHost(host: string | null): boolean {
+  if (!host) return false;
+  const hostname = host.split(":")[0].toLowerCase();
+  for (const root of [ROOT_DOMAIN, "localhost", "127.0.0.1"]) {
+    if (hostname === root || hostname.endsWith(`.${root}`)) return true;
+  }
+  return false;
+}
+
 /// Dado el header Host de una petición (puede traer puerto, ej.
 /// "marca1.localhost:3000"), devuelve el slug del subdominio si aplica —
 /// null si es el dominio raíz, un subdominio reservado, o no matchea el

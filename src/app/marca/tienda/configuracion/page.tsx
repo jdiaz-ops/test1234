@@ -2,6 +2,7 @@ import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreConfigForm } from "@/components/portal/store-config-form";
+import { CustomDomainForm } from "@/components/portal/custom-domain-form";
 
 export default async function TiendaConfiguracionPage() {
   const profile = await requireBrandProfile();
@@ -38,6 +39,12 @@ export default async function TiendaConfiguracionPage() {
         </div>
       )}
       <StoreConfigForm initialSlug={profile.storefrontSlug ?? ""} />
+
+      <CustomDomainForm
+        initialDomain={profile.customDomain}
+        initialToken={profile.customDomainVerificationToken}
+        initialVerified={profile.customDomainVerifiedAt != null}
+      />
     </div>
   );
 }

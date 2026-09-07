@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import { extractSubdomainSlug, ROOT_DOMAIN } from "@/lib/subdomain";
+import { extractSubdomainSlug, isPlatformHost, ROOT_DOMAIN } from "@/lib/subdomain";
+import { prisma } from "@/lib/prisma";
 
 const roleHome: Record<string, string> = {
   CREATOR: "/creador",
@@ -8,7 +9,7 @@ const roleHome: Record<string, string> = {
   ADMIN: "/admin",
 };
 
-export default auth((req) => {
+export default auth(async (req) => {
   const { pathname, search } = req.nextUrl;
   const session = req.auth;
   const host = req.headers.get("host");
@@ -39,6 +40,30 @@ export default auth((req) => {
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set("x-marcolini-subdomain", "1");
     return NextResponse.rewrite(rewritten, { request: { headers: requestHeaders } });
+  }
+
+  // ---- Dominio propio de una marca (ya verificado) ----
+  // Cualquier host que no sea de Marcolini es candidato — si corresponde a
+  // una marca con customDomainVerifiedAt puesto, se resuelve igual que un
+  // subdominio (mismo rewrite a /t/{slug}). Si no existe o no está
+  // verificado, se deja pasar tal cual — normalmente termina en 404, que
+  // es lo correcto: nunca hay que reclamar tráfico de un dominio ajeno o
+  // sin verificar.
+  if (!isApiRoute && !isPlatformHost(host)) {
+    const hostname = host?.split(":")[0].toLowerCase() ?? "";
+    const brand = await prisma.brandProfile.findUnique({
+      where: { customDomain: hostname },
+      select: { storefrontSlug: true, customDomainVerifiedAt: true },
+    });
+    if (brand?.customDomainVerifiedAt && brand.storefrontSlug) {
+      const slug = brand.storefrontSlug;
+      const alreadyPrefixed = pathname === `/t/${slug}` || pathname.startsWith(`/t/${slug}/`);
+      const rewritten = req.nextUrl.clone();
+      rewritten.pathname = alreadyPrefixed ? pathname : `/t/${slug}${pathname === "/" ? "" : pathname}`;
+      const requestHeaders = new Headers(req.headers);
+      requestHeaders.set("x-marcolini-subdomain", "1");
+      return NextResponse.rewrite(rewritten, { request: { headers: requestHeaders } });
+    }
   }
 
   // ---- Link viejo /t/{slug} en el dominio raíz → redirect al subdominio ----
