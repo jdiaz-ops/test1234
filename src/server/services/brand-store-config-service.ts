@@ -54,3 +54,15 @@ export async function saveStorefrontSlug(
     data: { storefrontSlug: slug },
   });
 }
+
+/// Plantilla visual del catálogo de Mi tienda — ver StorefrontTemplate en
+/// el schema y src/components/storefront/catalog-templates/.
+export async function saveStorefrontTemplate(
+  userId: string,
+  template: "CLASICA" | "MINIMAL" | "EDITORIAL",
+) {
+  return prisma.brandProfile.update({
+    where: { userId },
+    data: { storefrontTemplate: template },
+  });
+}

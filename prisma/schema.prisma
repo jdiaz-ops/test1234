@@ -317,6 +317,16 @@ enum BrandStatus {
   PAUSED
 }
 
+/// Plantilla visual de Mi tienda (Fase 2 del módulo de temas — a
+/// diferencia de la paleta/fuente del creador, acá cambia la ESTRUCTURA
+/// del catálogo, no solo el color — ver src/components/storefront/catalog-templates/.
+/// Se empieza con 3, bien hechas, en vez de dejar armar layouts libres.
+enum StorefrontTemplate {
+  CLASICA // grid parejo de tarjetas — el que ya existía
+  MINIMAL // lista vertical, texto por delante, sin tarjetas
+  EDITORIAL // hero grande para el primer producto + grid asimétrico abajo
+}
+
 /// Le permite al admin forzar si una marca aparece o no en el marketplace de
 /// creadores, sin importar si de verdad completó los 4 pasos de onboarding
 /// (perfil, tienda conectada, cómo-te-cobramos) — pensado para que Juan pueda
@@ -459,6 +469,9 @@ model BrandProfile {
   /// verifyCustomDomain en custom-domain-service.ts.
   customDomainVerificationToken String?
   customDomainVerifiedAt        DateTime?
+
+  /// Plantilla del catálogo de Mi tienda — ver enum StorefrontTemplate.
+  storefrontTemplate StorefrontTemplate @default(CLASICA)
 
   /// Envío — modelo simple por ahora (tarifa plana + umbral de envío
   /// gratis), no zonas por ciudad/región. Null = todavía no lo configuró.

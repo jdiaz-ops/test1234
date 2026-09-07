@@ -158,6 +158,10 @@ export const setCustomDomainSchema = z.object({
   domain: z.string().min(3, "Ingresa un dominio").max(255),
 });
 
+export const setStorefrontTemplateSchema = z.object({
+  template: z.enum(["CLASICA", "MINIMAL", "EDITORIAL"]),
+});
+
 /// La marca confirma (o ajusta) la fecha/hora real de una reserva de
 /// servicio ya pagada, desde Pedidos — ver confirmServiceBooking en
 /// store-order-service.ts.

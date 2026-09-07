@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreConfigForm } from "@/components/portal/store-config-form";
 import { CustomDomainForm } from "@/components/portal/custom-domain-form";
+import { StorefrontTemplateForm } from "@/components/portal/storefront-template-form";
 
 export default async function TiendaConfiguracionPage() {
   const profile = await requireBrandProfile();
@@ -45,6 +46,8 @@ export default async function TiendaConfiguracionPage() {
         initialToken={profile.customDomainVerificationToken}
         initialVerified={profile.customDomainVerifiedAt != null}
       />
+
+      <StorefrontTemplateForm initialTemplate={profile.storefrontTemplate} />
     </div>
   );
 }
