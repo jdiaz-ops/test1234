@@ -11,7 +11,13 @@ function formatCOP(amount: number) {
   }).format(amount);
 }
 
-export function CartList({ brandSlug }: { brandSlug: string }) {
+export function CartList({
+  brandSlug,
+  basePath = `/t/${brandSlug}`,
+}: {
+  brandSlug: string;
+  basePath?: string;
+}) {
   const { items, subtotal, updateQuantity, removeItem } = useCart();
 
   if (items.length === 0) {
@@ -21,7 +27,7 @@ export function CartList({ brandSlug }: { brandSlug: string }) {
           Tu carrito está vacío.
         </p>
         <Link
-          href={`/t/${brandSlug}`}
+          href={basePath || "/"}
           className="inline-block rounded-full bg-brand-accent text-white px-5 py-2 text-sm font-semibold hover:opacity-90"
         >
           Ver productos
@@ -93,7 +99,7 @@ export function CartList({ brandSlug }: { brandSlug: string }) {
           </p>
         </div>
         <Link
-          href={`/t/${brandSlug}/checkout`}
+          href={`${basePath}/checkout`}
           className="rounded-full bg-brand-accent text-white px-6 py-2.5 text-sm font-semibold hover:opacity-90"
         >
           Ir al pago →

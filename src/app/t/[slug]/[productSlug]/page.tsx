@@ -7,6 +7,7 @@ import {
 import { CartProvider } from "@/components/storefront/cart-context";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { getStoreBasePath } from "@/lib/store-base-path";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -46,6 +47,7 @@ export default async function StorefrontProductPage({
 
   const outOfStock = product.stock != null && product.stock <= 0;
   const isService = product.type === "SERVICE";
+  const basePath = await getStoreBasePath(slug);
 
   return (
     <CartProvider brandSlug={slug}>
@@ -54,6 +56,7 @@ export default async function StorefrontProductPage({
           brandSlug={slug}
           brandName={brand.companyName}
           logoUrl={brand.logoUrl}
+          basePath={basePath}
         />
         <div className="max-w-3xl mx-auto px-6 py-10 grid sm:grid-cols-2 gap-8">
           <div>

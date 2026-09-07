@@ -4,6 +4,7 @@ import { getActiveWompiKeys } from "@/server/integrations/wompi-client";
 import { CartProvider } from "@/components/storefront/cart-context";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CheckoutForm } from "@/components/storefront/checkout-form";
+import { getStoreBasePath } from "@/lib/store-base-path";
 
 export default async function StorefrontCheckoutPage({
   params,
@@ -15,6 +16,7 @@ export default async function StorefrontCheckoutPage({
   if (!brand) notFound();
 
   const paymentsReady = getActiveWompiKeys(brand) !== null;
+  const basePath = await getStoreBasePath(slug);
 
   return (
     <CartProvider brandSlug={slug}>
@@ -23,6 +25,7 @@ export default async function StorefrontCheckoutPage({
           brandSlug={slug}
           brandName={brand.companyName}
           logoUrl={brand.logoUrl}
+          basePath={basePath}
         />
         <div className="max-w-3xl mx-auto px-6 py-10">
           <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">

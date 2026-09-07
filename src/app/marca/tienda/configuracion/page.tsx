@@ -20,14 +20,22 @@ export default async function TiendaConfiguracionPage() {
       </p>
       <StoreSubNav />
       {profile.storefrontSlug && (
-        <a
-          href={`/t/${profile.storefrontSlug}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block mb-4 text-sm text-brand-accent hover:underline"
-        >
-          Ver tu tienda en vivo →
-        </a>
+        <div className="mb-4">
+          <p className="text-sm text-brand-ink">
+            Tu tienda vive en{" "}
+            <span className="font-mono text-brand-accent">
+              {profile.storefrontSlug}.marcolini.lat
+            </span>
+          </p>
+          <a
+            href={`/t/${profile.storefrontSlug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-brand-accent hover:underline"
+          >
+            Ver tu tienda en vivo →
+          </a>
+        </div>
       )}
       <StoreConfigForm initialSlug={profile.storefrontSlug ?? ""} />
     </div>

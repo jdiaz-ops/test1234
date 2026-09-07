@@ -8,6 +8,7 @@ import {
 import { CartProvider } from "@/components/storefront/cart-context";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { getStoreBasePath } from "@/lib/store-base-path";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -44,7 +45,10 @@ export default async function StorefrontCatalogPage({
   const brand = await getStorefrontBrand(slug);
   if (!brand) notFound();
 
-  const products = await listStorefrontProducts(brand.id);
+  const [products, basePath] = await Promise.all([
+    listStorefrontProducts(brand.id),
+    getStoreBasePath(slug),
+  ]);
 
   return (
     <CartProvider brandSlug={slug}>
@@ -53,6 +57,7 @@ export default async function StorefrontCatalogPage({
           brandSlug={slug}
           brandName={brand.companyName}
           logoUrl={brand.logoUrl}
+          basePath={basePath}
         />
         <div className="max-w-3xl mx-auto px-6 py-10">
           {brand.description && (
@@ -72,7 +77,7 @@ export default async function StorefrontCatalogPage({
                   key={product.id}
                   className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden flex flex-col"
                 >
-                  <Link href={`/t/${slug}/${product.slug}`}>
+                  <Link href={`${basePath}/${product.slug}`}>
                     {product.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
                       <img
@@ -85,7 +90,7 @@ export default async function StorefrontCatalogPage({
                     )}
                   </Link>
                   <div className="p-3 flex flex-col gap-2 flex-1">
-                    <Link href={`/t/${slug}/${product.slug}`}>
+                    <Link href={`${basePath}/${product.slug}`}>
                       {product.type === "SERVICE" && (
                         <p className="text-[10px] font-mono text-brand-accent mb-0.5">
                           SERVICIO

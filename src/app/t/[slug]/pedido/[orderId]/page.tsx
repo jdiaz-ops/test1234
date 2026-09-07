@@ -8,6 +8,7 @@ import {
 } from "@/server/integrations/wompi-client";
 import { applyWompiTransactionStatus } from "@/server/services/store-order-service";
 import { ClearCartIfPaid } from "@/components/storefront/clear-cart-if-paid";
+import { getStoreBasePath } from "@/lib/store-base-path";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -81,6 +82,7 @@ export default async function StorefrontOrderStatusPage({
   const copy = STATUS_COPY[order.status] ?? STATUS_COPY.PENDING;
   const isService = order.servicePreferredAt != null;
   const allServicesConfirmed = order.items.every((i) => i.serviceConfirmedAt != null);
+  const basePath = await getStoreBasePath(slug);
 
   return (
     <div className="min-h-screen bg-brand-bg flex items-center justify-center px-6 py-16">
@@ -148,7 +150,7 @@ export default async function StorefrontOrderStatusPage({
         </div>
 
         <Link
-          href={`/t/${slug}`}
+          href={basePath || "/"}
           className="inline-block rounded-full bg-brand-accent text-white px-5 py-2 text-sm font-semibold hover:opacity-90"
         >
           Volver a la tienda
