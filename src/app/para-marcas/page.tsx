@@ -428,7 +428,90 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 3 — código de descuento único por creador */}
+            {/* 3 — gestión de muestras/regalos directamente desde la
+                plataforma (sample-service.ts): la marca regala producto a
+                creadores para que los prueben y los muestren en su
+                contenido, sin salir de Marcolini. */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-xs text-brand-ink-soft mb-4">Muestras</p>
+                <div className="space-y-3">
+                  {previewMuestras.map((m) => (
+                    <div key={m.producto} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-brand-ink truncate">{m.producto}</p>
+                        <p className="text-xs text-brand-ink-soft">{m.detalle}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="lg:order-1">
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Gestiona el envío de muestras a tus creadores
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
+                  Regala producto a los creadores de tu red para que lo prueben y lo muestren en su
+                  contenido — recibe y aprueba solicitudes de muestra directamente desde tu panel,
+                  sin coordinar envíos por fuera de la plataforma.
+                </p>
+                <Link
+                  href="/registro/marca"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Envía tu primera muestra
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+
+            {/* 4 — buscador de creadores + invitación directa
+                (creator-directory-panel.tsx / marca/creadores/buscar): la
+                marca ya no depende solo de que los creadores la descubran,
+                también puede buscar talento por categoría y sumarlo a su
+                programa. */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-xs text-brand-ink-soft mb-4">Buscar creadores</p>
+                <div className="space-y-3">
+                  {previewTalento.map((c) => (
+                    <div key={c.name} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center shrink-0">
+                          {c.name.split(" ").map((w) => w[0]).join("")}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-brand-ink truncate">{c.name}</p>
+                          <p className="text-xs text-brand-ink-soft">{c.especialidad}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-medium text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1 shrink-0">
+                        Invitar
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Descubre talento e invítalo a tu programa
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
+                  Explora el directorio de creadores activos en Marcolini, filtra por categoría y
+                  envía invitaciones directas con la comisión que quieras ofrecer — no tienes que
+                  esperar a que te encuentren.
+                </p>
+                <Link
+                  href="/registro/marca"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Busca tus creadores
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+
+            {/* 5 — código de descuento único por creador */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Creadores de tu marca</p>
@@ -471,7 +554,7 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 4 — motivar creadores con campañas */}
+            {/* 6 — motivar creadores con campañas */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <div className="flex items-center justify-between mb-4">
@@ -517,7 +600,7 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 5 — medir el ROI */}
+            {/* 7 — medir el ROI */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-3">Resultado de la campaña</p>
@@ -567,7 +650,7 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 6 — trazabilidad total / reporte de transacciones */}
+            {/* 8 — trazabilidad total / reporte de transacciones */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Transacciones</p>
@@ -602,7 +685,7 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 7 — Mi tienda: tienda propia dentro de Marcolini (al final:
+            {/* 9 — Mi tienda: tienda propia dentro de Marcolini (al final:
                 el paso técnico de tener tu tienda, ya con la marca
                 convencida). Antes era "conecta Shopify/WooCommerce" — hoy
                 la marca no depende de un e-commerce externo, publica su
@@ -633,9 +716,9 @@ export default function ParaMarcasPage() {
                   Crea tu tienda dentro de Marcolini
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed mb-6">
-                  Sin código ni plataformas externas. Publica tu catálogo en tu propia tienda con
-                  subdominio gratis (o tu dominio propio), elige una plantilla y empieza a vender y
-                  a atribuir ventas a tus creadores desde el primer día.
+                  Publica tu catálogo en tu propia tienda con subdominio gratis (o tu dominio
+                  propio), elige una plantilla y empieza a vender y a atribuir ventas a tus
+                  creadores desde el primer día.
                 </p>
                 <Link
                   href="/registro/marca"
@@ -647,88 +730,6 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 8 — gestión de muestras/regalos directamente desde la
-                plataforma (sample-service.ts): la marca regala producto a
-                creadores para que los prueben y los muestren en su
-                contenido, sin salir de Marcolini. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Muestras</p>
-                <div className="space-y-3">
-                  {previewMuestras.map((m) => (
-                    <div key={m.producto} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-brand-ink truncate">{m.producto}</p>
-                        <p className="text-xs text-brand-ink-soft">{m.detalle}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="lg:order-1">
-                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Gestiona el envío de muestras a tus creadores
-                </h3>
-                <p className="text-brand-ink-soft leading-relaxed mb-6">
-                  Regala producto a los creadores de tu red para que lo prueben y lo muestren en su
-                  contenido — recibe y aprueba solicitudes de muestra directamente desde tu panel,
-                  sin coordinar envíos por fuera de la plataforma.
-                </p>
-                <Link
-                  href="/registro/marca"
-                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
-                >
-                  Envía tu primera muestra
-                  <IconArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
-
-            {/* 9 — buscador de creadores + invitación directa
-                (creator-directory-panel.tsx / marca/creadores/buscar): la
-                marca ya no depende solo de que los creadores la descubran,
-                también puede buscar talento por categoría y sumarlo a su
-                programa. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Buscar creadores</p>
-                <div className="space-y-3">
-                  {previewTalento.map((c) => (
-                    <div key={c.name} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center shrink-0">
-                          {c.name.split(" ").map((w) => w[0]).join("")}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-brand-ink truncate">{c.name}</p>
-                          <p className="text-xs text-brand-ink-soft">{c.especialidad}</p>
-                        </div>
-                      </div>
-                      <span className="text-xs font-medium text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1 shrink-0">
-                        Invitar
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Descubre talento e invítalo a tu programa
-                </h3>
-                <p className="text-brand-ink-soft leading-relaxed mb-6">
-                  Explora el directorio de creadores activos en Marcolini, filtra por categoría y
-                  envía invitaciones directas con la comisión que quieras ofrecer — no tienes que
-                  esperar a que te encuentren.
-                </p>
-                <Link
-                  href="/registro/marca"
-                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
-                >
-                  Busca tus creadores
-                  <IconArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
           </div>
         </section>
 

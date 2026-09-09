@@ -501,13 +501,12 @@ export default function ParaCreadoresPage() {
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Recibe y pide muestras gratis de las marcas
+                  Pide y Recibe muestras gratis de las marcas
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed mb-6">
                   Descubre productos que las marcas de Marcolini regalan a creadores para que los
-                  prueben y los muestren en su contenido. Algunas te los ofrecen directamente;
-                  otros los solicitas tú explorando el catálogo — sin costo, es tu forma de conocer
-                  una marca antes de empezar a vender.
+                  prueben y los muestren en su contenido — sin costo, es tu forma de conocer una
+                  marca antes de empezar a vender.
                 </p>
                 <Link
                   href="/registro/creador"
