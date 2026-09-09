@@ -18,7 +18,7 @@ import { FaqAccordion } from "@/components/marketing/faq-accordion";
 export const metadata: Metadata = {
   title: "Conecta tu marca con creadores de contenido — Marcolini",
   description:
-    "Crece tu e-commerce con una red de creadores que solo cobran comisión cuando venden. Conecta Shopify o WooCommerce en minutos, sin mensualidades.",
+    "Crece tu marca con una red de creadores que solo cobran comisión cuando venden. Crea tu propia tienda dentro de Marcolini, sin mensualidades.",
 };
 
 const confianza = ["Sin mensualidades", "Sin costos de instalación"];
@@ -33,9 +33,27 @@ const confianza = ["Sin mensualidades", "Sin costos de instalación"];
 // "Beneficios" más abajo) — Marcolini no tiene un buscador/directorio donde
 // la marca navega y elige creadores, son los creadores quienes descubren y
 // se unen a las marcas desde su propio marketplace.
-const previewIntegraciones = [
-  { nombre: "Shopify", conectada: true },
-  { nombre: "WooCommerce", conectada: false },
+// Vista previa de "Mi tienda" — tienda nativa dentro de Marcolini (slug +
+// plantilla real, ver storefront-template-form.tsx), ya no una integración
+// con Shopify/WooCommerce.
+const previewTienda = {
+  slug: "marcauno",
+  plantilla: "Editorial",
+};
+
+// Vista previa de muestras — mismo tratamiento que el resto de tiles
+// (bg-brand-bg), datos de ejemplo con la lógica real de sample-service.ts
+// (stock por producto, estado de la solicitud del creador).
+const previewMuestras = [
+  { producto: "Sérum vitamina C", detalle: "12 unidades disponibles" },
+  { producto: "Bruma facial hidratante", detalle: "Solicitada por Camila M." },
+];
+
+// Vista previa de "Buscador de creadores" — mismo tratamiento visual que
+// creator-directory-panel.tsx: nombre, especialidad y botón de invitar.
+const previewTalento = [
+  { name: "Daniela P.", especialidad: "Skincare" },
+  { name: "Andrea L.", especialidad: "Maquillaje" },
 ];
 
 const previewRedCreadores = [
@@ -82,14 +100,9 @@ const faq = [
       "La comisión del creador queda retenida 15 días antes de liberarse — si hay un reembolso en ese período, se ajusta automáticamente y no pagas comisión sobre una venta que se devolvió.",
   },
   {
-    pregunta: "¿Necesito Shopify o WooCommerce obligatoriamente?",
-    respuesta:
-      "Sí. Sin embargo, si tienes otro sistema, comunícate con nosotros y verificamos si podemos integrarlo.",
-  },
-  {
     pregunta: "¿Cómo encuentro creadores para mi marca?",
     respuesta:
-      "No los buscas tú — los creadores descubren tu marca en el marketplace de Marcolini y aplican para promocionarla. Tú decides si la vinculación es automática o si apruebas cada uno.",
+      "De dos formas: los creadores descubren tu marca en el marketplace de Marcolini y aplican para promocionarla, o tú mismo los buscas en el directorio de creadores y les envías una invitación directa a tu programa.",
   },
   {
     pregunta: "¿Hay permanencia mínima o contrato?",
@@ -127,32 +140,10 @@ export default function ParaMarcasPage() {
                 centrado es SOLO para la versión web (lg+), vía lg:text-center,
                 no en mobile. */}
             <div className="lg:text-center">
-              {/* Logos reales en vez de texto. En blanco/neutro (no en el
-                  rosado de las demás píldoras) para que el morado de
-                  WooCommerce no choque con el acento de la página. Altura
-                  fija + ancho automático en cada logo (no al revés) porque
-                  los dos vienen con proporciones muy distintas — Shopify es
-                  un lockup ancho y bajo, WooCommerce viene apilado (globo +
-                  wordmark), más cuadrado. El de Shopify llegó en blanco puro
-                  (pensado para fondos oscuros) — brightness(0) lo vuelve
-                  negro sólido, que sí se lee sobre este fondo claro.
-                  WooCommerce usa grayscale en vez de brightness(0) porque
-                  tiene blanco Y morado a la vez (el brightness(0) fundiría
-                  las letras "Woo" blancas con el fondo, volviéndolas
-                  ilegibles) — el grayscale conserva ese contraste de tono. */}
-              <div className="flex justify-start lg:justify-center mb-6">
-                <div className="inline-flex items-center gap-4 bg-brand-surface border border-brand-line rounded-full px-5 py-2.5">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
-                  <img src="/shopify.webp" alt="Shopify" className="h-4 w-auto" style={{ filter: "brightness(0)" }} />
-                  <span aria-hidden className="h-5 w-px bg-brand-line" />
-                  {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/, altura fija con filtro de color */}
-                  <img src="/Woocommerce.png" alt="WooCommerce" className="h-6 w-auto" style={{ filter: "grayscale(1)" }} />
-                </div>
-              </div>
               {/* Vuelve al tamaño de dos rondas atrás — el +20% de la ronda
                   anterior lo hizo demasiado grande otra vez. */}
               <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
-                Crece tu e‑commerce conectando tu marca con nuestra red de creadores de contenido
+                Crece tu marca conectando con nuestra red de creadores de contenido
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg lg:mx-auto">
                 Solo pagas comisión cuando generan ventas
@@ -611,44 +602,129 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 7 — integración con Shopify/WooCommerce (al final: el paso
-                técnico de conectar la tienda, ya con la marca convencida) */}
+            {/* 7 — Mi tienda: tienda propia dentro de Marcolini (al final:
+                el paso técnico de tener tu tienda, ya con la marca
+                convencida). Antes era "conecta Shopify/WooCommerce" — hoy
+                la marca no depende de un e-commerce externo, publica su
+                catálogo directamente en Marcolini. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Conecta tu tienda</p>
+                <p className="text-xs text-brand-ink-soft mb-4">Tu tienda</p>
+                <div className="rounded-xl bg-brand-bg px-4 py-4 mb-3">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-9 h-9 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center shrink-0">
+                      <IconStore className="w-5 h-5" />
+                    </div>
+                    <span className="font-mono text-sm font-medium text-brand-accent truncate">
+                      {previewTienda.slug}.marcolini.lat
+                    </span>
+                  </div>
+                  <p className="text-xs text-brand-ink-soft">Tienda pública, lista para compartir</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
+                  <span className="text-sm font-medium text-brand-ink">Plantilla</span>
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-accent shrink-0">
+                    <IconCheck className="w-4 h-4" /> {previewTienda.plantilla}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Crea tu tienda dentro de Marcolini
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
+                  Sin código ni plataformas externas. Publica tu catálogo en tu propia tienda con
+                  subdominio gratis (o tu dominio propio), elige una plantilla y empieza a vender y
+                  a atribuir ventas a tus creadores desde el primer día.
+                </p>
+                <Link
+                  href="/registro/marca"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Crea tu tienda
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+
+            {/* 8 — gestión de muestras/regalos directamente desde la
+                plataforma (sample-service.ts): la marca regala producto a
+                creadores para que los prueben y los muestren en su
+                contenido, sin salir de Marcolini. */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-xs text-brand-ink-soft mb-4">Muestras</p>
                 <div className="space-y-3">
-                  {previewIntegraciones.map((p) => (
-                    <div key={p.nombre} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center shrink-0">
-                          <IconStore className="w-5 h-5" />
-                        </div>
-                        <span className="text-sm font-medium text-brand-ink">{p.nombre}</span>
+                  {previewMuestras.map((m) => (
+                    <div key={m.producto} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-brand-ink truncate">{m.producto}</p>
+                        <p className="text-xs text-brand-ink-soft">{m.detalle}</p>
                       </div>
-                      {p.conectada ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-accent shrink-0">
-                          <IconCheck className="w-4 h-4" /> Conectada
-                        </span>
-                      ) : (
-                        <span className="text-xs text-brand-ink-soft shrink-0">Disponible</span>
-                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="lg:order-1">
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Gestiona el envío de muestras a tus creadores
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
+                  Regala producto a los creadores de tu red para que lo prueben y lo muestren en su
+                  contenido — recibe y aprueba solicitudes de muestra directamente desde tu panel,
+                  sin coordinar envíos por fuera de la plataforma.
+                </p>
+                <Link
+                  href="/registro/marca"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Envía tu primera muestra
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+
+            {/* 9 — buscador de creadores + invitación directa
+                (creator-directory-panel.tsx / marca/creadores/buscar): la
+                marca ya no depende solo de que los creadores la descubran,
+                también puede buscar talento por categoría y sumarlo a su
+                programa. */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-xs text-brand-ink-soft mb-4">Buscar creadores</p>
+                <div className="space-y-3">
+                  {previewTalento.map((c) => (
+                    <div key={c.name} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center shrink-0">
+                          {c.name.split(" ").map((w) => w[0]).join("")}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-brand-ink truncate">{c.name}</p>
+                          <p className="text-xs text-brand-ink-soft">{c.especialidad}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-medium text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1 shrink-0">
+                        Invitar
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
               <div>
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Conecta Shopify o WooCommerce en menos de 5 minutos
+                  Descubre talento e invítalo a tu programa
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed mb-6">
-                  Sin código ni configuraciones complejas. Importa automáticamente tus productos,
-                  genera códigos de descuento y empieza a atribuir ventas desde el primer día.
+                  Explora el directorio de creadores activos en Marcolini, filtra por categoría y
+                  envía invitaciones directas con la comisión que quieras ofrecer — no tienes que
+                  esperar a que te encuentren.
                 </p>
                 <Link
                   href="/registro/marca"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Conecta tu tienda
+                  Busca tus creadores
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>

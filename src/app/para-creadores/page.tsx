@@ -81,6 +81,15 @@ const previewColeccion = {
   ],
 };
 
+// Vista previa de muestras — mismo tratamiento visual que el resto de
+// tiles (bg-brand-bg), reflejando los dos caminos reales de
+// sample-service.ts: la marca te ofrece una muestra directamente, o tú la
+// solicitas explorando el catálogo.
+const previewMuestras = [
+  { marca: "Aurora Beauty", producto: "Sérum vitamina C", estado: "Te la ofrecieron" },
+  { marca: "Bruma Cosmética", producto: "Bruma facial hidratante", estado: "Solicitada" },
+];
+
 const previewTransacciones = [
   {
     marca: "Aurora Beauty",
@@ -462,7 +471,55 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 2 — código y link únicos. Antes era un nombre + una pill de
+            {/* 2 — muestras gratis (sample-service.ts, lado creador): las
+                marcas te pueden ofrecer producto directamente, o tú lo
+                solicitas explorando el catálogo de muestras disponibles —
+                una forma más de conocer marcas antes incluso de vender. */}
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
+                <p className="text-xs text-brand-ink-soft mb-4">Muestras</p>
+                <div className="space-y-3">
+                  {previewMuestras.map((m) => (
+                    <div
+                      key={m.producto}
+                      className="rounded-xl bg-brand-bg px-4 py-3"
+                    >
+                      <p className="text-sm font-medium text-brand-ink truncate">
+                        {m.producto}
+                      </p>
+                      <div className="flex items-center justify-between gap-3 mt-0.5">
+                        <p className="text-xs text-brand-ink-soft truncate">
+                          {m.marca}
+                        </p>
+                        <span className="text-xs font-medium text-brand-accent shrink-0">
+                          {m.estado}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="lg:order-1">
+                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
+                  Recibe y pide muestras gratis de las marcas
+                </h3>
+                <p className="text-brand-ink-soft leading-relaxed mb-6">
+                  Descubre productos que las marcas de Marcolini regalan a creadores para que los
+                  prueben y los muestren en su contenido. Algunas te los ofrecen directamente;
+                  otros los solicitas tú explorando el catálogo — sin costo, es tu forma de conocer
+                  una marca antes de empezar a vender.
+                </p>
+                <Link
+                  href="/registro/creador"
+                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
+                >
+                  Descubre muestras
+                  <IconArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+
+            {/* 3 — código y link únicos. Antes era un nombre + una pill de
                 código — "muy pobre" para explicar el mecanismo. Ahora
                 mirror exacto de la tarjeta real de /creador/codigos:
                 código + link juntos (son las dos piezas de compartir) y
@@ -545,7 +602,7 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 3 — vitrina pública: la pieza central de toda la
+            {/* 4 — vitrina pública: la pieza central de toda la
                 estrategia — un solo lugar donde viven el link, los
                 códigos activos y las colecciones, así que va como un
                 único mockup grande (rompe el patrón de 2 columnas del
@@ -753,7 +810,7 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 4 — campañas y bonos (retos — feature real, ver
+            {/* 5 — campañas y bonos (retos — feature real, ver
                 creator-challenges-panel.tsx / retos/page.tsx) */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
@@ -795,7 +852,7 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 5 — trazabilidad total: saldo + comisiones recientes, el
+            {/* 6 — trazabilidad total: saldo + comisiones recientes, el
                 equivalente para creador de la tarjeta de ROI de
                 /para-marcas. El % de crecimiento es ilustrativo (mismo
                 criterio que el mini-gráfico "Ventas del mes" del hero),
