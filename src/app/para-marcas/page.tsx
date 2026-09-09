@@ -56,11 +56,12 @@ const previewTalento = [
   { name: "Andrea L.", especialidad: "Maquillaje" },
 ];
 
+// Solo 2 (antes 4): esta vista ahora comparte tarjeta con el buscador de
+// creadores (ver bloque fusionado "Consigue los creadores que tu marca
+// necesita" más abajo), así que va compacta.
 const previewRedCreadores = [
   { name: "Valentina R.", especialidad: "Uñas" },
   { name: "Camila M.", especialidad: "Skincare" },
-  { name: "Sofía T.", especialidad: "Maquillaje" },
-  { name: "Laura G.", especialidad: "Belleza" },
 ];
 
 const previewCreadores = [
@@ -395,13 +396,19 @@ export default function ParaMarcasPage() {
               </Link>
             </div>
 
-            {/* 2 — red de creadores especializados */}
+            {/* 2 — red de creadores (marketplace pasivo, ver
+                previewRedCreadores) + buscador de creadores con invitación
+                directa (creator-directory-panel.tsx / marca/creadores/buscar,
+                ver previewTalento) fusionados en un solo bloque: son las dos
+                caras de "conseguir creadores para tu marca" — antes eran dos
+                bloques separados y quedaban repetitivos uno detrás del otro. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <div className="grid grid-cols-2 gap-3">
+                <p className="text-xs text-brand-ink-soft mb-3">Tu red</p>
+                <div className="grid grid-cols-2 gap-2 mb-5">
                   {previewRedCreadores.map((c) => (
-                    <div key={c.name} className="rounded-xl bg-brand-bg px-3 py-3 text-center">
-                      <div className="w-10 h-10 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center mx-auto mb-2">
+                    <div key={c.name} className="rounded-xl bg-brand-bg px-3 py-2.5 text-center">
+                      <div className="w-8 h-8 rounded-full bg-brand-accent-soft text-brand-accent font-display text-[11px] font-semibold flex items-center justify-center mx-auto mb-1.5">
                         {c.name.split(" ").map((w) => w[0]).join("")}
                       </div>
                       <p className="text-xs font-medium text-brand-ink truncate">{c.name}</p>
@@ -409,20 +416,40 @@ export default function ParaMarcasPage() {
                     </div>
                   ))}
                 </div>
+                <p className="text-xs text-brand-ink-soft mb-3 pt-4 border-t border-brand-line">Buscar e invitar</p>
+                <div className="space-y-2">
+                  {previewTalento.map((c) => (
+                    <div key={c.name} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-3 py-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-brand-accent-soft text-brand-accent font-display text-[11px] font-semibold flex items-center justify-center shrink-0">
+                          {c.name.split(" ").map((w) => w[0]).join("")}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-brand-ink truncate">{c.name}</p>
+                          <p className="text-[11px] text-brand-ink-soft">{c.especialidad}</p>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-medium text-brand-accent bg-brand-accent-soft rounded-full px-2.5 py-1 shrink-0">
+                        Invitar
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Accede a nuestra red de creadores lista para recomendar y vender tu marca.
+                  Consigue los creadores que tu marca necesita
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed mb-6">
-                  Colabora con creadores de contenido especializados, con audiencias interesadas en
-                  tu categoría que eligen promocionar tu marca a cambio de una comisión.
+                  Accede a nuestra red: creadores especializados aplican solos para promocionar tu
+                  marca. O tú mismo buscas por categoría en el directorio y los invitas directo a tu
+                  programa, con la comisión que quieras ofrecer.
                 </p>
                 <Link
                   href="/registro/marca"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Atrae creadores a tu marca
+                  Empieza a sumar creadores
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -465,53 +492,7 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 4 — buscador de creadores + invitación directa
-                (creator-directory-panel.tsx / marca/creadores/buscar): la
-                marca ya no depende solo de que los creadores la descubran,
-                también puede buscar talento por categoría y sumarlo a su
-                programa. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Buscar creadores</p>
-                <div className="space-y-3">
-                  {previewTalento.map((c) => (
-                    <div key={c.name} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-brand-accent-soft text-brand-accent font-display text-xs font-semibold flex items-center justify-center shrink-0">
-                          {c.name.split(" ").map((w) => w[0]).join("")}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-brand-ink truncate">{c.name}</p>
-                          <p className="text-xs text-brand-ink-soft">{c.especialidad}</p>
-                        </div>
-                      </div>
-                      <span className="text-xs font-medium text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1 shrink-0">
-                        Invitar
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Descubre talento e invítalo a tu programa
-                </h3>
-                <p className="text-brand-ink-soft leading-relaxed mb-6">
-                  Explora el directorio de creadores activos en Marcolini, filtra por categoría y
-                  envía invitaciones directas con la comisión que quieras ofrecer — no tienes que
-                  esperar a que te encuentren.
-                </p>
-                <Link
-                  href="/registro/marca"
-                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
-                >
-                  Busca tus creadores
-                  <IconArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
-
-            {/* 5 — código de descuento único por creador */}
+            {/* 4 — código de descuento único por creador */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Creadores de tu marca</p>
@@ -554,7 +535,7 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 6 — motivar creadores con campañas */}
+            {/* 5 — motivar creadores con campañas */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <div className="flex items-center justify-between mb-4">
@@ -600,7 +581,7 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 7 — medir el ROI */}
+            {/* 6 — medir el ROI */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-3">Resultado de la campaña</p>
@@ -650,7 +631,7 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 8 — trazabilidad total / reporte de transacciones */}
+            {/* 7 — trazabilidad total / reporte de transacciones */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Transacciones</p>
@@ -685,7 +666,7 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 9 — Mi tienda: tienda propia dentro de Marcolini (al final:
+            {/* 8 — Mi tienda: tienda propia dentro de Marcolini (al final:
                 el paso técnico de tener tu tienda, ya con la marca
                 convencida). Antes era "conecta Shopify/WooCommerce" — hoy
                 la marca no depende de un e-commerce externo, publica su
