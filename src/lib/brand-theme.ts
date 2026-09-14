@@ -146,6 +146,13 @@ const headerSchema = withDefaults({
   bgColorRef: z.enum(["principal", "fondo", "texto"]).default("fondo"),
   sticky: z.boolean().default(true),
   logoSize: z.enum(["small", "medium", "large"]).default("medium"),
+  /// Si el menú de navegación (ver StorefrontMenuPanel) se muestra en el
+  /// encabezado — en computadora como links normales, en celular como
+  /// un ícono de hamburguesa a la izquierda que abre un panel lateral
+  /// con los mismos ítems (ver store-header.tsx). El control del pie de
+  /// página es aparte, ver footer.menuPrimary.show — habilitado por
+  /// defecto. Ver conversación del 2026-09-14.
+  showMenu: z.boolean().default(true),
   mobile: withDefaults({
     logoPosition: z.enum(["center", "left"]).default("center"),
     show: z.enum(["search", "categories", "icons"]).default("search"),

@@ -329,6 +329,29 @@ export function HeaderSection({ theme, patch }: { theme: ThemeConfig; patch: Pat
 }
 
 // ----------------------------------------------------------------------------
+// Dónde se muestra el menú de navegación — vive en la pestaña "Menú de
+// navegación" (design-editor-panel.tsx), arriba de la lista de ítems.
+// ----------------------------------------------------------------------------
+
+export function MenuVisibilitySection({ theme, patch }: { theme: ThemeConfig; patch: PatchFn }) {
+  return (
+    <div className="space-y-2 mb-5 pb-5 border-b border-brand-line">
+      <p className="text-xs font-medium text-brand-ink">Dónde se muestra</p>
+      <Checkbox
+        label="Encabezado (en celular, como ícono de hamburguesa que abre un panel lateral)"
+        checked={theme.header.showMenu}
+        onChange={(v) => patch({ header: { showMenu: v } })}
+      />
+      <Checkbox
+        label="Pie de página"
+        checked={theme.footer.menuPrimary.show}
+        onChange={(v) => patch({ footer: { menuPrimary: { show: v } } })}
+      />
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
 // Barra de anuncio
 // ----------------------------------------------------------------------------
 

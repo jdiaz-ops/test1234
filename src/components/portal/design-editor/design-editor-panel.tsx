@@ -9,6 +9,7 @@ import {
   TypographySection,
   DesignTypeSection,
   HeaderSection,
+  MenuVisibilitySection,
   AnnouncementSection,
   FooterSection,
   ProductListingSection,
@@ -252,7 +253,12 @@ export function DesignEditorPanel({
           {active === "typography" && <TypographySection theme={theme} patch={patch} />}
           {active === "designType" && <DesignTypeSection theme={theme} patch={patch} />}
           {active === "header" && <HeaderSection theme={theme} patch={patch} />}
-          {active === "menu" && <StorefrontMenuPanel initialItems={initialMenuItems} />}
+          {active === "menu" && (
+            <>
+              <MenuVisibilitySection theme={theme} patch={patch} />
+              <StorefrontMenuPanel initialItems={initialMenuItems} />
+            </>
+          )}
           {active === "sections" && <StorefrontSectionsPanel initialSections={initialSections} />}
           {active === "announcement" && <AnnouncementSection theme={theme} patch={patch} />}
           {active === "footer" && <FooterSection theme={theme} patch={patch} />}
