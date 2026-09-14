@@ -23,11 +23,10 @@ const flatItems = [
   // después de Marketplace por ser temáticamente parecido (descubrir algo
   // de una marca). Ver conversación sobre muestras estilo TikTok Shop.
   { href: "/creador/muestras", label: "Muestras" },
-  // Igual que Muestras — otra forma de ganar plata con una marca vinculada,
-  // aparte de la comisión por venta. Ver conversación sobre licenciamiento
-  // de contenido para pauta paga (2026-09-06).
-  { href: "/creador/licencias", label: "Licencias" },
-  { href: "/creador/encargos", label: "Encargos" },
+  // Licencias y Encargos quedan OCULTOS del menú desde el 2026-09-14 (no
+  // son funcionalidad para el MVP) — las rutas /creador/licencias y
+  // /creador/encargos siguen intactas, solo no aparecen acá. Reactivar:
+  // volver a agregar sus entradas a este arreglo.
   { href: "/creador/codigos", label: "Mis Códigos y Links" },
   { href: "/creador/referidos", label: "Invita y gana" },
 ];

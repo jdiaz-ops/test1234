@@ -19,8 +19,7 @@ export default async function TiendaProductosPage() {
         Crear productos
       </h1>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        El catálogo propio de tu tienda en Marcolini — independiente de Shopify
-        o WooCommerce.
+        El catálogo de tu tienda en Marcolini.
       </p>
       <StoreSubNav />
       <StoreProductsPanel
@@ -28,17 +27,33 @@ export default async function TiendaProductosPage() {
           id: p.id,
           name: p.name,
           description: p.description,
+          images: p.images.map((img) => img.url),
           imageUrl: p.imageUrl,
           price: Number(p.price),
           compareAtPrice:
             p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
           slug: p.slug,
+          sku: p.sku,
+          barcode: p.barcode,
           stock: p.stock,
           available: p.available,
           type: p.type,
           serviceModality: p.serviceModality,
           serviceDurationMinutes: p.serviceDurationMinutes,
           serviceLocation: p.serviceLocation,
+          collectionIds: p.brandCollections.map((c) => c.collectionId),
+          hasVariants: p.hasVariants,
+          optionNames: p.optionNames,
+          variants: p.variants.map((v) => ({
+            id: v.id,
+            option1Value: v.option1Value,
+            option2Value: v.option2Value,
+            option3Value: v.option3Value,
+            price: v.price != null ? Number(v.price) : null,
+            sku: v.sku,
+            barcode: v.barcode,
+            stock: v.stock,
+          })),
         }))}
       />
     </div>

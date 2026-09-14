@@ -7,20 +7,19 @@ import { usePathname } from "next/navigation";
 // ruta siguen intactos, solo se quitó del menú. Perfil, Facturación,
 // Conexión de tienda, Oferta y comisión, Productos y Transacciones se
 // consolidaron dentro de Cuenta. Notificaciones vive aparte, en el menú
-// lateral, con su burbuja de pendientes. Campañas va justo debajo de
-// Dashboard porque es la acción que más queremos que las marcas usen.
+// lateral, con su burbuja de pendientes. Buscar creadores va justo debajo
+// de Dashboard (orden pedido el 2026-09-14): es la acción que más
+// queremos que las marcas usen.
+//
+// Licencias de contenido y Encargos de contenido quedan OCULTOS del menú
+// desde el 2026-09-14 (no son funcionalidad para el MVP) — las rutas
+// /marca/licencias y /marca/encargos siguen intactas, solo no aparecen
+// acá. Reactivar: volver a agregar sus entradas a este arreglo.
 const items = [
   { href: "/marca", label: "Dashboard", exact: true },
+  { href: "/marca/creadores/buscar", label: "Buscar creadores" },
   { href: "/marca/retos", label: "Campañas" },
   { href: "/marca/creadores", label: "Creadores vinculados", exact: true },
-  // Nuevo — buscador para reclutar creadores en vez de solo esperar a que
-  // te encuentren. Ver conversación del 2026-09-06.
-  { href: "/marca/creadores/buscar", label: "Buscar creadores" },
-  // Nuevo — alquilar contenido ya publicado de un creador vinculado para
-  // pauta paga. Va junto a "Creadores vinculados" porque solo aplica ahí,
-  // no es parte de "Mi tienda". Ver conversación del 2026-09-06.
-  { href: "/marca/licencias", label: "Licencias de contenido" },
-  { href: "/marca/encargos", label: "Encargos de contenido" },
   { href: "/marca/cuenta", label: "Cuenta" },
 ];
 

@@ -464,15 +464,11 @@ export function EnrollmentsPanel({
                       >
                         Ofrecer muestra
                       </button>
-                      <button
-                        onClick={() => {
-                          setRequestingContentId(requestingContentId === e.id ? null : e.id);
-                          setOfferingSampleId(null);
-                        }}
-                        className="text-xs text-brand-accent font-medium hover:underline"
-                      >
-                        Encargar contenido
-                      </button>
+                      {/* "Encargar contenido" oculto desde el 2026-09-14 — no
+                          es funcionalidad para el MVP. El componente
+                          RequestPaidContentForm y la ruta /api/marca/encargos
+                          siguen intactos, solo no hay forma de abrirlo desde
+                          acá. Reactivar: volver a agregar este botón. */}
                     </div>
                   )}
                 </td>
