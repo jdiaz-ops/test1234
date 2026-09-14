@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PriceInput } from "@/components/portal/price-input";
 import { ProductImageUploader } from "@/components/portal/product-image-uploader";
+import { RichTextEditor } from "@/components/portal/rich-text-editor";
 import {
   ProductCollectionsPicker,
   type BrandCollectionOption,
@@ -276,11 +277,7 @@ export function StoreProductForm({
 
       <div>
         <label className="block text-sm text-brand-ink mb-1">Descripción</label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value.slice(0, 1000))}
-          className="input min-h-24"
-        />
+        <RichTextEditor value={description} onChange={setDescription} />
       </div>
 
       <div>

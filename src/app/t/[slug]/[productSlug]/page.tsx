@@ -10,6 +10,7 @@ import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { VariantPicker } from "@/components/storefront/variant-picker";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { getStoreBasePath } from "@/lib/store-base-path";
+import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -31,7 +32,9 @@ export async function generateMetadata({
   if (!product) return {};
   return {
     title: `${product.name} — ${brand.companyName}`,
-    description: product.description || undefined,
+    description: product.description
+      ? stripHtml(product.description)
+      : undefined,
   };
 }
 
@@ -97,9 +100,15 @@ export default async function StorefrontProductPage({
             )}
 
             {product.description && (
-              <p className="text-sm text-brand-ink-soft whitespace-pre-line">
-                {product.description}
-              </p>
+              <div
+                className="rich-text-content text-sm text-brand-ink-soft"
+                // Ya viene saneado desde brand-store-product-service.ts al
+                // guardar — se vuelve a sanear acá por si algún otro camino
+                // de escritura (ej. una futura sincronización) se lo salta.
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeProductDescription(product.description),
+                }}
+              />
             )}
 
             {isService && (

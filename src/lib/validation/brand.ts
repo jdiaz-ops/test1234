@@ -66,9 +66,12 @@ const variantInputSchema = z.object({
 
 const productBaseSchema = z.object({
   name: z.string().min(2, "Ingresa el nombre del producto"),
+  /// HTML del editor de texto enriquecido (ver rich-text-editor.tsx) — se
+  /// sanea antes de guardar (ver sanitizeProductDescription), acá solo se
+  /// pone un tope generoso porque el markup pesa más que el texto visible.
   description: z
     .string()
-    .max(1000, "Máximo 1000 caracteres")
+    .max(20000, "La descripción es demasiado larga")
     .optional()
     .or(z.literal("")),
   /// Cuando hasVariants = true este valor no se usa (cada variante trae el

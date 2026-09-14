@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { setProductCollections } from "@/server/services/brand-collection-service";
+import { sanitizeProductDescription } from "@/lib/sanitize-html";
 
 export class BrandStoreProductError extends Error {}
 
@@ -152,7 +153,9 @@ export async function createManualProduct(
         externalId: `manual-${crypto.randomUUID()}`,
         manual: true,
         name: data.name,
-        description: data.description || null,
+        description: data.description
+          ? sanitizeProductDescription(data.description)
+          : null,
         imageUrl: images[0] ?? null,
         price: hasVariants ? 0 : data.price,
         compareAtPrice: hasVariants ? null : (data.compareAtPrice ?? null),
@@ -224,7 +227,9 @@ export async function updateManualProduct(
       where: { id: productId },
       data: {
         name: data.name,
-        description: data.description || null,
+        description: data.description
+          ? sanitizeProductDescription(data.description)
+          : null,
         imageUrl: images[0] ?? null,
         price: hasVariants ? 0 : data.price,
         compareAtPrice: hasVariants ? null : (data.compareAtPrice ?? null),
