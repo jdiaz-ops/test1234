@@ -12,6 +12,7 @@ type VariantInput = {
   sku?: string;
   barcode?: string;
   stock: number;
+  weight?: number | null;
 };
 
 type ManualProductInput = {
@@ -23,6 +24,7 @@ type ManualProductInput = {
   slug: string;
   sku?: string;
   barcode?: string;
+  weight?: number | null;
   stock?: number | null;
   available: boolean;
   type?: "PHYSICAL" | "SERVICE";
@@ -120,6 +122,7 @@ function replaceVariantsOps(productId: string, variants: VariantInput[]) {
               sku: v.sku || null,
               barcode: v.barcode || null,
               stock: v.stock,
+              weight: v.weight ?? null,
               position,
             })),
           }),
@@ -157,6 +160,7 @@ export async function createManualProduct(
         slug,
         sku: hasVariants ? null : data.sku || null,
         barcode: hasVariants ? null : data.barcode || null,
+        weight: hasVariants ? null : (data.weight ?? null),
         stock: hasVariants ? null : (data.stock ?? null),
         available: data.available,
         type: data.type ?? "PHYSICAL",
@@ -185,6 +189,7 @@ export async function createManualProduct(
           sku: v.sku || null,
           barcode: v.barcode || null,
           stock: v.stock,
+          weight: v.weight ?? null,
           position,
         })),
       });
@@ -227,6 +232,7 @@ export async function updateManualProduct(
         url,
         sku: hasVariants ? null : data.sku || null,
         barcode: hasVariants ? null : data.barcode || null,
+        weight: hasVariants ? null : (data.weight ?? null),
         stock: hasVariants ? null : (data.stock ?? null),
         available: data.available,
         type: data.type ?? "PHYSICAL",

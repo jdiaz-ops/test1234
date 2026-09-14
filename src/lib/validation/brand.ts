@@ -61,6 +61,7 @@ const variantInputSchema = z.object({
   sku: z.string().max(120).optional().or(z.literal("")),
   barcode: z.string().max(120).optional().or(z.literal("")),
   stock: z.coerce.number().int().min(0, "No puede ser negativo"),
+  weight: z.number().min(0, "No puede ser negativo").nullable(),
 });
 
 const productBaseSchema = z.object({
@@ -82,6 +83,9 @@ const productBaseSchema = z.object({
   slug: slugField,
   sku: z.string().max(120).optional().or(z.literal("")),
   barcode: z.string().max(120).optional().or(z.literal("")),
+  /// Kilogramos — opcional, solo hace falta si la marca configuró una
+  /// regla de envío por peso (ver ShippingZoneRate).
+  weight: z.coerce.number().min(0, "No puede ser negativo").optional().nullable(),
   /// En un producto SERVICE, esto son "cupos disponibles" — mismo campo,
   /// otro nombre en la interfaz. Obligatorio desde el 2026-09-14 salvo con
   /// variantes (ahí null, el stock real vive por variante) — antes era
@@ -220,15 +224,25 @@ export const storeConfigSchema = z.object({
 /// Zonas de envío por región (ver shipping-zone-service.ts) — regions se
 /// valida de verdad (contra COLOMBIA_REGIONS) en el servicio, acá solo se
 /// exige que no venga vacío.
+/// Una tarifa dentro de una zona — NONE siempre aplica; MIN_ORDER_AMOUNT/
+/// MIN_WEIGHT necesitan su umbral (ver pickShippingRate en
+/// shipping-zone-service.ts, que elige la más barata entre las que
+/// aplican al pedido).
+const shippingRateSchema = z.object({
+  name: z.string().min(2, "Ingresa un nombre para la tarifa").max(80),
+  price: z.coerce.number().min(0, "No puede ser negativo"),
+  condition: z.enum(["NONE", "MIN_ORDER_AMOUNT", "MIN_WEIGHT"]),
+  conditionValue: z.coerce
+    .number()
+    .positive("Ingresa un umbral mayor a cero")
+    .optional()
+    .nullable(),
+});
+
 export const shippingZoneSchema = z.object({
   name: z.string().min(2, "Ingresa un nombre para la zona").max(80),
   regions: z.array(z.string().min(1)).min(1, "Elige al menos una región"),
-  price: z.coerce.number().min(0, "No puede ser negativo"),
-  freeShippingThreshold: z.coerce
-    .number()
-    .min(0, "No puede ser negativo")
-    .optional()
-    .nullable(),
+  rates: z.array(shippingRateSchema).min(1, "Agrega al menos una tarifa"),
 });
 
 export const deleteShippingZoneSchema = z.object({

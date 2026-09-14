@@ -21,6 +21,7 @@ export type ManualProductVariant = {
   sku: string | null;
   barcode: string | null;
   stock: number;
+  weight: number | null;
 };
 
 export type ManualProduct = {
@@ -34,6 +35,7 @@ export type ManualProduct = {
   slug: string | null;
   sku: string | null;
   barcode: string | null;
+  weight: number | null;
   stock: number | null;
   available: boolean;
   type: "PHYSICAL" | "SERVICE";
@@ -71,6 +73,7 @@ function toVariantRows(variants: ManualProductVariant[]): VariantRowInput[] {
     sku: v.sku ?? "",
     barcode: v.barcode ?? "",
     stock: v.stock,
+    weight: v.weight,
     imageUrl: null,
   }));
 }
@@ -90,9 +93,23 @@ export function StoreProductForm({
   const [compareAtPrice, setCompareAtPrice] = useState<number | null>(
     initial?.compareAtPrice ?? null,
   );
-  const [images, setImages] = useState<string[]>(initial?.images ?? []);
+  // Productos creados antes de la galería (ver ProductImage en el schema)
+  // solo tienen imageUrl, sin filas en `images` — sin este respaldo, abrir
+  // uno para editarlo y guardar sin tocar las fotos les borraría la
+  // portada (images[0] ?? null en el servicio). Ver conversación del
+  // 2026-09-14.
+  const [images, setImages] = useState<string[]>(
+    initial?.images && initial.images.length > 0
+      ? initial.images
+      : initial?.imageUrl
+        ? [initial.imageUrl]
+        : [],
+  );
   const [sku, setSku] = useState(initial?.sku ?? "");
   const [barcode, setBarcode] = useState(initial?.barcode ?? "");
+  const [weight, setWeight] = useState(
+    initial?.weight != null ? String(initial.weight) : "",
+  );
   const [stock, setStock] = useState(
     initial?.stock != null ? String(initial.stock) : "",
   );
@@ -165,6 +182,7 @@ export function StoreProductForm({
       compareAtPrice: hasVariants ? null : compareAtPrice,
       sku: hasVariants ? "" : sku,
       barcode: hasVariants ? "" : barcode,
+      weight: hasVariants ? null : weight === "" ? null : Number(weight),
       stock: hasVariants ? null : Number(stock),
       available,
       type,
@@ -187,6 +205,7 @@ export function StoreProductForm({
             sku: v.sku,
             barcode: v.barcode,
             stock: v.stock,
+            weight: v.weight,
           }))
         : [],
     };
@@ -385,6 +404,23 @@ export function StoreProductForm({
               />
             </div>
           </div>
+
+          {!isService && (
+            <div>
+              <label className="block text-sm text-brand-ink mb-1">
+                Peso (kg, opcional)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.001"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                placeholder="Para reglas de envío por peso"
+                className="input"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm text-brand-ink mb-1">

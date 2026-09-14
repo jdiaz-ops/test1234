@@ -16,6 +16,8 @@ export type VariantRowInput = {
   sku: string;
   barcode: string;
   stock: number;
+  /// null = usa el peso del producto — mismo criterio que price.
+  weight: number | null;
   imageUrl: string | null;
 };
 
@@ -93,6 +95,7 @@ export function ProductVariantsEditor({
             sku: "",
             barcode: "",
             stock: 0,
+            weight: null,
             imageUrl: null,
           }
         );
@@ -242,7 +245,7 @@ export function ProductVariantsEditor({
               return (
                 <div key={v.key} className="p-3 space-y-2">
                   <p className="text-sm font-medium text-brand-ink">{label}</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     <div>
                       <label className="block text-[11px] text-brand-ink-soft mb-0.5">
                         Precio (vacío = precio base)
@@ -288,6 +291,24 @@ export function ProductVariantsEditor({
                         value={v.barcode}
                         onChange={(e) =>
                           updateVariant(v.key, { barcode: e.target.value })
+                        }
+                        className="input text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-brand-ink-soft mb-0.5">
+                        Peso (kg)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        placeholder="Usa el del producto"
+                        value={v.weight ?? ""}
+                        onChange={(e) =>
+                          updateVariant(v.key, {
+                            weight: e.target.value === "" ? null : Number(e.target.value),
+                          })
                         }
                         className="input text-sm"
                       />

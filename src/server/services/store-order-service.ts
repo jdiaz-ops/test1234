@@ -12,6 +12,7 @@ import { sendServiceBookingConfirmedEmail } from "@/lib/email";
 import {
   listShippingZones,
   matchShippingZone,
+  pickShippingRate,
 } from "@/server/services/shipping-zone-service";
 
 /// Carrito y checkout nativos de "Mi tienda" — la vitrina pública de una
@@ -115,6 +116,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   const productMap = new Map(products.map((p) => [p.id, p]));
 
   let subtotalCents = 0;
+  let totalWeightKg = 0;
   const itemsData: {
     productId: string;
     variantId: string | null;
@@ -135,6 +137,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     }
 
     let unitPrice = Number(product.price);
+    let itemWeight = product.weight != null ? Number(product.weight) : 0;
     let itemImageUrl = product.imageUrl;
     let variantId: string | null = null;
     let variantLabel: string | null = null;
@@ -152,6 +155,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
         );
       }
       unitPrice = variant.price != null ? Number(variant.price) : unitPrice;
+      itemWeight = variant.weight != null ? Number(variant.weight) : itemWeight;
       itemImageUrl = variant.imageUrl ?? itemImageUrl;
       variantId = variant.id;
       variantLabel = product.optionNames
@@ -175,6 +179,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
 
     const unitPriceCents = Math.round(unitPrice * 100);
     subtotalCents += unitPriceCents * item.quantity;
+    totalWeightKg += itemWeight * item.quantity;
     itemsData.push({
       productId: product.id,
       variantId,
@@ -236,8 +241,9 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   // "Resto de Colombia") — si la marca no creó ninguna zona, o ninguna
   // cubre esa región, se usa la tarifa/umbral únicos de siempre
   // (BrandProfile.shippingFlatRate/freeShippingThreshold) como respaldo.
-  // Ver conversación del 2026-09-14 pidiendo poder cobrar distinto según
-  // a dónde se envía.
+  // Cada zona puede traer varias tarifas con condición (peso, monto del
+  // pedido) — pickShippingRate elige la más barata entre las que aplican.
+  // Ver conversación del 2026-09-14.
   let shippingRateCents = brand.shippingFlatRate
     ? Math.round(Number(brand.shippingFlatRate) * 100)
     : 0;
@@ -249,10 +255,14 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     const zones = await listShippingZones(brand.id);
     const zone = matchShippingZone(zones, input.shippingRegion);
     if (zone) {
-      shippingRateCents = Math.round(Number(zone.price) * 100);
-      shippingFreeThresholdCents = zone.freeShippingThreshold
-        ? Math.round(Number(zone.freeShippingThreshold) * 100)
-        : null;
+      const rate = pickShippingRate(zone.rates, {
+        orderAmountCents: afterDiscount,
+        weightKg: totalWeightKg,
+      });
+      if (rate) {
+        shippingRateCents = Math.round(Number(rate.price) * 100);
+        shippingFreeThresholdCents = null; // ya lo resuelve pickShippingRate
+      }
     }
   }
 
@@ -323,30 +333,44 @@ export async function getStoreOrder(orderId: string) {
   });
 }
 
-/// Para el submódulo "Pedidos" del portal de marca — incluye compras
-/// (kind PURCHASE) y muestras aprobadas (kind SAMPLE) en la misma lista,
-/// más recientes primero. Trae también el creador y la comisión de cada
-/// pedido atribuido (vía Transaction, que ya calculó todo el Motor de
-/// Comisiones) — ver conversación del 2026-09-14 pidiendo mostrar esto en
-/// el detalle de cada pedido.
-export async function listBrandOrders(brandId: string) {
-  return prisma.storeOrder.findMany({
-    where: { brandId },
+/// Compartido entre listBrandOrders y getBrandOrderDetail — trae también
+/// el creador y la comisión de cada pedido atribuido (vía Transaction, ya
+/// calculado por el Motor de Comisiones). Ver conversación del
+/// 2026-09-14 pidiendo mostrar esto en el detalle de cada pedido.
+const brandOrderInclude = {
+  items: true,
+  transaction: {
     include: {
-      items: true,
-      transaction: {
+      creator: { select: { displayName: true } },
+      commission: true,
+      enrollment: {
         include: {
-          creator: { select: { displayName: true } },
-          commission: true,
-          enrollment: {
-            include: {
-              offer: { select: { defaultCommissionPercent: true } },
-            },
-          },
+          offer: { select: { defaultCommissionPercent: true } },
         },
       },
     },
+  },
+};
+
+/// Para el submódulo "Pedidos" del portal de marca — incluye compras
+/// (kind PURCHASE) y muestras aprobadas (kind SAMPLE) en la misma lista,
+/// más recientes primero.
+export async function listBrandOrders(brandId: string) {
+  return prisma.storeOrder.findMany({
+    where: { brandId },
+    include: brandOrderInclude,
     orderBy: { createdAt: "desc" },
+  });
+}
+
+/// Un pedido puntual, ya validado como propio de esta marca — para la
+/// página de detalle dedicada /marca/tienda/pedidos/[orderId] (antes solo
+/// había un acordeón inline en la lista). Null si no existe o es de otra
+/// marca (el caller debe responder 404, nunca filtrar por id solo).
+export async function getBrandOrderDetail(brandId: string, orderId: string) {
+  return prisma.storeOrder.findFirst({
+    where: { id: orderId, brandId },
+    include: brandOrderInclude,
   });
 }
 

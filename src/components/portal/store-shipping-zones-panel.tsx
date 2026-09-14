@@ -4,12 +4,21 @@ import { useState } from "react";
 import { PriceInput } from "@/components/portal/price-input";
 import { COLOMBIA_REGIONS, REST_OF_COUNTRY } from "@/lib/colombia-regions";
 
+export type ShippingRateCondition = "NONE" | "MIN_ORDER_AMOUNT" | "MIN_WEIGHT";
+
+export type ShippingRateRow = {
+  id: string;
+  name: string;
+  price: number;
+  condition: ShippingRateCondition;
+  conditionValue: number | null;
+};
+
 export type ShippingZoneRow = {
   id: string;
   name: string;
   regions: string[];
-  price: number;
-  freeShippingThreshold: number | null;
+  rates: ShippingRateRow[];
 };
 
 function formatCOP(amount: number) {
@@ -26,6 +35,125 @@ function regionsLabel(regions: string[]) {
   return `${regions.slice(0, 3).join(", ")} y ${regions.length - 3} más`;
 }
 
+function rateSummary(rate: ShippingRateRow) {
+  const price = rate.price === 0 ? "Gratis" : formatCOP(rate.price);
+  if (rate.condition === "NONE") return `${rate.name}: ${price}`;
+  if (rate.condition === "MIN_ORDER_AMOUNT") {
+    return `${rate.name}: ${price} si el pedido supera ${formatCOP(rate.conditionValue ?? 0)}`;
+  }
+  return `${rate.name}: ${price} si pesa más de ${rate.conditionValue ?? 0} kg`;
+}
+
+/// Una fila de tarifa dentro del formulario de zona — nombre + precio +
+/// condición opcional (y su umbral). Ver ShippingZoneRate en el schema.
+function RateRow({
+  rate,
+  onChange,
+  onRemove,
+  canRemove,
+}: {
+  rate: ShippingRateRow;
+  onChange: (patch: Partial<ShippingRateRow>) => void;
+  onRemove: () => void;
+  canRemove: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-brand-line bg-brand-surface p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <input
+          required
+          value={rate.name}
+          onChange={(e) => onChange({ name: e.target.value })}
+          placeholder="Ej. Envío estándar, Envío gratis por volumen"
+          className="input text-sm flex-1"
+        />
+        {canRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-xs text-red-600 hover:underline shrink-0"
+          >
+            Quitar
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div>
+          <label className="block text-[11px] text-brand-ink-soft mb-0.5">
+            Precio (0 = gratis)
+          </label>
+          <PriceInput
+            required
+            value={rate.price}
+            onChange={(price) => onChange({ price: price ?? 0 })}
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] text-brand-ink-soft mb-0.5">
+            Se activa
+          </label>
+          <select
+            value={rate.condition}
+            onChange={(e) =>
+              onChange({
+                condition: e.target.value as ShippingRateCondition,
+                conditionValue: null,
+              })
+            }
+            className="input text-sm"
+          >
+            <option value="NONE">Siempre (tarifa estándar)</option>
+            <option value="MIN_ORDER_AMOUNT">Si el pedido supera un monto</option>
+            <option value="MIN_WEIGHT">Si el pedido pesa más de</option>
+          </select>
+        </div>
+        {rate.condition === "MIN_ORDER_AMOUNT" && (
+          <div>
+            <label className="block text-[11px] text-brand-ink-soft mb-0.5">
+              Monto mínimo
+            </label>
+            <PriceInput
+              required
+              value={rate.conditionValue}
+              onChange={(v) => onChange({ conditionValue: v })}
+            />
+          </div>
+        )}
+        {rate.condition === "MIN_WEIGHT" && (
+          <div>
+            <label className="block text-[11px] text-brand-ink-soft mb-0.5">
+              Peso mínimo (kg)
+            </label>
+            <input
+              required
+              type="number"
+              min="0"
+              step="0.001"
+              value={rate.conditionValue ?? ""}
+              onChange={(e) =>
+                onChange({
+                  conditionValue: e.target.value === "" ? null : Number(e.target.value),
+                })
+              }
+              className="input text-sm"
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function emptyRate(): ShippingRateRow {
+  return {
+    id: `new-${Math.random().toString(36).slice(2)}`,
+    name: "",
+    price: 0,
+    condition: "NONE",
+    conditionValue: null,
+  };
+}
+
 function ZoneForm({
   initial,
   onSaved,
@@ -37,9 +165,10 @@ function ZoneForm({
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [regions, setRegions] = useState<string[]>(initial?.regions ?? []);
-  const [price, setPrice] = useState<number | null>(initial?.price ?? null);
-  const [freeThreshold, setFreeThreshold] = useState<number | null>(
-    initial?.freeShippingThreshold ?? null,
+  const [rates, setRates] = useState<ShippingRateRow[]>(
+    initial?.rates && initial.rates.length > 0
+      ? initial.rates
+      : [{ ...emptyRate(), name: "Envío estándar" }],
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,15 +185,27 @@ function ZoneForm({
     setRegions((prev) => (prev.includes(REST_OF_COUNTRY) ? [] : [REST_OF_COUNTRY]));
   }
 
+  function updateRate(id: string, patch: Partial<ShippingRateRow>) {
+    setRates((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (price == null) {
-      setError("Ingresa el costo de envío.");
-      return;
-    }
     if (regions.length === 0) {
       setError("Elige al menos una región.");
+      return;
+    }
+    if (rates.some((r) => !r.name.trim())) {
+      setError("Ponle nombre a cada tarifa.");
+      return;
+    }
+    if (
+      rates.some(
+        (r) => r.condition !== "NONE" && (r.conditionValue == null || r.conditionValue <= 0),
+      )
+    ) {
+      setError("Ingresa el umbral (monto o peso) de cada tarifa condicionada.");
       return;
     }
     setSaving(true);
@@ -76,7 +217,16 @@ function ZoneForm({
         {
           method: initial ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, regions, price, freeShippingThreshold: freeThreshold }),
+          body: JSON.stringify({
+            name,
+            regions,
+            rates: rates.map((r) => ({
+              name: r.name,
+              price: r.price,
+              condition: r.condition,
+              conditionValue: r.condition === "NONE" ? null : r.conditionValue,
+            })),
+          }),
         },
       );
       const body = await res.json().catch(() => null);
@@ -95,7 +245,7 @@ function ZoneForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-3"
+      className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-4"
     >
       <div>
         <label className="block text-xs text-brand-ink mb-1">Nombre de la zona</label>
@@ -137,17 +287,32 @@ function ZoneForm({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-brand-ink mb-1">Costo de envío</label>
-          <PriceInput required value={price} onChange={setPrice} />
+      <div>
+        <label className="block text-xs text-brand-ink mb-2">
+          Tarifas de esta zona
+        </label>
+        <div className="space-y-2">
+          {rates.map((rate) => (
+            <RateRow
+              key={rate.id}
+              rate={rate}
+              onChange={(patch) => updateRate(rate.id, patch)}
+              onRemove={() => setRates((prev) => prev.filter((r) => r.id !== rate.id))}
+              canRemove={rates.length > 1}
+            />
+          ))}
         </div>
-        <div>
-          <label className="block text-xs text-brand-ink mb-1">
-            Envío gratis desde (opcional)
-          </label>
-          <PriceInput value={freeThreshold} onChange={setFreeThreshold} />
-        </div>
+        <button
+          type="button"
+          onClick={() => setRates((prev) => [...prev, emptyRate()])}
+          className="text-xs text-brand-accent font-medium hover:underline mt-2"
+        >
+          + Agregar tarifa condicionada
+        </button>
+        <p className="text-[11px] text-brand-ink-soft mt-1">
+          Si más de una tarifa aplica a la vez (ej. la estándar y una
+          &ldquo;gratis si...&rdquo;), se cobra siempre la más barata.
+        </p>
       </div>
 
       {error && <p className="text-xs text-red-600">{error}</p>}
@@ -200,50 +365,52 @@ export function StoreShippingZonesPanel({
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mt-6">
       <p className="text-sm font-medium text-brand-ink mb-1">Zonas de envío</p>
       <p className="text-xs text-brand-ink-soft mb-4 max-w-lg">
-        Cobra distinto según a dónde va el pedido. Si no creas ninguna zona,
-        se usa la tarifa única de arriba para todo el país.
+        Cobra distinto según a dónde va el pedido, y arma reglas
+        condicionadas (por peso o por el valor del pedido) dentro de cada
+        zona. Si no creas ninguna zona, se usa la tarifa única de arriba
+        para todo el país.
       </p>
 
       {zones.length > 0 && (
         <div className="space-y-2 mb-4">
           {zones.map((zone) => (
-            <div
-              key={zone.id}
-              className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-brand-ink truncate">{zone.name}</p>
-                <p className="text-xs text-brand-ink-soft">
-                  {regionsLabel(zone.regions)}
-                </p>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="text-right">
-                  <p className="font-mono text-sm text-brand-ink">
-                    {formatCOP(zone.price)}
+            <div key={zone.id} className="rounded-xl bg-brand-bg px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-brand-ink truncate">
+                    {zone.name}
                   </p>
-                  {zone.freeShippingThreshold != null && (
-                    <p className="text-[11px] text-brand-ink-soft">
-                      Gratis desde {formatCOP(zone.freeShippingThreshold)}
-                    </p>
-                  )}
+                  <p className="text-xs text-brand-ink-soft">
+                    {regionsLabel(zone.regions)}
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMode({ kind: "edit", zone })}
-                  className="text-xs text-brand-accent hover:underline"
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(zone.id)}
-                  disabled={deletingId === zone.id}
-                  className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                >
-                  Eliminar
-                </button>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setMode({ kind: "edit", zone })}
+                    className="text-xs text-brand-accent hover:underline"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(zone.id)}
+                    disabled={deletingId === zone.id}
+                    className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    Eliminar
+                  </button>
+                </div>
               </div>
+              {zone.rates.length > 0 && (
+                <ul className="mt-2 space-y-0.5">
+                  {zone.rates.map((rate) => (
+                    <li key={rate.id} className="text-xs text-brand-ink-soft">
+                      {rateSummary(rate)}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           ))}
         </div>

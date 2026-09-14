@@ -42,9 +42,13 @@ export default async function TiendaEnviosPage() {
           id: z.id,
           name: z.name,
           regions: z.regions,
-          price: Number(z.price),
-          freeShippingThreshold:
-            z.freeShippingThreshold != null ? Number(z.freeShippingThreshold) : null,
+          rates: z.rates.map((r) => ({
+            id: r.id,
+            name: r.name,
+            price: Number(r.price),
+            condition: r.condition,
+            conditionValue: r.conditionValue != null ? Number(r.conditionValue) : null,
+          })),
         }))}
       />
     </div>

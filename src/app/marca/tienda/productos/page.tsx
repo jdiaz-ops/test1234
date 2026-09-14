@@ -35,6 +35,7 @@ export default async function TiendaProductosPage() {
           slug: p.slug,
           sku: p.sku,
           barcode: p.barcode,
+          weight: p.weight != null ? Number(p.weight) : null,
           stock: p.stock,
           available: p.available,
           type: p.type,
@@ -53,6 +54,7 @@ export default async function TiendaProductosPage() {
             sku: v.sku,
             barcode: v.barcode,
             stock: v.stock,
+            weight: v.weight != null ? Number(v.weight) : null,
           })),
         }))}
       />
