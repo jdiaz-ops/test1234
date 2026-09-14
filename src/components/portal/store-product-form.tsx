@@ -115,15 +115,26 @@ export function StoreProductForm({
   seed,
   onSaved,
   onCancel,
+  onDelete,
+  onDuplicate,
+  deleting,
 }: {
   initial?: ManualProduct;
   /// Precarga los campos SIN entrar en modo edición (Tipo sigue
   /// editable, se guarda con POST no PATCH) — se usa al importar un
-  /// producto ya sincronizado de Shopify/WooCommerce. Ver conversación
-  /// del 2026-09-14: "me gusta la función de poder importar productos".
+  /// producto ya sincronizado de Shopify/WooCommerce, o al duplicar uno
+  /// existente (ver StoreProductsPanel). Ver conversación del
+  /// 2026-09-14: "me gusta la función de poder importar productos".
   seed?: Partial<ManualProduct>;
   onSaved: () => void;
   onCancel: () => void;
+  /// Solo se pasan editando un producto existente (initial) — eliminar/
+  /// duplicar desde acá, no solo desde la lista, porque a veces la marca
+  /// ya está adentro revisando el producto y no quiere volver atrás
+  /// primero. Ver conversación del 2026-09-14.
+  onDelete?: () => void;
+  onDuplicate?: () => void;
+  deleting?: boolean;
 }) {
   const source = initial ?? seed;
   const [name, setName] = useState(source?.name ?? "");
@@ -553,7 +564,7 @@ export function StoreProductForm({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4 flex-wrap">
         <button
           type="submit"
           disabled={saving}
@@ -568,6 +579,29 @@ export function StoreProductForm({
         >
           Cancelar
         </button>
+        {initial && (onDuplicate || onDelete) && (
+          <div className="flex items-center gap-4 ml-auto">
+            {onDuplicate && (
+              <button
+                type="button"
+                onClick={onDuplicate}
+                className="text-sm text-brand-accent hover:underline"
+              >
+                Duplicar
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={deleting}
+                className="text-sm text-red-600 hover:underline disabled:opacity-50"
+              >
+                {deleting ? "Eliminando..." : "Eliminar producto"}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </form>
   );

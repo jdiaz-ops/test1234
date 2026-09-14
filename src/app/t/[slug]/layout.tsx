@@ -3,6 +3,8 @@ import { AnnouncementBar } from "@/components/storefront/announcement-bar";
 import { StoreFooter } from "@/components/storefront/store-footer";
 import { PromoPopup } from "@/components/storefront/promo-popup";
 import { MobileBottomNav } from "@/components/storefront/mobile-bottom-nav";
+import { CartProvider } from "@/components/storefront/cart-context";
+import { CartDrawer } from "@/components/storefront/cart-drawer";
 import { StorefrontThemeProvider } from "@/components/storefront/storefront-theme-context";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
@@ -59,28 +61,36 @@ export default async function StorefrontLayout({
       {fontsUrl && <link rel="stylesheet" href={fontsUrl} />}
       {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
       <StorefrontThemeProvider theme={theme}>
-        <div
-          data-storefront-root
-          data-rounded={roundedDataAttr(theme)}
-          style={cssVars as React.CSSProperties}
-          className={theme.mobileNav.enabled ? "pb-16 sm:pb-0" : undefined}
-        >
-          <AnnouncementBar config={theme.announcementBar} />
-          {children}
-          <StoreFooter
-            config={theme.footer}
-            colors={theme.colors}
-            brandName={brand.companyName}
-            phone={brand.phone}
-            websiteUrl={brand.websiteUrl}
-            instagramHandle={brand.instagramHandle}
-            tiktokHandle={brand.tiktokHandle}
-            menuItems={menuItems}
-            basePath={basePath}
-          />
-          <PromoPopup config={theme.popup} brandSlug={slug} />
-          <MobileBottomNav config={theme.mobileNav} basePath={basePath} />
-        </div>
+        {/* Un solo CartProvider para toda la vitrina — antes cada página
+            armaba el suyo, duplicado; acá arriba lo pueden usar tanto el
+            contenido (children) como el navegador móvil y el drawer del
+            carrito, que viven al mismo nivel. Ver conversación del
+            2026-09-14 (carrito en drawer, no navega a /carrito). */}
+        <CartProvider brandSlug={slug}>
+          <div
+            data-storefront-root
+            data-rounded={roundedDataAttr(theme)}
+            style={cssVars as React.CSSProperties}
+            className={theme.mobileNav.enabled ? "pb-16 sm:pb-0" : undefined}
+          >
+            <AnnouncementBar config={theme.announcementBar} />
+            {children}
+            <StoreFooter
+              config={theme.footer}
+              colors={theme.colors}
+              brandName={brand.companyName}
+              phone={brand.phone}
+              websiteUrl={brand.websiteUrl}
+              instagramHandle={brand.instagramHandle}
+              tiktokHandle={brand.tiktokHandle}
+              menuItems={menuItems}
+              basePath={basePath}
+            />
+            <PromoPopup config={theme.popup} brandSlug={slug} />
+            <MobileBottomNav config={theme.mobileNav} basePath={basePath} />
+          </div>
+          <CartDrawer brandSlug={slug} basePath={basePath} />
+        </CartProvider>
       </StorefrontThemeProvider>
       <PoweredByBadge />
     </>

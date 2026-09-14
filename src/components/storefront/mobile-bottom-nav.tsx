@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ThemeConfig } from "@/lib/brand-theme";
 import { resolveStoreLink } from "@/lib/resolve-store-link";
+import { useCart } from "@/components/storefront/cart-context";
 import { MOBILE_NAV_DEFAULT_ICONS } from "./mobile-nav-icons";
 
 /// Navegador flotante fijo abajo, solo en celular (tipo app nativa) —
@@ -18,6 +19,7 @@ export function MobileBottomNav({
   basePath: string;
 }) {
   const pathname = usePathname();
+  const { openDrawer } = useCart();
   const visible = config.items
     .map((item, i) => ({ ...item, index: i }))
     .filter((item) => item.enabled);
@@ -30,21 +32,20 @@ export function MobileBottomNav({
     >
       {visible.map((item) => {
         const href = resolveStoreLink(item.url, basePath);
+        // El ítem "Carrito" (el link que apunta a /carrito, sin importar
+        // en qué posición lo dejó la marca) abre el drawer en vez de
+        // navegar — mismo criterio que el botón del header, ver
+        // conversación del 2026-09-14.
+        const isCart = item.url === "/carrito";
         // La home es el único caso donde hace falta match exacto — el
-        // resto (categorías/carrito/lo que sea) usa startsWith para que
-        // siga marcado activo en sub-páginas (ej. /coleccion/{slug}
-        // cuenta como "Categorías").
+        // resto (categorías/lo que sea) usa startsWith para que siga
+        // marcado activo en sub-páginas (ej. /coleccion/{slug} cuenta
+        // como "Categorías").
         const isHome = href === basePath || href === `${basePath}/`;
         const active = isHome ? pathname === href || pathname === `${basePath}/` : pathname.startsWith(href);
         const Icon = MOBILE_NAV_DEFAULT_ICONS[item.index] ?? MOBILE_NAV_DEFAULT_ICONS[0];
-        return (
-          <Link
-            key={item.index}
-            href={href}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 ${
-              active ? "text-brand-accent" : "text-brand-ink-soft"
-            }`}
-          >
+        const content = (
+          <>
             {item.iconUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- ícono subido por la marca
               <img src={item.iconUrl} alt="" className="w-5 h-5 object-contain" />
@@ -54,6 +55,18 @@ export function MobileBottomNav({
             <span className="text-[10px] font-medium leading-none truncate max-w-[72px]">
               {item.label}
             </span>
+          </>
+        );
+        const className = `flex-1 flex flex-col items-center justify-center gap-0.5 ${
+          active ? "text-brand-accent" : "text-brand-ink-soft"
+        }`;
+        return isCart ? (
+          <button key={item.index} type="button" onClick={openDrawer} className={className}>
+            {content}
+          </button>
+        ) : (
+          <Link key={item.index} href={href} className={className}>
+            {content}
           </Link>
         );
       })}

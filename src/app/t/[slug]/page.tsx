@@ -4,7 +4,6 @@ import {
   getStorefrontBrand,
   listStorefrontProducts,
 } from "@/server/services/store-order-service";
-import { CartProvider } from "@/components/storefront/cart-context";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CatalogTemplate } from "@/components/storefront/catalog-templates";
 import { StorefrontSections } from "@/components/storefront/storefront-sections";
@@ -49,54 +48,52 @@ export default async function StorefrontCatalogPage({
   ]);
 
   return (
-    <CartProvider brandSlug={slug}>
-      <div className="min-h-screen bg-brand-bg">
-        <StoreHeader
-          brandSlug={slug}
-          brandName={brand.companyName}
-          logoUrl={brand.logoUrl}
-          basePath={basePath}
-          menuItems={menuItems}
-        />
-        <StorefrontSections
-          sections={sections.map((s) => ({ id: s.id, type: s.type, config: s.config }))}
-          brandId={brand.id}
-          basePath={basePath}
-          instagramHandle={brand.instagramHandle}
-        />
-        <div className="max-w-3xl mx-auto px-6 py-10">
-          {brand.description && (
-            <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
-              {brand.description}
-            </p>
-          )}
-
-          {products.length === 0 ? (
-            <p className="text-sm text-brand-ink-soft text-center py-16">
-              Todavía no hay productos publicados en esta tienda.
-            </p>
-          ) : (
-            <CatalogTemplate
-              template={brand.storefrontTemplate}
-              basePath={basePath}
-              productsPerRow={theme.productListing.productsPerRow}
-              products={products.map((p) => ({
-                id: p.id,
-                slug: p.slug,
-                name: p.name,
-                price: Number(p.price),
-                imageUrl: p.imageUrl,
-                stock: p.stock,
-                type: p.type,
-              }))}
-            />
-          )}
-
-          <p className="text-center mt-14 font-mono text-xs text-brand-ink-soft">
-            Vendido por {brand.companyName} vía Marcolini
+    <div className="min-h-screen bg-brand-bg">
+      <StoreHeader
+        brandSlug={slug}
+        brandName={brand.companyName}
+        logoUrl={brand.logoUrl}
+        basePath={basePath}
+        menuItems={menuItems}
+      />
+      <StorefrontSections
+        sections={sections.map((s) => ({ id: s.id, type: s.type, config: s.config }))}
+        brandId={brand.id}
+        basePath={basePath}
+        instagramHandle={brand.instagramHandle}
+      />
+      <div className="max-w-3xl mx-auto px-6 py-10">
+        {brand.description && (
+          <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
+            {brand.description}
           </p>
-        </div>
+        )}
+
+        {products.length === 0 ? (
+          <p className="text-sm text-brand-ink-soft text-center py-16">
+            Todavía no hay productos publicados en esta tienda.
+          </p>
+        ) : (
+          <CatalogTemplate
+            template={brand.storefrontTemplate}
+            basePath={basePath}
+            productsPerRow={theme.productListing.productsPerRow}
+            products={products.map((p) => ({
+              id: p.id,
+              slug: p.slug,
+              name: p.name,
+              price: Number(p.price),
+              imageUrl: p.imageUrl,
+              stock: p.stock,
+              type: p.type,
+            }))}
+          />
+        )}
+
+        <p className="text-center mt-14 font-mono text-xs text-brand-ink-soft">
+          Vendido por {brand.companyName} vía Marcolini
+        </p>
       </div>
-    </CartProvider>
+    </div>
   );
 }

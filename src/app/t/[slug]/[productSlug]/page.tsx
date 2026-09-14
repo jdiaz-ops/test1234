@@ -6,7 +6,6 @@ import {
   getStorefrontProduct,
   getRelatedProducts,
 } from "@/server/services/store-order-service";
-import { CartProvider } from "@/components/storefront/cart-context";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { VariantPicker } from "@/components/storefront/variant-picker";
@@ -85,8 +84,7 @@ export default async function StorefrontProductPage({
   const activePurchaseInfo = productDetail.purchaseInfo.filter((i) => i.show && (i.title || i.description));
 
   return (
-    <CartProvider brandSlug={slug}>
-      <div className="min-h-screen bg-brand-bg">
+    <div className="min-h-screen bg-brand-bg">
         <StoreHeader
           brandSlug={slug}
           brandName={brand.companyName}
@@ -324,7 +322,6 @@ export default async function StorefrontProductPage({
             </div>
           </div>
         )}
-      </div>
-    </CartProvider>
+    </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useCart } from "@/components/storefront/cart-context";
 import { useStorefrontTheme } from "@/components/storefront/storefront-theme-context";
 
@@ -23,21 +22,20 @@ export function AddToCartButton({
   product,
   className,
   disabled,
-  basePath,
 }: {
   product: Product;
   className?: string;
   /// Ej. producto con variantes y todavía no elige ninguna combinación
   /// completa.
   disabled?: boolean;
-  /// Solo hace falta si theme.cart.quickCart.actionOnAdd = "openCart" —
-  /// para saber a dónde navegar. Sin esto, ese modo simplemente no
-  /// redirige (se comporta como "notification").
+  /// Ya no hace falta para theme.cart.quickCart.actionOnAdd = "openCart"
+  /// (ahora abre el drawer del carrito en vez de navegar) — se deja en
+  /// el tipo sin desestructurar para no tener que tocar cada lugar que
+  /// todavía lo manda.
   basePath?: string;
 }) {
-  const { addItem } = useCart();
+  const { addItem, openDrawer } = useCart();
   const { cart } = useStorefrontTheme();
-  const router = useRouter();
   const [added, setAdded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,8 +60,8 @@ export function AddToCartButton({
       setTimeout(() => setError(null), 3000);
       return;
     }
-    if (cart.quickCart.enabled && cart.quickCart.actionOnAdd === "openCart" && basePath != null) {
-      router.push(`${basePath}/carrito`);
+    if (cart.quickCart.enabled && cart.quickCart.actionOnAdd === "openCart") {
+      openDrawer();
       return;
     }
     setAdded(true);

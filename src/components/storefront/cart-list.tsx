@@ -22,7 +22,7 @@ export function CartList({
   brandSlug: string;
   basePath?: string;
 }) {
-  const { items, subtotal, updateQuantity, removeItem, discountCode, setDiscountCode } = useCart();
+  const { items, subtotal, updateQuantity, removeItem, discountCode, setDiscountCode, closeDrawer } = useCart();
   const { cart } = useStorefrontTheme();
   const isPhysicalCart = items[0]?.type === "PHYSICAL";
 
@@ -94,6 +94,7 @@ export function CartList({
         </p>
         <Link
           href={basePath || "/"}
+          onClick={closeDrawer}
           className="inline-block rounded-full bg-brand-accent text-white px-5 py-2 text-sm font-semibold hover:opacity-90"
         >
           Ver productos
@@ -167,7 +168,7 @@ export function CartList({
       ))}
 
       {cart.showViewMoreButton && (
-        <Link href={basePath || "/"} className="text-xs text-brand-accent hover:underline inline-block">
+        <Link href={basePath || "/"} onClick={closeDrawer} className="text-xs text-brand-accent hover:underline inline-block">
           + Ver más productos
         </Link>
       )}
@@ -258,6 +259,7 @@ export function CartList({
           ) : (
             <Link
               href={`${basePath}/checkout`}
+              onClick={closeDrawer}
               className="rounded-full bg-brand-accent text-white px-6 py-2.5 text-sm font-semibold hover:opacity-90"
             >
               Ir al pago →

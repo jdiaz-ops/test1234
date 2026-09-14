@@ -36,6 +36,15 @@ type CartContextValue = {
   /// previewDiscountCode.
   discountCode: string | null;
   setDiscountCode: (code: string | null) => void;
+  /// El carrito se consulta desde un drawer (panel lateral), no
+  /// navegando a /carrito — así alguien viendo un producto o colección
+  /// no pierde su lugar solo por mirar el carrito. Ver conversación del
+  /// 2026-09-14: "si le dan clic por error, después no sabe cómo volver
+  /// al producto y se puede perder la venta". CartDrawer es quien lo
+  /// renderiza; store-header.tsx y mobile-bottom-nav.tsx lo abren.
+  drawerOpen: boolean;
+  openDrawer: () => void;
+  closeDrawer: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -54,7 +63,11 @@ export function CartProvider({
   const [items, setItems] = useState<CartItem[]>([]);
   const [discountCode, setDiscountCodeState] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const discountKey = `marcolini_discount_${brandSlug}`;
+
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
   useEffect(() => {
     // localStorage no existe en el servidor — el primer render (servidor y
@@ -163,8 +176,24 @@ export function CartProvider({
       clear,
       discountCode,
       setDiscountCode,
+      drawerOpen,
+      openDrawer,
+      closeDrawer,
     }),
-    [items, count, subtotal, addItem, updateQuantity, removeItem, clear, discountCode, setDiscountCode],
+    [
+      items,
+      count,
+      subtotal,
+      addItem,
+      updateQuantity,
+      removeItem,
+      clear,
+      discountCode,
+      setDiscountCode,
+      drawerOpen,
+      openDrawer,
+      closeDrawer,
+    ],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

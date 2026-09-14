@@ -169,6 +169,12 @@ export function StoreProductsPanel({
         return;
       }
       setProducts((prev) => prev.filter((p) => p.id !== productId));
+      // Si venía de editar ese mismo producto, vuelve a la lista — ya no
+      // hay nada que seguir editando. Sin efecto si ya estaba en la
+      // lista (era ahí donde se pidió eliminar).
+      setMode((prev) =>
+        prev.kind === "edit" && prev.product.id === productId ? { kind: "list" } : prev,
+      );
       router.refresh();
     } catch {
       setError("No se pudo eliminar — revisa tu conexión.");
@@ -177,9 +183,27 @@ export function StoreProductsPanel({
     }
   }
 
+  /// Precarga el formulario de Crear con los datos del producto elegido
+  /// (mismo mecanismo que "Importar producto") — la marca revisa/ajusta
+  /// el nombre u otros campos y guarda como uno nuevo, en Borrador para
+  /// no publicarlo sin querer. Ver conversación del 2026-09-14.
+  function handleDuplicate(product: ManualProduct) {
+    setMode({
+      kind: "create",
+      seed: { ...product, name: `${product.name} (copia)`, status: "DRAFT" },
+    });
+  }
+
   if (mode.kind === "create") {
     return (
+      // key fijo pero DISTINTO del de "edit" abajo — sin esto, pasar de
+      // Editar a Duplicar (mismo tipo de componente, misma posición en
+      // el árbol) hace que React reutilice la instancia en vez de
+      // remontarla, y el formulario se queda con el estado viejo
+      // (ignora el seed con "(copia)"). Encontrado probando el flujo
+      // real. Ver conversación del 2026-09-14.
       <StoreProductForm
+        key="create-form"
         seed={mode.seed}
         onSaved={refreshAfterSave}
         onCancel={() => setMode({ kind: "list" })}
@@ -189,9 +213,13 @@ export function StoreProductsPanel({
   if (mode.kind === "edit") {
     return (
       <StoreProductForm
+        key={`edit-${mode.product.id}`}
         initial={mode.product}
         onSaved={refreshAfterSave}
         onCancel={() => setMode({ kind: "list" })}
+        onDelete={() => handleDelete(mode.product.id)}
+        onDuplicate={() => handleDuplicate(mode.product)}
+        deleting={deletingId === mode.product.id}
       />
     );
   }
@@ -295,6 +323,13 @@ export function StoreProductsPanel({
                     className="text-xs text-brand-accent hover:underline"
                   >
                     Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDuplicate(product)}
+                    className="text-xs text-brand-accent hover:underline"
+                  >
+                    Duplicar
                   </button>
                   <button
                     type="button"

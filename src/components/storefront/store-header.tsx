@@ -44,7 +44,7 @@ export function StoreHeader({
   /// muestra la barra. Ver conversación del 2026-09-14.
   menuItems?: StoreHeaderMenuItem[];
 }) {
-  const { count } = useCart();
+  const { count, openDrawer } = useCart();
   const theme = useStorefrontTheme();
   const { header } = theme;
 
@@ -106,8 +106,9 @@ export function StoreHeader({
   );
 
   const cartButton = (
-    <Link
-      href={`${basePath}/carrito`}
+    <button
+      type="button"
+      onClick={openDrawer}
       className={`relative rounded-full border border-brand-line px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft shrink-0 ${iconSizeClass}`}
     >
       Carrito
@@ -116,7 +117,7 @@ export function StoreHeader({
           {count}
         </span>
       )}
-    </Link>
+    </button>
   );
 
   return (
