@@ -327,6 +327,38 @@ enum StorefrontTemplate {
   EDITORIAL // hero grande para el primer producto + grid asimétrico abajo
 }
 
+/// Secciones de la página de inicio de la vitrina, al estilo Tiendanube/
+/// Squarespace: la marca prende/apaga y reordena secciones ya diseñadas,
+/// llenando su contenido con un formulario — no arma layouts libres
+/// bloque por bloque (eso sería clonar el editor de temas de Shopify,
+/// mucho más grande — ver conversación del 2026-09-14). Se empieza con 3
+/// tipos, bien hechos, mismo criterio que StorefrontTemplate arriba.
+enum StorefrontSectionType {
+  BANNER // imagen ancho completo + título/subtítulo/botón
+  FEATURED_COLLECTION // una BrandCollection en grid
+  TEXT // título + párrafo
+}
+
+model StorefrontSection {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  type    StorefrontSectionType
+  enabled Boolean               @default(true)
+  position Int                  @default(0)
+
+  /// Contenido específico del tipo — shape validado en
+  /// src/lib/storefront-sections.ts (no en el schema, para no tener que
+  /// migrar cada vez que se ajusta un campo de un tipo de sección).
+  config Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([brandId])
+}
+
 /// Le permite al admin forzar si una marca aparece o no en el marketplace de
 /// creadores, sin importar si de verdad completó los 4 pasos de onboarding
 /// (perfil, tienda conectada, cómo-te-cobramos) — pensado para que Juan pueda
@@ -446,6 +478,8 @@ model BrandProfile {
   /// creador, cruzando varias marcas). Ver conversación del 2026-09-14.
   productCollections BrandCollection[]
   shippingZones      ShippingZone[]
+  storefrontSections StorefrontSection[]
+  storeCustomers     StoreCustomer[]
 
   // --------------------------------------------------------------------
   // "Mi tienda" — catálogo y checkout propios de Marcolini, independientes
@@ -905,6 +939,19 @@ enum StoreOrderStatus {
   EXPIRED // nunca se completó y el link/reference quedó vencido
 }
 
+/// Estado de preparación/entrega, aparte del pago (StoreOrderStatus) —
+/// mismo concepto que "Estado de preparación del pedido" de Shopify. Solo
+/// aplica a pedidos PHYSICAL (un pedido de SERVICE usa
+/// StoreOrderItem.serviceConfirmedAt en su lugar). Ver conversación del
+/// 2026-09-14: "en los pedidos necesito estado del pago - estado de
+/// preparación del pedido".
+enum StoreOrderFulfillmentStatus {
+  UNFULFILLED // recién pagado, nadie lo ha alistado todavía
+  PREPARED // ya está listo/empacado, falta despacharlo
+  SHIPPED // ya salió — carrier/trackingNumber deberían estar llenos
+  DELIVERED // confirmado como entregado
+}
+
 enum ProductType {
   PHYSICAL // se despacha por envío — comportamiento de siempre
   SERVICE // clase/asesoría presencial o virtual — se "cumple" con una reserva, no con un envío
@@ -980,6 +1027,20 @@ model StoreOrder {
 
   status StoreOrderStatus @default(PENDING)
 
+  /// Solo relevante para pedidos con al menos un producto PHYSICAL —
+  /// queda en UNFULFILLED "de fábrica" en uno 100% de servicios, sin uso.
+  fulfillmentStatus StoreOrderFulfillmentStatus @default(UNFULFILLED)
+  carrier           String?
+  trackingNumber    String?
+  preparedAt        DateTime?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+
+  /// Notas internas de la marca sobre el pedido — nunca las ve el
+  /// comprador. Ver conversación del 2026-09-14 (captura de referencia
+  /// de Shopify, cuadro "Notas" en el detalle del pedido).
+  internalNotes String?
+
   wompiTransactionId String? // id que devuelve Wompi — para consultarla por API
   wompiStatus        String? // estado crudo que mandó Wompi (APPROVED/DECLINED/...)
 
@@ -1031,6 +1092,43 @@ model StoreOrderItem {
   /// de la reunión. Null hasta que la marca confirme desde Pedidos.
   serviceConfirmedAt DateTime?
   serviceMeetingInfo String?
+}
+
+/// CRM simple de clientes de "Mi tienda" — no duplica lo que ya vive en
+/// StoreOrder (nombre, pedidos, gastado se calculan agregando por
+/// buyerEmail, ver customer-service.ts), esta tabla solo guarda lo que
+/// necesita persistir aparte de cualquier pedido puntual: notas,
+/// etiquetas, suscripción de marketing, crédito en tienda. Se crea sola
+/// (upsert) la primera vez que alguien compra con ese correo — ver
+/// applyWompiTransactionStatus — o la marca la crea a mano desde
+/// Clientes. Ver conversación del 2026-09-14.
+model StoreCustomer {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  email String
+  /// Foto del nombre/teléfono del comprador más reciente — se
+  /// actualiza en cada upsert, así que siempre refleja el pedido más
+  /// nuevo aunque la marca no la edite a mano.
+  name  String?
+  phone String?
+
+  /// Ninguna marca tiene hoy un opt-in real de newsletter en el checkout
+  /// — esto lo prende/apaga la marca a mano, igual que en Shopify se
+  /// puede editar manualmente.
+  emailSubscribed Boolean  @default(false)
+  tags            String[] @default([])
+  notes           String?
+  /// Centavos de COP — solo un número editable, sin libro contable de
+  /// movimientos (alcance acotado a propósito).
+  storeCreditCents Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([brandId, email])
+  @@index([brandId])
 }
 
 // ----------------------------------------------------------------------------
@@ -1804,6 +1902,14 @@ model Product {
   /// ofrecerse para agregar productos nuevos.
   available Boolean @default(true)
 
+  /// Solo lo maneja un producto manual (ver ProductStatus) — reemplaza a
+  /// "available" como fuente de verdad para lo que ve la marca en el
+  /// formulario; `available` se sigue derivando de esto al guardar
+  /// (status !== DRAFT) para no tener que tocar cada lugar que ya filtra
+  /// por available. Un producto sincronizado de Shopify/WooCommerce
+  /// siempre queda en ACTIVE (no se le muestra el selector).
+  status ProductStatus @default(ACTIVE)
+
   /// Hasta 3 por marca — lo hace cumplir setProductFeatured en
   /// product-service.ts. Aparecen primero como "sugeridos" cuando un
   /// creador arma una colección.
@@ -2012,6 +2118,12 @@ model BrandCollection {
 
   name String
   slug String
+  /// Se muestra en la página de la colección en la vitrina — opcional,
+  /// antes solo existía el nombre. Ver conversación del 2026-09-14
+  /// pidiendo poder gestionar colecciones como en Shopify.
+  description String?
+  imageUrl    String?
+  position    Int      @default(0)
 
   products ProductBrandCollection[]
 
@@ -2074,11 +2186,22 @@ model ShippingZone {
 /// Unidad de peso que la marca elige al escribir Product.weight /
 /// ProductVariant.weight — el valor guardado siempre está en kg, esto es
 /// solo lo que ve/tipea en el formulario (ver WeightInput).
+/// Solo kg y g — ver conversación del 2026-09-14 ("deja solo kg y
+/// gramos"), antes traía también lb/oz.
 enum WeightUnit {
   KG
   G
-  LB
-  OZ
+}
+
+/// Estado del producto, igual a Shopify — Activo (se puede ver y
+/// comprar), Borrador (oculto del todo, ni con el link), No listado
+/// (fuera de la vitrina pero se puede ver/comprar con el link directo).
+/// Reemplaza la casilla "Disponible para la venta" — ver conversación
+/// del 2026-09-14.
+enum ProductStatus {
+  ACTIVE
+  DRAFT
+  UNLISTED
 }
 
 enum ShippingRateCondition {
