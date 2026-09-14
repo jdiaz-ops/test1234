@@ -10,6 +10,12 @@ export type ShippingRateInput = {
   price: number;
   condition: ShippingRateCondition;
   conditionValue?: number | null;
+  /// Tope opcional para armar un rango (ej. "pesa entre 2 y 5 kg", "pedido
+  /// entre $20.000 y $50.000") — ver pickShippingRate.
+  conditionMaxValue?: number | null;
+  /// Solo presentación cuando condition = MIN_WEIGHT — ambos valores
+  /// siempre se guardan en kg. Ver conversación del 2026-09-14.
+  conditionValueUnit?: "KG" | "G";
 };
 
 type ShippingZoneInput = {
@@ -31,9 +37,10 @@ function assertValidRegions(regions: string[]) {
 }
 
 /// Al menos una tarifa, y cualquiera que no sea "siempre aplica" necesita
-/// el umbral que la activa (peso o monto). No se exige que exista una
-/// tarifa NONE — una zona puede ser, por ejemplo, "gratis siempre" con
-/// una sola regla NONE en $0.
+/// al menos un umbral que la activa (mínimo, máximo, o ambos para armar un
+/// rango — ej. "pesa entre 2 y 5 kg"). No se exige que exista una tarifa
+/// NONE — una zona puede ser, por ejemplo, "gratis siempre" con una sola
+/// regla NONE en $0.
 function assertValidRates(rates: ShippingRateInput[]) {
   if (rates.length === 0) {
     throw new ShippingZoneError("Agrega al menos una tarifa para la zona.");
@@ -46,9 +53,20 @@ function assertValidRates(rates: ShippingRateInput[]) {
       throw new ShippingZoneError("El precio de la tarifa no puede ser negativo.");
     }
     if (r.condition !== "NONE") {
-      if (r.conditionValue == null || r.conditionValue <= 0) {
+      const hasMin = r.conditionValue != null && r.conditionValue > 0;
+      const hasMax = r.conditionMaxValue != null && r.conditionMaxValue > 0;
+      if (!hasMin && !hasMax) {
         throw new ShippingZoneError(
           `"${r.name}" necesita un umbral mayor a cero (peso o monto).`,
+        );
+      }
+      if (
+        hasMin &&
+        hasMax &&
+        r.conditionMaxValue! <= r.conditionValue!
+      ) {
+        throw new ShippingZoneError(
+          `"${r.name}": el tope del rango debe ser mayor que el mínimo.`,
         );
       }
     }
@@ -81,6 +99,8 @@ export async function createShippingZone(brandId: string, data: ShippingZoneInpu
           price: r.price,
           condition: r.condition,
           conditionValue: r.condition === "NONE" ? null : r.conditionValue,
+          conditionMaxValue: r.condition === "NONE" ? null : r.conditionMaxValue,
+          conditionValueUnit: r.conditionValueUnit ?? "KG",
           position,
         })),
       },
@@ -114,6 +134,8 @@ export async function updateShippingZone(
         price: r.price,
         condition: r.condition,
         conditionValue: r.condition === "NONE" ? null : r.conditionValue,
+        conditionMaxValue: r.condition === "NONE" ? null : r.conditionMaxValue,
+        conditionValueUnit: r.conditionValueUnit ?? "KG",
         position,
       })),
     });
@@ -157,18 +179,28 @@ export function pickShippingRate<
     price: number | string | { toString(): string };
     condition: string;
     conditionValue: number | string | { toString(): string } | null;
+    conditionMaxValue?: number | string | { toString(): string } | null;
   },
 >(rates: T[], cart: { orderAmountCents: number; weightKg: number }): T | null {
   const eligible = rates.filter((r) => {
     if (r.condition === "NONE") return true;
-    const threshold = Number(r.conditionValue ?? 0);
-    if (r.condition === "MIN_ORDER_AMOUNT") {
-      return cart.orderAmountCents / 100 >= threshold;
+    const value =
+      r.condition === "MIN_ORDER_AMOUNT"
+        ? cart.orderAmountCents / 100
+        : cart.weightKg;
+    // Rango: si trae mínimo, tiene que superarlo; si trae máximo, tiene
+    // que quedarse dentro. Con solo uno de los dos, ese es el único
+    // requisito (ver assertValidRates, que exige al menos uno).
+    if (r.conditionValue != null && value < Number(r.conditionValue)) {
+      return false;
     }
-    if (r.condition === "MIN_WEIGHT") {
-      return cart.weightKg >= threshold;
+    if (
+      r.conditionMaxValue != null &&
+      value > Number(r.conditionMaxValue)
+    ) {
+      return false;
     }
-    return false;
+    return true;
   });
   if (eligible.length === 0) return null;
   return eligible.reduce((cheapest, r) =>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PriceInput } from "@/components/portal/price-input";
+import { WeightRangeInput, type WeightUnit } from "@/components/portal/weight-input";
 import { COLOMBIA_REGIONS, REST_OF_COUNTRY } from "@/lib/colombia-regions";
 
 export type ShippingRateCondition = "NONE" | "MIN_ORDER_AMOUNT" | "MIN_WEIGHT";
@@ -12,6 +13,13 @@ export type ShippingRateRow = {
   price: number;
   condition: ShippingRateCondition;
   conditionValue: number | null;
+  /// Tope del rango (ej. "pesa entre 2 y 5 kg") — opcional, se puede
+  /// combinar con conditionValue o usar solo (ej. "hasta $50.000").
+  conditionMaxValue: number | null;
+  /// Solo aplica cuando condition = MIN_WEIGHT — puramente de
+  /// presentación, conditionValue/conditionMaxValue siempre van en kg
+  /// (ver WeightInput).
+  conditionValueUnit?: WeightUnit;
 };
 
 export type ShippingZoneRow = {
@@ -38,10 +46,31 @@ function regionsLabel(regions: string[]) {
 function rateSummary(rate: ShippingRateRow) {
   const price = rate.price === 0 ? "Gratis" : formatCOP(rate.price);
   if (rate.condition === "NONE") return `${rate.name}: ${price}`;
-  if (rate.condition === "MIN_ORDER_AMOUNT") {
-    return `${rate.name}: ${price} si el pedido supera ${formatCOP(rate.conditionValue ?? 0)}`;
+
+  const hasMin = rate.conditionValue != null;
+  const hasMax = rate.conditionMaxValue != null;
+  const unitSuffix = rate.condition === "MIN_WEIGHT" ? " kg" : "";
+  const fmt = (v: number) =>
+    rate.condition === "MIN_ORDER_AMOUNT" ? formatCOP(v) : `${v}${unitSuffix}`;
+  const noun = rate.condition === "MIN_ORDER_AMOUNT" ? "el pedido" : "pesa";
+
+  let condLabel: string;
+  if (hasMin && hasMax) {
+    condLabel = `si ${noun} está entre ${fmt(rate.conditionValue!)} y ${fmt(rate.conditionMaxValue!)}`;
+  } else if (hasMin) {
+    condLabel =
+      rate.condition === "MIN_ORDER_AMOUNT"
+        ? `si el pedido supera ${fmt(rate.conditionValue!)}`
+        : `si pesa más de ${fmt(rate.conditionValue!)}`;
+  } else if (hasMax) {
+    condLabel =
+      rate.condition === "MIN_ORDER_AMOUNT"
+        ? `si el pedido es de hasta ${fmt(rate.conditionMaxValue!)}`
+        : `si pesa hasta ${fmt(rate.conditionMaxValue!)}`;
+  } else {
+    condLabel = "";
   }
-  return `${rate.name}: ${price} si pesa más de ${rate.conditionValue ?? 0} kg`;
+  return `${rate.name}: ${price} ${condLabel}`.trim();
 }
 
 /// Una fila de tarifa dentro del formulario de zona — nombre + precio +
@@ -98,48 +127,63 @@ function RateRow({
               onChange({
                 condition: e.target.value as ShippingRateCondition,
                 conditionValue: null,
+                conditionMaxValue: null,
               })
             }
             className="input text-sm"
           >
             <option value="NONE">Siempre (tarifa estándar)</option>
-            <option value="MIN_ORDER_AMOUNT">Si el pedido supera un monto</option>
-            <option value="MIN_WEIGHT">Si el pedido pesa más de</option>
+            <option value="MIN_ORDER_AMOUNT">Según el monto del pedido</option>
+            <option value="MIN_WEIGHT">Según el peso del pedido</option>
           </select>
         </div>
         {rate.condition === "MIN_ORDER_AMOUNT" && (
-          <div>
-            <label className="block text-[11px] text-brand-ink-soft mb-0.5">
-              Monto mínimo
-            </label>
-            <PriceInput
-              required
-              value={rate.conditionValue}
-              onChange={(v) => onChange({ conditionValue: v })}
-            />
-          </div>
+          <>
+            <div>
+              <label className="block text-[11px] text-brand-ink-soft mb-0.5">
+                Monto mínimo (opcional)
+              </label>
+              <PriceInput
+                value={rate.conditionValue}
+                onChange={(v) => onChange({ conditionValue: v })}
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] text-brand-ink-soft mb-0.5">
+                Monto máximo (opcional)
+              </label>
+              <PriceInput
+                value={rate.conditionMaxValue}
+                onChange={(v) => onChange({ conditionMaxValue: v })}
+              />
+            </div>
+          </>
         )}
         {rate.condition === "MIN_WEIGHT" && (
-          <div>
-            <label className="block text-[11px] text-brand-ink-soft mb-0.5">
-              Peso mínimo (kg)
-            </label>
-            <input
-              required
-              type="number"
-              min="0"
-              step="0.001"
-              value={rate.conditionValue ?? ""}
-              onChange={(e) =>
+          <div className="col-span-2 sm:col-span-1">
+            <WeightRangeInput
+              minKg={rate.conditionValue}
+              maxKg={rate.conditionMaxValue}
+              unit={rate.conditionValueUnit ?? "KG"}
+              onChangeMin={(v) => onChange({ conditionValue: v })}
+              onChangeMax={(v) => onChange({ conditionMaxValue: v })}
+              onChangeUnit={(unit, minKg, maxKg) =>
                 onChange({
-                  conditionValue: e.target.value === "" ? null : Number(e.target.value),
+                  conditionValueUnit: unit,
+                  conditionValue: minKg,
+                  conditionMaxValue: maxKg,
                 })
               }
-              className="input text-sm"
             />
           </div>
         )}
       </div>
+      {(rate.condition === "MIN_ORDER_AMOUNT" || rate.condition === "MIN_WEIGHT") && (
+        <p className="text-[11px] text-brand-ink-soft">
+          Deja el mínimo vacío para &ldquo;hasta X&rdquo;, el máximo vacío
+          para &ldquo;desde X&rdquo;, o llena ambos para un rango.
+        </p>
+      )}
     </div>
   );
 }
@@ -151,6 +195,8 @@ function emptyRate(): ShippingRateRow {
     price: 0,
     condition: "NONE",
     conditionValue: null,
+    conditionMaxValue: null,
+    conditionValueUnit: "KG",
   };
 }
 
@@ -202,10 +248,24 @@ function ZoneForm({
     }
     if (
       rates.some(
-        (r) => r.condition !== "NONE" && (r.conditionValue == null || r.conditionValue <= 0),
+        (r) =>
+          r.condition !== "NONE" &&
+          !(r.conditionValue != null && r.conditionValue > 0) &&
+          !(r.conditionMaxValue != null && r.conditionMaxValue > 0),
       )
     ) {
-      setError("Ingresa el umbral (monto o peso) de cada tarifa condicionada.");
+      setError("Ingresa el umbral (mínimo y/o máximo, monto o peso) de cada tarifa condicionada.");
+      return;
+    }
+    if (
+      rates.some(
+        (r) =>
+          r.conditionValue != null &&
+          r.conditionMaxValue != null &&
+          r.conditionMaxValue <= r.conditionValue,
+      )
+    ) {
+      setError("El máximo debe ser mayor que el mínimo en cada rango.");
       return;
     }
     setSaving(true);
@@ -225,6 +285,8 @@ function ZoneForm({
               price: r.price,
               condition: r.condition,
               conditionValue: r.condition === "NONE" ? null : r.conditionValue,
+              conditionMaxValue: r.condition === "NONE" ? null : r.conditionMaxValue,
+              conditionValueUnit: r.conditionValueUnit ?? "KG",
             })),
           }),
         },
@@ -367,8 +429,9 @@ export function StoreShippingZonesPanel({
       <p className="text-xs text-brand-ink-soft mb-4 max-w-lg">
         Cobra distinto según a dónde va el pedido, y arma reglas
         condicionadas (por peso o por el valor del pedido) dentro de cada
-        zona. Si no creas ninguna zona, se usa la tarifa única de arriba
-        para todo el país.
+        zona. Necesitas al menos una zona para poder vender productos
+        físicos — puede ser una sola que cubra &ldquo;Resto de
+        Colombia&rdquo;.
       </p>
 
       {zones.length > 0 && (

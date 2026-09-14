@@ -29,6 +29,12 @@ function unitToKg(value: number, unit: WeightUnit): number {
   return Math.round(value * TO_KG[unit] * 1e6) / 1e6;
 }
 
+function cleanDecimalText(text: string) {
+  const cleaned = text.replace(/[^\d.]/g, "");
+  const parts = cleaned.split(".");
+  return parts.length > 2 ? `${parts[0]}.${parts.slice(1).join("")}` : cleaned;
+}
+
 /// Input de peso con selector de unidad (kg/g/lb/oz), como el de Shopify
 /// — ver conversación del 2026-09-14: "permite gramos". Internamente
 /// siempre trabaja en kilogramos (`valueKg`/`onChange` en kg, lo que usan
@@ -87,6 +93,99 @@ export function WeightInput({
         value={unit}
         onChange={(e) => handleUnitChange(e.target.value as WeightUnit)}
         className="input rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1.5"
+        aria-label="Unidad de peso"
+      >
+        {(Object.keys(UNIT_LABEL) as WeightUnit[]).map((u) => (
+          <option key={u} value={u}>
+            {UNIT_LABEL[u]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/// Par de campos "mínimo"/"máximo" que comparten una sola unidad (ej. la
+/// regla de envío condicionada por rango de peso, ShippingZoneRate) — a
+/// diferencia de dos <WeightInput> sueltos, acá cambiar la unidad
+/// reinterpreta el texto de AMBOS campos a la vez (mismo criterio de
+/// "reinterpreta, no convierte" que WeightInput, pero aplicado a los dos
+/// números juntos, ya que solo hay una unidad guardada para el par). Ver
+/// conversación del 2026-09-14.
+export function WeightRangeInput({
+  minKg,
+  maxKg,
+  unit,
+  onChangeMin,
+  onChangeMax,
+  onChangeUnit,
+}: {
+  minKg: number | null;
+  maxKg: number | null;
+  unit: WeightUnit;
+  onChangeMin: (valueKg: number | null) => void;
+  onChangeMax: (valueKg: number | null) => void;
+  onChangeUnit: (unit: WeightUnit, minKg: number | null, maxKg: number | null) => void;
+}) {
+  const [rawMin, setRawMin] = useState(() =>
+    minKg == null ? "" : String(kgToUnit(minKg, unit)),
+  );
+  const [rawMax, setRawMax] = useState(() =>
+    maxKg == null ? "" : String(kgToUnit(maxKg, unit)),
+  );
+
+  function handleMinChange(text: string) {
+    const normalized = cleanDecimalText(text);
+    setRawMin(normalized);
+    const n = Number(normalized);
+    onChangeMin(normalized === "" || Number.isNaN(n) ? null : unitToKg(n, unit));
+  }
+
+  function handleMaxChange(text: string) {
+    const normalized = cleanDecimalText(text);
+    setRawMax(normalized);
+    const n = Number(normalized);
+    onChangeMax(normalized === "" || Number.isNaN(n) ? null : unitToKg(n, unit));
+  }
+
+  function handleUnitChange(nextUnit: WeightUnit) {
+    const nMin = Number(rawMin);
+    const nMax = Number(rawMax);
+    const nextMinKg =
+      rawMin === "" || Number.isNaN(nMin) ? null : unitToKg(nMin, nextUnit);
+    const nextMaxKg =
+      rawMax === "" || Number.isNaN(nMax) ? null : unitToKg(nMax, nextUnit);
+    onChangeUnit(nextUnit, nextMinKg, nextMaxKg);
+  }
+
+  return (
+    <div className="flex items-end gap-2">
+      <div className="flex-1 min-w-0">
+        <label className="block text-[11px] text-brand-ink-soft mb-0.5">
+          Mínimo (opcional)
+        </label>
+        <input
+          inputMode="decimal"
+          value={rawMin}
+          onChange={(e) => handleMinChange(e.target.value)}
+          className="input text-sm"
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <label className="block text-[11px] text-brand-ink-soft mb-0.5">
+          Máximo (opcional)
+        </label>
+        <input
+          inputMode="decimal"
+          value={rawMax}
+          onChange={(e) => handleMaxChange(e.target.value)}
+          className="input text-sm"
+        />
+      </div>
+      <select
+        value={unit}
+        onChange={(e) => handleUnitChange(e.target.value as WeightUnit)}
+        className="input text-sm w-[4.5rem] shrink-0 px-1.5"
         aria-label="Unidad de peso"
       >
         {(Object.keys(UNIT_LABEL) as WeightUnit[]).map((u) => (

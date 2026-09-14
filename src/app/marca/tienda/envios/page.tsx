@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreShippingForm } from "@/components/portal/store-shipping-form";
 import { StoreShippingZonesPanel } from "@/components/portal/store-shipping-zones-panel";
+import { DistributionCenterForm } from "@/components/portal/distribution-center-form";
 import { listShippingZones } from "@/server/services/shipping-zone-service";
 
 export default async function TiendaEnviosPage() {
@@ -24,19 +25,18 @@ export default async function TiendaEnviosPage() {
         del pedido, no Marcolini.
       </p>
       <StoreSubNav />
-      <StoreShippingForm
-        initial={{
-          shippingFlatRate:
-            profile.shippingFlatRate != null
-              ? String(profile.shippingFlatRate)
-              : "",
-          freeShippingThreshold:
-            profile.freeShippingThreshold != null
-              ? String(profile.freeShippingThreshold)
-              : "",
-          shippingNotes: profile.shippingNotes ?? "",
-        }}
-      />
+
+      {zones.length === 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 mb-4">
+          <p className="text-sm text-amber-900">
+            Todavía no tienes zonas de envío — si vendes productos físicos,
+            el checkout de tu tienda no va a poder calcular el envío hasta
+            que agregues al menos una (puede ser una sola que cubra
+            &ldquo;Resto de Colombia&rdquo;).
+          </p>
+        </div>
+      )}
+
       <StoreShippingZonesPanel
         initialZones={zones.map((z) => ({
           id: z.id,
@@ -48,9 +48,27 @@ export default async function TiendaEnviosPage() {
             price: Number(r.price),
             condition: r.condition,
             conditionValue: r.conditionValue != null ? Number(r.conditionValue) : null,
+            conditionMaxValue:
+              r.conditionMaxValue != null ? Number(r.conditionMaxValue) : null,
+            conditionValueUnit: r.conditionValueUnit,
           })),
         }))}
       />
+
+      <DistributionCenterForm
+        initial={{
+          originAddress: profile.originAddress ?? "",
+          originCity: profile.originCity ?? "",
+          originRegion: profile.originRegion ?? "",
+          fulfillmentLeadDays: String(profile.fulfillmentLeadDays ?? 0),
+        }}
+      />
+
+      <div className="mt-6">
+        <StoreShippingForm
+          initial={{ shippingNotes: profile.shippingNotes ?? "" }}
+        />
+      </div>
     </div>
   );
 }

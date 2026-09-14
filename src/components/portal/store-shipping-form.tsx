@@ -3,20 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+/// Ya no incluye tarifa/umbral únicos — el envío se configura por zonas
+/// (ver StoreShippingZonesPanel, ahora obligatorio para productos
+/// físicos). Esto solo guarda las notas generales que ve el comprador en
+/// el checkout. Ver conversación del 2026-09-14: "tienen que crear zonas
+/// de envío obligatorio".
 export function StoreShippingForm({
   initial,
 }: {
-  initial: {
-    shippingFlatRate: string;
-    freeShippingThreshold: string;
-    shippingNotes: string;
-  };
+  initial: { shippingNotes: string };
 }) {
   const router = useRouter();
-  const [flatRate, setFlatRate] = useState(initial.shippingFlatRate);
-  const [freeThreshold, setFreeThreshold] = useState(
-    initial.freeShippingThreshold,
-  );
   const [notes, setNotes] = useState(initial.shippingNotes);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -32,11 +29,7 @@ export function StoreShippingForm({
       const res = await fetch("/api/marca/tienda/envios", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          shippingFlatRate: flatRate || null,
-          freeShippingThreshold: freeThreshold || null,
-          shippingNotes: notes,
-        }),
+        body: JSON.stringify({ shippingNotes: notes }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -55,40 +48,10 @@ export function StoreShippingForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
       <p className="text-sm text-brand-ink-soft">
-        Tarifa por defecto — se usa para cualquier región que no tenga su
-        propia zona (ver abajo). Tú te encargas del despacho del pedido,
-        Marcolini solo calcula el costo en el checkout.
+        El costo de envío lo cobra según las zonas que armes abajo — cada
+        región puede tener su propia tarifa. Acá solo van notas generales
+        que ve el comprador en el checkout.
       </p>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm text-brand-ink mb-1">
-            Costo de envío
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={flatRate}
-            onChange={(e) => setFlatRate(e.target.value)}
-            placeholder="0"
-            className="input"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-brand-ink mb-1">
-            Envío gratis desde
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={freeThreshold}
-            onChange={(e) => setFreeThreshold(e.target.value)}
-            placeholder="Sin mínimo"
-            className="input"
-          />
-        </div>
-      </div>
       <div>
         <label className="block text-sm text-brand-ink mb-1">
           Notas de envío (opcional)
