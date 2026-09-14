@@ -27,11 +27,19 @@ export function CatalogTemplate({
   template,
   products,
   basePath,
+  productsPerRow,
 }: {
   template: string;
   products: CatalogProduct[];
   basePath: string;
+  /// Solo lo usa Clásica (grid parejo) — Minimal es una lista y Editorial
+  /// tiene su propio hero + grid fijo, no aplica ahí. Ver
+  /// theme.productListing.productsPerRow.
+  productsPerRow?: "1-3" | "2-4";
 }) {
   const Template = TEMPLATES[template as StorefrontTemplateKey] ?? ClasicaTemplate;
+  if (Template === ClasicaTemplate) {
+    return <ClasicaTemplate products={products} basePath={basePath} productsPerRow={productsPerRow} />;
+  }
   return <Template products={products} basePath={basePath} />;
 }

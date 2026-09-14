@@ -7,12 +7,17 @@ import { formatCOP, type CatalogProduct } from "./types";
 export function ClasicaTemplate({
   products,
   basePath,
+  productsPerRow = "2-4",
 }: {
   products: CatalogProduct[];
   basePath: string;
+  /// Ver theme.productListing.productsPerRow en el editor de Diseño.
+  productsPerRow?: "1-3" | "2-4";
 }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+    <div
+      className={`grid gap-4 ${productsPerRow === "1-3" ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}
+    >
       {products.map((product) => (
         <div
           key={product.id}
@@ -51,6 +56,7 @@ export function ClasicaTemplate({
             </p>
             <div className="mt-auto">
               <AddToCartButton
+                basePath={basePath}
                 product={{
                   id: product.id,
                   slug: product.slug ?? "",

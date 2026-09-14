@@ -11,6 +11,7 @@ import { StorefrontSections } from "@/components/storefront/storefront-sections"
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { listEnabledStorefrontSections } from "@/server/services/storefront-section-service";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
+import { getPublishedTheme } from "@/server/services/brand-theme-service";
 
 export async function generateMetadata({
   params,
@@ -39,11 +40,12 @@ export default async function StorefrontCatalogPage({
   const brand = await getStorefrontBrand(slug);
   if (!brand) notFound();
 
-  const [products, basePath, sections, menuItems] = await Promise.all([
+  const [products, basePath, sections, menuItems, theme] = await Promise.all([
     listStorefrontProducts(brand.id),
     getStoreBasePath(slug),
     listEnabledStorefrontSections(brand.id),
     listStorefrontMenuItems(brand.id),
+    getPublishedTheme(brand.id),
   ]);
 
   return (
@@ -60,6 +62,7 @@ export default async function StorefrontCatalogPage({
           sections={sections.map((s) => ({ id: s.id, type: s.type, config: s.config }))}
           brandId={brand.id}
           basePath={basePath}
+          instagramHandle={brand.instagramHandle}
         />
         <div className="max-w-3xl mx-auto px-6 py-10">
           {brand.description && (
@@ -76,6 +79,7 @@ export default async function StorefrontCatalogPage({
             <CatalogTemplate
               template={brand.storefrontTemplate}
               basePath={basePath}
+              productsPerRow={theme.productListing.productsPerRow}
               products={products.map((p) => ({
                 id: p.id,
                 slug: p.slug,

@@ -35,7 +35,7 @@ export function CheckoutForm({
   /// aplica solo al montar.
   referredCode?: string | null;
 }) {
-  const { items, subtotal } = useCart();
+  const { items, subtotal, discountCode: cartDiscountCode } = useCart();
   // Un carrito nunca mezcla tipos (ver cart-context.tsx) — con que mire el
   // primer ítem alcanza para saber de qué tipo es todo el pedido.
   const isServiceOrder = items[0]?.type === "SERVICE";
@@ -65,15 +65,18 @@ export function CheckoutForm({
   const [discountPercent, setDiscountPercent] = useState<number | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
 
-  // Atribución por cookie — el comprador no escribió ningún código, pero
-  // llegó con uno de la cookie (ver src/proxy.ts): se lo aplicamos solos,
-  // como si lo hubiera escrito él. Nunca pisa uno que ya haya escrito a
-  // mano (por eso solo corre una vez, al montar).
+  // Precarga un código, en orden de prioridad: el que el comprador ya
+  // aplicó a mano en el carrito (ver theme.cart.allowCoupon en
+  // CartList) gana sobre el de la cookie de atribución (ver
+  // src/proxy.ts) — si escribió uno explícito, es una señal más fuerte
+  // que la pasiva. Nunca pisa uno que ya haya escrito a mano en este
+  // mismo formulario (por eso solo corre una vez, al montar).
   useEffect(() => {
-    if (referredCode) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- refleja la cookie de atribución, solo se puede leer tras montar
-      setCode(referredCode);
-      handleApplyCode(referredCode);
+    const initialCode = cartDiscountCode || referredCode;
+    if (initialCode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- refleja el carrito/cookie de atribución, solo se puede leer tras montar
+      setCode(initialCode);
+      handleApplyCode(initialCode);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar, a propósito
   }, []);

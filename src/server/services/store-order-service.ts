@@ -15,6 +15,7 @@ import {
   pickShippingRate,
 } from "@/server/services/shipping-zone-service";
 import { ensureStoreCustomerExists } from "@/server/services/store-customer-service";
+import { getPublishedTheme } from "@/server/services/brand-theme-service";
 
 /// Carrito y checkout nativos de "Mi tienda" — la vitrina pública de una
 /// marca en marcolini.lat/t/{storefrontSlug}. El carrito vive en el
@@ -50,6 +51,33 @@ export async function getStorefrontProduct(brandId: string, slug: string) {
       variants: { orderBy: { position: "asc" } },
     },
   });
+}
+
+/// Productos relacionados para el detalle de producto — mismo criterio
+/// simple: comparten al menos una colección con este, excluyéndolo a él.
+/// No hay curación manual todavía (ver theme.productDetail.relatedTitles
+/// para los títulos configurables) — se arma solo.
+export async function getRelatedProducts(brandId: string, productId: string, limit = 4) {
+  const collectionIds = (
+    await prisma.productBrandCollection.findMany({
+      where: { productId },
+      select: { collectionId: true },
+    })
+  ).map((c) => c.collectionId);
+  if (collectionIds.length === 0) return [];
+
+  const related = await prisma.product.findMany({
+    where: {
+      brandId,
+      manual: true,
+      status: "ACTIVE",
+      id: { not: productId },
+      brandCollections: { some: { collectionId: { in: collectionIds } } },
+    },
+    select: { id: true, name: true, slug: true, imageUrl: true, price: true },
+    take: limit,
+  });
+  return related;
 }
 
 /// Cotiza el envío para un departamento + peso/monto dados, sin crear
@@ -265,6 +293,17 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   }
 
   const afterDiscount = subtotalCents - discountCents;
+
+  // Monto mínimo de compra (ver theme.cart.minPurchaseAmount en el
+  // editor de Diseño) — el carrito ya lo bloquea en el cliente, esto lo
+  // vuelve a exigir del lado del servidor para que no se pueda saltar
+  // pegándole directo a este endpoint.
+  const theme = await getPublishedTheme(brand.id);
+  if (theme.cart.minPurchaseAmount != null && afterDiscount < theme.cart.minPurchaseAmount * 100) {
+    throw new StoreOrderError(
+      `El monto mínimo de compra es ${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(theme.cart.minPurchaseAmount)}.`,
+    );
+  }
 
   // Zona de envío que cubra el departamento elegido (o la zona catch-all
   // "Resto de Colombia") — cada zona puede traer varias tarifas con

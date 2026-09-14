@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { useStorefrontTheme } from "@/components/storefront/storefront-theme-context";
 
 export type StorefrontVariant = {
   id: string;
@@ -34,6 +35,7 @@ export function VariantPicker({
   baseImageUrl,
   optionNames,
   variants,
+  basePath,
 }: {
   productId: string;
   productSlug: string;
@@ -42,10 +44,12 @@ export function VariantPicker({
   baseImageUrl: string | null;
   optionNames: string[];
   variants: StorefrontVariant[];
+  basePath?: string;
 }) {
   // Arranca sin nada elegido — obliga a elegir cada eje antes de poder
   // comprar (evita asumir la primera combinación, que puede estar agotada).
   const [selected, setSelected] = useState<Record<number, string>>({});
+  const { productDetail } = useStorefrontTheme();
 
   const valuesByOption = useMemo(() => {
     return optionNames.map((_, idx) => {
@@ -65,6 +69,15 @@ export function VariantPicker({
       return values;
     });
   }, [optionNames, variants]);
+
+  // Para el toggle "mostrar la foto de la variante de color como botón" —
+  // solo tiene sentido en el eje que de verdad se llama "color" (o
+  // similar), usando la primera variante que tenga esa combinación de
+  // valor + foto propia.
+  function imageForOptionValue(idx: number, value: string): string | null {
+    const key = `option${idx + 1}Value` as "option1Value" | "option2Value" | "option3Value";
+    return variants.find((v) => v[key] === value && v.imageUrl)?.imageUrl ?? null;
+  }
 
   const allChosen = optionNames.every((_, idx) => selected[idx]);
   const matchedVariant = allChosen
@@ -86,32 +99,68 @@ export function VariantPicker({
 
   return (
     <div className="space-y-4">
-      {optionNames.map((name, idx) => (
-        <div key={name}>
-          <p className="text-xs font-medium text-brand-ink mb-1.5">{name}</p>
-          <div className="flex flex-wrap gap-2">
-            {valuesByOption[idx].map((value) => {
-              const isSelected = selected[idx] === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() =>
-                    setSelected((prev) => ({ ...prev, [idx]: value }))
-                  }
-                  className={`text-sm rounded-full px-4 py-1.5 border ${
-                    isSelected
-                      ? "bg-brand-accent text-white border-brand-accent"
-                      : "border-brand-line text-brand-ink hover:bg-brand-accent-soft"
-                  }`}
-                >
-                  {value}
-                </button>
-              );
-            })}
+      {optionNames.map((name, idx) => {
+        const isColorAxis = /color/i.test(name);
+        const showPhoto = isColorAxis && productDetail.colorVariantAsPhoto;
+
+        if (!productDetail.variantsAsButtons) {
+          return (
+            <div key={name}>
+              <label className="text-xs font-medium text-brand-ink mb-1.5 block">{name}</label>
+              <select
+                value={selected[idx] ?? ""}
+                onChange={(e) => setSelected((prev) => ({ ...prev, [idx]: e.target.value }))}
+                className="input text-sm"
+              >
+                <option value="" disabled>
+                  Elige {name.toLowerCase()}
+                </option>
+                {valuesByOption[idx].map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        }
+
+        return (
+          <div key={name}>
+            <p className="text-xs font-medium text-brand-ink mb-1.5">{name}</p>
+            <div className="flex flex-wrap gap-2">
+              {valuesByOption[idx].map((value) => {
+                const isSelected = selected[idx] === value;
+                const photoUrl = showPhoto ? imageForOptionValue(idx, value) : null;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSelected((prev) => ({ ...prev, [idx]: value }))}
+                    title={value}
+                    className={
+                      photoUrl
+                        ? `rounded-full overflow-hidden w-10 h-10 border-2 ${isSelected ? "border-brand-accent" : "border-brand-line"}`
+                        : `text-sm rounded-full px-4 py-1.5 border ${
+                            isSelected
+                              ? "bg-brand-accent text-white border-brand-accent"
+                              : "border-brand-line text-brand-ink hover:bg-brand-accent-soft"
+                          }`
+                    }
+                  >
+                    {photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- foto de la variante
+                      <img src={photoUrl} alt={value} className="w-full h-full object-cover" />
+                    ) : (
+                      value
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <p className="font-mono text-lg text-brand-ink">
         {formatCOP(displayPrice)}
@@ -128,6 +177,7 @@ export function VariantPicker({
 
       <AddToCartButton
         disabled={!matchedVariant || outOfStock}
+        basePath={basePath}
         product={{
           id: productId,
           slug: productSlug,

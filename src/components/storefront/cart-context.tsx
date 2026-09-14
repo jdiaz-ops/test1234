@@ -29,6 +29,13 @@ type CartContextValue = {
   ) => void;
   removeItem: (productId: string, variantId: string | null) => void;
   clear: () => void;
+  /// Código de creador aplicado desde el carrito (ver
+  /// theme.cart.allowCoupon) — se guarda acá para que sobreviva la
+  /// navegación a /checkout, que lo precarga solo. No se valida acá, eso
+  /// lo hace quien lo aplica (ver CartList) contra
+  /// previewDiscountCode.
+  discountCode: string | null;
+  setDiscountCode: (code: string | null) => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -45,7 +52,9 @@ export function CartProvider({
   children: React.ReactNode;
 }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [discountCode, setDiscountCodeState] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const discountKey = `marcolini_discount_${brandSlug}`;
 
   useEffect(() => {
     // localStorage no existe en el servidor — el primer render (servidor y
@@ -54,12 +63,31 @@ export function CartProvider({
     // lee el carrito real del navegador.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza con localStorage, solo puede leerse tras montar
     setItems(readCart(brandSlug));
+    try {
+      setDiscountCodeState(window.localStorage.getItem(discountKey));
+    } catch {
+      // localStorage no disponible — el código simplemente no persiste.
+    }
     setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- discountKey se deriva de brandSlug, ya está en deps
   }, [brandSlug]);
 
   useEffect(() => {
     if (hydrated) writeCart(brandSlug, items);
   }, [brandSlug, items, hydrated]);
+
+  const setDiscountCode = useCallback(
+    (code: string | null) => {
+      setDiscountCodeState(code);
+      try {
+        if (code) window.localStorage.setItem(discountKey, code);
+        else window.localStorage.removeItem(discountKey);
+      } catch {
+        // localStorage no disponible — no rompe nada, solo no persiste.
+      }
+    },
+    [discountKey],
+  );
 
   const addItem = useCallback(
     (
@@ -116,7 +144,10 @@ export function CartProvider({
     setItems((prev) => prev.filter((i) => cartLineKey(i) !== key));
   }, []);
 
-  const clear = useCallback(() => setItems([]), []);
+  const clear = useCallback(() => {
+    setItems([]);
+    setDiscountCode(null);
+  }, [setDiscountCode]);
 
   const count = items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -130,8 +161,10 @@ export function CartProvider({
       updateQuantity,
       removeItem,
       clear,
+      discountCode,
+      setDiscountCode,
     }),
-    [items, count, subtotal, addItem, updateQuantity, removeItem, clear],
+    [items, count, subtotal, addItem, updateQuantity, removeItem, clear, discountCode, setDiscountCode],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

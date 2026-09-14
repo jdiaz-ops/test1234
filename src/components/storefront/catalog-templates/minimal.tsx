@@ -51,6 +51,7 @@ export function MinimalTemplate({
           </div>
           <div className="shrink-0">
             <AddToCartButton
+              basePath={basePath}
               product={{
                 id: product.id,
                 slug: product.slug ?? "",

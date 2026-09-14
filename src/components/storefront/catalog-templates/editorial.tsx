@@ -48,6 +48,7 @@ export function EditorialTemplate({
             </p>
           </div>
           <AddToCartButton
+            basePath={basePath}
             product={{
               id: featured.id,
               slug: featured.slug ?? "",
