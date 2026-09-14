@@ -3,20 +3,18 @@ import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { formatCOP, type CatalogProduct } from "./types";
 
 /// Grid parejo de tarjetas — la plantilla de siempre, ahora una opción más
-/// entre varias en vez de la única forma de ver el catálogo.
+/// entre varias en vez de la única forma de ver el catálogo. Usa el
+/// listado principal (home) — las landing de colección tienen su propia
+/// tarjeta dedicada, ver collection-product-grid.tsx.
 export function ClasicaTemplate({
   products,
   basePath,
   productsPerRow = "2-4",
-  cardButtonStyle = "addToCart",
 }: {
   products: CatalogProduct[];
   basePath: string;
   /// Ver theme.productListing.productsPerRow en el editor de Diseño.
   productsPerRow?: "1-3" | "2-4";
-  /// Ver theme.collections.cardButtonStyle — solo lo manda la landing de
-  /// colección, el listado de la home no lo toca (queda en "addToCart").
-  cardButtonStyle?: "addToCart" | "viewProduct";
 }) {
   return (
     <div
@@ -59,28 +57,19 @@ export function ClasicaTemplate({
               {formatCOP(product.price)}
             </p>
             <div className="mt-auto">
-              {cardButtonStyle === "viewProduct" ? (
-                <Link
-                  href={`${basePath}/${product.slug}`}
-                  className="block text-center w-full border border-brand-ink text-brand-ink rounded-full px-3 py-1.5 text-[11px] font-semibold hover:bg-brand-ink hover:text-white transition-colors"
-                >
-                  Ver producto
-                </Link>
-              ) : (
-                <AddToCartButton
-                  basePath={basePath}
-                  product={{
-                    id: product.id,
-                    slug: product.slug ?? "",
-                    name: product.name,
-                    price: product.price,
-                    imageUrl: product.imageUrl,
-                    stock: product.stock,
-                    type: product.type,
-                  }}
-                  className="w-full bg-brand-accent text-white rounded-full px-3 py-1.5 text-[11px] font-semibold hover:opacity-90 disabled:opacity-40"
-                />
-              )}
+              <AddToCartButton
+                basePath={basePath}
+                product={{
+                  id: product.id,
+                  slug: product.slug ?? "",
+                  name: product.name,
+                  price: product.price,
+                  imageUrl: product.imageUrl,
+                  stock: product.stock,
+                  type: product.type,
+                }}
+                className="w-full bg-brand-accent text-white rounded-full px-3 py-1.5 text-[11px] font-semibold hover:opacity-90 disabled:opacity-40"
+              />
             </div>
           </div>
         </div>

@@ -28,7 +28,6 @@ export function CatalogTemplate({
   products,
   basePath,
   productsPerRow,
-  cardButtonStyle,
 }: {
   template: string;
   products: CatalogProduct[];
@@ -37,20 +36,12 @@ export function CatalogTemplate({
   /// tiene su propio hero + grid fijo, no aplica ahí. Ver
   /// theme.productListing.productsPerRow.
   productsPerRow?: "1-3" | "2-4";
-  /// Ver theme.collections.cardButtonStyle — solo lo manda la landing de
-  /// colección (/coleccion/{slug}), la home no lo toca.
-  cardButtonStyle?: "addToCart" | "viewProduct";
 }) {
   const Template = TEMPLATES[template as StorefrontTemplateKey] ?? ClasicaTemplate;
   if (Template === ClasicaTemplate) {
     return (
-      <ClasicaTemplate
-        products={products}
-        basePath={basePath}
-        productsPerRow={productsPerRow}
-        cardButtonStyle={cardButtonStyle}
-      />
+      <ClasicaTemplate products={products} basePath={basePath} productsPerRow={productsPerRow} />
     );
   }
-  return <Template products={products} basePath={basePath} cardButtonStyle={cardButtonStyle} />;
+  return <Template products={products} basePath={basePath} />;
 }

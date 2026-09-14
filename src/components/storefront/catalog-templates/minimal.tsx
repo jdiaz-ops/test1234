@@ -8,12 +8,9 @@ import { formatCOP, type CatalogProduct } from "./types";
 export function MinimalTemplate({
   products,
   basePath,
-  cardButtonStyle = "addToCart",
 }: {
   products: CatalogProduct[];
   basePath: string;
-  /// Ver theme.collections.cardButtonStyle.
-  cardButtonStyle?: "addToCart" | "viewProduct";
 }) {
   return (
     <div className="divide-y divide-brand-line">
@@ -53,28 +50,19 @@ export function MinimalTemplate({
             </p>
           </div>
           <div className="shrink-0">
-            {cardButtonStyle === "viewProduct" ? (
-              <Link
-                href={`${basePath}/${product.slug}`}
-                className="inline-block border border-brand-ink text-brand-ink rounded-full px-4 py-1.5 text-xs font-medium hover:bg-brand-ink hover:text-white transition-colors"
-              >
-                Ver producto
-              </Link>
-            ) : (
-              <AddToCartButton
-                basePath={basePath}
-                product={{
-                  id: product.id,
-                  slug: product.slug ?? "",
-                  name: product.name,
-                  price: product.price,
-                  imageUrl: product.imageUrl,
-                  stock: product.stock,
-                  type: product.type,
-                }}
-                className="border border-brand-ink text-brand-ink rounded-full px-4 py-1.5 text-xs font-medium hover:bg-brand-ink hover:text-white transition-colors disabled:opacity-40"
-              />
-            )}
+            <AddToCartButton
+              basePath={basePath}
+              product={{
+                id: product.id,
+                slug: product.slug ?? "",
+                name: product.name,
+                price: product.price,
+                imageUrl: product.imageUrl,
+                stock: product.stock,
+                type: product.type,
+              }}
+              className="border border-brand-ink text-brand-ink rounded-full px-4 py-1.5 text-xs font-medium hover:bg-brand-ink hover:text-white transition-colors disabled:opacity-40"
+            />
           </div>
         </div>
       ))}

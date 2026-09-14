@@ -546,25 +546,29 @@ export function CollectionsSection({ theme, patch }: { theme: ThemeConfig; patch
   return (
     <div className="space-y-4 max-w-sm">
       <p className="text-xs text-brand-ink-soft">
-        Cómo se ven las tarjetas de producto en la página de cada colección
-        (categoría) de tu tienda — no afecta el listado principal de tu
-        home, ese se configura en &ldquo;Listado de productos&rdquo;.
+        Cómo se ve la tarjeta de producto en la página de cada colección
+        (categoría) de tu tienda — siempre 2 por fila, en cualquier
+        pantalla. No afecta el listado principal de tu home, ese se
+        configura en &ldquo;Listado de productos&rdquo;.
       </p>
-      <Field label="Botón en la tarjeta de producto">
-        <select
-          value={c.cardButtonStyle}
-          onChange={(e) => patch({ collections: { cardButtonStyle: e.target.value } })}
-          className="input text-sm"
-        >
-          <option value="addToCart">Agregar al carrito</option>
-          <option value="viewProduct">Ver producto</option>
-        </select>
-      </Field>
+      <div className="space-y-2">
+        <Checkbox label="Mostrar imagen del producto" checked={c.showImage} onChange={(v) => patch({ collections: { showImage: v } })} />
+        <Checkbox label="Mostrar título del producto" checked={c.showTitle} onChange={(v) => patch({ collections: { showTitle: v } })} />
+        <Checkbox
+          label='Mostrar botón "Ver producto"'
+          checked={c.showViewProductButton}
+          onChange={(v) => patch({ collections: { showViewProductButton: v } })}
+        />
+        <Checkbox
+          label='Mostrar botón "Agregar al carrito"'
+          checked={c.showAddToCartButton}
+          onChange={(v) => patch({ collections: { showAddToCartButton: v } })}
+        />
+      </div>
       <p className="text-[11px] text-brand-ink-soft">
-        &ldquo;Agregar al carrito&rdquo; suma el producto directo, sin pasar
-        por la ficha. &ldquo;Ver producto&rdquo; lleva a la ficha primero —
-        mejor si vendes con variantes (talla/color) que el comprador tiene
-        que elegir antes de comprar.
+        Tamaño recomendado de foto: cuadrada, 1000×1000px (mínimo
+        800×800px) — así se ve nítida en pantallas de alta resolución sin
+        pesar de más.
       </p>
     </div>
   );

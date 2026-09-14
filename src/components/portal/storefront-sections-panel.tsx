@@ -277,6 +277,11 @@ function CategoryGridFields({
                 className="input text-sm"
               />
               <ImagePicker imageUrl={item.imageUrl} onChange={(url) => updateItem(i, { imageUrl: url })} small />
+              <p className="text-[11px] text-brand-ink-soft">
+                Sin subir nada acá, usa la foto de la colección elegida
+                (la que le pusiste en Colecciones). Sin ninguna de las
+                dos, queda un ícono.
+              </p>
             </>
           )}
         </div>

@@ -263,7 +263,7 @@ async function CategoryGridSection({
   if (visible.length === 0) return null;
   const collections = await prisma.brandCollection.findMany({
     where: { id: { in: visible.map((i) => i.collectionId!) }, brandId },
-    select: { id: true, name: true, slug: true },
+    select: { id: true, name: true, slug: true, imageUrl: true },
   });
   const byId = new Map(collections.map((c) => [c.id, c]));
   const items = visible
@@ -274,27 +274,41 @@ async function CategoryGridSection({
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-        {items.map((item, i) => (
-          <Link
-            key={i}
-            href={`${basePath}/coleccion/${item.collection!.slug}`}
-            className="flex flex-col items-center gap-1.5 group"
-          >
-            <div className="w-full aspect-square rounded-full overflow-hidden bg-brand-accent-soft relative">
-              {item.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
-                <img
-                  src={item.imageUrl}
-                  alt=""
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-              )}
-            </div>
-            <p className="text-[11px] text-brand-ink text-center leading-tight line-clamp-2">
-              {item.label || item.collection!.name}
-            </p>
-          </Link>
-        ))}
+        {items.map((item, i) => {
+          // La foto propia del ítem manda — si la marca no subió una acá,
+          // usa la de la colección (la que se subió al crearla/editarla en
+          // Colecciones) como respaldo, para no repetir la misma imagen
+          // dos veces. Sin ninguna de las dos, queda el círculo vacío. Ver
+          // conversación del 2026-09-14.
+          const imageUrl = item.imageUrl ?? item.collection!.imageUrl;
+          return (
+            <Link
+              key={i}
+              href={`${basePath}/coleccion/${item.collection!.slug}`}
+              className="flex flex-col items-center gap-1.5 group"
+            >
+              <div className="w-full aspect-square rounded-full overflow-hidden bg-brand-accent-soft relative flex items-center justify-center">
+                {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
+                  <img
+                    src={imageUrl}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-1/3 h-1/3 text-brand-ink-soft/50">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="9" cy="9" r="1.5" />
+                    <path d="m3 16 5-5 4 4 3-3 6 6" />
+                  </svg>
+                )}
+              </div>
+              <p className="text-[11px] text-brand-ink text-center leading-tight line-clamp-2">
+                {item.label || item.collection!.name}
+              </p>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

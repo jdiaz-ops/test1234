@@ -222,14 +222,17 @@ const productListingSchema = withDefaults({
 // espacio. Ver conversación del 2026-09-14.
 // ----------------------------------------------------------------------------
 
+/// Tarjeta de producto DEDICADA a las landing de colección — grilla fija
+/// de a 2 (no reusa el "productos por fila" del listado principal, que
+/// puede ir hasta 4 en computadora; acá siempre son 2, en cualquier
+/// pantalla, a pedido explícito de la marca) y con los dos botones a la
+/// vez (no uno u otro) — cada elemento se puede prender/apagar acá. Ver
+/// collection-product-grid.tsx y conversación del 2026-09-14.
 const collectionsSchema = withDefaults({
-  /// Botón en la tarjeta de producto dentro de una landing de colección.
-  /// "addToCart" agrega directo al carrito (mismo comportamiento que el
-  /// resto del catálogo hoy); "viewProduct" lleva a la ficha del producto
-  /// en vez de agregar a ciegas — útil si la marca vende con variantes
-  /// (talla/color) que se eligen ahí. Solo aplica en /coleccion/{slug},
-  /// no en el listado principal de la home.
-  cardButtonStyle: z.enum(["addToCart", "viewProduct"]).default("addToCart"),
+  showImage: z.boolean().default(true),
+  showTitle: z.boolean().default(true),
+  showViewProductButton: z.boolean().default(true),
+  showAddToCartButton: z.boolean().default(true),
 });
 
 // ----------------------------------------------------------------------------

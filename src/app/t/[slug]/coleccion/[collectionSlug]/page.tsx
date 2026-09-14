@@ -4,7 +4,7 @@ import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { getPublicBrandCollection } from "@/server/services/brand-collection-service";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { StoreHeader } from "@/components/storefront/store-header";
-import { CatalogTemplate } from "@/components/storefront/catalog-templates";
+import { CollectionProductGrid } from "@/components/storefront/collection-product-grid";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { stripHtml } from "@/lib/sanitize-html";
 import { getPublishedTheme } from "@/server/services/brand-theme-service";
@@ -74,10 +74,9 @@ export default async function StorefrontCollectionPage({
             Todavía no hay productos en esta colección.
           </p>
         ) : (
-          <CatalogTemplate
-            template={brand.storefrontTemplate}
+          <CollectionProductGrid
             basePath={basePath}
-            cardButtonStyle={theme.collections.cardButtonStyle}
+            config={theme.collections}
             products={products.map((p) => ({
               id: p.id,
               slug: p.slug,
