@@ -62,6 +62,59 @@ export async function listManualProducts(brandId: string) {
   });
 }
 
+/// Aplana una fila de listManualProducts al shape plano que espera el
+/// portal (ManualProduct en store-product-form.tsx) — Decimal → number,
+/// images/brandCollections (relaciones, objetos) → arrays planos de
+/// string. SIN esto, cualquier lugar que lea el producto tal como viene
+/// de Prisma (ej. la API GET de abajo) manda esos objetos derecho al
+/// formulario, y al guardar el schema de creación (que espera
+/// `images: string[]`) revienta con "Invalid input: expected string,
+/// received object" — pasó exactamente eso al duplicar un producto cuya
+/// lista se había recargado por API en vez de venir del render inicial
+/// del server. Un solo mapeo compartido para que page.tsx (SSR) y la
+/// API GET nunca vuelvan a desincronizarse. Ver conversación del
+/// 2026-09-14.
+export function toManualProductSummary(
+  product: Awaited<ReturnType<typeof listManualProducts>>[number],
+) {
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    images: product.images.map((img) => img.url),
+    imageUrl: product.imageUrl,
+    price: Number(product.price),
+    compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
+    slug: product.slug,
+    sku: product.sku,
+    barcode: product.barcode,
+    weight: product.weight != null ? Number(product.weight) : null,
+    weightUnit: product.weightUnit,
+    stock: product.stock,
+    status: product.status,
+    type: product.type,
+    serviceModality: product.serviceModality,
+    serviceDurationMinutes: product.serviceDurationMinutes,
+    serviceLocation: product.serviceLocation,
+    digitalFileUrl: product.digitalFileUrl,
+    collectionIds: product.brandCollections.map((c) => c.collectionId),
+    hasVariants: product.hasVariants,
+    optionNames: product.optionNames,
+    variants: product.variants.map((v) => ({
+      id: v.id,
+      option1Value: v.option1Value,
+      option2Value: v.option2Value,
+      option3Value: v.option3Value,
+      price: v.price != null ? Number(v.price) : null,
+      sku: v.sku,
+      barcode: v.barcode,
+      stock: v.stock,
+      weight: v.weight != null ? Number(v.weight) : null,
+      weightUnit: v.weightUnit,
+    })),
+  };
+}
+
 /// Productos sincronizados de Shopify/WooCommerce (manual = false) para
 /// elegir en "Importar producto" — ya tenemos su nombre, descripción,
 /// peso, SKU y fotos, así que la marca no tiene que volver a escribirlo

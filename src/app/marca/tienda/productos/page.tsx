@@ -1,6 +1,9 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { listManualProducts } from "@/server/services/brand-store-product-service";
+import {
+  listManualProducts,
+  toManualProductSummary,
+} from "@/server/services/brand-store-product-service";
 import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreProductsPanel } from "@/components/portal/store-products-panel";
 
@@ -22,45 +25,7 @@ export default async function TiendaProductosPage() {
         El catálogo de tu tienda en Marcolini.
       </p>
       <StoreSubNav />
-      <StoreProductsPanel
-        initialProducts={products.map((p) => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          images: p.images.map((img) => img.url),
-          imageUrl: p.imageUrl,
-          price: Number(p.price),
-          compareAtPrice:
-            p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
-          slug: p.slug,
-          sku: p.sku,
-          barcode: p.barcode,
-          weight: p.weight != null ? Number(p.weight) : null,
-          weightUnit: p.weightUnit,
-          stock: p.stock,
-          status: p.status,
-          type: p.type,
-          serviceModality: p.serviceModality,
-          serviceDurationMinutes: p.serviceDurationMinutes,
-          serviceLocation: p.serviceLocation,
-          digitalFileUrl: p.digitalFileUrl,
-          collectionIds: p.brandCollections.map((c) => c.collectionId),
-          hasVariants: p.hasVariants,
-          optionNames: p.optionNames,
-          variants: p.variants.map((v) => ({
-            id: v.id,
-            option1Value: v.option1Value,
-            option2Value: v.option2Value,
-            option3Value: v.option3Value,
-            price: v.price != null ? Number(v.price) : null,
-            sku: v.sku,
-            barcode: v.barcode,
-            stock: v.stock,
-            weight: v.weight != null ? Number(v.weight) : null,
-            weightUnit: v.weightUnit,
-          })),
-        }))}
-      />
+      <StoreProductsPanel initialProducts={products.map(toManualProductSummary)} />
     </div>
   );
 }

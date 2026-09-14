@@ -7,6 +7,7 @@ import {
 } from "@/lib/validation/brand";
 import {
   listManualProducts,
+  toManualProductSummary,
   createManualProduct,
   updateManualProduct,
   deleteManualProduct,
@@ -18,8 +19,13 @@ export async function GET() {
   if (!profile)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+  // Mismo mapeo que usa la carga inicial del server (page.tsx) — sin
+  // esto, esta ruta mandaba las filas crudas de Prisma (Decimal,
+  // relaciones como objetos) y cualquier producto recargado por acá
+  // (ej. tras guardar, o al duplicar uno) rompía al guardar de nuevo.
+  // Ver toManualProductSummary.
   const products = await listManualProducts(profile.id);
-  return NextResponse.json({ products });
+  return NextResponse.json({ products: products.map(toManualProductSummary) });
 }
 
 export async function POST(req: Request) {
