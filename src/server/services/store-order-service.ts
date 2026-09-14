@@ -52,6 +52,28 @@ export async function getStorefrontProduct(brandId: string, slug: string) {
   });
 }
 
+/// Cotiza el envío para un departamento + peso/monto dados, sin crear
+/// nada — el checkout la usa para mostrar el costo real antes de pagar
+/// (ya no hay tarifa única de respaldo, ver createStoreOrder). Null si la
+/// tienda no tiene zonas, ninguna cubre el departamento, o ninguna tarifa
+/// de la zona aplica al pedido — el checkout muestra el mensaje
+/// correspondiente en cada caso.
+export async function quoteShipping(
+  brandId: string,
+  params: { region: string; orderAmountCents: number; weightKg: number },
+) {
+  const zones = await listShippingZones(brandId);
+  if (zones.length === 0) return { ok: false as const, reason: "NO_ZONES" as const };
+  const zone = matchShippingZone(zones, params.region);
+  if (!zone) return { ok: false as const, reason: "NO_ZONE_MATCH" as const };
+  const rate = pickShippingRate(zone.rates, {
+    orderAmountCents: params.orderAmountCents,
+    weightKg: params.weightKg,
+  });
+  if (!rate) return { ok: false as const, reason: "NO_RATE_MATCH" as const };
+  return { ok: true as const, shippingCents: Math.round(Number(rate.price) * 100) };
+}
+
 /// Valida un código de creador sin crear nada — se usa para mostrar el
 /// descuento en vivo en el checkout antes de confirmar el pedido.
 export async function previewDiscountCode(brandId: string, rawCode: string) {
@@ -196,17 +218,18 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     });
   }
 
-  // Un carrito nunca mezcla productos físicos con servicios — necesitan
-  // datos distintos al pagar (envío vs. fecha/hora) y sería confuso
-  // resolver ambos en un mismo formulario. Si el comprador quiere las dos
-  // cosas, hace dos pedidos separados.
+  // Un carrito nunca mezcla tipos de producto (físico / servicio / digital)
+  // — cada uno necesita datos distintos al pagar (envío vs. fecha/hora vs.
+  // nada) y sería confuso resolverlos en un mismo formulario. Si el
+  // comprador quiere varios tipos, hace pedidos separados.
   const cartTypes = new Set(input.items.map((i) => productMap.get(i.productId)!.type));
   if (cartTypes.size > 1) {
     throw new StoreOrderError(
-      "No puedes mezclar productos y servicios en el mismo pedido — hazlos por separado.",
+      "No puedes mezclar distintos tipos de producto en el mismo pedido — hazlos por separado.",
     );
   }
   const isServiceOrder = cartTypes.has("SERVICE");
+  const isDigitalOrder = cartTypes.has("DIGITAL");
 
   let servicePreferredAt: Date | null = null;
   if (isServiceOrder) {
@@ -217,7 +240,8 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     if (Number.isNaN(servicePreferredAt.getTime()) || servicePreferredAt.getTime() < Date.now()) {
       throw new StoreOrderError("Elige una fecha y hora válida, más adelante en el tiempo.");
     }
-  } else {
+  } else if (!isDigitalOrder) {
+    // Un producto digital no se envía ni se reserva — no pide nada de esto.
     if (
       !input.shippingAddress?.trim() ||
       !input.shippingCity?.trim() ||
@@ -243,43 +267,50 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   const afterDiscount = subtotalCents - discountCents;
 
   // Zona de envío que cubra el departamento elegido (o la zona catch-all
-  // "Resto de Colombia") — si la marca no creó ninguna zona, o ninguna
-  // cubre esa región, se usa la tarifa/umbral únicos de siempre
-  // (BrandProfile.shippingFlatRate/freeShippingThreshold) como respaldo.
-  // Cada zona puede traer varias tarifas con condición (peso, monto del
-  // pedido) — pickShippingRate elige la más barata entre las que aplican.
-  // Ver conversación del 2026-09-14.
-  let shippingRateCents = brand.shippingFlatRate
-    ? Math.round(Number(brand.shippingFlatRate) * 100)
-    : 0;
-  let shippingFreeThresholdCents = brand.freeShippingThreshold
-    ? Math.round(Number(brand.freeShippingThreshold) * 100)
-    : null;
-
-  if (!isServiceOrder && input.shippingRegion) {
+  // "Resto de Colombia") — cada zona puede traer varias tarifas con
+  // condición (peso, monto del pedido) y pickShippingRate elige la más
+  // barata entre las que aplican. Ya no hay tarifa/umbral únicos de
+  // respaldo (BrandProfile.shippingFlatRate/freeShippingThreshold quedaron
+  // solo por compatibilidad con pedidos viejos) — toda marca con productos
+  // físicos necesita al menos una ShippingZone configurada. Ver
+  // conversación del 2026-09-14: "tienen que crear zonas de envío
+  // obligatorio".
+  let shippingCents = 0;
+  if (!isServiceOrder && !isDigitalOrder) {
     const zones = await listShippingZones(brand.id);
-    const zone = matchShippingZone(zones, input.shippingRegion);
-    if (zone) {
-      const rate = pickShippingRate(zone.rates, {
-        orderAmountCents: afterDiscount,
-        weightKg: totalWeightKg,
-      });
-      if (rate) {
-        shippingRateCents = Math.round(Number(rate.price) * 100);
-        shippingFreeThresholdCents = null; // ya lo resuelve pickShippingRate
-      }
+    if (zones.length === 0) {
+      throw new StoreOrderError(
+        "Esta tienda todavía no configuró sus zonas de envío — vuelve más tarde.",
+      );
     }
+    const zone = matchShippingZone(zones, input.shippingRegion!);
+    if (!zone) {
+      throw new StoreOrderError(
+        "Todavía no hacemos envíos a tu departamento — contacta a la tienda.",
+      );
+    }
+    const rate = pickShippingRate(zone.rates, {
+      orderAmountCents: afterDiscount,
+      weightKg: totalWeightKg,
+    });
+    if (!rate) {
+      throw new StoreOrderError(
+        "No hay una tarifa de envío que aplique a tu pedido — contacta a la tienda.",
+      );
+    }
+    shippingCents = Math.round(Number(rate.price) * 100);
   }
 
-  // Un servicio no se envía — nunca cobra flete, sin importar la
-  // configuración de envíos de la marca.
-  const shippingCents = isServiceOrder
-    ? 0
-    : shippingFreeThresholdCents != null && afterDiscount >= shippingFreeThresholdCents
-      ? 0
-      : shippingRateCents;
+  // IVA de la marca (BrandProfile.taxRatePercent, 10% por defecto — ver
+  // conversación del 2026-09-14) sobre el subtotal ya con descuento, sin
+  // incluir el envío. Se guarda el valor calculado en centavos, no el %,
+  // para que un pedido viejo no cambie de total si la marca ajusta la tasa
+  // después (ver StoreOrder.taxCents en el schema).
+  const taxCents = Math.round(
+    (afterDiscount * Number(brand.taxRatePercent)) / 100,
+  );
 
-  const totalCents = afterDiscount + shippingCents;
+  const totalCents = afterDiscount + taxCents + shippingCents;
   if (totalCents <= 0) {
     throw new StoreOrderError("El total del pedido debe ser mayor a cero.");
   }
@@ -294,15 +325,19 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
         buyerName: input.buyerName.trim(),
         buyerEmail: input.buyerEmail.trim().toLowerCase(),
         buyerPhone: input.buyerPhone.trim(),
-        shippingAddress: isServiceOrder ? null : input.shippingAddress!.trim(),
-        shippingCity: isServiceOrder ? null : input.shippingCity!.trim(),
-        shippingRegion: isServiceOrder ? null : input.shippingRegion!.trim(),
+        shippingAddress:
+          isServiceOrder || isDigitalOrder ? null : input.shippingAddress!.trim(),
+        shippingCity:
+          isServiceOrder || isDigitalOrder ? null : input.shippingCity!.trim(),
+        shippingRegion:
+          isServiceOrder || isDigitalOrder ? null : input.shippingRegion!.trim(),
         servicePreferredAt,
         shippingNotes: input.shippingNotes?.trim() || null,
         discountCode,
         subtotalCents,
         discountCents,
         shippingCents,
+        taxCents,
         totalCents,
         paymentMode: keys.mode,
         items: { create: itemsData },
@@ -334,7 +369,13 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
 export async function getStoreOrder(orderId: string) {
   return prisma.storeOrder.findUnique({
     where: { id: orderId },
-    include: { items: true, brand: true },
+    include: {
+      // El `product` solo se necesita para el link de descarga de un
+      // producto DIGITAL ya pagado (ver la página de confirmación) — el
+      // resto del pedido usa la "foto" que ya guarda cada item.
+      items: { include: { product: { select: { type: true, digitalFileUrl: true } } } },
+      brand: true,
+    },
   });
 }
 

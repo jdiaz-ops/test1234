@@ -93,6 +93,7 @@ export function StoreOrdersPanel({
     <div className="space-y-3">
       {initialOrders.map((order) => {
         const isService = order.servicePreferredAt != null;
+        const isDigital = !isService && order.shippingAddress == null;
         return (
           <Link
             key={order.id}
@@ -104,7 +105,7 @@ export function StoreOrdersPanel({
                 className={`text-[10px] font-mono font-medium rounded-full px-2 py-0.5 shrink-0 ${
                   order.kind === "SAMPLE"
                     ? "bg-purple-100 text-purple-700"
-                    : isService
+                    : isService || isDigital
                       ? "bg-purple-100 text-purple-700"
                       : "bg-brand-accent-soft text-brand-accent"
                 }`}
@@ -113,7 +114,9 @@ export function StoreOrdersPanel({
                   ? "MUESTRA"
                   : isService
                     ? "RESERVA"
-                    : "COMPRA"}
+                    : isDigital
+                      ? "DIGITAL"
+                      : "COMPRA"}
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-brand-ink truncate">
@@ -135,7 +138,7 @@ export function StoreOrdersPanel({
               >
                 {STATUS_LABEL[order.status]}
               </span>
-              {order.status === "PAID" && !isService && (
+              {order.status === "PAID" && !isService && !isDigital && (
                 <span
                   className={`text-xs font-medium rounded-full px-2.5 py-1 ${FULFILLMENT_CLASS[order.fulfillmentStatus]}`}
                 >

@@ -43,6 +43,7 @@ export default async function TiendaProductosPage() {
           serviceModality: p.serviceModality,
           serviceDurationMinutes: p.serviceDurationMinutes,
           serviceLocation: p.serviceLocation,
+          digitalFileUrl: p.digitalFileUrl,
           collectionIds: p.brandCollections.map((c) => c.collectionId),
           hasVariants: p.hasVariants,
           optionNames: p.optionNames,

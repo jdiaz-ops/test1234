@@ -5,7 +5,7 @@ export type CatalogProduct = {
   price: number;
   imageUrl: string | null;
   stock: number | null;
-  type: "PHYSICAL" | "SERVICE";
+  type: "PHYSICAL" | "SERVICE" | "DIGITAL";
 };
 
 export function formatCOP(amount: number) {

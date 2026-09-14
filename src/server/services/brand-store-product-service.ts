@@ -33,10 +33,11 @@ type ManualProductInput = {
   /// Prisma se sigue derivando de esto al guardar (status !== DRAFT),
   /// para no tener que tocar cada lugar que ya filtra por available.
   status?: "ACTIVE" | "DRAFT" | "UNLISTED";
-  type?: "PHYSICAL" | "SERVICE";
+  type?: "PHYSICAL" | "SERVICE" | "DIGITAL";
   serviceModality?: "VIRTUAL" | "PRESENCIAL" | null;
   serviceDurationMinutes?: number | null;
   serviceLocation?: string;
+  digitalFileUrl?: string;
   collectionIds?: string[];
   hasVariants?: boolean;
   optionNames?: string[];
@@ -59,6 +60,41 @@ export async function listManualProducts(brandId: string) {
     orderBy: { createdAt: "desc" },
     include: productListInclude,
   });
+}
+
+/// Productos sincronizados de Shopify/WooCommerce (manual = false) para
+/// elegir en "Importar producto" — ya tenemos su nombre, descripción,
+/// peso, SKU y fotos, así que la marca no tiene que volver a escribirlo
+/// a mano en un producto manual editable. Ver conversación del
+/// 2026-09-14: "me gusta la función de poder importar productos".
+export async function listSyncedProductsForImport(brandId: string) {
+  return prisma.product.findMany({
+    where: { brandId, manual: false },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, imageUrl: true, price: true },
+  });
+}
+
+/// El detalle completo de un producto sincronizado puntual, en el shape
+/// que espera StoreProductForm como `seed` — no crea nada, solo prepara
+/// los valores para que la marca los revise/edite antes de guardar.
+export async function getSyncedProductForImport(brandId: string, productId: string) {
+  const product = await prisma.product.findFirst({
+    where: { id: productId, brandId, manual: false },
+  });
+  if (!product) throw new BrandStoreProductError("Producto no encontrado.");
+  return {
+    name: product.name,
+    description: product.description,
+    images: product.imageUrl ? [product.imageUrl] : [],
+    imageUrl: product.imageUrl,
+    price: Number(product.price),
+    compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
+    sku: product.sku,
+    barcode: product.barcode,
+    weight: product.weight != null ? Number(product.weight) : null,
+    weightUnit: product.weightUnit,
+  };
 }
 
 /// El slug ya no lo edita la marca (ver store-product-form.tsx) — si el
@@ -169,7 +205,7 @@ export async function createManualProduct(
         slug,
         sku: hasVariants ? null : data.sku || null,
         barcode: hasVariants ? null : data.barcode || null,
-        weight: hasVariants ? null : (data.weight ?? null),
+        weight: hasVariants || data.type === "DIGITAL" ? null : (data.weight ?? null),
         weightUnit: data.weightUnit ?? "KG",
         stock: hasVariants ? null : (data.stock ?? null),
         status: data.status ?? "ACTIVE",
@@ -178,6 +214,7 @@ export async function createManualProduct(
         serviceModality: data.type === "SERVICE" ? (data.serviceModality ?? null) : null,
         serviceDurationMinutes: data.type === "SERVICE" ? (data.serviceDurationMinutes ?? null) : null,
         serviceLocation: data.type === "SERVICE" ? data.serviceLocation || null : null,
+        digitalFileUrl: data.type === "DIGITAL" ? data.digitalFileUrl || null : null,
         hasVariants,
         optionNames: hasVariants ? (data.optionNames ?? []) : [],
       },
@@ -246,7 +283,7 @@ export async function updateManualProduct(
         url,
         sku: hasVariants ? null : data.sku || null,
         barcode: hasVariants ? null : data.barcode || null,
-        weight: hasVariants ? null : (data.weight ?? null),
+        weight: hasVariants || data.type === "DIGITAL" ? null : (data.weight ?? null),
         weightUnit: data.weightUnit ?? "KG",
         stock: hasVariants ? null : (data.stock ?? null),
         status: data.status ?? "ACTIVE",
@@ -255,6 +292,7 @@ export async function updateManualProduct(
         serviceModality: data.type === "SERVICE" ? (data.serviceModality ?? null) : null,
         serviceDurationMinutes: data.type === "SERVICE" ? (data.serviceDurationMinutes ?? null) : null,
         serviceLocation: data.type === "SERVICE" ? data.serviceLocation || null : null,
+        digitalFileUrl: data.type === "DIGITAL" ? data.digitalFileUrl || null : null,
         hasVariants,
         optionNames: hasVariants ? (data.optionNames ?? []) : [],
       },

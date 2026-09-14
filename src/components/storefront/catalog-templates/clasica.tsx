@@ -37,6 +37,11 @@ export function ClasicaTemplate({
                   SERVICIO
                 </p>
               )}
+              {product.type === "DIGITAL" && (
+                <p className="text-[10px] font-mono text-brand-accent mb-0.5">
+                  DIGITAL
+                </p>
+              )}
               <p className="text-xs font-medium text-brand-ink leading-snug line-clamp-2">
                 {product.name}
               </p>

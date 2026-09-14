@@ -68,10 +68,11 @@ export type ManualProduct = {
   weightUnit: WeightUnit;
   stock: number | null;
   status: ProductStatusValue;
-  type: "PHYSICAL" | "SERVICE";
+  type: "PHYSICAL" | "SERVICE" | "DIGITAL";
   serviceModality: "VIRTUAL" | "PRESENCIAL" | null;
   serviceDurationMinutes: number | null;
   serviceLocation: string | null;
+  digitalFileUrl: string | null;
   collectionIds: string[];
   hasVariants: boolean;
   optionNames: string[];
@@ -111,18 +112,25 @@ function toVariantRows(variants: ManualProductVariant[]): VariantRowInput[] {
 
 export function StoreProductForm({
   initial,
+  seed,
   onSaved,
   onCancel,
 }: {
   initial?: ManualProduct;
+  /// Precarga los campos SIN entrar en modo edición (Tipo sigue
+  /// editable, se guarda con POST no PATCH) — se usa al importar un
+  /// producto ya sincronizado de Shopify/WooCommerce. Ver conversación
+  /// del 2026-09-14: "me gusta la función de poder importar productos".
+  seed?: Partial<ManualProduct>;
   onSaved: () => void;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [price, setPrice] = useState<number | null>(initial?.price ?? null);
+  const source = initial ?? seed;
+  const [name, setName] = useState(source?.name ?? "");
+  const [description, setDescription] = useState(source?.description ?? "");
+  const [price, setPrice] = useState<number | null>(source?.price ?? null);
   const [compareAtPrice, setCompareAtPrice] = useState<number | null>(
-    initial?.compareAtPrice ?? null,
+    source?.compareAtPrice ?? null,
   );
   // Productos creados antes de la galería (ver ProductImage en el schema)
   // solo tienen imageUrl, sin filas en `images` — sin este respaldo, abrir
@@ -130,56 +138,60 @@ export function StoreProductForm({
   // portada (images[0] ?? null en el servicio). Ver conversación del
   // 2026-09-14.
   const [images, setImages] = useState<string[]>(
-    initial?.images && initial.images.length > 0
-      ? initial.images
-      : initial?.imageUrl
-        ? [initial.imageUrl]
+    source?.images && source.images.length > 0
+      ? source.images
+      : source?.imageUrl
+        ? [source.imageUrl]
         : [],
   );
-  const [sku, setSku] = useState(initial?.sku ?? "");
-  const [barcode, setBarcode] = useState(initial?.barcode ?? "");
-  const [weight, setWeight] = useState<number | null>(initial?.weight ?? null);
+  const [sku, setSku] = useState(source?.sku ?? "");
+  const [barcode, setBarcode] = useState(source?.barcode ?? "");
+  const [weight, setWeight] = useState<number | null>(source?.weight ?? null);
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(
-    initial?.weightUnit ?? "KG",
+    source?.weightUnit ?? "KG",
   );
   const [stock, setStock] = useState(
-    initial?.stock != null ? String(initial.stock) : "",
+    source?.stock != null ? String(source.stock) : "",
   );
   const [status, setStatus] = useState<ProductStatusValue>(
-    initial?.status ?? "ACTIVE",
+    source?.status ?? "ACTIVE",
   );
-  const [type, setType] = useState<"PHYSICAL" | "SERVICE">(
-    initial?.type ?? "PHYSICAL",
+  const [type, setType] = useState<"PHYSICAL" | "SERVICE" | "DIGITAL">(
+    source?.type ?? "PHYSICAL",
   );
   const [serviceModality, setServiceModality] = useState<
     "VIRTUAL" | "PRESENCIAL"
-  >(initial?.serviceModality ?? "VIRTUAL");
+  >(source?.serviceModality ?? "VIRTUAL");
   const [serviceDurationMinutes, setServiceDurationMinutes] = useState(
-    initial?.serviceDurationMinutes != null
-      ? String(initial.serviceDurationMinutes)
+    source?.serviceDurationMinutes != null
+      ? String(source.serviceDurationMinutes)
       : "",
   );
   const [serviceLocation, setServiceLocation] = useState(
-    initial?.serviceLocation ?? "",
+    source?.serviceLocation ?? "",
+  );
+  const [digitalFileUrl, setDigitalFileUrl] = useState(
+    source?.digitalFileUrl ?? "",
   );
 
   const [allCollections, setAllCollections] = useState<BrandCollectionOption[]>([]);
   const [collectionIds, setCollectionIds] = useState<string[]>(
-    initial?.collectionIds ?? [],
+    source?.collectionIds ?? [],
   );
 
-  const [hasVariants, setHasVariants] = useState(initial?.hasVariants ?? false);
+  const [hasVariants, setHasVariants] = useState(source?.hasVariants ?? false);
   const [optionNames, setOptionNames] = useState<string[]>(
-    initial?.optionNames ?? [],
+    source?.optionNames ?? [],
   );
   const [variantRows, setVariantRows] = useState<VariantRowInput[]>(
-    toVariantRows(initial?.variants ?? []),
+    toVariantRows(source?.variants ?? []),
   );
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isService = type === "SERVICE";
+  const isDigital = type === "DIGITAL";
 
   useEffect(() => {
     fetch("/api/marca/tienda/colecciones")
@@ -228,6 +240,7 @@ export function StoreProductForm({
           : serviceDurationMinutes
         : null,
       serviceLocation: isService ? serviceLocation : "",
+      digitalFileUrl: isDigital ? digitalFileUrl : "",
       collectionIds,
       hasVariants,
       optionNames: hasVariants ? optionNames.filter((n) => n.trim()) : [],
@@ -275,7 +288,7 @@ export function StoreProductForm({
       <div>
         <label className="block text-sm text-brand-ink mb-1">Tipo</label>
         <div className="flex gap-2">
-          {(["PHYSICAL", "SERVICE"] as const).map((t) => (
+          {(["PHYSICAL", "SERVICE", "DIGITAL"] as const).map((t) => (
             <button
               key={t}
               type="button"
@@ -287,7 +300,7 @@ export function StoreProductForm({
                   : "border-brand-line text-brand-ink-soft hover:bg-brand-accent-soft"
               }`}
             >
-              {t === "PHYSICAL" ? "Producto físico" : "Servicio"}
+              {t === "PHYSICAL" ? "Producto físico" : t === "SERVICE" ? "Servicio" : "Producto digital"}
             </button>
           ))}
         </div>
@@ -300,7 +313,7 @@ export function StoreProductForm({
 
       <div>
         <label className="block text-sm text-brand-ink mb-1">
-          {isService ? "Nombre del servicio" : "Nombre del producto"}
+          {isService ? "Nombre del servicio" : isDigital ? "Nombre del producto digital" : "Nombre del producto"}
         </label>
         <input
           required
@@ -384,7 +397,26 @@ export function StoreProductForm({
         </div>
       )}
 
-      {!isService && (
+      {isDigital && (
+        <div className="rounded-xl border border-brand-line p-4">
+          <label className="block text-sm text-brand-ink mb-1">
+            Link del archivo
+          </label>
+          <input
+            required
+            value={digitalFileUrl}
+            onChange={(e) => setDigitalFileUrl(e.target.value)}
+            placeholder="Ej. https://drive.google.com/..."
+            className="input"
+          />
+          <p className="text-xs text-brand-ink-soft mt-1">
+            El link que recibe quien compre, una vez pagado — Drive, Dropbox,
+            WeTransfer, lo que uses. No alojamos el archivo, solo el link.
+          </p>
+        </div>
+      )}
+
+      {!isService && !isDigital && (
         <div className="rounded-xl border border-brand-line p-3">
           <label className="flex items-center gap-2 text-sm text-brand-ink">
             <input
@@ -443,7 +475,7 @@ export function StoreProductForm({
             </div>
           </div>
 
-          {!isService && (
+          {!isService && !isDigital && (
             <div>
               <label className="block text-sm text-brand-ink mb-1">
                 Peso (opcional)

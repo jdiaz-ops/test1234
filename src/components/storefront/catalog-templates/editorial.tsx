@@ -35,6 +35,11 @@ export function EditorialTemplate({
                 SERVICIO
               </p>
             )}
+            {featured.type === "DIGITAL" && (
+              <p className="text-xs font-mono text-brand-accent mb-1">
+                DIGITAL
+              </p>
+            )}
             <p className="font-display text-2xl font-semibold text-brand-ink">
               {featured.name}
             </p>

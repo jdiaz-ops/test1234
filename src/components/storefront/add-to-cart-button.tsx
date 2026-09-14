@@ -10,7 +10,7 @@ type Product = {
   price: number;
   imageUrl: string | null;
   stock: number | null;
-  type?: "PHYSICAL" | "SERVICE";
+  type?: "PHYSICAL" | "SERVICE" | "DIGITAL";
   /// Solo cuando el producto tiene variantes — ver variant-picker.tsx, que
   /// es quien calcula cuál está seleccionada.
   variantId?: string | null;

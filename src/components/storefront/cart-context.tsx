@@ -68,12 +68,14 @@ export function CartProvider({
     ): { ok: true } | { ok: false; error: string } => {
       const existingType = items[0]?.type;
       if (existingType && existingType !== item.type) {
+        const label: Record<CartItem["type"], string> = {
+          PHYSICAL: "productos",
+          SERVICE: "una reserva de servicio",
+          DIGITAL: "un producto digital",
+        };
         return {
           ok: false,
-          error:
-            item.type === "SERVICE"
-              ? "Ya tienes productos en tu carrito — paga ese pedido antes de reservar un servicio."
-              : "Ya tienes una reserva de servicio en tu carrito — complétala antes de agregar productos.",
+          error: `Ya tienes ${label[existingType]} en tu carrito — complétalo o vacíalo antes de agregar ${label[item.type]}.`,
         };
       }
       setItems((prev) => {

@@ -142,13 +142,61 @@ export default async function StorefrontOrderStatusPage({
               )}
             </div>
           ))}
-          <div className="flex justify-between font-semibold text-brand-ink pt-2 border-t border-brand-line mt-2">
-            <span>Total</span>
-            <span className="font-mono">
-              {formatCOP(order.totalCents / 100)}
-            </span>
+          <div className="pt-2 border-t border-brand-line mt-2 space-y-1">
+            {order.discountCents > 0 && (
+              <div className="flex justify-between text-brand-ink-soft">
+                <span>Descuento</span>
+                <span className="font-mono">
+                  −{formatCOP(order.discountCents / 100)}
+                </span>
+              </div>
+            )}
+            {order.taxCents > 0 && (
+              <div className="flex justify-between text-brand-ink-soft">
+                <span>IVA</span>
+                <span className="font-mono">
+                  {formatCOP(order.taxCents / 100)}
+                </span>
+              </div>
+            )}
+            {order.shippingCents > 0 && (
+              <div className="flex justify-between text-brand-ink-soft">
+                <span>Envío</span>
+                <span className="font-mono">
+                  {formatCOP(order.shippingCents / 100)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between font-semibold text-brand-ink">
+              <span>Total</span>
+              <span className="font-mono">
+                {formatCOP(order.totalCents / 100)}
+              </span>
+            </div>
           </div>
         </div>
+
+        {order.status === "PAID" &&
+          order.items.some((i) => i.product?.type === "DIGITAL" && i.product.digitalFileUrl) && (
+            <div className="text-left rounded-xl border border-brand-accent/40 bg-brand-accent-soft p-4 mb-6 space-y-2">
+              <p className="text-sm font-medium text-brand-ink">
+                Tus archivos digitales
+              </p>
+              {order.items
+                .filter((i) => i.product?.type === "DIGITAL" && i.product.digitalFileUrl)
+                .map((i) => (
+                  <a
+                    key={i.id}
+                    href={i.product!.digitalFileUrl!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-sm text-brand-accent hover:underline truncate"
+                  >
+                    {i.name} — descargar / acceder ↗
+                  </a>
+                ))}
+            </div>
+          )}
 
         <Link
           href={basePath || "/"}

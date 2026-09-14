@@ -65,6 +65,10 @@ export default async function TiendaPedidoDetallePage({
   if (!order) notFound();
 
   const isService = order.servicePreferredAt != null;
+  // Un pedido digital tampoco tiene fecha de servicio ni dirección — se
+  // distingue de uno físico por eso (ver createStoreOrder, que deja ambos
+  // en null solo para pedidos DIGITAL).
+  const isDigital = !isService && order.shippingAddress == null;
   const creator = order.transaction
     ? {
         name: order.transaction.creator.displayName,
@@ -97,7 +101,7 @@ export default async function TiendaPedidoDetallePage({
           >
             {STATUS_LABEL[order.status]}
           </span>
-          {order.status === "PAID" && !isService && (
+          {order.status === "PAID" && !isService && !isDigital && (
             <span
               className={`text-xs font-medium rounded-full px-2.5 py-1 ${FULFILLMENT_CLASS[order.fulfillmentStatus]}`}
             >
@@ -134,7 +138,7 @@ export default async function TiendaPedidoDetallePage({
             />
           </div>
 
-          {order.status === "PAID" && !isService && (
+          {order.status === "PAID" && !isService && !isDigital && (
             <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
               <p className="text-sm font-medium text-brand-ink mb-3">
                 Preparación y envío
@@ -183,11 +187,15 @@ export default async function TiendaPedidoDetallePage({
             </div>
             <div>
               <p className="text-xs font-medium text-brand-ink-soft mb-1">
-                {isService ? "Reserva" : "Envío"}
+                {isService ? "Reserva" : isDigital ? "Entrega" : "Envío"}
               </p>
               {isService ? (
                 <p className="text-brand-ink">
                   Prefiere: {formatDateTime(order.servicePreferredAt!)}
+                </p>
+              ) : isDigital ? (
+                <p className="text-brand-ink">
+                  Digital — sin envío, se entrega por link.
                 </p>
               ) : (
                 <>
@@ -249,7 +257,15 @@ export default async function TiendaPedidoDetallePage({
                 </span>
               </div>
             )}
-            {!isService && (
+            {order.taxCents > 0 && (
+              <div className="flex justify-between">
+                <span className="text-brand-ink-soft">IVA</span>
+                <span className="font-mono text-brand-ink">
+                  {formatCOP(order.taxCents)}
+                </span>
+              </div>
+            )}
+            {order.shippingAddress != null && (
               <div className="flex justify-between">
                 <span className="text-brand-ink-soft">Envío</span>
                 <span className="font-mono text-brand-ink">

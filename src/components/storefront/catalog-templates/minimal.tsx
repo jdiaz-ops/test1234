@@ -36,6 +36,11 @@ export function MinimalTemplate({
                   SERVICIO
                 </p>
               )}
+              {product.type === "DIGITAL" && (
+                <p className="text-[10px] font-mono text-brand-accent mb-0.5">
+                  DIGITAL
+                </p>
+              )}
               <p className="font-display text-base text-brand-ink truncate">
                 {product.name}
               </p>

@@ -11,6 +11,7 @@ import { VariantPicker } from "@/components/storefront/variant-picker";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
+import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -52,7 +53,11 @@ export default async function StorefrontProductPage({
 
   const outOfStock = product.stock != null && product.stock <= 0;
   const isService = product.type === "SERVICE";
-  const basePath = await getStoreBasePath(slug);
+  const isDigital = product.type === "DIGITAL";
+  const [basePath, menuItems] = await Promise.all([
+    getStoreBasePath(slug),
+    listStorefrontMenuItems(brand.id),
+  ]);
 
   return (
     <CartProvider brandSlug={slug}>
@@ -62,6 +67,7 @@ export default async function StorefrontProductPage({
           brandName={brand.companyName}
           logoUrl={brand.logoUrl}
           basePath={basePath}
+          menuItems={menuItems}
         />
         <div className="max-w-3xl mx-auto px-6 py-10 grid sm:grid-cols-2 gap-8">
           <div>
@@ -79,7 +85,11 @@ export default async function StorefrontProductPage({
           <div className="flex flex-col gap-4">
             <div>
               <p className="font-mono text-xs text-brand-accent tracking-widest mb-1">
-                {isService ? "SERVICIO" : brand.companyName.toUpperCase()}
+                {isService
+                  ? "SERVICIO"
+                  : isDigital
+                    ? "PRODUCTO DIGITAL"
+                    : brand.companyName.toUpperCase()}
               </p>
               <h1 className="font-display text-2xl font-semibold text-brand-ink">
                 {product.name}
@@ -128,6 +138,13 @@ export default async function StorefrontProductPage({
                       : "Te llega el link de la videollamada al confirmar tu reserva."}
                   </p>
                 )}
+              </div>
+            )}
+
+            {isDigital && (
+              <div className="rounded-xl border border-brand-line p-3 text-sm text-brand-ink-soft">
+                📎 Recibes el link de descarga/acceso apenas se confirme tu
+                pago — no se envía nada físico.
               </div>
             )}
 

@@ -107,7 +107,7 @@ const productBaseSchema = z.object({
   /// derivando de esto al guardar (ver brand-store-product-service.ts),
   /// así que no hace falta mandarlo aparte.
   status: z.enum(["ACTIVE", "DRAFT", "UNLISTED"]).default("ACTIVE"),
-  type: z.enum(["PHYSICAL", "SERVICE"]).default("PHYSICAL"),
+  type: z.enum(["PHYSICAL", "SERVICE", "DIGITAL"]).default("PHYSICAL"),
   serviceModality: z.enum(["VIRTUAL", "PRESENCIAL"]).optional().nullable(),
   serviceDurationMinutes: z.coerce
     .number()
@@ -117,6 +117,7 @@ const productBaseSchema = z.object({
     .optional()
     .nullable(),
   serviceLocation: z.string().max(300).optional().or(z.literal("")),
+  digitalFileUrl: z.string().max(500).optional().or(z.literal("")),
   collectionIds: z.array(z.string().min(1)).default([]),
   hasVariants: z.boolean().default(false),
   optionNames: z.array(z.string().min(1).max(40)).max(3).default([]),
@@ -144,6 +145,22 @@ function requireServiceFields(
       code: z.ZodIssueCode.custom,
       path: ["serviceLocation"],
       message: "Ingresa la dirección o el link de la videollamada",
+    });
+  }
+}
+
+/// Un producto DIGITAL necesita el link del archivo que recibe el
+/// comprador — mismo criterio que requireServiceFields arriba.
+function requireDigitalFields(
+  data: z.infer<typeof productBaseSchema>,
+  ctx: z.RefinementCtx,
+) {
+  if (data.type !== "DIGITAL") return;
+  if (!data.digitalFileUrl || !data.digitalFileUrl.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["digitalFileUrl"],
+      message: "Ingresa el link del archivo",
     });
   }
 }
@@ -184,11 +201,13 @@ function requireStockOrVariants(
 
 export const createProductSchema = productBaseSchema
   .superRefine(requireServiceFields)
+  .superRefine(requireDigitalFields)
   .superRefine(requireStockOrVariants);
 
 export const updateProductSchema = productBaseSchema
   .extend({ productId: z.string().min(1) })
   .superRefine(requireServiceFields)
+  .superRefine(requireDigitalFields)
   .superRefine(requireStockOrVariants);
 
 export const deleteManualProductSchema = z.object({
@@ -209,22 +228,46 @@ export const wompiCredentialsSchema = z.object({
   wompiIntegrityKeyProd: z.string().optional().or(z.literal("")),
 });
 
+/// La tarifa/umbral únicos (BrandProfile.shippingFlatRate/
+/// freeShippingThreshold) ya no se editan desde acá — quedaron solo por
+/// compatibilidad con pedidos viejos (ver el comentario en el schema).
+/// Toda marca con productos físicos configura el envío por zonas (ver
+/// shippingZoneSchema) en su lugar.
 export const shippingConfigSchema = z.object({
-  shippingFlatRate: z.coerce
-    .number()
-    .min(0, "No puede ser negativo")
-    .optional()
-    .nullable(),
-  freeShippingThreshold: z.coerce
-    .number()
-    .min(0, "No puede ser negativo")
-    .optional()
-    .nullable(),
   shippingNotes: z
     .string()
     .max(500, "Máximo 500 caracteres")
     .optional()
     .or(z.literal("")),
+});
+
+/// Centro de distribución (ver saveDistributionCenter) — de dónde
+/// despacha la marca y cuántos días hábiles tarda en alistar el pedido.
+/// Todos opcionales: una marca que no lo llena simplemente no le suma
+/// tiempo de alistamiento al que ve el comprador. Ver conversación del
+/// 2026-09-14, referencia de Tiendanube.
+export const distributionCenterSchema = z.object({
+  originAddress: z.string().max(200).optional().or(z.literal("")),
+  originCity: z.string().max(100).optional().or(z.literal("")),
+  originRegion: z.string().max(100).optional().or(z.literal("")),
+  fulfillmentLeadDays: z.coerce
+    .number()
+    .int("Debe ser un número entero de días")
+    .min(0, "No puede ser negativo")
+    .max(60, "Máximo 60 días")
+    .default(0),
+});
+
+/// Mercado + IVA de "Mi tienda" (ver saveTaxConfig) — market queda fijo en
+/// "CO" por ahora (Colombia), pero se guarda como string abierto por si
+/// algún día se agregan otros países.
+export const taxConfigSchema = z.object({
+  market: z.string().min(2).max(2).default("CO"),
+  taxRatePercent: z.coerce
+    .number()
+    .min(0, "No puede ser negativo")
+    .max(100, "No puede ser mayor a 100")
+    .default(10),
 });
 
 export const storeConfigSchema = z.object({
@@ -247,6 +290,17 @@ const shippingRateSchema = z.object({
     .positive("Ingresa un umbral mayor a cero")
     .optional()
     .nullable(),
+  /// Tope opcional del rango (ej. "pesa entre 2 y 5 kg") — ver
+  /// assertValidRates en shipping-zone-service.ts.
+  conditionMaxValue: z.coerce
+    .number()
+    .positive("El tope del rango debe ser mayor a cero")
+    .optional()
+    .nullable(),
+  /// Solo presentación cuando condition = MIN_WEIGHT — conditionValue/
+  /// conditionMaxValue siempre se guardan en kg (igual que
+  /// Product.weightUnit). Ver conversación del 2026-09-14.
+  conditionValueUnit: z.enum(["KG", "G"]).optional(),
 });
 
 export const shippingZoneSchema = z.object({
@@ -580,4 +634,27 @@ export const updateOrderFulfillmentSchema = z.object({
 export const updateOrderNotesSchema = z.object({
   orderId: z.string().min(1),
   internalNotes: z.string().max(2000).optional().or(z.literal("")),
+});
+
+// ----------------------------------------------------------------------------
+// Páginas propias + menú de navegación de la vitrina — ver
+// store-page-service.ts.
+// ----------------------------------------------------------------------------
+
+export const storePageSchema = z.object({
+  title: z.string().min(2, "Ingresa un título para la página").max(100),
+  body: z.string().max(50000).optional().or(z.literal("")),
+});
+
+export const storefrontMenuItemSchema = z.object({
+  label: z.string().min(1, "Ingresa un nombre").max(60),
+  url: z.string().min(1, "Ingresa el link").max(300),
+});
+
+export const reorderStorePagesSchema = z.object({
+  order: z.array(z.string().min(1)).min(1),
+});
+
+export const reorderStorefrontMenuItemsSchema = z.object({
+  order: z.array(z.string().min(1)).min(1),
 });
