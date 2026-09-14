@@ -2,7 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { getBrandOrderDetail } from "@/server/services/store-order-service";
-import { OrderItemsList } from "@/components/portal/order-detail-panel";
+import {
+  OrderItemsList,
+  OrderFulfillmentPanel,
+  OrderNotesEditor,
+} from "@/components/portal/order-detail-panel";
 
 function formatCOP(cents: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -32,6 +36,20 @@ const STATUS_CLASS: Record<string, string> = {
   PAID: "bg-brand-accent-soft text-brand-accent",
   FAILED: "bg-red-100 text-red-700",
   EXPIRED: "bg-gray-100 text-gray-500",
+};
+
+const FULFILLMENT_LABEL: Record<string, string> = {
+  UNFULFILLED: "Sin preparar",
+  PREPARED: "Preparado",
+  SHIPPED: "Enviado",
+  DELIVERED: "Entregado",
+};
+
+const FULFILLMENT_CLASS: Record<string, string> = {
+  UNFULFILLED: "bg-gray-100 text-gray-500",
+  PREPARED: "bg-blue-100 text-blue-700",
+  SHIPPED: "bg-purple-100 text-purple-700",
+  DELIVERED: "bg-green-100 text-green-700",
 };
 
 export default async function TiendaPedidoDetallePage({
@@ -73,11 +91,20 @@ export default async function TiendaPedidoDetallePage({
         <h1 className="font-display text-2xl font-semibold text-brand-ink">
           Pedido de {order.buyerName}
         </h1>
-        <span
-          className={`text-xs font-medium rounded-full px-2.5 py-1 ${STATUS_CLASS[order.status]}`}
-        >
-          {STATUS_LABEL[order.status]}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`text-xs font-medium rounded-full px-2.5 py-1 ${STATUS_CLASS[order.status]}`}
+          >
+            {STATUS_LABEL[order.status]}
+          </span>
+          {order.status === "PAID" && !isService && (
+            <span
+              className={`text-xs font-medium rounded-full px-2.5 py-1 ${FULFILLMENT_CLASS[order.fulfillmentStatus]}`}
+            >
+              {FULFILLMENT_LABEL[order.fulfillmentStatus]}
+            </span>
+          )}
+        </div>
       </div>
       <p className="text-sm text-brand-ink-soft mb-6">
         {formatDateTime(order.createdAt)} · Referencia{" "}
@@ -107,12 +134,36 @@ export default async function TiendaPedidoDetallePage({
             />
           </div>
 
+          {order.status === "PAID" && !isService && (
+            <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+              <p className="text-sm font-medium text-brand-ink mb-3">
+                Preparación y envío
+              </p>
+              <OrderFulfillmentPanel
+                orderId={order.id}
+                initialStatus={order.fulfillmentStatus}
+                initialCarrier={order.carrier}
+                initialTrackingNumber={order.trackingNumber}
+                preparedAt={order.preparedAt?.toISOString() ?? null}
+                shippedAt={order.shippedAt?.toISOString() ?? null}
+                deliveredAt={order.deliveredAt?.toISOString() ?? null}
+              />
+            </div>
+          )}
+
           {order.shippingNotes && (
             <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
-              <p className="text-sm font-medium text-brand-ink mb-2">Notas</p>
+              <p className="text-sm font-medium text-brand-ink mb-2">
+                Notas del comprador
+              </p>
               <p className="text-sm text-brand-ink-soft">{order.shippingNotes}</p>
             </div>
           )}
+
+          <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
+            <p className="text-sm font-medium text-brand-ink mb-2">Notas internas</p>
+            <OrderNotesEditor orderId={order.id} initialNotes={order.internalNotes} />
+          </div>
         </div>
 
         <div className="space-y-6">

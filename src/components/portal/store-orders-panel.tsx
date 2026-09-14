@@ -4,6 +4,7 @@ export type StoreOrderRow = {
   id: string;
   kind: "PURCHASE" | "SAMPLE";
   status: "PENDING" | "PAID" | "FAILED" | "EXPIRED";
+  fulfillmentStatus: "UNFULFILLED" | "PREPARED" | "SHIPPED" | "DELIVERED";
   reference: string;
   buyerName: string;
   buyerEmail: string;
@@ -56,6 +57,20 @@ const STATUS_CLASS: Record<StoreOrderRow["status"], string> = {
   EXPIRED: "bg-gray-100 text-gray-500",
 };
 
+const FULFILLMENT_LABEL: Record<StoreOrderRow["fulfillmentStatus"], string> = {
+  UNFULFILLED: "Sin preparar",
+  PREPARED: "Preparado",
+  SHIPPED: "Enviado",
+  DELIVERED: "Entregado",
+};
+
+const FULFILLMENT_CLASS: Record<StoreOrderRow["fulfillmentStatus"], string> = {
+  UNFULFILLED: "bg-gray-100 text-gray-500",
+  PREPARED: "bg-blue-100 text-blue-700",
+  SHIPPED: "bg-purple-100 text-purple-700",
+  DELIVERED: "bg-green-100 text-green-700",
+};
+
 /// Lista de pedidos: cada fila lleva al detalle completo en
 /// /marca/tienda/pedidos/[orderId] — antes se expandía inline, ver
 /// conversación del 2026-09-14 pidiendo una página de detalle real como la
@@ -104,18 +119,29 @@ export function StoreOrdersPanel({
                 <p className="text-sm font-medium text-brand-ink truncate">
                   {order.buyerName}
                 </p>
+                <p className="text-xs text-brand-ink-soft font-mono">
+                  #{order.reference.slice(-8)} · {order.itemCount} artículo
+                  {order.itemCount === 1 ? "" : "s"}
+                </p>
                 <p className="text-xs text-brand-ink-soft">
                   {formatDate(order.createdAt)}
                   {order.creator && ` · ${order.creator.name}`}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <span
                 className={`text-xs font-medium rounded-full px-2.5 py-1 ${STATUS_CLASS[order.status]}`}
               >
                 {STATUS_LABEL[order.status]}
               </span>
+              {order.status === "PAID" && !isService && (
+                <span
+                  className={`text-xs font-medium rounded-full px-2.5 py-1 ${FULFILLMENT_CLASS[order.fulfillmentStatus]}`}
+                >
+                  {FULFILLMENT_LABEL[order.fulfillmentStatus]}
+                </span>
+              )}
               <span className="font-mono text-sm text-brand-ink">
                 {formatCOP(order.totalCents)}
               </span>

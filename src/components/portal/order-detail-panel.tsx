@@ -121,6 +121,200 @@ function ConfirmBookingForm({
   );
 }
 
+export type FulfillmentStatusValue = "UNFULFILLED" | "PREPARED" | "SHIPPED" | "DELIVERED";
+
+const FULFILLMENT_OPTIONS: { value: FulfillmentStatusValue; label: string }[] = [
+  { value: "UNFULFILLED", label: "Sin preparar" },
+  { value: "PREPARED", label: "Preparado" },
+  { value: "SHIPPED", label: "Enviado" },
+  { value: "DELIVERED", label: "Entregado" },
+];
+
+/// Estado de preparación/entrega — aparte del pago. Solo aplica a
+/// pedidos físicos ya pagados (un pedido de servicio usa
+/// ConfirmBookingForm arriba en su lugar). Ver conversación del
+/// 2026-09-14: "estado del pago - estado de preparación del pedido".
+export function OrderFulfillmentPanel({
+  orderId,
+  initialStatus,
+  initialCarrier,
+  initialTrackingNumber,
+  preparedAt,
+  shippedAt,
+  deliveredAt,
+}: {
+  orderId: string;
+  initialStatus: FulfillmentStatusValue;
+  initialCarrier: string | null;
+  initialTrackingNumber: string | null;
+  preparedAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+}) {
+  const [status, setStatus] = useState<FulfillmentStatusValue>(initialStatus);
+  const [carrier, setCarrier] = useState(initialCarrier ?? "");
+  const [trackingNumber, setTrackingNumber] = useState(initialTrackingNumber ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [times, setTimes] = useState({ preparedAt, shippedAt, deliveredAt });
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      const res = await fetch("/api/marca/tienda/pedidos/preparacion", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          fulfillmentStatus: status,
+          carrier,
+          trackingNumber,
+        }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "No se pudo guardar.");
+        return;
+      }
+      setTimes({
+        preparedAt: body.order.preparedAt,
+        shippedAt: body.order.shippedAt,
+        deliveredAt: body.order.deliveredAt,
+      });
+      setSaved(true);
+    } catch {
+      setError("No se pudo guardar — revisa tu conexión.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-xs text-brand-ink mb-1">Estado de preparación</label>
+        <select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value as FulfillmentStatusValue);
+            setSaved(false);
+          }}
+          className="input text-sm"
+        >
+          {FULFILLMENT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-2">
+        <div>
+          <label className="block text-xs text-brand-ink mb-1">Transportadora</label>
+          <input
+            value={carrier}
+            onChange={(e) => {
+              setCarrier(e.target.value);
+              setSaved(false);
+            }}
+            placeholder="Ej. Servientrega"
+            className="input text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-brand-ink mb-1">Número de guía</label>
+          <input
+            value={trackingNumber}
+            onChange={(e) => {
+              setTrackingNumber(e.target.value);
+              setSaved(false);
+            }}
+            className="input text-sm"
+          />
+        </div>
+      </div>
+      {(times.preparedAt || times.shippedAt || times.deliveredAt) && (
+        <div className="text-xs text-brand-ink-soft space-y-0.5">
+          {times.preparedAt && <p>Preparado: {formatDateTime(times.preparedAt)}</p>}
+          {times.shippedAt && <p>Enviado: {formatDateTime(times.shippedAt)}</p>}
+          {times.deliveredAt && <p>Entregado: {formatDateTime(times.deliveredAt)}</p>}
+        </div>
+      )}
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving}
+        className="bg-brand-accent text-white rounded-full px-4 py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+      >
+        {saving ? "Guardando..." : saved ? "Guardado ✓" : "Guardar"}
+      </button>
+    </div>
+  );
+}
+
+/// Notas internas del pedido — nunca las ve el comprador.
+export function OrderNotesEditor({
+  orderId,
+  initialNotes,
+}: {
+  orderId: string;
+  initialNotes: string | null;
+}) {
+  const [notes, setNotes] = useState(initialNotes ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/marca/tienda/pedidos/notas", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, internalNotes: notes }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? "No se pudo guardar.");
+        return;
+      }
+      setSaved(true);
+    } catch {
+      setError("No se pudo guardar — revisa tu conexión.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <textarea
+        value={notes}
+        onChange={(e) => {
+          setNotes(e.target.value.slice(0, 2000));
+          setSaved(false);
+        }}
+        placeholder="Solo tú ves estas notas — el comprador no."
+        className="input text-sm min-h-20"
+      />
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving || saved}
+        className="text-xs text-brand-accent font-medium hover:underline disabled:opacity-50 disabled:no-underline"
+      >
+        {saving ? "Guardando..." : saved ? "Guardado ✓" : "Guardar nota"}
+      </button>
+    </div>
+  );
+}
+
 export function OrderItemsList({
   orderId,
   initialItems,

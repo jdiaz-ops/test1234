@@ -28,6 +28,7 @@ export default async function TiendaPedidosPage() {
           id: o.id,
           kind: o.kind,
           status: o.status,
+          fulfillmentStatus: o.fulfillmentStatus,
           reference: o.reference,
           buyerName: o.buyerName,
           buyerEmail: o.buyerEmail,
