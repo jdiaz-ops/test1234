@@ -18,12 +18,17 @@ import {
   CssSection,
   type Patch,
 } from "./design-editor-sections";
+import {
+  StorefrontSectionsPanel,
+  type StorefrontSectionRow,
+} from "@/components/portal/storefront-sections-panel";
 
 type NavKey =
   | "colors"
   | "typography"
   | "designType"
   | "header"
+  | "sections"
   | "announcement"
   | "footer"
   | "productListing"
@@ -45,6 +50,11 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
     items: [
       { key: "designType", label: "Tipo de diseño" },
       { key: "header", label: "Encabezado" },
+      // Los módulos de la home (banners, colecciones destacadas,
+      // productos en oferta, etc.) — antes vivían solo en la pestaña
+      // Plantilla, separados de acá; ahora es acá, como en Tiendanube
+      // (ver conversación del 2026-09-14).
+      { key: "sections", label: "Página de inicio" },
       { key: "announcement", label: "Barra de anuncio" },
       { key: "footer", label: "Pie de página" },
       { key: "productListing", label: "Listado de productos" },
@@ -64,9 +74,11 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
 export function DesignEditorPanel({
   initialTheme,
   storePages,
+  initialSections,
 }: {
   initialTheme: ThemeConfig;
   storePages: { slug: string; title: string }[];
+  initialSections: StorefrontSectionRow[];
 }) {
   const [theme, setTheme] = useState(initialTheme);
   const [active, setActive] = useState<NavKey | null>(null);
@@ -205,7 +217,11 @@ export function DesignEditorPanel({
           )}
         </div>
 
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 min-h-[420px]">
+        <div
+          className={`rounded-2xl border border-brand-line bg-brand-surface p-5 min-h-[420px] ${
+            active === "sections" ? "lg:col-span-2" : ""
+          }`}
+        >
           {!active && (
             <p className="text-sm text-brand-ink-soft">Elige una sección de la izquierda para empezar a editar.</p>
           )}
@@ -213,6 +229,7 @@ export function DesignEditorPanel({
           {active === "typography" && <TypographySection theme={theme} patch={patch} />}
           {active === "designType" && <DesignTypeSection theme={theme} patch={patch} />}
           {active === "header" && <HeaderSection theme={theme} patch={patch} />}
+          {active === "sections" && <StorefrontSectionsPanel initialSections={initialSections} />}
           {active === "announcement" && <AnnouncementSection theme={theme} patch={patch} />}
           {active === "footer" && <FooterSection theme={theme} patch={patch} />}
           {active === "productListing" && <ProductListingSection theme={theme} patch={patch} />}
@@ -224,9 +241,11 @@ export function DesignEditorPanel({
           {active === "css" && <CssSection theme={theme} patch={patch} />}
         </div>
 
-        <div className="hidden lg:block">
-          <DesignPreview theme={theme} brandName="Tu marca" />
-        </div>
+        {active !== "sections" && (
+          <div className="hidden lg:block">
+            <DesignPreview theme={theme} brandName="Tu marca" />
+          </div>
+        )}
       </div>
     </div>
   );

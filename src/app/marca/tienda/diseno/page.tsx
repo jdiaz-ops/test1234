@@ -4,21 +4,23 @@ import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { DesignEditorPanel } from "@/components/portal/design-editor/design-editor-panel";
 import { getDraftTheme } from "@/server/services/brand-theme-service";
 import { listStorePages } from "@/server/services/store-page-service";
+import { listStorefrontSections } from "@/server/services/storefront-section-service";
+import { SECTION_TYPES, type SectionType } from "@/lib/storefront-sections";
 
-/// Editor de Diseño — colores, tipografía, encabezado, barra de anuncio,
-/// footer, listado/detalle de producto, carrito, pop-up y CSS avanzado.
-/// Lo de "Página de inicio" (secciones tipo banner/colección/productos
-/// destacados) sigue viviendo en Plantilla — son cosas distintas: acá es
-/// el look global de la tienda, ahí es el contenido de la home. Ver
-/// conversación del 2026-09-14, recorrido completo del editor de
-/// Tiendanube.
+/// Editor de Diseño — mismo panel único que Tiendanube: colores,
+/// tipografía, encabezado, barra de anuncio, "Página de inicio" (las
+/// secciones tipo banner/colección/productos destacados — antes vivían
+/// solo en Plantilla, separadas; ahora están acá también, que es donde
+/// las esperabas — ver conversación del 2026-09-14), footer, listado/
+/// detalle de producto, carrito, pop-up y CSS avanzado.
 export default async function TiendaDisenoPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 
-  const [theme, pages] = await Promise.all([
+  const [theme, pages, sections] = await Promise.all([
     getDraftTheme(profile.id),
     listStorePages(profile.id),
+    listStorefrontSections(profile.id),
   ]);
 
   return (
@@ -38,6 +40,11 @@ export default async function TiendaDisenoPage() {
       <DesignEditorPanel
         initialTheme={theme}
         storePages={pages.map((p) => ({ slug: p.slug, title: p.title }))}
+        initialSections={sections
+          .filter((s): s is typeof s & { type: SectionType } =>
+            (SECTION_TYPES as readonly string[]).includes(s.type),
+          )
+          .map((s) => ({ id: s.id, type: s.type, enabled: s.enabled, config: s.config }))}
       />
     </div>
   );

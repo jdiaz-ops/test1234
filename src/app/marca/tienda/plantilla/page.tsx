@@ -2,15 +2,16 @@ import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StorefrontTemplateForm } from "@/components/portal/storefront-template-form";
-import { StorefrontSectionsPanel } from "@/components/portal/storefront-sections-panel";
-import { listStorefrontSections } from "@/server/services/storefront-section-service";
-import { SECTION_TYPES, type SectionType } from "@/lib/storefront-sections";
 
+/// Los módulos de la página de inicio (banners, colecciones, productos
+/// destacados, etc.) se mudaron a Diseño → "Página de inicio" — vivían
+/// acá antes, duplicados con nada, pero separados del resto del editor
+/// de diseño, que es donde la marca los espera (ver conversación del
+/// 2026-09-14). Esta página quedó solo para elegir la plantilla visual
+/// del catálogo (Clásica/Minimal/Editorial), que es un tema aparte.
 export default async function TiendaPlantillaPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
-
-  const sections = await listStorefrontSections(profile.id);
 
   return (
     <div>
@@ -21,28 +22,13 @@ export default async function TiendaPlantillaPage() {
         Plantilla
       </h1>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Cómo se ve tu catálogo en la página principal de tu tienda.
+        Elige cómo se ordenan y se ven las tarjetas de producto en el
+        catálogo de tu tienda. Para los módulos de la página de inicio
+        (banners, colecciones destacadas, etc.), ve a Diseño → &ldquo;Página
+        de inicio&rdquo;.
       </p>
       <StoreSubNav />
-      <div className="space-y-6">
-        <StorefrontSectionsPanel
-          initialSections={sections
-            // WELCOME_MESSAGE/INSTITUTIONAL_MESSAGE/IMAGE_TEXT_MODULE
-            // quedaron reservados sin usar (ver el enum en el schema) —
-            // nunca debería existir una fila con ese tipo, pero se
-            // filtra por las dudas en vez de reventar el editor.
-            .filter((s): s is typeof s & { type: SectionType } =>
-              (SECTION_TYPES as readonly string[]).includes(s.type),
-            )
-            .map((s) => ({
-              id: s.id,
-              type: s.type,
-              enabled: s.enabled,
-              config: s.config,
-            }))}
-        />
-        <StorefrontTemplateForm initialTemplate={profile.storefrontTemplate} />
-      </div>
+      <StorefrontTemplateForm initialTemplate={profile.storefrontTemplate} />
     </div>
   );
 }
