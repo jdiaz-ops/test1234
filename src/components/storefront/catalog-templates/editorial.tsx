@@ -8,9 +8,14 @@ import { formatCOP, type CatalogProduct } from "./types";
 export function EditorialTemplate({
   products,
   basePath,
+  cardButtonStyle = "addToCart",
 }: {
   products: CatalogProduct[];
   basePath: string;
+  /// Ver theme.collections.cardButtonStyle — solo cambia el botón del
+  /// hero (el grid de abajo nunca tuvo botón, ya lleva a la ficha con el
+  /// click en la imagen/nombre).
+  cardButtonStyle?: "addToCart" | "viewProduct";
 }) {
   const [featured, ...rest] = products;
   if (!featured) return null;
@@ -47,19 +52,28 @@ export function EditorialTemplate({
               {formatCOP(featured.price)}
             </p>
           </div>
-          <AddToCartButton
-            basePath={basePath}
-            product={{
-              id: featured.id,
-              slug: featured.slug ?? "",
-              name: featured.name,
-              price: featured.price,
-              imageUrl: featured.imageUrl,
-              stock: featured.stock,
-              type: featured.type,
-            }}
-            className="bg-brand-accent text-white rounded-full px-6 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40"
-          />
+          {cardButtonStyle === "viewProduct" ? (
+            // Todo el hero ya es un link al producto (ver el <Link> que
+            // envuelve este bloque) — acá solo se indica la acción, sin
+            // anidar otro link/botón real adentro.
+            <span className="border border-brand-ink text-brand-ink rounded-full px-6 py-2.5 text-sm font-semibold">
+              Ver producto
+            </span>
+          ) : (
+            <AddToCartButton
+              basePath={basePath}
+              product={{
+                id: featured.id,
+                slug: featured.slug ?? "",
+                name: featured.name,
+                price: featured.price,
+                imageUrl: featured.imageUrl,
+                stock: featured.stock,
+                type: featured.type,
+              }}
+              className="bg-brand-accent text-white rounded-full px-6 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40"
+            />
+          )}
         </div>
       </Link>
 

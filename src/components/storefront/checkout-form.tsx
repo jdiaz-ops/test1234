@@ -350,39 +350,6 @@ export function CheckoutForm({
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm text-brand-ink mb-1">
-                Código de creador (opcional)
-              </label>
-              <div className="flex gap-2">
-                <input
-                  value={code}
-                  onChange={(e) => {
-                    setCode(e.target.value);
-                    setDiscountPercent(null);
-                  }}
-                  className="input font-mono flex-1"
-                  placeholder="Ej. LAURA30"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleApplyCode()}
-                  disabled={checkingCode || !code.trim()}
-                  className="rounded-full border border-brand-line px-4 text-sm font-medium hover:bg-brand-accent-soft disabled:opacity-50"
-                >
-                  {checkingCode ? "..." : "Aplicar"}
-                </button>
-              </div>
-              {codeError && (
-                <p className="text-xs text-red-600 mt-1">{codeError}</p>
-              )}
-              {discountPercent != null && (
-                <p className="text-xs text-brand-accent mt-1">
-                  Código aplicado — {discountPercent}% de descuento.
-                </p>
-              )}
-            </div>
-
             {submitError && (
               <p className="text-sm text-red-600">{submitError}</p>
             )}
@@ -439,6 +406,42 @@ export function CheckoutForm({
             </div>
           ))}
         </div>
+
+        {/* Muy visible a propósito — de acá sale la estrategia de
+            Marcolini con los creadores, no puede quedar escondida como un
+            campo "opcional" más del formulario. Ver conversación del
+            2026-09-14. */}
+        <div className="rounded-xl border-2 border-brand-accent bg-brand-accent-soft p-3 space-y-2">
+          <p className="text-sm font-semibold text-brand-ink">
+            🎁 ¿Tienes un código de creador?
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value);
+                setDiscountPercent(null);
+              }}
+              className="input font-mono flex-1 bg-white"
+              placeholder="Ej. LAURA30"
+            />
+            <button
+              type="button"
+              onClick={() => handleApplyCode()}
+              disabled={checkingCode || !code.trim()}
+              className="rounded-full bg-brand-accent text-white px-4 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
+            >
+              {checkingCode ? "..." : "Aplicar"}
+            </button>
+          </div>
+          {codeError && <p className="text-xs text-red-600">{codeError}</p>}
+          {discountPercent != null && (
+            <p className="text-xs text-brand-ink font-medium">
+              ✓ Código aplicado — {discountPercent}% de descuento.
+            </p>
+          )}
+        </div>
+
         <div className="border-t border-brand-line pt-3 space-y-1.5 text-sm">
           <div className="flex justify-between text-brand-ink-soft">
             <span>Subtotal</span>

@@ -192,8 +192,8 @@ export function StorePagesPanel({ initialPages }: { initialPages: StorePageRow[]
       <p className="text-sm font-medium text-brand-ink mb-1">Páginas</p>
       <p className="text-xs text-brand-ink-soft mb-4 max-w-lg">
         Páginas propias de tu tienda — &ldquo;Sobre nosotros&rdquo;, preguntas
-        frecuentes, política de cambios... Enlázalas desde tu menú de
-        navegación (abajo) para que se vean.
+        frecuentes, política de cambios... Enlázalas desde Diseño →
+        &ldquo;Menú de navegación&rdquo; para que se vean.
       </p>
 
       {pages.length === 0 ? (

@@ -214,6 +214,25 @@ const productListingSchema = withDefaults({
 });
 
 // ----------------------------------------------------------------------------
+// Colecciones — las landing de categoría (/coleccion/{slug}), separadas del
+// listado principal a pedido explícito de la marca: acá no existían en
+// Tiendanube tal cual (ahí "colecciones" son las categorías del catálogo,
+// no una sección de tema aparte) pero Marcolini sí las tiene como su
+// propia entidad, así que el editor de Diseño también les da su propio
+// espacio. Ver conversación del 2026-09-14.
+// ----------------------------------------------------------------------------
+
+const collectionsSchema = withDefaults({
+  /// Botón en la tarjeta de producto dentro de una landing de colección.
+  /// "addToCart" agrega directo al carrito (mismo comportamiento que el
+  /// resto del catálogo hoy); "viewProduct" lleva a la ficha del producto
+  /// en vez de agregar a ciegas — útil si la marca vende con variantes
+  /// (talla/color) que se eligen ahí. Solo aplica en /coleccion/{slug},
+  /// no en el listado principal de la home.
+  cardButtonStyle: z.enum(["addToCart", "viewProduct"]).default("addToCart"),
+});
+
+// ----------------------------------------------------------------------------
 // Detalle de producto
 // ----------------------------------------------------------------------------
 
@@ -306,6 +325,7 @@ export const themeConfigSchema = z.object({
   announcementBar: announcementBarSchema,
   footer: footerSchema,
   productListing: productListingSchema,
+  collections: collectionsSchema,
   productDetail: productDetailSchema,
   cart: cartSchema,
   popup: popupSchema,

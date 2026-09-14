@@ -12,6 +12,7 @@ import {
   AnnouncementSection,
   FooterSection,
   ProductListingSection,
+  CollectionsSection,
   ProductDetailSection,
   CartSection,
   PopupSection,
@@ -22,20 +23,32 @@ import {
   StorefrontSectionsPanel,
   type StorefrontSectionRow,
 } from "@/components/portal/storefront-sections-panel";
+import {
+  StorefrontMenuPanel,
+  type StorefrontMenuItemRow,
+} from "@/components/portal/storefront-menu-panel";
 
 type NavKey =
   | "colors"
   | "typography"
   | "designType"
   | "header"
+  | "menu"
   | "sections"
   | "announcement"
   | "footer"
   | "productListing"
+  | "collections"
   | "productDetail"
   | "cart"
   | "popup"
   | "css";
+
+/// NavKeys cuya sección de abajo es un panel autosuficiente (lista + CRUD
+/// propio, con su propio fetch), no un formulario del tema — ocupan las 2
+/// columnas del medio y no tiene sentido mostrarles el preview en vivo al
+/// lado (no reflejan un cambio de tema).
+const WIDE_PANELS: NavKey[] = ["sections", "menu"];
 
 const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] = [
   {
@@ -50,6 +63,10 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
     items: [
       { key: "designType", label: "Tipo de diseño" },
       { key: "header", label: "Encabezado" },
+      // Antes vivía en Páginas, separado del resto del diseño — se mudó
+      // acá porque es tan "diseño" como el resto (qué ve el comprador en
+      // el header). Ver conversación del 2026-09-14.
+      { key: "menu", label: "Menú de navegación" },
       // Los módulos de la home (banners, colecciones destacadas,
       // productos en oferta, etc.) — antes vivían solo en la pestaña
       // Plantilla, separados de acá; ahora es acá, como en Tiendanube
@@ -58,6 +75,7 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
       { key: "announcement", label: "Barra de anuncio" },
       { key: "footer", label: "Pie de página" },
       { key: "productListing", label: "Listado de productos" },
+      { key: "collections", label: "Colecciones" },
       { key: "productDetail", label: "Detalle del producto" },
       { key: "cart", label: "Carrito de compras" },
       { key: "popup", label: "Pop-up promocional" },
@@ -75,10 +93,12 @@ export function DesignEditorPanel({
   initialTheme,
   storePages,
   initialSections,
+  initialMenuItems,
 }: {
   initialTheme: ThemeConfig;
   storePages: { slug: string; title: string }[];
   initialSections: StorefrontSectionRow[];
+  initialMenuItems: StorefrontMenuItemRow[];
 }) {
   const [theme, setTheme] = useState(initialTheme);
   const [active, setActive] = useState<NavKey | null>(null);
@@ -219,7 +239,7 @@ export function DesignEditorPanel({
 
         <div
           className={`rounded-2xl border border-brand-line bg-brand-surface p-5 min-h-[420px] ${
-            active === "sections" ? "lg:col-span-2" : ""
+            active && WIDE_PANELS.includes(active) ? "lg:col-span-2" : ""
           }`}
         >
           {!active && (
@@ -229,10 +249,12 @@ export function DesignEditorPanel({
           {active === "typography" && <TypographySection theme={theme} patch={patch} />}
           {active === "designType" && <DesignTypeSection theme={theme} patch={patch} />}
           {active === "header" && <HeaderSection theme={theme} patch={patch} />}
+          {active === "menu" && <StorefrontMenuPanel initialItems={initialMenuItems} />}
           {active === "sections" && <StorefrontSectionsPanel initialSections={initialSections} />}
           {active === "announcement" && <AnnouncementSection theme={theme} patch={patch} />}
           {active === "footer" && <FooterSection theme={theme} patch={patch} />}
           {active === "productListing" && <ProductListingSection theme={theme} patch={patch} />}
+          {active === "collections" && <CollectionsSection theme={theme} patch={patch} />}
           {active === "productDetail" && (
             <ProductDetailSection theme={theme} patch={patch} storePages={storePages} />
           )}
@@ -241,7 +263,7 @@ export function DesignEditorPanel({
           {active === "css" && <CssSection theme={theme} patch={patch} />}
         </div>
 
-        {active !== "sections" && (
+        {!(active && WIDE_PANELS.includes(active)) && (
           <div className="hidden lg:block">
             <DesignPreview theme={theme} brandName="Tu marca" />
           </div>

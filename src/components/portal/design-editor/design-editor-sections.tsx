@@ -538,6 +538,39 @@ export function ProductListingSection({ theme, patch }: { theme: ThemeConfig; pa
 }
 
 // ----------------------------------------------------------------------------
+// Colecciones — las landing de categoría (/coleccion/{slug}).
+// ----------------------------------------------------------------------------
+
+export function CollectionsSection({ theme, patch }: { theme: ThemeConfig; patch: PatchFn }) {
+  const c = theme.collections;
+  return (
+    <div className="space-y-4 max-w-sm">
+      <p className="text-xs text-brand-ink-soft">
+        Cómo se ven las tarjetas de producto en la página de cada colección
+        (categoría) de tu tienda — no afecta el listado principal de tu
+        home, ese se configura en &ldquo;Listado de productos&rdquo;.
+      </p>
+      <Field label="Botón en la tarjeta de producto">
+        <select
+          value={c.cardButtonStyle}
+          onChange={(e) => patch({ collections: { cardButtonStyle: e.target.value } })}
+          className="input text-sm"
+        >
+          <option value="addToCart">Agregar al carrito</option>
+          <option value="viewProduct">Ver producto</option>
+        </select>
+      </Field>
+      <p className="text-[11px] text-brand-ink-soft">
+        &ldquo;Agregar al carrito&rdquo; suma el producto directo, sin pasar
+        por la ficha. &ldquo;Ver producto&rdquo; lleva a la ficha primero —
+        mejor si vendes con variantes (talla/color) que el comprador tiene
+        que elegir antes de comprar.
+      </p>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
 // Detalle de producto
 // ----------------------------------------------------------------------------
 

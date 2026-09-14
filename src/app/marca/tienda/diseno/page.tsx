@@ -3,24 +3,29 @@ import { redirect } from "next/navigation";
 import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { DesignEditorPanel } from "@/components/portal/design-editor/design-editor-panel";
 import { getDraftTheme } from "@/server/services/brand-theme-service";
-import { listStorePages } from "@/server/services/store-page-service";
+import {
+  listStorePages,
+  listStorefrontMenuItems,
+} from "@/server/services/store-page-service";
 import { listStorefrontSections } from "@/server/services/storefront-section-service";
 import { SECTION_TYPES, type SectionType } from "@/lib/storefront-sections";
 
 /// Editor de Diseño — mismo panel único que Tiendanube: colores,
-/// tipografía, encabezado, barra de anuncio, "Página de inicio" (las
-/// secciones tipo banner/colección/productos destacados — antes vivían
-/// solo en Plantilla, separadas; ahora están acá también, que es donde
-/// las esperabas — ver conversación del 2026-09-14), footer, listado/
-/// detalle de producto, carrito, pop-up y CSS avanzado.
+/// tipografía, encabezado, menú de navegación (antes en Páginas), "Página
+/// de inicio" (las secciones tipo banner/colección/productos destacados —
+/// antes vivían solo en Plantilla, separadas; ahora están acá también,
+/// que es donde las esperabas — ver conversación del 2026-09-14), footer,
+/// listado/colecciones/detalle de producto, carrito, pop-up y CSS
+/// avanzado.
 export default async function TiendaDisenoPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 
-  const [theme, pages, sections] = await Promise.all([
+  const [theme, pages, sections, menuItems] = await Promise.all([
     getDraftTheme(profile.id),
     listStorePages(profile.id),
     listStorefrontSections(profile.id),
+    listStorefrontMenuItems(profile.id),
   ]);
 
   return (
@@ -45,6 +50,7 @@ export default async function TiendaDisenoPage() {
             (SECTION_TYPES as readonly string[]).includes(s.type),
           )
           .map((s) => ({ id: s.id, type: s.type, enabled: s.enabled, config: s.config }))}
+        initialMenuItems={menuItems.map((i) => ({ id: i.id, label: i.label, url: i.url }))}
       />
     </div>
   );
