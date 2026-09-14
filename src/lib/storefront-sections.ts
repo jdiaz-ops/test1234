@@ -19,6 +19,7 @@ export const SECTION_TYPES = [
   "IMAGE_CAROUSEL",
   "SHIPPING_INFO_BANNERS",
   "CATEGORY_BANNERS",
+  "CATEGORY_GRID",
   "PROMO_BANNERS",
   "FEATURED_PRODUCTS",
   "NEW_PRODUCTS",
@@ -36,6 +37,7 @@ export const SECTION_TYPE_LABEL: Record<SectionType, string> = {
   IMAGE_CAROUSEL: "Carrusel de imágenes",
   SHIPPING_INFO_BANNERS: "Información de envíos, pagos y compra",
   CATEGORY_BANNERS: "Banners de categorías",
+  CATEGORY_GRID: "Selector de categorías",
   PROMO_BANNERS: "Banners promocionales",
   FEATURED_PRODUCTS: "Productos destacados",
   NEW_PRODUCTS: "Productos nuevos",
@@ -52,6 +54,7 @@ export const SECTION_TYPE_DESCRIPTION: Record<SectionType, string> = {
   IMAGE_CAROUSEL: "Una o más imágenes de ancho completo, sin texto — el hero clásico de tienda.",
   SHIPPING_INFO_BANNERS: "Hasta 4 sellos con ícono, título y descripción — envíos, pagos, seguridad, cambios y devoluciones.",
   CATEGORY_BANNERS: "Hasta 3 banners, cada uno enlazado a una de tus colecciones.",
+  CATEGORY_GRID: "Hasta 6 categorías en cuadrícula, cada una enlazada a una de tus colecciones — para \"comprar por categoría\".",
   PROMO_BANNERS: "Hasta 3 banners promocionales sueltos, cada uno con su propio link.",
   FEATURED_PRODUCTS: "Elige a mano qué productos destacar, en grilla o carrusel.",
   NEW_PRODUCTS: "Tus productos más recientes, en grilla o carrusel — se arma solo.",
@@ -118,6 +121,26 @@ const categoryBannersConfigSchema = z.object({
 });
 export type CategoryBannersConfig = z.infer<typeof categoryBannersConfigSchema>;
 
+/// "Selector de categorías" — cuadrícula compacta (ícono/foto + nombre),
+/// hasta 6, distinta de CATEGORY_BANNERS (hasta 3, formato banner grande
+/// con texto superpuesto). Pedido explícito de la marca para armar algo
+/// tipo "comprar por categoría" con varias categorías a la vez — ver
+/// conversación del 2026-09-14.
+const categoryGridItemSchema = z.object({
+  show: z.boolean().default(false),
+  collectionId: z.string().nullable().default(null),
+  imageUrl: z.string().nullable().default(null),
+  /// Vacío = usa el nombre de la colección tal cual.
+  label: z.string().max(40).default(""),
+});
+const categoryGridConfigSchema = z.object({
+  items: z
+    .array(categoryGridItemSchema)
+    .length(6)
+    .default(() => Array.from({ length: 6 }, () => categoryGridItemSchema.parse({}))),
+});
+export type CategoryGridConfig = z.infer<typeof categoryGridConfigSchema>;
+
 const promoBannerItemSchema = z.object({
   show: z.boolean().default(false),
   imageUrl: z.string().nullable().default(null),
@@ -181,6 +204,7 @@ export const SECTION_CONFIG_SCHEMA: Record<SectionType, z.ZodTypeAny> = {
   IMAGE_CAROUSEL: imageCarouselConfigSchema,
   SHIPPING_INFO_BANNERS: shippingInfoBannersConfigSchema,
   CATEGORY_BANNERS: categoryBannersConfigSchema,
+  CATEGORY_GRID: categoryGridConfigSchema,
   PROMO_BANNERS: promoBannersConfigSchema,
   FEATURED_PRODUCTS: featuredProductsConfigSchema,
   NEW_PRODUCTS: newProductsConfigSchema,

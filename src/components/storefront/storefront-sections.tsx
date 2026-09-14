@@ -6,6 +6,7 @@ import type {
   ImageCarouselConfig,
   ShippingInfoBannersConfig,
   CategoryBannersConfig,
+  CategoryGridConfig,
   PromoBannersConfig,
   FeaturedProductsConfig,
   NewProductsConfig,
@@ -242,6 +243,56 @@ async function CategoryBannersSection({
                 {item.collection!.name}
               </p>
             </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function CategoryGridSection({
+  config,
+  brandId,
+  basePath,
+}: {
+  config: CategoryGridConfig;
+  brandId: string;
+  basePath: string;
+}) {
+  const visible = config.items.filter((i) => i.show && i.collectionId);
+  if (visible.length === 0) return null;
+  const collections = await prisma.brandCollection.findMany({
+    where: { id: { in: visible.map((i) => i.collectionId!) }, brandId },
+    select: { id: true, name: true, slug: true },
+  });
+  const byId = new Map(collections.map((c) => [c.id, c]));
+  const items = visible
+    .map((i) => ({ ...i, collection: byId.get(i.collectionId!) }))
+    .filter((i) => i.collection);
+  if (items.length === 0) return null;
+
+  return (
+    <div className="max-w-3xl mx-auto px-6 py-8">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+        {items.map((item, i) => (
+          <Link
+            key={i}
+            href={`${basePath}/coleccion/${item.collection!.slug}`}
+            className="flex flex-col items-center gap-1.5 group"
+          >
+            <div className="w-full aspect-square rounded-full overflow-hidden bg-brand-accent-soft relative">
+              {item.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
+                <img
+                  src={item.imageUrl}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+              )}
+            </div>
+            <p className="text-[11px] text-brand-ink text-center leading-tight line-clamp-2">
+              {item.label || item.collection!.name}
+            </p>
           </Link>
         ))}
       </div>
@@ -506,6 +557,15 @@ export async function StorefrontSections({
               <CategoryBannersSection
                 key={s.id}
                 config={s.config as CategoryBannersConfig}
+                brandId={brandId}
+                basePath={basePath}
+              />
+            );
+          case "CATEGORY_GRID":
+            return (
+              <CategoryGridSection
+                key={s.id}
+                config={s.config as CategoryGridConfig}
                 brandId={brandId}
                 basePath={basePath}
               />

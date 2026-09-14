@@ -586,6 +586,15 @@ export function ProductDetailSection({
   const d = theme.productDetail;
   return (
     <div className="space-y-5 max-w-sm">
+      <Checkbox
+        label="Botón flotante de agregar al carrito"
+        checked={d.floatingAddToCart}
+        onChange={(v) => patch({ productDetail: { floatingAddToCart: v } })}
+      />
+      <p className="text-[11px] text-brand-ink-soft -mt-3">
+        Aparece abajo cuando el comprador scrollea y pierde de vista el
+        botón principal — te conviene tenerlo prendido.
+      </p>
       <Checkbox label="Mostrar calculadora de envío en la ficha" checked={d.shippingCalculator} onChange={(v) => patch({ productDetail: { shippingCalculator: v } })} />
       <Checkbox label="Mostrar el monto ahorrado por descuento" checked={d.showSavedAmount} onChange={(v) => patch({ productDetail: { showSavedAmount: v } })} />
       <Checkbox label="Mostrar variantes como botones" checked={d.variantsAsButtons} onChange={(v) => patch({ productDetail: { variantsAsButtons: v } })} />
@@ -754,6 +763,64 @@ export function CartSection({ theme, patch }: { theme: ThemeConfig; patch: Patch
       <Checkbox label="Sugerir productos complementarios" checked={c.suggestComplementary} onChange={(v) => patch({ cart: { suggestComplementary: v } })} />
       <Checkbox label="Permitir aplicar cupón de descuento en el carrito" checked={c.allowCoupon} onChange={(v) => patch({ cart: { allowCoupon: v } })} />
       <Checkbox label="Mostrar calculadora de costos de envío en el carrito" checked={c.shippingCalculator} onChange={(v) => patch({ cart: { shippingCalculator: v } })} />
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Navegador móvil
+// ----------------------------------------------------------------------------
+
+export function MobileNavSection({ theme, patch }: { theme: ThemeConfig; patch: PatchFn }) {
+  const n = theme.mobileNav;
+  function updateItem(i: number, item: Partial<ThemeConfig["mobileNav"]["items"][number]>) {
+    patch({
+      mobileNav: {
+        items: n.items.map((it, idx) => (idx === i ? { ...it, ...item } : it)),
+      },
+    });
+  }
+  return (
+    <div className="space-y-4 max-w-sm">
+      <p className="text-xs text-brand-ink-soft">
+        Barra fija abajo, solo en celular — tipo app nativa. Siempre son
+        estos 3 accesos; podés prenderlos/apagarlos y personalizar texto,
+        link e ícono de cada uno.
+      </p>
+      <Checkbox label="Mostrar navegador móvil" checked={n.enabled} onChange={(v) => patch({ mobileNav: { enabled: v } })} />
+      {n.enabled && (
+        <div className="space-y-3">
+          {n.items.map((item, i) => (
+            <div key={i} className="rounded-lg border border-brand-line p-3 space-y-2">
+              <Checkbox label={`Ítem ${i + 1}`} checked={item.enabled} onChange={(v) => updateItem(i, { enabled: v })} />
+              {item.enabled && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={item.label}
+                      onChange={(e) => updateItem(i, { label: e.target.value })}
+                      placeholder="Texto (ej. Inicio)"
+                      className="input text-sm"
+                    />
+                    <input
+                      value={item.url}
+                      onChange={(e) => updateItem(i, { url: e.target.value })}
+                      placeholder="Link (ej. /carrito)"
+                      className="input text-sm"
+                    />
+                  </div>
+                  <ImageUploadButton
+                    imageUrl={item.iconUrl}
+                    onChange={(url) => updateItem(i, { iconUrl: url })}
+                    label="Subir ícono propio"
+                    recommendedSize="Cuadrado, fondo transparente"
+                  />
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

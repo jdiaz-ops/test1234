@@ -13,6 +13,7 @@ import {
   type ImageCarouselConfig,
   type ShippingInfoBannersConfig,
   type CategoryBannersConfig,
+  type CategoryGridConfig,
   type PromoBannersConfig,
   type FeaturedProductsConfig,
   type NewProductsConfig,
@@ -229,6 +230,52 @@ function CategoryBannersFields({
                   </option>
                 ))}
               </select>
+              <ImagePicker imageUrl={item.imageUrl} onChange={(url) => updateItem(i, { imageUrl: url })} small />
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CategoryGridFields({
+  config,
+  onChange,
+  collections,
+}: {
+  config: CategoryGridConfig;
+  onChange: (next: CategoryGridConfig) => void;
+  collections: CollectionOption[];
+}) {
+  function updateItem(i: number, patch: Partial<CategoryGridConfig["items"][number]>) {
+    onChange({ items: config.items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)) });
+  }
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] text-brand-ink-soft">Se muestran en cuadrícula — hasta 6, no hace falta llenarlas todas.</p>
+      {config.items.map((item, i) => (
+        <div key={i} className="rounded-lg border border-brand-line p-3 space-y-2">
+          <label className="flex items-center gap-2 text-xs text-brand-ink">
+            <input type="checkbox" checked={item.show} onChange={(e) => updateItem(i, { show: e.target.checked })} />
+            Categoría {i + 1}
+          </label>
+          {item.show && (
+            <>
+              <select value={item.collectionId ?? ""} onChange={(e) => updateItem(i, { collectionId: e.target.value || null })} className="input text-sm">
+                <option value="">Elige una colección</option>
+                {collections.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={item.label}
+                onChange={(e) => updateItem(i, { label: e.target.value })}
+                placeholder="Nombre a mostrar (vacío = usa el de la colección)"
+                className="input text-sm"
+              />
               <ImagePicker imageUrl={item.imageUrl} onChange={(url) => updateItem(i, { imageUrl: url })} small />
             </>
           )}
@@ -488,6 +535,9 @@ function SectionCard({
       )}
       {section.type === "CATEGORY_BANNERS" && (
         <CategoryBannersFields config={config as unknown as CategoryBannersConfig} onChange={saveConfig} collections={collections} />
+      )}
+      {section.type === "CATEGORY_GRID" && (
+        <CategoryGridFields config={config as unknown as CategoryGridConfig} onChange={saveConfig} collections={collections} />
       )}
       {section.type === "PROMO_BANNERS" && <PromoBannersFields config={config as unknown as PromoBannersConfig} onChange={saveConfig} />}
       {section.type === "FEATURED_PRODUCTS" && (

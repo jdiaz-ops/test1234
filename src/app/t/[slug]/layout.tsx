@@ -2,6 +2,7 @@ import { PoweredByBadge } from "@/components/storefront/powered-by-badge";
 import { AnnouncementBar } from "@/components/storefront/announcement-bar";
 import { StoreFooter } from "@/components/storefront/store-footer";
 import { PromoPopup } from "@/components/storefront/promo-popup";
+import { MobileBottomNav } from "@/components/storefront/mobile-bottom-nav";
 import { StorefrontThemeProvider } from "@/components/storefront/storefront-theme-context";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
@@ -62,6 +63,7 @@ export default async function StorefrontLayout({
           data-storefront-root
           data-rounded={roundedDataAttr(theme)}
           style={cssVars as React.CSSProperties}
+          className={theme.mobileNav.enabled ? "pb-16 sm:pb-0" : undefined}
         >
           <AnnouncementBar config={theme.announcementBar} />
           {children}
@@ -77,6 +79,7 @@ export default async function StorefrontLayout({
             basePath={basePath}
           />
           <PromoPopup config={theme.popup} brandSlug={slug} />
+          <MobileBottomNav config={theme.mobileNav} basePath={basePath} />
         </div>
       </StorefrontThemeProvider>
       <PoweredByBadge />

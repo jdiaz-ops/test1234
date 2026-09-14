@@ -65,6 +65,25 @@ export async function getPublicBrandCollection(brandId: string, slug: string) {
   };
 }
 
+/// Para la landing "todas las categorías" (/t/{slug}/coleccion) — el
+/// destino por defecto del ítem "Categorías" del navegador móvil (ver
+/// theme.mobileNav) y de la sección CATEGORY_GRID. Solo trae colecciones
+/// con al menos un producto visible — una colección vacía no tiene nada
+/// que mostrar si le dan clic.
+export async function getPublicBrandCollections(brandId: string) {
+  const collections = await prisma.brandCollection.findMany({
+    where: {
+      brandId,
+      products: {
+        some: { product: { status: "ACTIVE", available: true } },
+      },
+    },
+    orderBy: { position: "asc" },
+    select: { id: true, name: true, slug: true, imageUrl: true },
+  });
+  return collections;
+}
+
 export async function getBrandCollection(brandId: string, collectionId: string) {
   return prisma.brandCollection.findFirst({
     where: { id: collectionId, brandId },

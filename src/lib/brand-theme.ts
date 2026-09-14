@@ -257,6 +257,11 @@ const productDetailSchema = withDefaults({
   /// elige su departamento en la ficha y ve el costo antes de agregar
   /// al carrito.
   shippingCalculator: z.boolean().default(false),
+  /// Barra flotante con el producto + "Agregar al carrito" que aparece
+  /// cuando el comprador scrollea y pierde de vista el botón principal —
+  /// habilitado por defecto (conviene), la marca lo puede apagar. Ver
+  /// conversación del 2026-09-14.
+  floatingAddToCart: z.boolean().default(true),
   showSavedAmount: z.boolean().default(true),
   variantsAsButtons: z.boolean().default(true),
   colorVariantAsPhoto: z.boolean().default(false),
@@ -300,6 +305,38 @@ const cartSchema = withDefaults({
 });
 
 // ----------------------------------------------------------------------------
+// Navegador móvil — barra flotante fija abajo, solo en celular, al estilo
+// app nativa (Home/Categorías/Carrito). Siempre son exactamente 3 ítems
+// fijos (no se agregan/quitan/reordenan) — la marca edita texto, link y
+// (opcional) el ícono de cada uno subiendo su propia imagen; si no sube
+// nada, se usa el ícono predefinido de esa posición (ver
+// MOBILE_NAV_DEFAULT_LABELS/mobile-nav-icons.tsx). Habilitado por
+// defecto. Ver conversación del 2026-09-14.
+// ----------------------------------------------------------------------------
+
+const mobileNavItemSchema = z.object({
+  enabled: z.boolean().default(true),
+  label: z.string().max(20).default(""),
+  url: z.string().max(300).default(""),
+  /// null = usa el ícono predefinido de esta posición.
+  iconUrl: z.string().nullable().default(null),
+});
+
+export const MOBILE_NAV_DEFAULTS: { label: string; url: string }[] = [
+  { label: "Inicio", url: "/" },
+  { label: "Categorías", url: "/coleccion" },
+  { label: "Carrito", url: "/carrito" },
+];
+
+const mobileNavSchema = withDefaults({
+  enabled: z.boolean().default(true),
+  items: z
+    .array(mobileNavItemSchema)
+    .length(3)
+    .default(() => MOBILE_NAV_DEFAULTS.map((d) => mobileNavItemSchema.parse(d))),
+});
+
+// ----------------------------------------------------------------------------
 // Pop-up promocional — vive a nivel de tema, no es una sección de la home
 // (se muestra encima de toda la tienda). Sin newsletter — ver
 // conversación del 2026-09-14: esta plataforma no habla de marketing por
@@ -328,6 +365,7 @@ export const themeConfigSchema = z.object({
   collections: collectionsSchema,
   productDetail: productDetailSchema,
   cart: cartSchema,
+  mobileNav: mobileNavSchema,
   popup: popupSchema,
   /// CSS libre "para diseñadores web" — se sanea (sin @import, sin
   /// expression(), tope de tamaño) antes de inyectarse en la vitrina. Ver

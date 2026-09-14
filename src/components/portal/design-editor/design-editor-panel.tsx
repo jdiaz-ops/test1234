@@ -15,6 +15,7 @@ import {
   CollectionsSection,
   ProductDetailSection,
   CartSection,
+  MobileNavSection,
   PopupSection,
   CssSection,
   type Patch,
@@ -41,6 +42,7 @@ type NavKey =
   | "collections"
   | "productDetail"
   | "cart"
+  | "mobileNav"
   | "popup"
   | "css";
 
@@ -78,6 +80,7 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
       { key: "collections", label: "Colecciones" },
       { key: "productDetail", label: "Detalle del producto" },
       { key: "cart", label: "Carrito de compras" },
+      { key: "mobileNav", label: "Navegador móvil" },
       { key: "popup", label: "Pop-up promocional" },
       { key: "css", label: "Edición avanzada de CSS" },
     ],
@@ -259,6 +262,7 @@ export function DesignEditorPanel({
             <ProductDetailSection theme={theme} patch={patch} storePages={storePages} />
           )}
           {active === "cart" && <CartSection theme={theme} patch={patch} />}
+          {active === "mobileNav" && <MobileNavSection theme={theme} patch={patch} />}
           {active === "popup" && <PopupSection theme={theme} patch={patch} />}
           {active === "css" && <CssSection theme={theme} patch={patch} />}
         </div>

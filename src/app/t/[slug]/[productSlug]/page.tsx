@@ -12,6 +12,7 @@ import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { VariantPicker } from "@/components/storefront/variant-picker";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { ProductShippingCalculator } from "@/components/storefront/product-shipping-calculator";
+import { FloatingAddToCartBar } from "@/components/storefront/floating-add-to-cart-bar";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
@@ -254,6 +255,11 @@ export default async function StorefrontProductPage({
               </>
             )}
 
+            {/* Marca invisible justo debajo del botón principal — la
+                barra flotante de abajo la observa para saber cuándo
+                aparecer (cuando este punto sale del viewport). */}
+            <div id="pdp-cta-sentinel" />
+
             {activePurchaseInfo.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                 {activePurchaseInfo.map((item, i) => {
@@ -272,6 +278,24 @@ export default async function StorefrontProductPage({
             )}
           </div>
         </div>
+
+        {productDetail.floatingAddToCart && (
+          <FloatingAddToCartBar
+            sentinelId="pdp-cta-sentinel"
+            basePath={basePath}
+            hasVariants={product.hasVariants}
+            bottomOffsetClass={theme.mobileNav.enabled ? "bottom-16 sm:bottom-0" : "bottom-0"}
+            product={{
+              id: product.id,
+              slug: product.slug ?? "",
+              name: product.name,
+              price: Number(product.price),
+              imageUrl: product.imageUrl,
+              stock: product.stock,
+              type: product.type,
+            }}
+          />
+        )}
 
         {relatedProducts.length > 0 && (
           <div className="max-w-3xl mx-auto px-6 pb-14">

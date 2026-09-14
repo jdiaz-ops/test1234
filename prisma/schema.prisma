@@ -346,6 +346,7 @@ enum StorefrontSectionType {
   IMAGE_CAROUSEL // una o más imágenes ancho completo, sin texto
   SHIPPING_INFO_BANNERS // hasta 4 "sellos" ícono + título + descripción + link (envíos, pagos, seguridad...)
   CATEGORY_BANNERS // hasta 3 banners, cada uno enlazado a una BrandCollection
+  CATEGORY_GRID // hasta 6 categorías en cuadrícula, cada una enlazada a una BrandCollection
   PROMO_BANNERS // hasta 3 banners promocionales sueltos (imagen + link)
   FEATURED_PRODUCTS // grilla/carrusel de productos elegidos a mano
   NEW_PRODUCTS // grilla/carrusel de los productos más recientes
