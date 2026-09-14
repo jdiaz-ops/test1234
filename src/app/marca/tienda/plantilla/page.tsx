@@ -2,10 +2,14 @@ import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StorefrontTemplateForm } from "@/components/portal/storefront-template-form";
+import { StorefrontSectionsPanel } from "@/components/portal/storefront-sections-panel";
+import { listStorefrontSections } from "@/server/services/storefront-section-service";
 
 export default async function TiendaPlantillaPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
+
+  const sections = await listStorefrontSections(profile.id);
 
   return (
     <div>
@@ -19,7 +23,17 @@ export default async function TiendaPlantillaPage() {
         Cómo se ve tu catálogo en la página principal de tu tienda.
       </p>
       <StoreSubNav />
-      <StorefrontTemplateForm initialTemplate={profile.storefrontTemplate} />
+      <div className="space-y-6">
+        <StorefrontSectionsPanel
+          initialSections={sections.map((s) => ({
+            id: s.id,
+            type: s.type,
+            enabled: s.enabled,
+            config: s.config,
+          }))}
+        />
+        <StorefrontTemplateForm initialTemplate={profile.storefrontTemplate} />
+      </div>
     </div>
   );
 }

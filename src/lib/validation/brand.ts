@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SECTION_TYPES } from "@/lib/storefront-sections";
 
 export const updateBrandProfileSchema = z.object({
   companyName: z.string().min(2, "Ingresa el nombre de la marca"),
@@ -62,7 +63,7 @@ const variantInputSchema = z.object({
   barcode: z.string().max(120).optional().or(z.literal("")),
   stock: z.coerce.number().int().min(0, "No puede ser negativo"),
   weight: z.number().min(0, "No puede ser negativo").nullable(),
-  weightUnit: z.enum(["KG", "G", "LB", "OZ"]).default("KG"),
+  weightUnit: z.enum(["KG", "G"]).default("KG"),
 });
 
 const productBaseSchema = z.object({
@@ -90,7 +91,7 @@ const productBaseSchema = z.object({
   /// Kilogramos — opcional, solo hace falta si la marca configuró una
   /// regla de envío por peso (ver ShippingZoneRate).
   weight: z.coerce.number().min(0, "No puede ser negativo").optional().nullable(),
-  weightUnit: z.enum(["KG", "G", "LB", "OZ"]).default("KG"),
+  weightUnit: z.enum(["KG", "G"]).default("KG"),
   /// En un producto SERVICE, esto son "cupos disponibles" — mismo campo,
   /// otro nombre en la interfaz. Obligatorio desde el 2026-09-14 salvo con
   /// variantes (ahí null, el stock real vive por variante) — antes era
@@ -101,7 +102,11 @@ const productBaseSchema = z.object({
     .min(0, "No puede ser negativo")
     .optional()
     .nullable(),
-  available: z.boolean(),
+  /// Reemplaza la vieja casilla "Disponible para la venta" — igual a
+  /// Shopify (Activo/Borrador/No listado). `available` se sigue
+  /// derivando de esto al guardar (ver brand-store-product-service.ts),
+  /// así que no hace falta mandarlo aparte.
+  status: z.enum(["ACTIVE", "DRAFT", "UNLISTED"]).default("ACTIVE"),
   type: z.enum(["PHYSICAL", "SERVICE"]).default("PHYSICAL"),
   serviceModality: z.enum(["VIRTUAL", "PRESENCIAL"]).optional().nullable(),
   serviceDurationMinutes: z.coerce
@@ -502,4 +507,77 @@ export const requestPaidContentSchema = z.object({
 
 export const cancelPaidContentSchema = z.object({
   requestId: z.string().min(1),
+});
+
+// ----------------------------------------------------------------------------
+// Secciones de la página de inicio de "Mi tienda" (estilo Tiendanube) — ver
+// storefront-sections.ts para el shape de `config` por tipo, y
+// storefront-section-service.ts. Ver conversación del 2026-09-14.
+// ----------------------------------------------------------------------------
+
+export const createStorefrontSectionSchema = z.object({
+  type: z.enum(SECTION_TYPES),
+  config: z.unknown().optional(),
+});
+
+export const updateStorefrontSectionSchema = z.object({
+  config: z.unknown().optional(),
+  enabled: z.boolean().optional(),
+});
+
+export const reorderStorefrontSectionsSchema = z.object({
+  order: z.array(z.string().min(1)).min(1),
+});
+
+// ----------------------------------------------------------------------------
+// Colecciones de producto (gestión completa — antes solo se creaban al
+// vuelo desde Crear producto). Ver brand-collection-service.ts.
+// ----------------------------------------------------------------------------
+
+export const createBrandCollectionSchema = z.object({
+  name: z.string().min(2, "Ingresa el nombre de la colección").max(80),
+  description: z.string().max(2000).optional().or(z.literal("")),
+  imageUrl: z.string().optional().or(z.literal("")),
+  productIds: z.array(z.string().min(1)).default([]),
+});
+
+export const updateBrandCollectionSchema = createBrandCollectionSchema.extend({
+  collectionId: z.string().min(1),
+});
+
+export const reorderBrandCollectionsSchema = z.object({
+  order: z.array(z.string().min(1)).min(1),
+});
+
+// ----------------------------------------------------------------------------
+// Clientes de "Mi tienda" (CRM) — ver store-customer-service.ts. Las
+// estadísticas (pedidos, gastado) se calculan de StoreOrder, esto solo
+// guarda lo que la marca edita a mano.
+// ----------------------------------------------------------------------------
+
+export const updateStoreCustomerSchema = z.object({
+  email: z.string().email("Correo inválido"),
+  name: z.string().max(200).optional().or(z.literal("")),
+  phone: z.string().max(40).optional().or(z.literal("")),
+  emailSubscribed: z.boolean().optional(),
+  tags: z.array(z.string().min(1).max(40)).max(20).optional(),
+  notes: z.string().max(2000).optional().or(z.literal("")),
+  storeCreditCents: z.coerce.number().int().min(0).optional(),
+});
+
+// ----------------------------------------------------------------------------
+// Estado de preparación/entrega de un pedido de "Mi tienda" — aparte del
+// pago. Ver store-order-service.ts.
+// ----------------------------------------------------------------------------
+
+export const updateOrderFulfillmentSchema = z.object({
+  orderId: z.string().min(1),
+  fulfillmentStatus: z.enum(["UNFULFILLED", "PREPARED", "SHIPPED", "DELIVERED"]),
+  carrier: z.string().max(80).optional().or(z.literal("")),
+  trackingNumber: z.string().max(120).optional().or(z.literal("")),
+});
+
+export const updateOrderNotesSchema = z.object({
+  orderId: z.string().min(1),
+  internalNotes: z.string().max(2000).optional().or(z.literal("")),
 });

@@ -7,7 +7,9 @@ import {
 import { CartProvider } from "@/components/storefront/cart-context";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CatalogTemplate } from "@/components/storefront/catalog-templates";
+import { StorefrontSections } from "@/components/storefront/storefront-sections";
 import { getStoreBasePath } from "@/lib/store-base-path";
+import { listEnabledStorefrontSections } from "@/server/services/storefront-section-service";
 
 export async function generateMetadata({
   params,
@@ -36,9 +38,10 @@ export default async function StorefrontCatalogPage({
   const brand = await getStorefrontBrand(slug);
   if (!brand) notFound();
 
-  const [products, basePath] = await Promise.all([
+  const [products, basePath, sections] = await Promise.all([
     listStorefrontProducts(brand.id),
     getStoreBasePath(slug),
+    listEnabledStorefrontSections(brand.id),
   ]);
 
   return (
@@ -48,6 +51,11 @@ export default async function StorefrontCatalogPage({
           brandSlug={slug}
           brandName={brand.companyName}
           logoUrl={brand.logoUrl}
+          basePath={basePath}
+        />
+        <StorefrontSections
+          sections={sections.map((s) => ({ id: s.id, type: s.type, config: s.config }))}
+          brandId={brand.id}
           basePath={basePath}
         />
         <div className="max-w-3xl mx-auto px-6 py-10">
