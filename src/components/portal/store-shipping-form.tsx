@@ -55,9 +55,9 @@ export function StoreShippingForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
       <p className="text-sm text-brand-ink-soft">
-        Tarifa única por ahora — sin zonas por ciudad todavía. Tú te encargas
-        del despacho del pedido, Marcolini solo muestra esta info en el
-        checkout.
+        Tarifa por defecto — se usa para cualquier región que no tenga su
+        propia zona (ver abajo). Tú te encargas del despacho del pedido,
+        Marcolini solo calcula el costo en el checkout.
       </p>
       <div className="grid grid-cols-2 gap-4">
         <div>

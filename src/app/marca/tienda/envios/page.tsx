@@ -2,10 +2,14 @@ import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreShippingForm } from "@/components/portal/store-shipping-form";
+import { StoreShippingZonesPanel } from "@/components/portal/store-shipping-zones-panel";
+import { listShippingZones } from "@/server/services/shipping-zone-service";
 
 export default async function TiendaEnviosPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
+
+  const zones = await listShippingZones(profile.id);
 
   return (
     <div>
@@ -32,6 +36,16 @@ export default async function TiendaEnviosPage() {
               : "",
           shippingNotes: profile.shippingNotes ?? "",
         }}
+      />
+      <StoreShippingZonesPanel
+        initialZones={zones.map((z) => ({
+          id: z.id,
+          name: z.name,
+          regions: z.regions,
+          price: Number(z.price),
+          freeShippingThreshold:
+            z.freeShippingThreshold != null ? Number(z.freeShippingThreshold) : null,
+        }))}
       />
     </div>
   );
