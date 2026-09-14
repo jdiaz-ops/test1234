@@ -5,6 +5,7 @@ import { useState } from "react";
 type OrderItem = {
   id: string;
   name: string;
+  variantLabel: string | null;
   unitPriceCents: number;
   quantity: number;
   serviceConfirmedAt: string | null;
@@ -21,12 +22,20 @@ export type StoreOrderRow = {
   buyerPhone: string;
   shippingAddress: string | null;
   shippingCity: string | null;
+  shippingRegion: string | null;
   shippingNotes: string | null;
   servicePreferredAt: string | null;
   discountCode: string | null;
   totalCents: number;
   createdAt: string;
   items: OrderItem[];
+  /// null = venta directa, sin código de creador. Viene de Transaction
+  /// (ya calculado por el Motor de Comisiones) — ver listBrandOrders.
+  creator: {
+    name: string;
+    commissionPercent: number;
+    commissionAmountCents: number | null;
+  } | null;
 };
 
 function formatCOP(cents: number) {
@@ -245,7 +254,9 @@ export function StoreOrdersPanel({
                     <div key={item.id}>
                       <div className="flex justify-between">
                         <span className="text-brand-ink-soft">
-                          {item.name} × {item.quantity}
+                          {item.name}
+                          {item.variantLabel && ` (${item.variantLabel})`} ×{" "}
+                          {item.quantity}
                         </span>
                         <span className="font-mono">
                           {formatCOP(item.unitPriceCents * item.quantity)}
@@ -287,19 +298,48 @@ export function StoreOrdersPanel({
                     ) : (
                       <>
                         <p>{order.shippingAddress}</p>
-                        <p>{order.shippingCity}</p>
+                        <p>
+                          {order.shippingCity}
+                          {order.shippingRegion && `, ${order.shippingRegion}`}
+                        </p>
                       </>
                     )}
                     {order.shippingNotes && <p>{order.shippingNotes}</p>}
                   </div>
                 </div>
-                {order.discountCode && (
-                  <p className="text-xs text-brand-ink-soft">
-                    Código usado:{" "}
-                    <span className="font-mono text-brand-ink">
-                      {order.discountCode}
-                    </span>
-                  </p>
+                {(order.discountCode || order.creator) && (
+                  <div className="rounded-lg bg-brand-bg p-3 text-xs space-y-1">
+                    <p className="text-brand-ink font-medium mb-0.5">
+                      Atribución
+                    </p>
+                    {order.discountCode && (
+                      <p className="text-brand-ink-soft">
+                        Código usado:{" "}
+                        <span className="font-mono text-brand-ink">
+                          {order.discountCode}
+                        </span>
+                      </p>
+                    )}
+                    {order.creator ? (
+                      <p className="text-brand-ink-soft">
+                        Creador:{" "}
+                        <span className="font-medium text-brand-ink">
+                          {order.creator.name}
+                        </span>{" "}
+                        — comisión {order.creator.commissionPercent}%
+                        {order.creator.commissionAmountCents != null && (
+                          <>
+                            {" "}
+                            ({formatCOP(order.creator.commissionAmountCents)})
+                          </>
+                        )}
+                      </p>
+                    ) : (
+                      <p className="text-brand-ink-soft">
+                        Venta directa, sin creador.
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             )}

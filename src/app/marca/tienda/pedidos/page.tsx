@@ -34,14 +34,30 @@ export default async function TiendaPedidosPage() {
           buyerPhone: o.buyerPhone,
           shippingAddress: o.shippingAddress,
           shippingCity: o.shippingCity,
+          shippingRegion: o.shippingRegion,
           shippingNotes: o.shippingNotes,
           servicePreferredAt: o.servicePreferredAt?.toISOString() ?? null,
           discountCode: o.discountCode,
           totalCents: o.totalCents,
           createdAt: o.createdAt.toISOString(),
+          creator: o.transaction
+            ? {
+                name: o.transaction.creator.displayName,
+                commissionPercent: Number(
+                  o.transaction.enrollment.commissionPercentOverride ??
+                    o.transaction.enrollment.offer.defaultCommissionPercent,
+                ),
+                commissionAmountCents: o.transaction.commission
+                  ? Math.round(
+                      Number(o.transaction.commission.creatorCommissionAmount) * 100,
+                    )
+                  : null,
+              }
+            : null,
           items: o.items.map((i) => ({
             id: i.id,
             name: i.name,
+            variantLabel: i.variantLabel,
             unitPriceCents: i.unitPriceCents,
             quantity: i.quantity,
             serviceConfirmedAt: i.serviceConfirmedAt?.toISOString() ?? null,
