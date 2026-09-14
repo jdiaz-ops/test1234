@@ -54,15 +54,7 @@ export default async function TiendaPedidosPage() {
                   : null,
               }
             : null,
-          items: o.items.map((i) => ({
-            id: i.id,
-            name: i.name,
-            variantLabel: i.variantLabel,
-            unitPriceCents: i.unitPriceCents,
-            quantity: i.quantity,
-            serviceConfirmedAt: i.serviceConfirmedAt?.toISOString() ?? null,
-            serviceMeetingInfo: i.serviceMeetingInfo,
-          })),
+          itemCount: o.items.length,
         }))}
       />
     </div>
