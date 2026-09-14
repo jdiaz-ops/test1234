@@ -18,6 +18,13 @@
   --brand-accent: #d1477b; /* rosado — botones, enlaces, firma de marca */
   --brand-accent-soft: #f6dde7; /* fondo suave del acento (chips, hover) */
   --brand-line: #f2dedf; /* bordes, separadores */
+
+  /* Solo se usan dentro de la vitrina pública de una marca (ver
+     StorefrontLayout, que las sobreescribe con el tema de esa marca) —
+     acá quedan con un valor por defecto razonable para que nada se rompa
+     si algo las usa fuera de ese contexto. */
+  --brand-secondary: #f6dde7; /* fondo de la barra de anuncio */
+  --brand-highlight: #2f9e6b; /* promos, envío gratis, descuentos */
 }
 
 @theme inline {
@@ -166,4 +173,19 @@ body {
     background: var(--brand-bg);
     font-weight: 600;
   }
+}
+
+/* ============================================================================
+   TIPO DE DISEÑO POR MARCA — [data-rounded="false"] en el wrapper de la
+   vitrina (ver StorefrontLayout) achica los radios de fotos/banners/
+   tarjetas de esa marca. rounded-full (avatares, pastillas) queda afuera
+   a propósito — es una forma, no una cuestión de "con bordes o sin
+   bordes". Ver conversación del 2026-09-14 ("Tipo de diseño").
+   ============================================================================ */
+[data-rounded="false"] .rounded-3xl,
+[data-rounded="false"] .rounded-2xl,
+[data-rounded="false"] .rounded-xl,
+[data-rounded="false"] .rounded-lg,
+[data-rounded="false"] .rounded-md {
+  border-radius: 0.25rem;
 }
