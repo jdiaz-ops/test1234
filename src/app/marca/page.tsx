@@ -174,6 +174,26 @@ export default async function MarcaDashboardPage() {
           </div>
         ))}
 
+      {/* Mismo estilo que la caja de campañas de arriba — atajo al
+          buscador de creadores, para que la marca no dependa solo de que
+          la descubran. Ver conversación del 2026-09-14. */}
+      <div className="flex items-center justify-between gap-4 rounded-2xl border border-brand-line bg-brand-surface p-5 mb-6">
+        <div>
+          <p className="text-sm font-medium text-brand-ink">
+            Descubre nuevo talento
+          </p>
+          <p className="text-xs text-brand-ink-soft mt-1">
+            Busca creadores por categoría e invítalos directo a tu programa.
+          </p>
+        </div>
+        <Link
+          href="/marca/creadores/buscar"
+          className="shrink-0 bg-brand-accent text-white text-xs font-medium rounded-full px-5 py-2.5 hover:opacity-90"
+        >
+          Buscar creadores
+        </Link>
+      </div>
+
       {/* 2 columnas desde el arranque (antes se apilaban una debajo de
           otra en mobile) — mismo tratamiento que el dashboard de admin. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-4">
