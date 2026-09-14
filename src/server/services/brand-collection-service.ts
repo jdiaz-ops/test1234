@@ -29,6 +29,42 @@ export async function listBrandCollections(brandId: string) {
   });
 }
 
+/// Para la página pública de la colección en la vitrina
+/// (/t/{slug}/coleccion/{collectionSlug}) — solo trae productos
+/// realmente visibles (ACTIVE y disponibles), a diferencia de
+/// getBrandCollection (portal) que trae todo para que la marca los edite.
+export async function getPublicBrandCollection(brandId: string, slug: string) {
+  const collection = await prisma.brandCollection.findUnique({
+    where: { brandId_slug: { brandId, slug } },
+    include: {
+      products: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              imageUrl: true,
+              price: true,
+              slug: true,
+              stock: true,
+              type: true,
+              status: true,
+              available: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!collection) return null;
+  return {
+    ...collection,
+    products: collection.products.filter(
+      (p) => p.product.status === "ACTIVE" && p.product.available,
+    ),
+  };
+}
+
 export async function getBrandCollection(brandId: string, collectionId: string) {
   return prisma.brandCollection.findFirst({
     where: { id: collectionId, brandId },
