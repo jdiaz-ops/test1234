@@ -132,15 +132,26 @@ export function StoreProductsPanel({
                   </p>
                 </div>
                 <p className="text-sm text-brand-ink-soft">
-                  {formatCOP(product.price)}
+                  {product.hasVariants
+                    ? "Varios precios"
+                    : formatCOP(product.price)}
                 </p>
                 {!product.available && (
                   <p className="text-xs text-red-600 mt-0.5">No disponible</p>
                 )}
-                {product.stock != null && (
+                {product.hasVariants ? (
                   <p className="text-xs text-brand-ink-soft mt-0.5">
-                    {product.type === "SERVICE" ? "Cupos" : "Stock"}: {product.stock}
+                    {product.variants.length} variantes ·{" "}
+                    {product.variants.reduce((sum, v) => sum + v.stock, 0)} en
+                    stock
                   </p>
+                ) : (
+                  product.stock != null && (
+                    <p className="text-xs text-brand-ink-soft mt-0.5">
+                      {product.type === "SERVICE" ? "Cupos" : "Stock"}:{" "}
+                      {product.stock}
+                    </p>
+                  )
                 )}
                 <div className="flex items-center gap-3 mt-2">
                   <button

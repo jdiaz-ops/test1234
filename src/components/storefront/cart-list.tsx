@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCart } from "@/components/storefront/cart-context";
+import { cartLineKey } from "@/lib/storefront-cart";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -40,7 +41,7 @@ export function CartList({
     <div className="space-y-4">
       {items.map((item) => (
         <div
-          key={item.productId}
+          key={cartLineKey(item)}
           className="flex items-center gap-4 rounded-2xl border border-brand-line bg-brand-surface p-4"
         >
           {item.imageUrl ? (
@@ -57,6 +58,9 @@ export function CartList({
             <p className="text-sm font-medium text-brand-ink truncate">
               {item.name}
             </p>
+            {item.variantLabel && (
+              <p className="text-xs text-brand-ink-soft">{item.variantLabel}</p>
+            )}
             <p className="text-xs text-brand-ink-soft font-mono">
               {formatCOP(item.price)}
             </p>
@@ -64,7 +68,9 @@ export function CartList({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+              onClick={() =>
+                updateQuantity(item.productId, item.variantId, item.quantity - 1)
+              }
               className="w-7 h-7 rounded-full border border-brand-line text-sm hover:bg-brand-accent-soft"
             >
               −
@@ -74,7 +80,9 @@ export function CartList({
             </span>
             <button
               type="button"
-              onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+              onClick={() =>
+                updateQuantity(item.productId, item.variantId, item.quantity + 1)
+              }
               disabled={item.stock != null && item.quantity >= item.stock}
               className="w-7 h-7 rounded-full border border-brand-line text-sm hover:bg-brand-accent-soft disabled:opacity-40"
             >
@@ -83,7 +91,7 @@ export function CartList({
           </div>
           <button
             type="button"
-            onClick={() => removeItem(item.productId)}
+            onClick={() => removeItem(item.productId, item.variantId)}
             className="text-xs text-brand-ink-soft hover:text-red-600"
           >
             Quitar

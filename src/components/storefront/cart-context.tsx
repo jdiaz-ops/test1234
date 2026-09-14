@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { readCart, writeCart, type CartItem } from "@/lib/storefront-cart";
+import { readCart, writeCart, cartLineKey, type CartItem } from "@/lib/storefront-cart";
 
 type CartContextValue = {
   items: CartItem[];
@@ -22,8 +22,12 @@ type CartContextValue = {
     item: Omit<CartItem, "quantity">,
     quantity?: number,
   ) => { ok: true } | { ok: false; error: string };
-  updateQuantity: (productId: string, quantity: number) => void;
-  removeItem: (productId: string) => void;
+  updateQuantity: (
+    productId: string,
+    variantId: string | null,
+    quantity: number,
+  ) => void;
+  removeItem: (productId: string, variantId: string | null) => void;
   clear: () => void;
 };
 
@@ -73,11 +77,12 @@ export function CartProvider({
         };
       }
       setItems((prev) => {
-        const existing = prev.find((i) => i.productId === item.productId);
+        const key = cartLineKey(item);
+        const existing = prev.find((i) => cartLineKey(i) === key);
         if (existing) {
           const maxQty = item.stock ?? Infinity;
           return prev.map((i) =>
-            i.productId === item.productId
+            cartLineKey(i) === key
               ? { ...i, quantity: Math.min(i.quantity + quantity, maxQty) }
               : i,
           );
@@ -89,19 +94,24 @@ export function CartProvider({
     [items],
   );
 
-  const updateQuantity = useCallback((productId: string, quantity: number) => {
-    setItems((prev) => {
-      if (quantity <= 0) return prev.filter((i) => i.productId !== productId);
-      return prev.map((i) =>
-        i.productId === productId
-          ? { ...i, quantity: Math.min(quantity, i.stock ?? Infinity) }
-          : i,
-      );
-    });
-  }, []);
+  const updateQuantity = useCallback(
+    (productId: string, variantId: string | null, quantity: number) => {
+      const key = cartLineKey({ productId, variantId });
+      setItems((prev) => {
+        if (quantity <= 0) return prev.filter((i) => cartLineKey(i) !== key);
+        return prev.map((i) =>
+          cartLineKey(i) === key
+            ? { ...i, quantity: Math.min(quantity, i.stock ?? Infinity) }
+            : i,
+        );
+      });
+    },
+    [],
+  );
 
-  const removeItem = useCallback((productId: string) => {
-    setItems((prev) => prev.filter((i) => i.productId !== productId));
+  const removeItem = useCallback((productId: string, variantId: string | null) => {
+    const key = cartLineKey({ productId, variantId });
+    setItems((prev) => prev.filter((i) => cartLineKey(i) !== key));
   }, []);
 
   const clear = useCallback(() => setItems([]), []);

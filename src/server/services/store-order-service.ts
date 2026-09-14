@@ -9,6 +9,10 @@ import {
   recordOrderFromWebhook,
 } from "@/server/services/attribution-service";
 import { sendServiceBookingConfirmedEmail } from "@/lib/email";
+import {
+  listShippingZones,
+  matchShippingZone,
+} from "@/server/services/shipping-zone-service";
 
 /// Carrito y checkout nativos de "Mi tienda" — la vitrina pública de una
 /// marca en marcolini.lat/t/{storefrontSlug}. El carrito vive en el
@@ -35,6 +39,10 @@ export async function listStorefrontProducts(brandId: string) {
 export async function getStorefrontProduct(brandId: string, slug: string) {
   return prisma.product.findFirst({
     where: { brandId, manual: true, slug },
+    include: {
+      images: { orderBy: { position: "asc" } },
+      variants: { orderBy: { position: "asc" } },
+    },
   });
 }
 
@@ -52,7 +60,12 @@ export async function previewDiscountCode(brandId: string, rawCode: string) {
   return { discountPercent };
 }
 
-type CartItemInput = { productId: string; quantity: number };
+type CartItemInput = {
+  productId: string;
+  /// Solo si el producto tiene variantes — ver Product.hasVariants.
+  variantId?: string;
+  quantity: number;
+};
 
 type CreateOrderInput = {
   items: CartItemInput[];
@@ -63,6 +76,10 @@ type CreateOrderInput = {
   /// chequeo de "no mezclar tipos" más abajo.
   shippingAddress?: string;
   shippingCity?: string;
+  /// Departamento elegido en el checkout — determina qué zona de envío
+  /// aplica (ver matchShippingZone). Requerido junto con shippingAddress/
+  /// shippingCity para un carrito con productos físicos.
+  shippingRegion?: string;
   shippingNotes?: string | null;
   /// Solo hace falta si el carrito es 100% de servicios.
   servicePreferredAt?: string | null;
@@ -93,12 +110,15 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   const productIds = input.items.map((i) => i.productId);
   const products = await prisma.product.findMany({
     where: { id: { in: productIds }, brandId: brand.id, manual: true },
+    include: { variants: true },
   });
   const productMap = new Map(products.map((p) => [p.id, p]));
 
   let subtotalCents = 0;
   const itemsData: {
     productId: string;
+    variantId: string | null;
+    variantLabel: string | null;
     name: string;
     unitPriceCents: number;
     quantity: number;
@@ -113,21 +133,56 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     if (item.quantity < 1) {
       throw new StoreOrderError("Cantidad inválida.");
     }
-    if (product.stock != null && product.stock < item.quantity) {
+
+    let unitPrice = Number(product.price);
+    let itemImageUrl = product.imageUrl;
+    let variantId: string | null = null;
+    let variantLabel: string | null = null;
+
+    if (product.hasVariants) {
+      const variant = product.variants.find((v) => v.id === item.variantId);
+      if (!variant) {
+        throw new StoreOrderError(
+          `Elige una combinación válida de "${product.name}".`,
+        );
+      }
+      if (variant.stock < item.quantity) {
+        throw new StoreOrderError(
+          `No hay suficiente stock de "${product.name}" en esa combinación.`,
+        );
+      }
+      unitPrice = variant.price != null ? Number(variant.price) : unitPrice;
+      itemImageUrl = variant.imageUrl ?? itemImageUrl;
+      variantId = variant.id;
+      variantLabel = product.optionNames
+        .map((name, idx) => {
+          const value = [
+            variant.option1Value,
+            variant.option2Value,
+            variant.option3Value,
+          ][idx];
+          return value ? `${name}: ${value}` : null;
+        })
+        .filter(Boolean)
+        .join(" · ");
+    } else if (product.stock != null && product.stock < item.quantity) {
       throw new StoreOrderError(
         product.type === "SERVICE"
           ? `No quedan cupos de "${product.name}".`
           : `No hay suficiente stock de "${product.name}".`,
       );
     }
-    const unitPriceCents = Math.round(Number(product.price) * 100);
+
+    const unitPriceCents = Math.round(unitPrice * 100);
     subtotalCents += unitPriceCents * item.quantity;
     itemsData.push({
       productId: product.id,
+      variantId,
+      variantLabel,
       name: product.name,
       unitPriceCents,
       quantity: item.quantity,
-      imageUrl: product.imageUrl,
+      imageUrl: itemImageUrl,
     });
   }
 
@@ -153,8 +208,14 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
       throw new StoreOrderError("Elige una fecha y hora válida, más adelante en el tiempo.");
     }
   } else {
-    if (!input.shippingAddress?.trim() || !input.shippingCity?.trim()) {
-      throw new StoreOrderError("Ingresa tu dirección y ciudad de envío.");
+    if (
+      !input.shippingAddress?.trim() ||
+      !input.shippingCity?.trim() ||
+      !input.shippingRegion?.trim()
+    ) {
+      throw new StoreOrderError(
+        "Ingresa tu dirección, ciudad y departamento de envío.",
+      );
     }
   }
 
@@ -170,19 +231,38 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   }
 
   const afterDiscount = subtotalCents - discountCents;
-  const freeThresholdCents = brand.freeShippingThreshold
-    ? Math.round(Number(brand.freeShippingThreshold) * 100)
-    : null;
-  const flatRateCents = brand.shippingFlatRate
+
+  // Zona de envío que cubra el departamento elegido (o la zona catch-all
+  // "Resto de Colombia") — si la marca no creó ninguna zona, o ninguna
+  // cubre esa región, se usa la tarifa/umbral únicos de siempre
+  // (BrandProfile.shippingFlatRate/freeShippingThreshold) como respaldo.
+  // Ver conversación del 2026-09-14 pidiendo poder cobrar distinto según
+  // a dónde se envía.
+  let shippingRateCents = brand.shippingFlatRate
     ? Math.round(Number(brand.shippingFlatRate) * 100)
     : 0;
+  let shippingFreeThresholdCents = brand.freeShippingThreshold
+    ? Math.round(Number(brand.freeShippingThreshold) * 100)
+    : null;
+
+  if (!isServiceOrder && input.shippingRegion) {
+    const zones = await listShippingZones(brand.id);
+    const zone = matchShippingZone(zones, input.shippingRegion);
+    if (zone) {
+      shippingRateCents = Math.round(Number(zone.price) * 100);
+      shippingFreeThresholdCents = zone.freeShippingThreshold
+        ? Math.round(Number(zone.freeShippingThreshold) * 100)
+        : null;
+    }
+  }
+
   // Un servicio no se envía — nunca cobra flete, sin importar la
   // configuración de envíos de la marca.
   const shippingCents = isServiceOrder
     ? 0
-    : freeThresholdCents != null && afterDiscount >= freeThresholdCents
+    : shippingFreeThresholdCents != null && afterDiscount >= shippingFreeThresholdCents
       ? 0
-      : flatRateCents;
+      : shippingRateCents;
 
   const totalCents = afterDiscount + shippingCents;
   if (totalCents <= 0) {
@@ -201,6 +281,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
         buyerPhone: input.buyerPhone.trim(),
         shippingAddress: isServiceOrder ? null : input.shippingAddress!.trim(),
         shippingCity: isServiceOrder ? null : input.shippingCity!.trim(),
+        shippingRegion: isServiceOrder ? null : input.shippingRegion!.trim(),
         servicePreferredAt,
         shippingNotes: input.shippingNotes?.trim() || null,
         discountCode,
@@ -244,11 +325,27 @@ export async function getStoreOrder(orderId: string) {
 
 /// Para el submódulo "Pedidos" del portal de marca — incluye compras
 /// (kind PURCHASE) y muestras aprobadas (kind SAMPLE) en la misma lista,
-/// más recientes primero.
+/// más recientes primero. Trae también el creador y la comisión de cada
+/// pedido atribuido (vía Transaction, que ya calculó todo el Motor de
+/// Comisiones) — ver conversación del 2026-09-14 pidiendo mostrar esto en
+/// el detalle de cada pedido.
 export async function listBrandOrders(brandId: string) {
   return prisma.storeOrder.findMany({
     where: { brandId },
-    include: { items: true },
+    include: {
+      items: true,
+      transaction: {
+        include: {
+          creator: { select: { displayName: true } },
+          commission: true,
+          enrollment: {
+            include: {
+              offer: { select: { defaultCommissionPercent: true } },
+            },
+          },
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 }

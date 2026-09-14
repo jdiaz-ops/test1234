@@ -436,11 +436,16 @@ model BrandProfile {
   /// negociación, y la marca lo ve reflejado automáticamente en su portal.
   platformFeePercentOverride Decimal? @db.Decimal(5, 2)
 
-  offers       Offer[]
-  charges      BrandCharge[]
-  invoices     BrandInvoice[]
-  transactions Transaction[]
-  products     Product[]
+  offers             Offer[]
+  charges            BrandCharge[]
+  invoices           BrandInvoice[]
+  transactions       Transaction[]
+  products           Product[]
+  /// Colecciones propias de la marca (ej. "Verano 2026") para organizar su
+  /// catálogo — distinto de `Collection` (esa es la vitrina curada del
+  /// creador, cruzando varias marcas). Ver conversación del 2026-09-14.
+  productCollections BrandCollection[]
+  shippingZones      ShippingZone[]
 
   // --------------------------------------------------------------------
   // "Mi tienda" — catálogo y checkout propios de Marcolini, independientes
@@ -944,6 +949,10 @@ model StoreOrder {
   /// así que nunca hace falta envío Y reserva a la vez en el mismo pedido.
   shippingAddress String?
   shippingCity    String?
+  /// Departamento elegido en el checkout (ver COLOMBIA_REGIONS) — se usa
+  /// para calcular el costo de envío por zona (ver matchShippingZone en
+  /// shipping-zone-service.ts). Ver conversación del 2026-09-14.
+  shippingRegion  String?
   shippingNotes   String?
 
   /// Solo en un pedido de servicios — la fecha/hora que pidió el
@@ -1001,6 +1010,15 @@ model StoreOrderItem {
   /// su propia foto de nombre/precio, así que no depende de que exista.
   productId String?
   product   Product? @relation(fields: [productId], references: [id])
+
+  /// Solo si el producto vendido tenía variantes — igual que productId,
+  /// puede quedar huérfano si la variante se borra después (el pedido ya
+  /// guardó su propia foto en variantLabel).
+  variantId    String?
+  variant      ProductVariant? @relation(fields: [variantId], references: [id])
+  /// Foto de la combinación al momento de la compra (ej. "Talla: M ·
+  /// Color: Rojo") — null si el producto no tenía variantes.
+  variantLabel String?
 
   name           String // foto del nombre al momento de la compra
   unitPriceCents Int // foto del precio unitario
@@ -1755,6 +1773,10 @@ model Product {
   /// Solo lo llenan los productos creados a mano en "Mi tienda" — los
   /// sincronizados de Shopify/WooCommerce no traen descripción hoy.
   description    String?
+  /// Portada — en un producto manual con varias fotos (ver `images` abajo)
+  /// es simplemente la primera (position 0), se mantiene sincronizado acá
+  /// para no romper a todo lo que ya lee imageUrl directo (tarjetas,
+  /// vitrina, pedidos, muestras).
   imageUrl       String?
   price          Decimal  @db.Decimal(12, 2)
   /// Precio "antes" — Shopify: compare_at_price, WooCommerce: regular_price
@@ -1799,17 +1821,35 @@ model Product {
   /// productos sincronizados (esos usan `url`, el link real de su tienda).
   slug String?
 
-  /// Solo para productos manuales — null = no se controla stock (siempre
-  /// disponible). 0 no bloquea la venta solo, lo hace junto con `available`.
-  /// En un producto SERVICE, este mismo campo se reusa como "cupos
-  /// disponibles" (cuántas reservas se pueden vender) — mismo concepto de
-  /// disponibilidad limitada, sin agregar un campo aparte.
+  /// Solo para productos manuales sin variantes (hasVariants = false) —
+  /// obligatorio desde el 2026-09-14 (antes era opcional = "sin límite",
+  /// confundía a las marcas). En un producto SERVICE, este mismo campo se
+  /// reusa como "cupos disponibles" (cuántas reservas se pueden vender) —
+  /// mismo concepto de disponibilidad limitada, sin agregar un campo
+  /// aparte. Cuando hasVariants = true, el stock real vive por variante
+  /// (ver ProductVariant.stock) y este campo queda sin usar.
   stock Int?
+
+  /// SKU y código de barras del producto — solo cuando NO tiene variantes
+  /// (si las tiene, cada ProductVariant trae los suyos propios). Ambos
+  /// opcionales: muchas marcas chicas no manejan ninguno de los dos.
+  sku     String?
+  barcode String?
 
   /// Solo lo trae un producto manual — los sincronizados de Shopify/
   /// WooCommerce son siempre PHYSICAL (no hay forma de marcar un producto
   /// como servicio desde esas plataformas todavía).
   type ProductType @default(PHYSICAL)
+
+  /// Variantes (talla, color, etc.) — solo en productos manuales PHYSICAL.
+  /// hasVariants = false (default): el producto se vende con su propio
+  /// price/stock/sku/barcode de arriba, sin variantes. hasVariants = true:
+  /// esos campos quedan sin usar y la venta real ocurre por
+  /// ProductVariant — optionNames es el nombre de cada eje (ej. ["Talla",
+  /// "Color"], hasta 3, mismo modelo clásico que usa Shopify).
+  hasVariants Boolean          @default(false)
+  optionNames String[]         @default([])
+  variants    ProductVariant[]
 
   /// Los tres siguientes solo aplican cuando type = SERVICE — null en
   /// cualquier producto PHYSICAL.
@@ -1838,6 +1878,15 @@ model Product {
   sampleContentType  String?
   sampleInstructions String?
   sampleDeadlineDays Int?
+
+  /// Galería — solo productos manuales. La primera (position 0) es la que
+  /// se refleja en `imageUrl` arriba. Ver conversación del 2026-09-14
+  /// pidiendo poder subir varias fotos (antes solo dejaba una).
+  images ProductImage[]
+
+  /// Colecciones propias de la marca (ver BrandCollection) — distinto de
+  /// `collectionItems` abajo, que es la vitrina curada de un CREADOR.
+  brandCollections ProductBrandCollection[]
 
   collectionItems CollectionProduct[]
   storeOrderItems StoreOrderItem[]
@@ -1882,4 +1931,121 @@ model CollectionProduct {
   createdAt DateTime @default(now())
 
   @@unique([collectionId, productId])
+}
+
+// ----------------------------------------------------------------------------
+// GALERÍA, VARIANTES Y COLECCIONES DE PRODUCTO EN "MI TIENDA"
+// (agregado 2026-09-14 — antes un producto manual solo tenía una imagen, un
+// precio/stock únicos y ninguna forma de organizarlos en colecciones)
+// ----------------------------------------------------------------------------
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  url      String
+  /// 0 = portada (se refleja en Product.imageUrl) — ver
+  /// brand-store-product-service.ts.
+  position Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([productId, position])
+}
+
+/// Una fila = una combinación de valores de opción vendible aparte (su
+/// propio precio, stock, SKU/código de barras e imagen) — modelo clásico
+/// de Shopify: hasta 3 ejes por producto (ver Product.optionNames).
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  option1Value String?
+  option2Value String?
+  option3Value String?
+
+  /// null = usa Product.price tal cual — se puede sobreescribir por
+  /// variante.
+  price    Decimal? @db.Decimal(12, 2)
+  sku      String?
+  barcode  String?
+  imageUrl String?
+  stock    Int      @default(0)
+
+  position Int @default(0)
+
+  orderItems StoreOrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, option1Value, option2Value, option3Value])
+  @@index([productId])
+}
+
+/// Colección propia de la marca (ej. "Verano 2026", "Camisetas") para
+/// organizar/filtrar su catálogo — no confundir con `Collection`, que es
+/// la vitrina curada de un CREADOR cruzando varias marcas.
+model BrandCollection {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  name String
+  slug String
+
+  products ProductBrandCollection[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([brandId, slug])
+  @@index([brandId])
+}
+
+model ProductBrandCollection {
+  id           String          @id @default(cuid())
+  productId    String
+  product      Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collectionId String
+  collection   BrandCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([productId, collectionId])
+}
+
+// ----------------------------------------------------------------------------
+// ZONAS DE ENVÍO (agregado 2026-09-14) — antes solo existía una tarifa plana
+// global por marca (BrandProfile.shippingFlatRate/freeShippingThreshold, ver
+// StoreShippingForm), sin poder cobrar distinto según a dónde se envía. Con
+// zonas, cada una cubre uno o más departamentos de Colombia y trae su propio
+// precio + umbral de envío gratis; la tarifa plana global sigue siendo el
+// respaldo cuando la marca no creó ninguna zona (nunca rompe checkouts
+// existentes). Solo tarifa fija — Marcolini no integra con transportadoras
+// ni calcula por peso, a diferencia de Shopify (ver conversación del
+// 2026-09-14, donde eso quedó explícitamente fuera de alcance por ahora).
+// ----------------------------------------------------------------------------
+
+model ShippingZone {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  name String
+
+  /// Departamentos de Colombia que cubre (ver COLOMBIA_REGIONS en
+  /// lib/colombia-regions.ts) — o ["*"] como zona catch-all ("Resto de
+  /// Colombia") para lo que ninguna otra zona de la marca cubre.
+  regions String[]
+
+  price                 Decimal  @db.Decimal(12, 2)
+  freeShippingThreshold Decimal? @db.Decimal(12, 2)
+
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([brandId])
 }

@@ -7,6 +7,8 @@ import {
 import { CartProvider } from "@/components/storefront/cart-context";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { VariantPicker } from "@/components/storefront/variant-picker";
+import { ProductGallery } from "@/components/storefront/product-gallery";
 import { getStoreBasePath } from "@/lib/store-base-path";
 
 function formatCOP(amount: number) {
@@ -60,16 +62,16 @@ export default async function StorefrontProductPage({
         />
         <div className="max-w-3xl mx-auto px-6 py-10 grid sm:grid-cols-2 gap-8">
           <div>
-            {product.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
-              <img
-                src={product.imageUrl}
-                alt={product.name}
-                className="w-full aspect-square object-cover rounded-2xl border border-brand-line"
-              />
-            ) : (
-              <div className="w-full aspect-square bg-brand-accent-soft rounded-2xl" />
-            )}
+            <ProductGallery
+              images={
+                product.images.length > 0
+                  ? product.images.map((img) => img.url)
+                  : product.imageUrl
+                    ? [product.imageUrl]
+                    : []
+              }
+              alt={product.name}
+            />
           </div>
           <div className="flex flex-col gap-4">
             <div>
@@ -81,16 +83,18 @@ export default async function StorefrontProductPage({
               </h1>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-lg text-brand-ink">
-                {formatCOP(Number(product.price))}
-              </span>
-              {product.compareAtPrice && (
-                <span className="font-mono text-sm text-brand-ink-soft line-through">
-                  {formatCOP(Number(product.compareAtPrice))}
+            {!product.hasVariants && (
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-lg text-brand-ink">
+                  {formatCOP(Number(product.price))}
                 </span>
-              )}
-            </div>
+                {product.compareAtPrice && (
+                  <span className="font-mono text-sm text-brand-ink-soft line-through">
+                    {formatCOP(Number(product.compareAtPrice))}
+                  </span>
+                )}
+              </div>
+            )}
 
             {product.description && (
               <p className="text-sm text-brand-ink-soft whitespace-pre-line">
@@ -118,29 +122,54 @@ export default async function StorefrontProductPage({
               </div>
             )}
 
-            {outOfStock ? (
-              <p className="text-sm text-brand-ink-soft">
-                {isService
-                  ? "Sin cupos disponibles por ahora."
-                  : "Este producto está agotado por ahora."}
-              </p>
-            ) : product.stock != null ? (
-              <p className="text-xs text-brand-ink-soft">
-                {product.stock} {isService ? "cupos disponibles" : "disponibles"}
-              </p>
-            ) : null}
+            {!product.hasVariants && (
+              <>
+                {outOfStock ? (
+                  <p className="text-sm text-brand-ink-soft">
+                    {isService
+                      ? "Sin cupos disponibles por ahora."
+                      : "Este producto está agotado por ahora."}
+                  </p>
+                ) : product.stock != null ? (
+                  <p className="text-xs text-brand-ink-soft">
+                    {product.stock}{" "}
+                    {isService ? "cupos disponibles" : "disponibles"}
+                  </p>
+                ) : null}
 
-            <AddToCartButton
-              product={{
-                id: product.id,
-                slug: product.slug ?? "",
-                name: product.name,
-                price: Number(product.price),
-                imageUrl: product.imageUrl,
-                stock: product.stock,
-                type: product.type,
-              }}
-            />
+                <AddToCartButton
+                  product={{
+                    id: product.id,
+                    slug: product.slug ?? "",
+                    name: product.name,
+                    price: Number(product.price),
+                    imageUrl: product.imageUrl,
+                    stock: product.stock,
+                    type: product.type,
+                  }}
+                />
+              </>
+            )}
+
+            {product.hasVariants && (
+              <VariantPicker
+                productId={product.id}
+                productSlug={product.slug ?? ""}
+                productName={product.name}
+                basePrice={Number(product.price)}
+                baseImageUrl={product.imageUrl}
+                optionNames={product.optionNames}
+                variants={product.variants.map((v) => ({
+                  id: v.id,
+                  option1Value: v.option1Value,
+                  option2Value: v.option2Value,
+                  option3Value: v.option3Value,
+                  price: v.price != null ? Number(v.price) : null,
+                  imageUrl: v.imageUrl,
+                  stock: v.stock,
+                }))}
+              />
+            )}
           </div>
         </div>
       </div>

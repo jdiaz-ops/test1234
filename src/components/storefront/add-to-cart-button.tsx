@@ -11,14 +11,22 @@ type Product = {
   imageUrl: string | null;
   stock: number | null;
   type?: "PHYSICAL" | "SERVICE";
+  /// Solo cuando el producto tiene variantes — ver variant-picker.tsx, que
+  /// es quien calcula cuál está seleccionada.
+  variantId?: string | null;
+  variantLabel?: string | null;
 };
 
 export function AddToCartButton({
   product,
   className,
+  disabled,
 }: {
   product: Product;
   className?: string;
+  /// Ej. producto con variantes y todavía no elige ninguna combinación
+  /// completa.
+  disabled?: boolean;
 }) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
@@ -28,9 +36,11 @@ export function AddToCartButton({
   const outOfStock = product.stock != null && product.stock <= 0;
 
   function handleClick() {
-    if (outOfStock) return;
+    if (outOfStock || disabled) return;
     const result = addItem({
       productId: product.id,
+      variantId: product.variantId ?? null,
+      variantLabel: product.variantLabel ?? null,
       slug: product.slug,
       name: product.name,
       price: product.price,
@@ -52,7 +62,7 @@ export function AddToCartButton({
       <button
         type="button"
         onClick={handleClick}
-        disabled={outOfStock}
+        disabled={outOfStock || disabled}
         className={
           className ??
           "w-full bg-brand-accent text-white rounded-full px-5 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40"

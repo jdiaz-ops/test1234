@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/storefront/cart-context";
+import { cartLineKey } from "@/lib/storefront-cart";
+import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
 import {
   WompiCheckoutButton,
   type WompiWidgetParams,
@@ -42,6 +44,7 @@ export function CheckoutForm({
   const [buyerPhone, setBuyerPhone] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
   const [shippingCity, setShippingCity] = useState("");
+  const [shippingRegion, setShippingRegion] = useState("");
   const [shippingNotes, setShippingNotes] = useState("");
   const [servicePreferredAt, setServicePreferredAt] = useState("");
   // Date.now() es impuro — no se puede llamar en render ni en un useMemo
@@ -126,6 +129,7 @@ export function CheckoutForm({
         body: JSON.stringify({
           items: items.map((i) => ({
             productId: i.productId,
+            ...(i.variantId ? { variantId: i.variantId } : {}),
             quantity: i.quantity,
           })),
           buyerName,
@@ -133,6 +137,7 @@ export function CheckoutForm({
           buyerPhone,
           shippingAddress: isServiceOrder ? "" : shippingAddress,
           shippingCity: isServiceOrder ? "" : shippingCity,
+          shippingRegion: isServiceOrder ? "" : shippingRegion,
           shippingNotes,
           // Colombia no tiene horario de verano — UTC-5 todo el año, así
           // que un offset fijo alcanza para que el datetime-local (que no
@@ -241,6 +246,29 @@ export function CheckoutForm({
               </div>
             )}
 
+            {!isServiceOrder && (
+              <div>
+                <label className="block text-sm text-brand-ink mb-1">
+                  Departamento
+                </label>
+                <select
+                  required
+                  value={shippingRegion}
+                  onChange={(e) => setShippingRegion(e.target.value)}
+                  className="input"
+                >
+                  <option value="" disabled>
+                    Selecciona tu departamento
+                  </option>
+                  {COLOMBIA_REGIONS.map((region) => (
+                    <option key={region} value={region}>
+                      {region}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               {!isServiceOrder && (
                 <div>
@@ -334,9 +362,10 @@ export function CheckoutForm({
         <p className="text-sm font-medium text-brand-ink">Resumen del pedido</p>
         <div className="space-y-2">
           {items.map((item) => (
-            <div key={item.productId} className="flex justify-between text-sm">
+            <div key={cartLineKey(item)} className="flex justify-between text-sm">
               <span className="text-brand-ink-soft">
-                {item.name} × {item.quantity}
+                {item.name}
+                {item.variantLabel && ` (${item.variantLabel})`} × {item.quantity}
               </span>
               <span className="font-mono">
                 {formatCOP(item.price * item.quantity)}

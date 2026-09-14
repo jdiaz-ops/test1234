@@ -6,6 +6,13 @@
 
 export type CartItem = {
   productId: string;
+  /// Solo si el producto tiene variantes (ver Product.hasVariants) — dos
+  /// variantes del mismo producto son líneas de carrito DISTINTAS (ver
+  /// cartLineKey abajo), cada una con su propio precio/stock/quantity.
+  variantId: string | null;
+  /// Foto de la combinación elegida (ej. "Talla: M · Color: Rojo") — solo
+  /// para mostrar en el carrito/checkout.
+  variantLabel: string | null;
   slug: string;
   name: string;
   price: number; // COP, solo para mostrar — el cobro real lo recalcula el servidor
@@ -17,6 +24,13 @@ export type CartItem = {
   /// fuente de verdad del lado del navegador antes de llegar al checkout.
   type: "PHYSICAL" | "SERVICE";
 };
+
+/// Identifica una línea de carrito — productId solo no alcanza cuando el
+/// producto tiene variantes (dos variantes del mismo producto deben ser
+/// líneas separadas, no sumarse ni pisarse entre sí).
+export function cartLineKey(item: { productId: string; variantId: string | null }) {
+  return `${item.productId}:${item.variantId ?? ""}`;
+}
 
 function storageKey(brandSlug: string) {
   return `marcolini_cart_${brandSlug}`;

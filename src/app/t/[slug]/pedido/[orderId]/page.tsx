@@ -107,7 +107,8 @@ export default async function StorefrontOrderStatusPage({
             <div key={item.id}>
               <div className="flex justify-between">
                 <span className="text-brand-ink-soft">
-                  {item.name} × {item.quantity}
+                  {item.name}
+                  {item.variantLabel && ` (${item.variantLabel})`} × {item.quantity}
                 </span>
                 <span className="font-mono">
                   {formatCOP((item.unitPriceCents * item.quantity) / 100)}

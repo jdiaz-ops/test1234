@@ -31,6 +31,7 @@ export async function POST(
       buyerPhone: parsed.data.buyerPhone,
       shippingAddress: parsed.data.shippingAddress || undefined,
       shippingCity: parsed.data.shippingCity || undefined,
+      shippingRegion: parsed.data.shippingRegion || undefined,
       shippingNotes: parsed.data.shippingNotes || null,
       servicePreferredAt: parsed.data.servicePreferredAt || undefined,
       discountCode: parsed.data.discountCode || null,

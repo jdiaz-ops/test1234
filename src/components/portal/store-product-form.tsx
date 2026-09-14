@@ -1,33 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { PriceInput } from "@/components/portal/price-input";
+import { ProductImageUploader } from "@/components/portal/product-image-uploader";
+import {
+  ProductCollectionsPicker,
+  type BrandCollectionOption,
+} from "@/components/portal/product-collections-picker";
+import {
+  ProductVariantsEditor,
+  type VariantRowInput,
+} from "@/components/portal/product-variants-editor";
+
+export type ManualProductVariant = {
+  id: string;
+  option1Value: string | null;
+  option2Value: string | null;
+  option3Value: string | null;
+  price: number | null;
+  sku: string | null;
+  barcode: string | null;
+  stock: number;
+};
 
 export type ManualProduct = {
   id: string;
   name: string;
   description: string | null;
+  images: string[];
   imageUrl: string | null;
   price: number;
   compareAtPrice: number | null;
   slug: string | null;
+  sku: string | null;
+  barcode: string | null;
   stock: number | null;
   available: boolean;
   type: "PHYSICAL" | "SERVICE";
   serviceModality: "VIRTUAL" | "PRESENCIAL" | null;
   serviceDurationMinutes: number | null;
   serviceLocation: string | null;
+  collectionIds: string[];
+  hasVariants: boolean;
+  optionNames: string[];
+  variants: ManualProductVariant[];
 };
 
-/// Slug automático a partir del nombre — la marca lo puede corregir a mano
-/// después si quiere (ej. acortar), pero no tiene que pensarlo desde cero.
+/// Slug interno — la marca ya no lo ve ni lo edita (ver conversación del
+/// 2026-09-14: "no sé a qué se refiere un Slug URL"), se genera solo a
+/// partir del nombre. El servicio le agrega un sufijo si choca con uno
+/// existente (assertSlugAvailable ya no hace falta que la marca lo
+/// resuelva a mano).
 function slugify(name: string) {
   return name
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // tildes
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function toVariantRows(variants: ManualProductVariant[]): VariantRowInput[] {
+  return variants.map((v) => ({
+    key: v.id,
+    option1Value: v.option1Value,
+    option2Value: v.option2Value,
+    option3Value: v.option3Value,
+    price: v.price,
+    sku: v.sku ?? "",
+    barcode: v.barcode ?? "",
+    stock: v.stock,
+    imageUrl: null,
+  }));
 }
 
 export function StoreProductForm({
@@ -41,13 +86,13 @@ export function StoreProductForm({
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [price, setPrice] = useState(initial ? String(initial.price) : "");
-  const [compareAtPrice, setCompareAtPrice] = useState(
-    initial?.compareAtPrice != null ? String(initial.compareAtPrice) : "",
+  const [price, setPrice] = useState<number | null>(initial?.price ?? null);
+  const [compareAtPrice, setCompareAtPrice] = useState<number | null>(
+    initial?.compareAtPrice ?? null,
   );
-  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
-  const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [slugTouched, setSlugTouched] = useState(Boolean(initial?.slug));
+  const [images, setImages] = useState<string[]>(initial?.images ?? []);
+  const [sku, setSku] = useState(initial?.sku ?? "");
+  const [barcode, setBarcode] = useState(initial?.barcode ?? "");
   const [stock, setStock] = useState(
     initial?.stock != null ? String(initial.stock) : "",
   );
@@ -66,58 +111,61 @@ export function StoreProductForm({
   const [serviceLocation, setServiceLocation] = useState(
     initial?.serviceLocation ?? "",
   );
-  const [uploading, setUploading] = useState(false);
+
+  const [allCollections, setAllCollections] = useState<BrandCollectionOption[]>([]);
+  const [collectionIds, setCollectionIds] = useState<string[]>(
+    initial?.collectionIds ?? [],
+  );
+
+  const [hasVariants, setHasVariants] = useState(initial?.hasVariants ?? false);
+  const [optionNames, setOptionNames] = useState<string[]>(
+    initial?.optionNames ?? [],
+  );
+  const [variantRows, setVariantRows] = useState<VariantRowInput[]>(
+    toVariantRows(initial?.variants ?? []),
+  );
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isService = type === "SERVICE";
 
-  function handleNameChange(value: string) {
-    setName(value);
-    // Solo autogenera mientras la marca no haya tocado el slug a mano —
-    // si ya lo editó, no se lo pisamos con cada letra que escriba del nombre.
-    if (!slugTouched) setSlug(slugify(value));
-  }
-
-  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    setError(null);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/marca/tienda/productos/imagen", {
-        method: "POST",
-        body: form,
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(body?.error ?? "No se pudo subir la imagen.");
-        return;
-      }
-      setImageUrl(body.url);
-    } catch {
-      setError("No se pudo subir la imagen — revisa tu conexión.");
-    } finally {
-      setUploading(false);
-    }
-  }
+  useEffect(() => {
+    fetch("/api/marca/tienda/colecciones")
+      .then((r) => r.json())
+      .then((body) => setAllCollections(body.collections ?? []))
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
     setError(null);
+
+    if (price == null && !hasVariants) {
+      setError("Ingresa el precio.");
+      return;
+    }
+    if (!hasVariants && (stock === "" || Number(stock) < 0)) {
+      setError("Ingresa el stock.");
+      return;
+    }
+    if (hasVariants && variantRows.length === 0) {
+      setError("Agrega al menos una opción con valores para generar variantes.");
+      return;
+    }
+
+    setSaving(true);
 
     const payload = {
       name,
       description,
-      price,
-      compareAtPrice: compareAtPrice || null,
-      imageUrl,
-      slug,
-      stock: stock === "" ? null : stock,
+      images,
+      slug: slugify(name),
+      price: hasVariants ? 0 : price,
+      compareAtPrice: hasVariants ? null : compareAtPrice,
+      sku: hasVariants ? "" : sku,
+      barcode: hasVariants ? "" : barcode,
+      stock: hasVariants ? null : Number(stock),
       available,
       type,
       serviceModality: isService ? serviceModality : null,
@@ -127,6 +175,20 @@ export function StoreProductForm({
           : serviceDurationMinutes
         : null,
       serviceLocation: isService ? serviceLocation : "",
+      collectionIds,
+      hasVariants,
+      optionNames: hasVariants ? optionNames.filter((n) => n.trim()) : [],
+      variants: hasVariants
+        ? variantRows.map((v) => ({
+            option1Value: v.option1Value,
+            option2Value: v.option2Value,
+            option3Value: v.option3Value,
+            price: v.price,
+            sku: v.sku,
+            barcode: v.barcode,
+            stock: v.stock,
+          }))
+        : [],
     };
 
     try {
@@ -188,7 +250,7 @@ export function StoreProductForm({
         <input
           required
           value={name}
-          onChange={(e) => handleNameChange(e.target.value)}
+          onChange={(e) => setName(e.target.value)}
           className="input"
         />
       </div>
@@ -203,31 +265,8 @@ export function StoreProductForm({
       </div>
 
       <div>
-        <label className="block text-sm text-brand-ink mb-1">Imagen</label>
-        <div className="flex items-center gap-3">
-          {imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageUrl}
-              alt=""
-              className="w-16 h-16 rounded-lg object-cover border border-brand-line"
-            />
-          )}
-          <label className="text-xs border border-brand-line rounded-full px-4 py-1.5 cursor-pointer hover:bg-brand-accent-soft">
-            {uploading
-              ? "Subiendo..."
-              : imageUrl
-                ? "Reemplazar"
-                : "Subir imagen"}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={handleImageChange}
-              disabled={uploading}
-              className="hidden"
-            />
-          </label>
-        </div>
+        <label className="block text-sm text-brand-ink mb-1">Fotos</label>
+        <ProductImageUploader images={images} onChange={setImages} />
       </div>
 
       {isService && (
@@ -294,67 +333,99 @@ export function StoreProductForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm text-brand-ink mb-1">Precio</label>
+      {!isService && (
+        <label className="flex items-center gap-2 text-sm text-brand-ink rounded-xl border border-brand-line p-3">
           <input
-            required
-            type="number"
-            min="0"
-            step="1"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            className="input"
+            type="checkbox"
+            checked={hasVariants}
+            disabled={Boolean(initial)}
+            onChange={(e) => setHasVariants(e.target.checked)}
           />
-        </div>
-        <div>
-          <label className="block text-sm text-brand-ink mb-1">
-            Precio antes (opcional)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={compareAtPrice}
-            onChange={(e) => setCompareAtPrice(e.target.value)}
-            className="input"
-          />
-        </div>
-      </div>
+          Este producto tiene variantes (talla, color, etc.)
+          {initial && (
+            <span className="text-xs text-brand-ink-soft ml-1">
+              — no se puede cambiar después de crear el producto
+            </span>
+          )}
+        </label>
+      )}
 
-      <div className="grid grid-cols-2 gap-4">
+      {!hasVariants && (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-brand-ink mb-1">Precio</label>
+              <PriceInput required value={price} onChange={setPrice} />
+            </div>
+            <div>
+              <label className="block text-sm text-brand-ink mb-1">
+                Precio antes (opcional)
+              </label>
+              <PriceInput value={compareAtPrice} onChange={setCompareAtPrice} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-brand-ink mb-1">SKU</label>
+              <input
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                className="input"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-brand-ink mb-1">
+                Código de barras (EAN)
+              </label>
+              <input
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value)}
+                className="input"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-brand-ink mb-1">
+              {isService ? "Cupos disponibles" : "Stock"}
+            </label>
+            <input
+              required
+              type="number"
+              min="0"
+              step="1"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              className="input"
+            />
+          </div>
+        </>
+      )}
+
+      {hasVariants && (
         <div>
-          <label className="block text-sm text-brand-ink mb-1">
-            Slug (URL)
-          </label>
-          <input
-            required
-            value={slug}
-            onChange={(e) => {
-              setSlug(e.target.value);
-              setSlugTouched(true);
-            }}
-            className="input font-mono text-sm"
+          <label className="block text-sm text-brand-ink mb-2">Variantes</label>
+          <ProductVariantsEditor
+            optionNames={optionNames}
+            onOptionNamesChange={setOptionNames}
+            variants={variantRows}
+            onVariantsChange={setVariantRows}
           />
-          <p className="text-xs text-brand-ink-soft mt-1">
-            Solo minúsculas, números y guiones.
-          </p>
         </div>
+      )}
+
+      {!isService && (
         <div>
-          <label className="block text-sm text-brand-ink mb-1">
-            {isService ? "Cupos disponibles (opcional)" : "Stock (opcional)"}
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={stock}
-            onChange={(e) => setStock(e.target.value)}
-            placeholder="Sin límite"
-            className="input"
+          <label className="block text-sm text-brand-ink mb-1">Colecciones</label>
+          <ProductCollectionsPicker
+            allCollections={allCollections}
+            onAllCollectionsChange={setAllCollections}
+            selectedIds={collectionIds}
+            onChange={setCollectionIds}
           />
         </div>
-      </div>
+      )}
 
       <label className="flex items-center gap-2 text-sm text-brand-ink">
         <input
@@ -370,7 +441,7 @@ export function StoreProductForm({
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={saving || uploading}
+          disabled={saving}
           className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
         >
           {saving ? "Guardando..." : "Guardar producto"}

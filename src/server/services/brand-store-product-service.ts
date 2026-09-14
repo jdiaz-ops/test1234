@@ -1,21 +1,44 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { setProductCollections } from "@/server/services/brand-collection-service";
 
 export class BrandStoreProductError extends Error {}
+
+type VariantInput = {
+  option1Value: string | null;
+  option2Value: string | null;
+  option3Value: string | null;
+  price: number | null;
+  sku?: string;
+  barcode?: string;
+  stock: number;
+};
 
 type ManualProductInput = {
   name: string;
   description?: string;
   price: number;
   compareAtPrice?: number | null;
-  imageUrl?: string;
+  images?: string[];
   slug: string;
+  sku?: string;
+  barcode?: string;
   stock?: number | null;
   available: boolean;
   type?: "PHYSICAL" | "SERVICE";
   serviceModality?: "VIRTUAL" | "PRESENCIAL" | null;
   serviceDurationMinutes?: number | null;
   serviceLocation?: string;
+  collectionIds?: string[];
+  hasVariants?: boolean;
+  optionNames?: string[];
+  variants?: VariantInput[];
+};
+
+const productListInclude = {
+  images: { orderBy: { position: "asc" as const } },
+  variants: { orderBy: { position: "asc" as const } },
+  brandCollections: { select: { collectionId: true } },
 };
 
 /// Productos que la marca creó a mano en "Mi tienda" (manual = true) — nunca
@@ -26,21 +49,27 @@ export async function listManualProducts(brandId: string) {
   return prisma.product.findMany({
     where: { brandId, manual: true },
     orderBy: { createdAt: "desc" },
+    include: productListInclude,
   });
 }
 
-async function assertSlugAvailable(
+/// El slug ya no lo edita la marca (ver store-product-form.tsx) — si el
+/// autogenerado choca con uno existente, le agrega un sufijo en vez de
+/// fallar (la marca no tiene forma de resolver el choque a mano).
+async function uniqueSlug(
   brandId: string,
-  slug: string,
+  base: string,
   excludeProductId?: string,
 ) {
-  const existing = await prisma.product.findUnique({
-    where: { brandId_slug: { brandId, slug } },
-  });
-  if (existing && existing.id !== excludeProductId) {
-    throw new BrandStoreProductError(
-      "Ya tienes un producto con ese slug — elige otro.",
-    );
+  let candidate = base || "producto";
+  let n = 2;
+  while (true) {
+    const existing = await prisma.product.findUnique({
+      where: { brandId_slug: { brandId, slug: candidate } },
+    });
+    if (!existing || existing.id === excludeProductId) return candidate;
+    candidate = `${base || "producto"}-${n}`;
+    n++;
   }
 }
 
@@ -59,36 +88,113 @@ async function buildStorefrontProductUrl(brandId: string, productSlug: string) {
   return `/t/${brand?.storefrontSlug ?? "mi-tienda"}/${productSlug}`;
 }
 
+/// Reemplaza toda la galería de un producto por la lista de URLs dada — la
+/// primera queda como portada (Product.imageUrl), igual que reemplaza
+/// todas las variantes cuando hasVariants = true. Ambas cosas viven en la
+/// misma transacción que crea/actualiza el producto (ver abajo).
+function replaceImagesOps(productId: string, images: string[]) {
+  return [
+    prisma.productImage.deleteMany({ where: { productId } }),
+    ...(images.length > 0
+      ? [
+          prisma.productImage.createMany({
+            data: images.map((url, position) => ({ productId, url, position })),
+          }),
+        ]
+      : []),
+  ];
+}
+
+function replaceVariantsOps(productId: string, variants: VariantInput[]) {
+  return [
+    prisma.productVariant.deleteMany({ where: { productId } }),
+    ...(variants.length > 0
+      ? [
+          prisma.productVariant.createMany({
+            data: variants.map((v, position) => ({
+              productId,
+              option1Value: v.option1Value,
+              option2Value: v.option2Value,
+              option3Value: v.option3Value,
+              price: v.price,
+              sku: v.sku || null,
+              barcode: v.barcode || null,
+              stock: v.stock,
+              position,
+            })),
+          }),
+        ]
+      : []),
+  ];
+}
+
 export async function createManualProduct(
   brandId: string,
   data: ManualProductInput,
 ) {
-  await assertSlugAvailable(brandId, data.slug);
-  const url = await buildStorefrontProductUrl(brandId, data.slug);
+  const images = data.images ?? [];
+  const hasVariants = data.hasVariants ?? false;
+  const variants = hasVariants ? (data.variants ?? []) : [];
 
-  return prisma.product.create({
-    data: {
-      brandId,
-      // Los productos manuales no tienen un id de tienda externa real — se
-      // genera uno propio, con un prefijo que nunca puede chocar con un
-      // externalId real de Shopify/WooCommerce (esos son numéricos o GIDs).
-      externalId: `manual-${crypto.randomUUID()}`,
-      manual: true,
-      name: data.name,
-      description: data.description || null,
-      imageUrl: data.imageUrl || null,
-      price: data.price,
-      compareAtPrice: data.compareAtPrice ?? null,
-      url,
-      slug: data.slug,
-      stock: data.stock ?? null,
-      available: data.available,
-      type: data.type ?? "PHYSICAL",
-      serviceModality: data.type === "SERVICE" ? (data.serviceModality ?? null) : null,
-      serviceDurationMinutes: data.type === "SERVICE" ? (data.serviceDurationMinutes ?? null) : null,
-      serviceLocation: data.type === "SERVICE" ? data.serviceLocation || null : null,
-    },
+  const slug = await uniqueSlug(brandId, data.slug);
+  const url = await buildStorefrontProductUrl(brandId, slug);
+
+  const product = await prisma.$transaction(async (tx) => {
+    const created = await tx.product.create({
+      data: {
+        brandId,
+        // Los productos manuales no tienen un id de tienda externa real — se
+        // genera uno propio, con un prefijo que nunca puede chocar con un
+        // externalId real de Shopify/WooCommerce (esos son numéricos o GIDs).
+        externalId: `manual-${crypto.randomUUID()}`,
+        manual: true,
+        name: data.name,
+        description: data.description || null,
+        imageUrl: images[0] ?? null,
+        price: hasVariants ? 0 : data.price,
+        compareAtPrice: hasVariants ? null : (data.compareAtPrice ?? null),
+        url,
+        slug,
+        sku: hasVariants ? null : data.sku || null,
+        barcode: hasVariants ? null : data.barcode || null,
+        stock: hasVariants ? null : (data.stock ?? null),
+        available: data.available,
+        type: data.type ?? "PHYSICAL",
+        serviceModality: data.type === "SERVICE" ? (data.serviceModality ?? null) : null,
+        serviceDurationMinutes: data.type === "SERVICE" ? (data.serviceDurationMinutes ?? null) : null,
+        serviceLocation: data.type === "SERVICE" ? data.serviceLocation || null : null,
+        hasVariants,
+        optionNames: hasVariants ? (data.optionNames ?? []) : [],
+      },
+    });
+    await tx.productImage.createMany({
+      data: images.map((imgUrl, position) => ({
+        productId: created.id,
+        url: imgUrl,
+        position,
+      })),
+    });
+    if (variants.length > 0) {
+      await tx.productVariant.createMany({
+        data: variants.map((v, position) => ({
+          productId: created.id,
+          option1Value: v.option1Value,
+          option2Value: v.option2Value,
+          option3Value: v.option3Value,
+          price: v.price,
+          sku: v.sku || null,
+          barcode: v.barcode || null,
+          stock: v.stock,
+          position,
+        })),
+      });
+    }
+    return created;
   });
+
+  await setProductCollections(brandId, product.id, data.collectionIds ?? []);
+
+  return product;
 }
 
 export async function updateManualProduct(
@@ -101,27 +207,44 @@ export async function updateManualProduct(
   });
   if (!product) throw new BrandStoreProductError("Producto no encontrado.");
 
-  await assertSlugAvailable(brandId, data.slug, productId);
-  const url = await buildStorefrontProductUrl(brandId, data.slug);
+  const images = data.images ?? [];
+  const hasVariants = data.hasVariants ?? false;
+  const variants = hasVariants ? (data.variants ?? []) : [];
 
-  return prisma.product.update({
-    where: { id: productId },
-    data: {
-      name: data.name,
-      description: data.description || null,
-      imageUrl: data.imageUrl || null,
-      price: data.price,
-      compareAtPrice: data.compareAtPrice ?? null,
-      slug: data.slug,
-      url,
-      stock: data.stock ?? null,
-      available: data.available,
-      type: data.type ?? "PHYSICAL",
-      serviceModality: data.type === "SERVICE" ? (data.serviceModality ?? null) : null,
-      serviceDurationMinutes: data.type === "SERVICE" ? (data.serviceDurationMinutes ?? null) : null,
-      serviceLocation: data.type === "SERVICE" ? data.serviceLocation || null : null,
-    },
+  const slug = await uniqueSlug(brandId, data.slug, productId);
+  const url = await buildStorefrontProductUrl(brandId, slug);
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.product.update({
+      where: { id: productId },
+      data: {
+        name: data.name,
+        description: data.description || null,
+        imageUrl: images[0] ?? null,
+        price: hasVariants ? 0 : data.price,
+        compareAtPrice: hasVariants ? null : (data.compareAtPrice ?? null),
+        slug,
+        url,
+        sku: hasVariants ? null : data.sku || null,
+        barcode: hasVariants ? null : data.barcode || null,
+        stock: hasVariants ? null : (data.stock ?? null),
+        available: data.available,
+        type: data.type ?? "PHYSICAL",
+        serviceModality: data.type === "SERVICE" ? (data.serviceModality ?? null) : null,
+        serviceDurationMinutes: data.type === "SERVICE" ? (data.serviceDurationMinutes ?? null) : null,
+        serviceLocation: data.type === "SERVICE" ? data.serviceLocation || null : null,
+        hasVariants,
+        optionNames: hasVariants ? (data.optionNames ?? []) : [],
+      },
+    });
+    for (const op of replaceImagesOps(productId, images)) await op;
+    for (const op of replaceVariantsOps(productId, variants)) await op;
+    return result;
   });
+
+  await setProductCollections(brandId, productId, data.collectionIds ?? []);
+
+  return updated;
 }
 
 export async function deleteManualProduct(brandId: string, productId: string) {

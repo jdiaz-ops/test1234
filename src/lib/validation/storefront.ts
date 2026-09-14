@@ -7,6 +7,9 @@ import { z } from "zod";
 
 export const cartItemSchema = z.object({
   productId: z.string().min(1),
+  /// Solo si el producto tiene variantes (ver Product.hasVariants) — el
+  /// servidor decide si hacía falta o no, acá solo se valida la forma.
+  variantId: z.string().min(1).optional(),
   quantity: z.coerce.number().int().min(1).max(50),
 });
 
@@ -25,6 +28,7 @@ export const createStoreOrderSchema = z.object({
   buyerPhone: z.string().min(7, "Ingresa un teléfono válido"),
   shippingAddress: z.string().optional().or(z.literal("")),
   shippingCity: z.string().optional().or(z.literal("")),
+  shippingRegion: z.string().optional().or(z.literal("")),
   shippingNotes: z.string().max(300).optional().or(z.literal("")),
   servicePreferredAt: z.string().optional().or(z.literal("")),
   discountCode: z.string().max(40).optional().or(z.literal("")),

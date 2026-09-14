@@ -51,6 +51,18 @@ const slugField = z
     "Solo minúsculas, números y guiones — sin espacios ni acentos",
   );
 
+/// Una variante (talla/color/etc.) — precio null = usa el precio base del
+/// producto. Ver ProductVariant en el schema y product-variants-editor.tsx.
+const variantInputSchema = z.object({
+  option1Value: z.string().min(1).nullable(),
+  option2Value: z.string().min(1).nullable(),
+  option3Value: z.string().min(1).nullable(),
+  price: z.number().positive().nullable(),
+  sku: z.string().max(120).optional().or(z.literal("")),
+  barcode: z.string().max(120).optional().or(z.literal("")),
+  stock: z.coerce.number().int().min(0, "No puede ser negativo"),
+});
+
 const productBaseSchema = z.object({
   name: z.string().min(2, "Ingresa el nombre del producto"),
   description: z
@@ -58,12 +70,22 @@ const productBaseSchema = z.object({
     .max(1000, "Máximo 1000 caracteres")
     .optional()
     .or(z.literal("")),
-  price: z.coerce.number().positive("El precio debe ser mayor a cero"),
+  /// Cuando hasVariants = true este valor no se usa (cada variante trae el
+  /// suyo) — por eso la cota es solo "no negativo" acá; que sea > 0 de
+  /// verdad se exige en requireStockOrVariants, condicionado a
+  /// !hasVariants.
+  price: z.coerce.number().min(0, "No puede ser negativo"),
   compareAtPrice: z.coerce.number().positive().optional().nullable(),
-  imageUrl: z.string().optional().or(z.literal("")),
+  /// Galería — la primera es la portada (ver ProductImage.position). Antes
+  /// era un solo imageUrl; ver conversación del 2026-09-14.
+  images: z.array(z.string().min(1)).default([]),
   slug: slugField,
+  sku: z.string().max(120).optional().or(z.literal("")),
+  barcode: z.string().max(120).optional().or(z.literal("")),
   /// En un producto SERVICE, esto son "cupos disponibles" — mismo campo,
-  /// otro nombre en la interfaz.
+  /// otro nombre en la interfaz. Obligatorio desde el 2026-09-14 salvo con
+  /// variantes (ahí null, el stock real vive por variante) — antes era
+  /// opcional del todo, confundía a las marcas.
   stock: z.coerce
     .number()
     .int()
@@ -81,6 +103,10 @@ const productBaseSchema = z.object({
     .optional()
     .nullable(),
   serviceLocation: z.string().max(300).optional().or(z.literal("")),
+  collectionIds: z.array(z.string().min(1)).default([]),
+  hasVariants: z.boolean().default(false),
+  optionNames: z.array(z.string().min(1).max(40)).max(3).default([]),
+  variants: z.array(variantInputSchema).default([]),
 });
 
 /// Un producto SERVICE necesita decir si es virtual o presencial, y dónde
@@ -108,11 +134,48 @@ function requireServiceFields(
   }
 }
 
-export const createProductSchema = productBaseSchema.superRefine(requireServiceFields);
+/// Sin variantes: precio > 0 y stock puesto (ya no es opcional — ver
+/// conversación del 2026-09-14: "Stock no puede ser opcional"). Con
+/// variantes: precio/stock del producto no se usan, pero hace falta al
+/// menos una variante generada.
+function requireStockOrVariants(
+  data: z.infer<typeof productBaseSchema>,
+  ctx: z.RefinementCtx,
+) {
+  if (data.hasVariants) {
+    if (data.variants.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["variants"],
+        message: "Agrega al menos una opción con valores para generar variantes.",
+      });
+    }
+    return;
+  }
+  if (data.price <= 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["price"],
+      message: "El precio debe ser mayor a cero",
+    });
+  }
+  if (data.stock == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["stock"],
+      message: "Ingresa el stock",
+    });
+  }
+}
+
+export const createProductSchema = productBaseSchema
+  .superRefine(requireServiceFields)
+  .superRefine(requireStockOrVariants);
 
 export const updateProductSchema = productBaseSchema
   .extend({ productId: z.string().min(1) })
-  .superRefine(requireServiceFields);
+  .superRefine(requireServiceFields)
+  .superRefine(requireStockOrVariants);
 
 export const deleteManualProductSchema = z.object({
   productId: z.string().min(1),
@@ -152,6 +215,24 @@ export const shippingConfigSchema = z.object({
 
 export const storeConfigSchema = z.object({
   storefrontSlug: slugField,
+});
+
+/// Zonas de envío por región (ver shipping-zone-service.ts) — regions se
+/// valida de verdad (contra COLOMBIA_REGIONS) en el servicio, acá solo se
+/// exige que no venga vacío.
+export const shippingZoneSchema = z.object({
+  name: z.string().min(2, "Ingresa un nombre para la zona").max(80),
+  regions: z.array(z.string().min(1)).min(1, "Elige al menos una región"),
+  price: z.coerce.number().min(0, "No puede ser negativo"),
+  freeShippingThreshold: z.coerce
+    .number()
+    .min(0, "No puede ser negativo")
+    .optional()
+    .nullable(),
+});
+
+export const deleteShippingZoneSchema = z.object({
+  zoneId: z.string().min(1),
 });
 
 export const setCustomDomainSchema = z.object({
