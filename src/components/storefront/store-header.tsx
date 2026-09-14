@@ -3,11 +3,26 @@
 import Link from "next/link";
 import { useCart } from "@/components/storefront/cart-context";
 
+export type StoreHeaderMenuItem = { id: string; label: string; url: string };
+
+/// Un link del menú es interno (empieza con "/") o externo (todo lo
+/// demás) — uno interno se arma sobre basePath, uno externo se usa tal
+/// cual y se abre en pestaña nueva. Ver StorefrontMenuItem en el schema.
+function resolveMenuHref(url: string, basePath: string) {
+  if (url.startsWith("/")) return `${basePath}${url}`;
+  return url;
+}
+
+function isExternalUrl(url: string) {
+  return !url.startsWith("/");
+}
+
 export function StoreHeader({
   brandSlug,
   brandName,
   logoUrl,
   basePath = `/t/${brandSlug}`,
+  menuItems = [],
 }: {
   brandSlug: string;
   brandName: string;
@@ -16,6 +31,10 @@ export function StoreHeader({
   /// — ver getStoreBasePath en lib/store-base-path.ts. Por defecto arma el
   /// link viejo /t/{slug} si no se pasa, para no romper ningún uso viejo.
   basePath?: string;
+  /// Menú de navegación de la vitrina (ver StorefrontMenuPanel en el
+  /// portal) — opcional, una tienda sin ítems configurados simplemente no
+  /// muestra la barra. Ver conversación del 2026-09-14.
+  menuItems?: StoreHeaderMenuItem[];
 }) {
   const { count } = useCart();
 
@@ -39,6 +58,32 @@ export function StoreHeader({
             {brandName}
           </span>
         </Link>
+
+        {menuItems.length > 0 && (
+          <nav className="hidden sm:flex items-center gap-5">
+            {menuItems.map((item) =>
+              isExternalUrl(item.url) ? (
+                <a
+                  key={item.id}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-brand-ink-soft hover:text-brand-ink"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.id}
+                  href={resolveMenuHref(item.url, basePath)}
+                  className="text-sm text-brand-ink-soft hover:text-brand-ink"
+                >
+                  {item.label}
+                </Link>
+              ),
+            )}
+          </nav>
+        )}
 
         <Link
           href={`${basePath}/carrito`}

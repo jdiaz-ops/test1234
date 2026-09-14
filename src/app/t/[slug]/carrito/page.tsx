@@ -4,6 +4,7 @@ import { CartProvider } from "@/components/storefront/cart-context";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CartList } from "@/components/storefront/cart-list";
 import { getStoreBasePath } from "@/lib/store-base-path";
+import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 
 export default async function StorefrontCartPage({
   params,
@@ -13,7 +14,10 @@ export default async function StorefrontCartPage({
   const { slug } = await params;
   const brand = await getStorefrontBrand(slug);
   if (!brand) notFound();
-  const basePath = await getStoreBasePath(slug);
+  const [basePath, menuItems] = await Promise.all([
+    getStoreBasePath(slug),
+    listStorefrontMenuItems(brand.id),
+  ]);
 
   return (
     <CartProvider brandSlug={slug}>
@@ -23,6 +27,7 @@ export default async function StorefrontCartPage({
           brandName={brand.companyName}
           logoUrl={brand.logoUrl}
           basePath={basePath}
+          menuItems={menuItems}
         />
         <div className="max-w-3xl mx-auto px-6 py-10">
           <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">

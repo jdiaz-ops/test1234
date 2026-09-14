@@ -10,6 +10,7 @@ const items = [
   // desde el 2026-09-14, mismo nivel que el resto de secciones de "Mi
   // tienda" (como en Airbnb/Shopify).
   { href: "/marca/tienda/plantilla", label: "Plantilla" },
+  { href: "/marca/tienda/paginas", label: "Páginas" },
   { href: "/marca/tienda/pedidos", label: "Pedidos" },
   { href: "/marca/tienda/clientes", label: "Clientes" },
   { href: "/marca/tienda/muestras", label: "Muestras" },
