@@ -1,32 +1,39 @@
 import { NextResponse } from "next/server";
 import { requireBrandProfile } from "@/lib/current-brand";
+import { updateBrandCollectionSchema } from "@/lib/validation/brand";
 import {
-  createBrandCollectionSchema,
-  reorderBrandCollectionsSchema,
-} from "@/lib/validation/brand";
-import {
-  listBrandCollections,
-  createBrandCollection,
-  reorderBrandCollections,
+  getBrandCollection,
+  updateBrandCollection,
+  deleteBrandCollection,
   BrandCollectionError,
 } from "@/server/services/brand-collection-service";
 
-export async function GET() {
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const profile = await requireBrandProfile();
   if (!profile)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const collections = await listBrandCollections(profile.id);
-  return NextResponse.json({ collections });
+  const { id } = await params;
+  const collection = await getBrandCollection(profile.id, id);
+  if (!collection)
+    return NextResponse.json({ error: "Colección no encontrada" }, { status: 404 });
+  return NextResponse.json({ collection });
 }
 
-export async function POST(req: Request) {
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const profile = await requireBrandProfile();
   if (!profile)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+  const { id } = await params;
   const body = await req.json();
-  const parsed = createBrandCollectionSchema.safeParse(body);
+  const parsed = updateBrandCollectionSchema.safeParse({ ...body, collectionId: id });
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0].message },
@@ -35,7 +42,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const collection = await createBrandCollection(profile.id, parsed.data);
+    const collection = await updateBrandCollection(profile.id, id, parsed.data);
     return NextResponse.json({ ok: true, collection });
   } catch (err) {
     if (err instanceof BrandCollectionError)
@@ -44,24 +51,17 @@ export async function POST(req: Request) {
   }
 }
 
-/// Reordena TODAS las colecciones de la marca — para editar una sola
-/// (nombre/descripción/imagen/productos) usa /api/marca/tienda/colecciones/[id].
-export async function PATCH(req: Request) {
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const profile = await requireBrandProfile();
   if (!profile)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const body = await req.json();
-  const parsed = reorderBrandCollectionsSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 },
-    );
-  }
-
+  const { id } = await params;
   try {
-    await reorderBrandCollections(profile.id, parsed.data.order);
+    await deleteBrandCollection(profile.id, id);
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof BrandCollectionError)

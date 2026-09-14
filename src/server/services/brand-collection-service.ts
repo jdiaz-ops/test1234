@@ -12,41 +12,175 @@ function slugify(name: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+const collectionInclude = {
+  _count: { select: { products: true } },
+};
+
 /// Colecciones propias de la marca (ej. "Verano 2026") — para organizar su
 /// catálogo en "Mi tienda", distinto de la vitrina curada de un creador
-/// (ver Collection en el schema). Ver conversación del 2026-09-14.
+/// (ver Collection en el schema). Ver conversación del 2026-09-14 pidiendo
+/// poder gestionarlas (antes solo se creaban al vuelo desde Crear
+/// producto, con solo un nombre).
 export async function listBrandCollections(brandId: string) {
   return prisma.brandCollection.findMany({
     where: { brandId },
-    orderBy: { name: "asc" },
+    orderBy: { position: "asc" },
+    include: collectionInclude,
+  });
+}
+
+export async function getBrandCollection(brandId: string, collectionId: string) {
+  return prisma.brandCollection.findFirst({
+    where: { id: collectionId, brandId },
+    include: {
+      products: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              imageUrl: true,
+              price: true,
+              slug: true,
+              stock: true,
+              type: true,
+              status: true,
+              available: true,
+            },
+          },
+        },
+      },
+    },
   });
 }
 
 /// Slug único por marca — si "verano-2026" ya existe, prueba
 /// "verano-2026-2", "-3", etc., en vez de fallar (la marca solo escribe un
 /// nombre, nunca ve ni piensa en el slug).
-async function uniqueSlug(brandId: string, base: string) {
+async function uniqueSlug(brandId: string, base: string, excludeId?: string) {
   let candidate = base || "coleccion";
   let n = 2;
   while (true) {
     const existing = await prisma.brandCollection.findUnique({
       where: { brandId_slug: { brandId, slug: candidate } },
     });
-    if (!existing) return candidate;
+    if (!existing || existing.id === excludeId) return candidate;
     candidate = `${base || "coleccion"}-${n}`;
     n++;
   }
 }
 
-export async function createBrandCollection(brandId: string, name: string) {
-  const trimmed = name.trim();
+type CollectionInput = {
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  productIds?: string[];
+};
+
+async function setCollectionProducts(collectionId: string, brandId: string, productIds: string[]) {
+  // Filtra a solo productos que de verdad son de esta marca — evita que
+  // alguien mande el id de un producto de otra marca.
+  const owned = await prisma.product.findMany({
+    where: { id: { in: productIds }, brandId },
+    select: { id: true },
+  });
+  const ownedIds = new Set(owned.map((p) => p.id));
+
+  await prisma.$transaction([
+    prisma.productBrandCollection.deleteMany({ where: { collectionId } }),
+    ...(ownedIds.size > 0
+      ? [
+          prisma.productBrandCollection.createMany({
+            data: Array.from(ownedIds).map((productId) => ({
+              productId,
+              collectionId,
+            })),
+          }),
+        ]
+      : []),
+  ]);
+}
+
+export async function createBrandCollection(brandId: string, data: CollectionInput) {
+  const trimmed = data.name.trim();
   if (trimmed.length < 2) {
     throw new BrandCollectionError("Ingresa un nombre para la colección.");
   }
   const slug = await uniqueSlug(brandId, slugify(trimmed));
-  return prisma.brandCollection.create({
-    data: { brandId, name: trimmed, slug },
+  const count = await prisma.brandCollection.count({ where: { brandId } });
+  const collection = await prisma.brandCollection.create({
+    data: {
+      brandId,
+      name: trimmed,
+      slug,
+      description: data.description?.trim() || null,
+      imageUrl: data.imageUrl?.trim() || null,
+      position: count,
+    },
   });
+  if (data.productIds && data.productIds.length > 0) {
+    await setCollectionProducts(collection.id, brandId, data.productIds);
+  }
+  return collection;
+}
+
+export async function updateBrandCollection(
+  brandId: string,
+  collectionId: string,
+  data: CollectionInput,
+) {
+  const existing = await prisma.brandCollection.findFirst({
+    where: { id: collectionId, brandId },
+  });
+  if (!existing) throw new BrandCollectionError("Colección no encontrada.");
+
+  const trimmed = data.name.trim();
+  if (trimmed.length < 2) {
+    throw new BrandCollectionError("Ingresa un nombre para la colección.");
+  }
+  const slug =
+    trimmed === existing.name
+      ? existing.slug
+      : await uniqueSlug(brandId, slugify(trimmed), collectionId);
+
+  const collection = await prisma.brandCollection.update({
+    where: { id: collectionId },
+    data: {
+      name: trimmed,
+      slug,
+      description: data.description?.trim() || null,
+      imageUrl: data.imageUrl?.trim() || null,
+    },
+  });
+  await setCollectionProducts(collectionId, brandId, data.productIds ?? []);
+  return collection;
+}
+
+export async function deleteBrandCollection(brandId: string, collectionId: string) {
+  const existing = await prisma.brandCollection.findFirst({
+    where: { id: collectionId, brandId },
+  });
+  if (!existing) throw new BrandCollectionError("Colección no encontrada.");
+  await prisma.brandCollection.delete({ where: { id: collectionId } });
+}
+
+export async function reorderBrandCollections(brandId: string, orderedIds: string[]) {
+  const existing = await prisma.brandCollection.findMany({
+    where: { brandId },
+    select: { id: true },
+  });
+  const existingIds = new Set(existing.map((c) => c.id));
+  if (
+    orderedIds.length !== existingIds.size ||
+    !orderedIds.every((id) => existingIds.has(id))
+  ) {
+    throw new BrandCollectionError("La lista de orden no calza con las colecciones actuales.");
+  }
+  await prisma.$transaction(
+    orderedIds.map((id, position) =>
+      prisma.brandCollection.update({ where: { id }, data: { position } }),
+    ),
+  );
 }
 
 /// Reemplaza todas las colecciones de un producto por la lista dada —

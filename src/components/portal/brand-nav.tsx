@@ -28,7 +28,9 @@ const items = [
 /// conversación del 2026-09-06.
 const storeItems = [
   { href: "/marca/tienda/productos", label: "Crear productos" },
+  { href: "/marca/tienda/colecciones", label: "Colecciones" },
   { href: "/marca/tienda/pedidos", label: "Pedidos" },
+  { href: "/marca/tienda/clientes", label: "Clientes" },
   { href: "/marca/tienda/muestras", label: "Muestras" },
   { href: "/marca/tienda/pagos", label: "Pagos" },
   { href: "/marca/tienda/envios", label: "Envíos" },
