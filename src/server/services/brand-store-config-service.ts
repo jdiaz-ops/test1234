@@ -3,20 +3,59 @@ import { RESERVED_SUBDOMAINS } from "@/lib/subdomain";
 
 export class BrandStoreConfigError extends Error {}
 
+/// Ya no toca shippingFlatRate/freeShippingThreshold — quedaron solo por
+/// compatibilidad con pedidos viejos (ver el comentario en el schema),
+/// esto solo guarda las notas que ve el comprador en el checkout.
 export async function saveShippingConfig(
   userId: string,
+  data: { shippingNotes?: string },
+) {
+  return prisma.brandProfile.update({
+    where: { userId },
+    data: { shippingNotes: data.shippingNotes || null },
+  });
+}
+
+/// Centro de distribución — de dónde despacha la marca y cuántos días
+/// hábiles tarda en alistar el pedido antes de que salga. Ver
+/// conversación del 2026-09-14, referencia de Tiendanube.
+export async function saveDistributionCenter(
+  userId: string,
   data: {
-    shippingFlatRate?: number | null;
-    freeShippingThreshold?: number | null;
-    shippingNotes?: string;
+    originAddress?: string;
+    originCity?: string;
+    originRegion?: string;
+    fulfillmentLeadDays: number;
   },
 ) {
   return prisma.brandProfile.update({
     where: { userId },
     data: {
-      shippingFlatRate: data.shippingFlatRate ?? null,
-      freeShippingThreshold: data.freeShippingThreshold ?? null,
-      shippingNotes: data.shippingNotes || null,
+      originAddress: data.originAddress || null,
+      originCity: data.originCity || null,
+      originRegion: data.originRegion || null,
+      fulfillmentLeadDays: data.fulfillmentLeadDays,
+    },
+  });
+}
+
+/// Mercado (por ahora solo "CO" — Colombia, igual que Tiendanube deja
+/// elegir el país pero acá arranca fijo) y tasa de IVA aplicada en el
+/// checkout nativo (createStoreOrder) — 10% por defecto. Ver conversación
+/// del 2026-09-14: "en configuración que puedan configurar el mercado...
+/// son el 10% de iva por defecto".
+export async function saveTaxConfig(
+  userId: string,
+  data: { market: string; taxRatePercent: number },
+) {
+  if (data.taxRatePercent < 0 || data.taxRatePercent > 100) {
+    throw new BrandStoreConfigError("La tasa de IVA debe estar entre 0 y 100.");
+  }
+  return prisma.brandProfile.update({
+    where: { userId },
+    data: {
+      market: data.market.trim() || "CO",
+      taxRatePercent: data.taxRatePercent,
     },
   });
 }

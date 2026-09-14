@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useCart } from "@/components/storefront/cart-context";
 import { cartLineKey } from "@/lib/storefront-cart";
 import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
@@ -19,14 +19,15 @@ function formatCOP(amount: number) {
 
 export function CheckoutForm({
   brandSlug,
-  shippingFlatRate,
-  freeShippingThreshold,
+  taxRatePercent,
   paymentsReady,
   referredCode,
 }: {
   brandSlug: string;
-  shippingFlatRate: number | null;
-  freeShippingThreshold: number | null;
+  /// BrandProfile.taxRatePercent (10% por defecto) — solo para mostrar un
+  /// estimado en el resumen; el monto real que se cobra lo calcula
+  /// createStoreOrder en el servidor. Ver conversación del 2026-09-14.
+  taxRatePercent: number;
   paymentsReady: boolean;
   /// Código de la cookie de atribución de primera parte (ver src/proxy.ts
   /// y buildProductLink en lib/brand-store-link.ts) — si el comprador
@@ -36,8 +37,11 @@ export function CheckoutForm({
 }) {
   const { items, subtotal } = useCart();
   // Un carrito nunca mezcla tipos (ver cart-context.tsx) — con que mire el
-  // primer ítem alcanza para saber si este pedido es de servicios o no.
+  // primer ítem alcanza para saber de qué tipo es todo el pedido.
   const isServiceOrder = items[0]?.type === "SERVICE";
+  const isDigitalOrder = items[0]?.type === "DIGITAL";
+  // Solo un pedido con productos físicos pide dirección/envío.
+  const needsShipping = !isServiceOrder && !isDigitalOrder;
 
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
@@ -84,13 +88,56 @@ export function CheckoutForm({
     ? Math.round((subtotal * discountPercent) / 100)
     : 0;
   const afterDiscount = subtotal - discountAmount;
-  const shippingCost = useMemo(() => {
-    if (isServiceOrder) return 0;
-    if (freeShippingThreshold != null && afterDiscount >= freeShippingThreshold)
-      return 0;
-    return shippingFlatRate ?? 0;
-  }, [afterDiscount, freeShippingThreshold, shippingFlatRate, isServiceOrder]);
-  const total = afterDiscount + shippingCost;
+
+  // Ya no hay tarifa única de respaldo (ver createStoreOrder) — el costo
+  // real depende de la zona de envío que cubra el departamento elegido, así
+  // que se cotiza en vivo apenas el comprador lo elige. El peso del
+  // carrito no se manda (el carrito del navegador no lo guarda por ítem)
+  // así que una tarifa condicionada por peso puede dar un estimado
+  // distinto al cobro real — el que manda siempre es el que recalcula
+  // createStoreOrder al confirmar.
+  const [shippingQuote, setShippingQuote] = useState<{
+    cents: number | null;
+    error: string | null;
+    loading: boolean;
+  }>({ cents: null, error: null, loading: false });
+
+  useEffect(() => {
+    if (!needsShipping || !shippingRegion) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetea la cotización cuando el comprador borra/cambia de tipo de pedido, no hay forma de derivarlo sin guardar estado
+      setShippingQuote({ cents: null, error: null, loading: false });
+      return;
+    }
+    let cancelled = false;
+    setShippingQuote((prev) => ({ ...prev, loading: true, error: null }));
+    fetch(`/api/tienda/${brandSlug}/envio`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ region: shippingRegion, orderAmountCents: afterDiscount, weightKg: 0 }),
+    })
+      .then((r) => r.json())
+      .then((body) => {
+        if (cancelled) return;
+        if (body?.ok) {
+          setShippingQuote({ cents: body.shippingCents, error: null, loading: false });
+        } else {
+          setShippingQuote({ cents: null, error: body?.error ?? "No se pudo cotizar el envío.", loading: false });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setShippingQuote({ cents: null, error: "No se pudo cotizar el envío — revisa tu conexión.", loading: false });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- afterDiscount cambia con cada tecla del código de descuento, no hace falta recotizar por eso solo
+  }, [brandSlug, needsShipping, shippingRegion]);
+
+  const shippingCost = shippingQuote.cents ?? 0;
+  const taxAmount = Math.round((afterDiscount * taxRatePercent) / 100);
+  const total = afterDiscount + taxAmount + shippingCost;
 
   async function handleApplyCode(codeOverride?: string) {
     const toApply = codeOverride ?? code;
@@ -135,9 +182,9 @@ export function CheckoutForm({
           buyerName,
           buyerEmail,
           buyerPhone,
-          shippingAddress: isServiceOrder ? "" : shippingAddress,
-          shippingCity: isServiceOrder ? "" : shippingCity,
-          shippingRegion: isServiceOrder ? "" : shippingRegion,
+          shippingAddress: needsShipping ? shippingAddress : "",
+          shippingCity: needsShipping ? shippingCity : "",
+          shippingRegion: needsShipping ? shippingRegion : "",
           shippingNotes,
           // Colombia no tiene horario de verano — UTC-5 todo el año, así
           // que un offset fijo alcanza para que el datetime-local (que no
@@ -232,7 +279,7 @@ export function CheckoutForm({
                   después de tu pago.
                 </p>
               </div>
-            ) : (
+            ) : needsShipping ? (
               <div>
                 <label className="block text-sm text-brand-ink mb-1">
                   Dirección de envío
@@ -244,9 +291,14 @@ export function CheckoutForm({
                   className="input"
                 />
               </div>
+            ) : (
+              <p className="text-sm text-brand-ink-soft rounded-xl border border-brand-line p-3">
+                Es un producto digital — no se envía. Recibes el link de
+                descarga/acceso apenas se confirme tu pago.
+              </p>
             )}
 
-            {!isServiceOrder && (
+            {needsShipping && (
               <div>
                 <label className="block text-sm text-brand-ink mb-1">
                   Departamento
@@ -270,7 +322,7 @@ export function CheckoutForm({
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              {!isServiceOrder && (
+              {needsShipping && (
                 <div>
                   <label className="block text-sm text-brand-ink mb-1">
                     Ciudad
@@ -283,7 +335,7 @@ export function CheckoutForm({
                   />
                 </div>
               )}
-              <div className={isServiceOrder ? "col-span-2" : ""}>
+              <div className={needsShipping ? "" : "col-span-2"}>
                 <label className="block text-sm text-brand-ink mb-1">
                   Notas (opcional)
                 </label>
@@ -337,13 +389,24 @@ export function CheckoutForm({
                 Esta tienda todavía no activó los pagos en línea — vuelve más
                 tarde.
               </p>
+            ) : needsShipping && shippingRegion && shippingQuote.error ? (
+              <p className="text-sm text-red-600 rounded-xl border border-red-200 p-3">
+                {shippingQuote.error}
+              </p>
             ) : (
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={
+                  submitting ||
+                  (needsShipping && (!shippingRegion || shippingQuote.loading || shippingQuote.cents == null))
+                }
                 className="w-full bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
               >
-                {submitting ? "Creando pedido..." : "Continuar al pago"}
+                {submitting
+                  ? "Creando pedido..."
+                  : needsShipping && shippingQuote.loading
+                    ? "Calculando envío..."
+                    : "Continuar al pago"}
               </button>
             )}
           </form>
@@ -384,11 +447,25 @@ export function CheckoutForm({
               <span className="font-mono">-{formatCOP(discountAmount)}</span>
             </div>
           )}
-          {!isServiceOrder && (
+          {taxAmount > 0 && (
+            <div className="flex justify-between text-brand-ink-soft">
+              <span>IVA</span>
+              <span className="font-mono">{formatCOP(taxAmount)}</span>
+            </div>
+          )}
+          {needsShipping && (
             <div className="flex justify-between text-brand-ink-soft">
               <span>Envío</span>
               <span className="font-mono">
-                {shippingCost === 0 ? "Gratis" : formatCOP(shippingCost)}
+                {!shippingRegion
+                  ? "Elige tu departamento"
+                  : shippingQuote.loading
+                    ? "Calculando..."
+                    : shippingQuote.cents == null
+                      ? "—"
+                      : shippingCost === 0
+                        ? "Gratis"
+                        : formatCOP(shippingCost)}
               </span>
             </div>
           )}

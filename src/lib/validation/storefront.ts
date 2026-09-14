@@ -17,6 +17,16 @@ export const validateDiscountCodeSchema = z.object({
   code: z.string().min(1, "Escribe un código"),
 });
 
+/// Cotización de envío en vivo durante el checkout (ver quoteShipping en
+/// store-order-service.ts) — orderAmountCents/weightKg vienen del carrito
+/// del navegador, solo para elegir la tarifa; el monto real que se cobra
+/// siempre lo recalcula el servidor en createStoreOrder.
+export const quoteShippingSchema = z.object({
+  region: z.string().min(1, "Elige tu departamento"),
+  orderAmountCents: z.coerce.number().min(0),
+  weightKg: z.coerce.number().min(0),
+});
+
 /// shippingAddress/shippingCity y servicePreferredAt son mutuamente
 /// exclusivos según el carrito (físico vs. servicio) — acá solo se valida
 /// la forma; cuál hace falta de verdad lo decide createStoreOrder, que sí

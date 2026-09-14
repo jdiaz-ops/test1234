@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreConfigForm } from "@/components/portal/store-config-form";
 import { CustomDomainForm } from "@/components/portal/custom-domain-form";
+import { TaxConfigForm } from "@/components/portal/tax-config-form";
 
 export default async function TiendaConfiguracionPage() {
   const profile = await requireBrandProfile();
@@ -43,6 +44,11 @@ export default async function TiendaConfiguracionPage() {
         initialDomain={profile.customDomain}
         initialToken={profile.customDomainVerificationToken}
         initialVerified={profile.customDomainVerifiedAt != null}
+      />
+
+      <TaxConfigForm
+        initialMarket={profile.market}
+        initialTaxRatePercent={Number(profile.taxRatePercent)}
       />
     </div>
   );

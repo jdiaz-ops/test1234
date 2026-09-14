@@ -43,16 +43,7 @@ export default async function StorefrontCheckoutPage({
           </h1>
           <CheckoutForm
             brandSlug={slug}
-            shippingFlatRate={
-              brand.shippingFlatRate
-                ? Math.round(Number(brand.shippingFlatRate))
-                : null
-            }
-            freeShippingThreshold={
-              brand.freeShippingThreshold
-                ? Math.round(Number(brand.freeShippingThreshold))
-                : null
-            }
+            taxRatePercent={Number(brand.taxRatePercent)}
             paymentsReady={paymentsReady}
             referredCode={referredCode}
           />
