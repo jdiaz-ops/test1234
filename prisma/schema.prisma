@@ -1836,12 +1836,18 @@ model Product {
   sku     String?
   barcode String?
 
-  /// Peso en kilogramos — solo cuando NO tiene variantes (si las tiene,
-  /// cada ProductVariant trae el suyo, ya que ej. una talla XL puede
-  /// pesar distinto a una S). Opcional: solo hace falta si la marca
-  /// configuró una regla de envío por peso (ver ShippingZoneRate). Ver
+  /// Siempre normalizado y guardado en kilogramos (lo que usan los
+  /// cálculos de envío — ver ShippingZoneRate) — solo cuando NO tiene
+  /// variantes (si las tiene, cada ProductVariant trae el suyo, ya que
+  /// ej. una talla XL puede pesar distinto a una S). Opcional: solo hace
+  /// falta si la marca configuró una regla de envío por peso. Ver
   /// conversación del 2026-09-14.
-  weight Decimal? @db.Decimal(8, 3)
+  weight     Decimal?   @db.Decimal(8, 3)
+  /// Unidad en la que la marca prefiere escribir/ver el peso (kg/g/lb/oz)
+  /// — puramente de presentación en el formulario, WeightInput convierte
+  /// a `weight` en kg al guardar. Ver conversación del 2026-09-14: "que
+  /// permita gramos", con la referencia del selector de Shopify.
+  weightUnit WeightUnit @default(KG)
 
   /// Solo lo trae un producto manual — los sincronizados de Shopify/
   /// WooCommerce son siempre PHYSICAL (no hay forma de marcar un producto
@@ -1980,8 +1986,10 @@ model ProductVariant {
   barcode  String?
   imageUrl String?
   stock    Int      @default(0)
-  /// null = usa Product.weight — mismo criterio que price.
-  weight   Decimal? @db.Decimal(8, 3)
+  /// null = usa Product.weight — mismo criterio que price. Siempre en
+  /// kilogramos, igual que Product.weight.
+  weight     Decimal?   @db.Decimal(8, 3)
+  weightUnit WeightUnit @default(KG)
 
   position Int @default(0)
 
@@ -2061,6 +2069,16 @@ model ShippingZone {
   updatedAt DateTime @updatedAt
 
   @@index([brandId])
+}
+
+/// Unidad de peso que la marca elige al escribir Product.weight /
+/// ProductVariant.weight — el valor guardado siempre está en kg, esto es
+/// solo lo que ve/tipea en el formulario (ver WeightInput).
+enum WeightUnit {
+  KG
+  G
+  LB
+  OZ
 }
 
 enum ShippingRateCondition {

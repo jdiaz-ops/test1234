@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PriceInput } from "@/components/portal/price-input";
 import { ProductImageUploader } from "@/components/portal/product-image-uploader";
 import { RichTextEditor } from "@/components/portal/rich-text-editor";
+import { WeightInput, type WeightUnit } from "@/components/portal/weight-input";
 import {
   ProductCollectionsPicker,
   type BrandCollectionOption,
@@ -23,6 +24,7 @@ export type ManualProductVariant = {
   barcode: string | null;
   stock: number;
   weight: number | null;
+  weightUnit: WeightUnit;
 };
 
 export type ManualProduct = {
@@ -37,6 +39,7 @@ export type ManualProduct = {
   sku: string | null;
   barcode: string | null;
   weight: number | null;
+  weightUnit: WeightUnit;
   stock: number | null;
   available: boolean;
   type: "PHYSICAL" | "SERVICE";
@@ -75,6 +78,7 @@ function toVariantRows(variants: ManualProductVariant[]): VariantRowInput[] {
     barcode: v.barcode ?? "",
     stock: v.stock,
     weight: v.weight,
+    weightUnit: v.weightUnit,
     imageUrl: null,
   }));
 }
@@ -108,8 +112,9 @@ export function StoreProductForm({
   );
   const [sku, setSku] = useState(initial?.sku ?? "");
   const [barcode, setBarcode] = useState(initial?.barcode ?? "");
-  const [weight, setWeight] = useState(
-    initial?.weight != null ? String(initial.weight) : "",
+  const [weight, setWeight] = useState<number | null>(initial?.weight ?? null);
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(
+    initial?.weightUnit ?? "KG",
   );
   const [stock, setStock] = useState(
     initial?.stock != null ? String(initial.stock) : "",
@@ -183,7 +188,8 @@ export function StoreProductForm({
       compareAtPrice: hasVariants ? null : compareAtPrice,
       sku: hasVariants ? "" : sku,
       barcode: hasVariants ? "" : barcode,
-      weight: hasVariants ? null : weight === "" ? null : Number(weight),
+      weight: hasVariants ? null : weight,
+      weightUnit,
       stock: hasVariants ? null : Number(stock),
       available,
       type,
@@ -207,6 +213,7 @@ export function StoreProductForm({
             barcode: v.barcode,
             stock: v.stock,
             weight: v.weight,
+            weightUnit: v.weightUnit,
           }))
         : [],
     };
@@ -350,20 +357,26 @@ export function StoreProductForm({
       )}
 
       {!isService && (
-        <label className="flex items-center gap-2 text-sm text-brand-ink rounded-xl border border-brand-line p-3">
-          <input
-            type="checkbox"
-            checked={hasVariants}
-            disabled={Boolean(initial)}
-            onChange={(e) => setHasVariants(e.target.checked)}
-          />
-          Este producto tiene variantes (talla, color, etc.)
-          {initial && (
-            <span className="text-xs text-brand-ink-soft ml-1">
-              — no se puede cambiar después de crear el producto
-            </span>
+        <div className="rounded-xl border border-brand-line p-3">
+          <label className="flex items-center gap-2 text-sm text-brand-ink">
+            <input
+              type="checkbox"
+              checked={hasVariants}
+              onChange={(e) => setHasVariants(e.target.checked)}
+            />
+            Este producto tiene variantes (talla, color, etc.)
+          </label>
+          {initial && hasVariants !== initial.hasVariants && (
+            <p className="text-xs text-amber-600 mt-1.5">
+              ⚠ Al guardar se{" "}
+              {hasVariants
+                ? "borra el stock/precio actual del producto — vas a tener que cargarlos de nuevo por cada variante"
+                : "borran las variantes actuales y su stock — vuelve a poner el stock y precio del producto"}
+              . Si alguien tiene este producto en el carrito ahora mismo, puede
+              que no le funcione el pago hasta que actualice la página.
+            </p>
           )}
-        </label>
+        </div>
       )}
 
       {!hasVariants && (
@@ -405,16 +418,16 @@ export function StoreProductForm({
           {!isService && (
             <div>
               <label className="block text-sm text-brand-ink mb-1">
-                Peso (kg, opcional)
+                Peso (opcional)
               </label>
-              <input
-                type="number"
-                min="0"
-                step="0.001"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
+              <WeightInput
+                valueKg={weight}
+                unit={weightUnit}
+                onChange={(w, u) => {
+                  setWeight(w);
+                  setWeightUnit(u);
+                }}
                 placeholder="Para reglas de envío por peso"
-                className="input"
               />
             </div>
           )}

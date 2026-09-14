@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PriceInput } from "@/components/portal/price-input";
+import { WeightInput, type WeightUnit } from "@/components/portal/weight-input";
 
 export type VariantOptionInput = { name: string; values: string[] };
 export type VariantRowInput = {
@@ -16,8 +17,10 @@ export type VariantRowInput = {
   sku: string;
   barcode: string;
   stock: number;
-  /// null = usa el peso del producto — mismo criterio que price.
+  /// null = usa el peso del producto — mismo criterio que price. Siempre
+  /// en kilogramos — weightUnit es solo cómo se escribe/muestra.
   weight: number | null;
+  weightUnit: WeightUnit;
   imageUrl: string | null;
 };
 
@@ -96,6 +99,7 @@ export function ProductVariantsEditor({
             barcode: "",
             stock: 0,
             weight: null,
+            weightUnit: "KG",
             imageUrl: null,
           }
         );
@@ -297,20 +301,15 @@ export function ProductVariantsEditor({
                     </div>
                     <div>
                       <label className="block text-[11px] text-brand-ink-soft mb-0.5">
-                        Peso (kg)
+                        Peso
                       </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.001"
-                        placeholder="Usa el del producto"
-                        value={v.weight ?? ""}
-                        onChange={(e) =>
-                          updateVariant(v.key, {
-                            weight: e.target.value === "" ? null : Number(e.target.value),
-                          })
+                      <WeightInput
+                        valueKg={v.weight}
+                        unit={v.weightUnit}
+                        onChange={(weight, weightUnit) =>
+                          updateVariant(v.key, { weight, weightUnit })
                         }
-                        className="input text-sm"
+                        placeholder="Usa el del producto"
                       />
                     </div>
                   </div>

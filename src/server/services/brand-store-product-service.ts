@@ -14,6 +14,7 @@ type VariantInput = {
   barcode?: string;
   stock: number;
   weight?: number | null;
+  weightUnit?: "KG" | "G" | "LB" | "OZ";
 };
 
 type ManualProductInput = {
@@ -26,6 +27,7 @@ type ManualProductInput = {
   sku?: string;
   barcode?: string;
   weight?: number | null;
+  weightUnit?: "KG" | "G" | "LB" | "OZ";
   stock?: number | null;
   available: boolean;
   type?: "PHYSICAL" | "SERVICE";
@@ -124,6 +126,7 @@ function replaceVariantsOps(productId: string, variants: VariantInput[]) {
               barcode: v.barcode || null,
               stock: v.stock,
               weight: v.weight ?? null,
+              weightUnit: v.weightUnit ?? "KG",
               position,
             })),
           }),
@@ -164,6 +167,7 @@ export async function createManualProduct(
         sku: hasVariants ? null : data.sku || null,
         barcode: hasVariants ? null : data.barcode || null,
         weight: hasVariants ? null : (data.weight ?? null),
+        weightUnit: data.weightUnit ?? "KG",
         stock: hasVariants ? null : (data.stock ?? null),
         available: data.available,
         type: data.type ?? "PHYSICAL",
@@ -193,6 +197,7 @@ export async function createManualProduct(
           barcode: v.barcode || null,
           stock: v.stock,
           weight: v.weight ?? null,
+          weightUnit: v.weightUnit ?? "KG",
           position,
         })),
       });
@@ -238,6 +243,7 @@ export async function updateManualProduct(
         sku: hasVariants ? null : data.sku || null,
         barcode: hasVariants ? null : data.barcode || null,
         weight: hasVariants ? null : (data.weight ?? null),
+        weightUnit: data.weightUnit ?? "KG",
         stock: hasVariants ? null : (data.stock ?? null),
         available: data.available,
         type: data.type ?? "PHYSICAL",

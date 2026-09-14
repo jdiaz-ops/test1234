@@ -62,6 +62,7 @@ const variantInputSchema = z.object({
   barcode: z.string().max(120).optional().or(z.literal("")),
   stock: z.coerce.number().int().min(0, "No puede ser negativo"),
   weight: z.number().min(0, "No puede ser negativo").nullable(),
+  weightUnit: z.enum(["KG", "G", "LB", "OZ"]).default("KG"),
 });
 
 const productBaseSchema = z.object({
@@ -89,6 +90,7 @@ const productBaseSchema = z.object({
   /// Kilogramos — opcional, solo hace falta si la marca configuró una
   /// regla de envío por peso (ver ShippingZoneRate).
   weight: z.coerce.number().min(0, "No puede ser negativo").optional().nullable(),
+  weightUnit: z.enum(["KG", "G", "LB", "OZ"]).default("KG"),
   /// En un producto SERVICE, esto son "cupos disponibles" — mismo campo,
   /// otro nombre en la interfaz. Obligatorio desde el 2026-09-14 salvo con
   /// variantes (ahí null, el stock real vive por variante) — antes era
