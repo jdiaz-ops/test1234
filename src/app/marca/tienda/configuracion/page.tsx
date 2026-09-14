@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreConfigForm } from "@/components/portal/store-config-form";
 import { CustomDomainForm } from "@/components/portal/custom-domain-form";
-import { StorefrontTemplateForm } from "@/components/portal/storefront-template-form";
 
 export default async function TiendaConfiguracionPage() {
   const profile = await requireBrandProfile();
@@ -21,23 +20,22 @@ export default async function TiendaConfiguracionPage() {
         El link público de tu tienda dentro de Marcolini.
       </p>
       <StoreSubNav />
+      {/* El link real es siempre este subdominio (o un dominio propio, ver
+          CustomDomainForm) — StoreConfigForm ya lo muestra/edita en ese
+          mismo formato, así que acá solo queda el atajo para verla en
+          vivo. Antes había otro bloque arriba repitiendo el mismo link en
+          formato distinto (marcolini.lat/t/{slug}, que solo existe como
+          redirect legado hacia acá — ver proxy.ts) y confundía. Ver
+          conversación del 2026-09-14. */}
       {profile.storefrontSlug && (
-        <div className="mb-4">
-          <p className="text-sm text-brand-ink">
-            Tu tienda vive en{" "}
-            <span className="font-mono text-brand-accent">
-              {profile.storefrontSlug}.marcolini.lat
-            </span>
-          </p>
-          <a
-            href={`/t/${profile.storefrontSlug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-brand-accent hover:underline"
-          >
-            Ver tu tienda en vivo →
-          </a>
-        </div>
+        <a
+          href={`/t/${profile.storefrontSlug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block text-sm text-brand-accent hover:underline mb-4"
+        >
+          Ver tu tienda en vivo →
+        </a>
       )}
       <StoreConfigForm initialSlug={profile.storefrontSlug ?? ""} />
 
@@ -46,8 +44,6 @@ export default async function TiendaConfiguracionPage() {
         initialToken={profile.customDomainVerificationToken}
         initialVerified={profile.customDomainVerifiedAt != null}
       />
-
-      <StorefrontTemplateForm initialTemplate={profile.storefrontTemplate} />
     </div>
   );
 }

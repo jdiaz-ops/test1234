@@ -64,7 +64,7 @@ export function StorefrontTemplateForm({
   }
 
   return (
-    <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mt-6">
+    <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
       <p className="text-sm font-medium text-brand-ink mb-1">
         Plantilla de tu catálogo
       </p>

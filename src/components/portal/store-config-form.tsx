@@ -42,16 +42,19 @@ export function StoreConfigForm({ initialSlug }: { initialSlug: string }) {
         <label className="block text-sm text-brand-ink mb-1">
           Link de tu tienda
         </label>
+        {/* Único link real que se comparte — un dominio propio (ver
+            CustomDomainForm) o este subdominio, nunca marcolini.lat/t/{slug}
+            (esa ruta solo existe como redirect hacia acá, ver proxy.ts). Ver
+            conversación del 2026-09-14: la página mostraba los dos formatos
+            a la vez y confundía. */}
         <div className="flex items-center gap-1 text-sm">
-          <span className="text-brand-ink-soft font-mono">
-            marcolini.lat/t/
-          </span>
           <input
             required
             value={slug}
             onChange={(e) => setSlug(e.target.value.toLowerCase())}
             className="input font-mono flex-1"
           />
+          <span className="text-brand-ink-soft font-mono">.marcolini.lat</span>
         </div>
         <p className="text-xs text-brand-ink-soft mt-1">
           Solo minúsculas, números y guiones. Es el link que vas a compartir
