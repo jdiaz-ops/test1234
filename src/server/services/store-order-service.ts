@@ -14,6 +14,7 @@ import {
   matchShippingZone,
   pickShippingRate,
 } from "@/server/services/shipping-zone-service";
+import { ensureStoreCustomerExists } from "@/server/services/store-customer-service";
 
 /// Carrito y checkout nativos de "Mi tienda" — la vitrina pública de una
 /// marca en marcolini.lat/t/{storefrontSlug}. El carrito vive en el
@@ -30,16 +31,20 @@ export async function getStorefrontBrand(slug: string) {
   });
 }
 
+/// Solo ACTIVE aparece en el catálogo — UNLISTED existe (se puede ver y
+/// comprar con el link directo, ver getStorefrontProduct) pero no sale
+/// acá, y DRAFT no se puede ver de ninguna forma. Ver ProductStatus en el
+/// schema y conversación del 2026-09-14.
 export async function listStorefrontProducts(brandId: string) {
   return prisma.product.findMany({
-    where: { brandId, manual: true, available: true },
+    where: { brandId, manual: true, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
   });
 }
 
 export async function getStorefrontProduct(brandId: string, slug: string) {
   return prisma.product.findFirst({
-    where: { brandId, manual: true, slug },
+    where: { brandId, manual: true, slug, status: { not: "DRAFT" } },
     include: {
       images: { orderBy: { position: "asc" } },
       variants: { orderBy: { position: "asc" } },
@@ -416,6 +421,70 @@ export async function confirmServiceBooking(
   return updated;
 }
 
+/// Estado de preparación/entrega de un pedido — aparte del pago (ver
+/// StoreOrderFulfillmentStatus). Solo tiene sentido en un pedido ya
+/// pagado; sella la marca de tiempo correspondiente la primera vez que
+/// pasa por cada estado (si la marca lo mueve para atrás y adelante, no
+/// pisa una marca de tiempo ya puesta). Ver conversación del 2026-09-14:
+/// "necesito estado del pago - estado de preparación del pedido".
+export async function updateOrderFulfillment(
+  brandId: string,
+  data: {
+    orderId: string;
+    fulfillmentStatus: "UNFULFILLED" | "PREPARED" | "SHIPPED" | "DELIVERED";
+    carrier?: string | null;
+    trackingNumber?: string | null;
+  },
+) {
+  const order = await prisma.storeOrder.findFirst({
+    where: { id: data.orderId, brandId },
+  });
+  if (!order) throw new StoreOrderError("Pedido no encontrado.");
+  if (order.status !== "PAID") {
+    throw new StoreOrderError("Solo se puede preparar un pedido ya pagado.");
+  }
+
+  const now = new Date();
+  return prisma.storeOrder.update({
+    where: { id: order.id },
+    data: {
+      fulfillmentStatus: data.fulfillmentStatus,
+      carrier: data.carrier?.trim() || null,
+      trackingNumber: data.trackingNumber?.trim() || null,
+      preparedAt:
+        order.preparedAt ??
+        (data.fulfillmentStatus === "PREPARED" ||
+        data.fulfillmentStatus === "SHIPPED" ||
+        data.fulfillmentStatus === "DELIVERED"
+          ? now
+          : null),
+      shippedAt:
+        order.shippedAt ??
+        (data.fulfillmentStatus === "SHIPPED" || data.fulfillmentStatus === "DELIVERED"
+          ? now
+          : null),
+      deliveredAt:
+        order.deliveredAt ?? (data.fulfillmentStatus === "DELIVERED" ? now : null),
+    },
+  });
+}
+
+/// Notas internas — nunca las ve el comprador. Ver conversación del
+/// 2026-09-14 (captura de referencia de Shopify).
+export async function updateOrderNotes(
+  brandId: string,
+  data: { orderId: string; internalNotes: string | null },
+) {
+  const order = await prisma.storeOrder.findFirst({
+    where: { id: data.orderId, brandId },
+  });
+  if (!order) throw new StoreOrderError("Pedido no encontrado.");
+  return prisma.storeOrder.update({
+    where: { id: order.id },
+    data: { internalNotes: data.internalNotes?.trim() || null },
+  });
+}
+
 /// Idempotente — puede llamarse desde el webhook y desde el respaldo por
 /// consulta directa a la API de Wompi sin duplicar nada: si el pedido ya
 /// no está PENDING, no vuelve a procesarlo.
@@ -440,6 +509,19 @@ export async function applyWompiTransactionStatus(params: {
         paidAt: new Date(),
       },
     });
+
+    // Registra/actualiza el cliente en el CRM de "Mi tienda" — así el
+    // registro existe desde la primera compra, sin que la marca tenga
+    // que hacer nada. Nunca debe tumbar el pago si algo sale mal acá.
+    try {
+      await ensureStoreCustomerExists(order.brandId, {
+        email: order.buyerEmail,
+        name: order.buyerName,
+        phone: order.buyerPhone,
+      });
+    } catch (err) {
+      console.error(`[mi-tienda] No se pudo registrar el cliente para el pedido ${order.id}:`, err);
+    }
 
     if (order.discountCode) {
       try {

@@ -14,7 +14,7 @@ type VariantInput = {
   barcode?: string;
   stock: number;
   weight?: number | null;
-  weightUnit?: "KG" | "G" | "LB" | "OZ";
+  weightUnit?: "KG" | "G";
 };
 
 type ManualProductInput = {
@@ -27,9 +27,12 @@ type ManualProductInput = {
   sku?: string;
   barcode?: string;
   weight?: number | null;
-  weightUnit?: "KG" | "G" | "LB" | "OZ";
+  weightUnit?: "KG" | "G";
   stock?: number | null;
-  available: boolean;
+  /// Reemplaza el viejo "available: boolean" — el campo `available` de
+  /// Prisma se sigue derivando de esto al guardar (status !== DRAFT),
+  /// para no tener que tocar cada lugar que ya filtra por available.
+  status?: "ACTIVE" | "DRAFT" | "UNLISTED";
   type?: "PHYSICAL" | "SERVICE";
   serviceModality?: "VIRTUAL" | "PRESENCIAL" | null;
   serviceDurationMinutes?: number | null;
@@ -169,7 +172,8 @@ export async function createManualProduct(
         weight: hasVariants ? null : (data.weight ?? null),
         weightUnit: data.weightUnit ?? "KG",
         stock: hasVariants ? null : (data.stock ?? null),
-        available: data.available,
+        status: data.status ?? "ACTIVE",
+        available: (data.status ?? "ACTIVE") !== "DRAFT",
         type: data.type ?? "PHYSICAL",
         serviceModality: data.type === "SERVICE" ? (data.serviceModality ?? null) : null,
         serviceDurationMinutes: data.type === "SERVICE" ? (data.serviceDurationMinutes ?? null) : null,
@@ -245,7 +249,8 @@ export async function updateManualProduct(
         weight: hasVariants ? null : (data.weight ?? null),
         weightUnit: data.weightUnit ?? "KG",
         stock: hasVariants ? null : (data.stock ?? null),
-        available: data.available,
+        status: data.status ?? "ACTIVE",
+        available: (data.status ?? "ACTIVE") !== "DRAFT",
         type: data.type ?? "PHYSICAL",
         serviceModality: data.type === "SERVICE" ? (data.serviceModality ?? null) : null,
         serviceDurationMinutes: data.type === "SERVICE" ? (data.serviceDurationMinutes ?? null) : null,

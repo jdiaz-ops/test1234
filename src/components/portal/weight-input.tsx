@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 
-export type WeightUnit = "KG" | "G" | "LB" | "OZ";
+/// Solo kg y g — ver conversación del 2026-09-14 ("deja solo kg y
+/// gramos"), antes traía también lb/oz.
+export type WeightUnit = "KG" | "G";
 
 const UNIT_LABEL: Record<WeightUnit, string> = {
   KG: "kg",
   G: "g",
-  LB: "lb",
-  OZ: "oz",
 };
 
 /// Factor para convertir DE esa unidad A kilogramos (lo que siempre se
@@ -16,8 +16,6 @@ const UNIT_LABEL: Record<WeightUnit, string> = {
 const TO_KG: Record<WeightUnit, number> = {
   KG: 1,
   G: 0.001,
-  LB: 0.45359237,
-  OZ: 0.028349523125,
 };
 
 function kgToUnit(kg: number, unit: WeightUnit): number {

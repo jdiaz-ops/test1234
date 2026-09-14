@@ -261,7 +261,7 @@ export function ProductVariantsEditor({
                     </div>
                     <div>
                       <label className="block text-[11px] text-brand-ink-soft mb-0.5">
-                        Stock
+                        Inventario
                       </label>
                       <input
                         type="number"

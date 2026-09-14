@@ -38,7 +38,7 @@ export default async function TiendaProductosPage() {
           weight: p.weight != null ? Number(p.weight) : null,
           weightUnit: p.weightUnit,
           stock: p.stock,
-          available: p.available,
+          status: p.status,
           type: p.type,
           serviceModality: p.serviceModality,
           serviceDurationMinutes: p.serviceDurationMinutes,

@@ -136,8 +136,11 @@ export function StoreProductsPanel({
                     ? "Varios precios"
                     : formatCOP(product.price)}
                 </p>
-                {!product.available && (
-                  <p className="text-xs text-red-600 mt-0.5">No disponible</p>
+                {product.status === "DRAFT" && (
+                  <p className="text-xs text-red-600 mt-0.5">Borrador</p>
+                )}
+                {product.status === "UNLISTED" && (
+                  <p className="text-xs text-amber-600 mt-0.5">No listado</p>
                 )}
                 {product.hasVariants ? (
                   <p className="text-xs text-brand-ink-soft mt-0.5">
@@ -148,7 +151,7 @@ export function StoreProductsPanel({
                 ) : (
                   product.stock != null && (
                     <p className="text-xs text-brand-ink-soft mt-0.5">
-                      {product.type === "SERVICE" ? "Cupos" : "Stock"}:{" "}
+                      {product.type === "SERVICE" ? "Cupos" : "Inventario"}:{" "}
                       {product.stock}
                     </p>
                   )

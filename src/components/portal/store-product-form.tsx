@@ -14,6 +14,32 @@ import {
   type VariantRowInput,
 } from "@/components/portal/product-variants-editor";
 
+/// Igual a Shopify — reemplaza la vieja casilla "Disponible para la
+/// venta". Ver conversación del 2026-09-14.
+export type ProductStatusValue = "ACTIVE" | "DRAFT" | "UNLISTED";
+
+const STATUS_OPTIONS: {
+  value: ProductStatusValue;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "ACTIVE",
+    label: "Activo",
+    description: "Se puede ver y comprar en tu vitrina.",
+  },
+  {
+    value: "DRAFT",
+    label: "Borrador",
+    description: "Oculto del todo — no se puede ver ni comprar, ni con el link directo.",
+  },
+  {
+    value: "UNLISTED",
+    label: "No listado",
+    description: "No aparece en tu vitrina, pero se puede ver y comprar con el link directo.",
+  },
+];
+
 export type ManualProductVariant = {
   id: string;
   option1Value: string | null;
@@ -41,7 +67,7 @@ export type ManualProduct = {
   weight: number | null;
   weightUnit: WeightUnit;
   stock: number | null;
-  available: boolean;
+  status: ProductStatusValue;
   type: "PHYSICAL" | "SERVICE";
   serviceModality: "VIRTUAL" | "PRESENCIAL" | null;
   serviceDurationMinutes: number | null;
@@ -119,7 +145,9 @@ export function StoreProductForm({
   const [stock, setStock] = useState(
     initial?.stock != null ? String(initial.stock) : "",
   );
-  const [available, setAvailable] = useState(initial?.available ?? true);
+  const [status, setStatus] = useState<ProductStatusValue>(
+    initial?.status ?? "ACTIVE",
+  );
   const [type, setType] = useState<"PHYSICAL" | "SERVICE">(
     initial?.type ?? "PHYSICAL",
   );
@@ -191,7 +219,7 @@ export function StoreProductForm({
       weight: hasVariants ? null : weight,
       weightUnit,
       stock: hasVariants ? null : Number(stock),
-      available,
+      status,
       type,
       serviceModality: isService ? serviceModality : null,
       serviceDurationMinutes: isService
@@ -434,7 +462,7 @@ export function StoreProductForm({
 
           <div>
             <label className="block text-sm text-brand-ink mb-1">
-              {isService ? "Cupos disponibles" : "Stock"}
+              {isService ? "Cupos disponibles" : "Inventario disponible"}
             </label>
             <input
               required
@@ -473,14 +501,23 @@ export function StoreProductForm({
         </div>
       )}
 
-      <label className="flex items-center gap-2 text-sm text-brand-ink">
-        <input
-          type="checkbox"
-          checked={available}
-          onChange={(e) => setAvailable(e.target.checked)}
-        />
-        Disponible para la venta
-      </label>
+      <div>
+        <label className="block text-sm text-brand-ink mb-1">Estado</label>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value as ProductStatusValue)}
+          className="input"
+        >
+          {STATUS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-brand-ink-soft mt-1">
+          {STATUS_OPTIONS.find((opt) => opt.value === status)?.description}
+        </p>
+      </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
