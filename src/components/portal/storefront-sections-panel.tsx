@@ -22,6 +22,7 @@ import {
   type VideoConfig,
   type InstagramCtaConfig,
   type ProductCatalogConfig,
+  normalizeBannerConfig,
 } from "@/lib/storefront-sections";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 
@@ -95,7 +96,8 @@ function ImagePicker({
   );
 }
 
-function BannerFields({ config, onChange }: { config: BannerConfig; onChange: (next: BannerConfig) => void }) {
+function BannerFields({ config: rawConfig, onChange }: { config: BannerConfig; onChange: (next: BannerConfig) => void }) {
+  const config = normalizeBannerConfig(rawConfig);
   function updateSlideImage(i: number, url: string | null) {
     // El "Quitar" del ImagePicker manda null — sin imagen no tiene
     // sentido guardar el slide, así que se quita la fila entera.

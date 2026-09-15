@@ -17,6 +17,7 @@ import type {
   InstagramCtaConfig,
   ProductCatalogConfig,
 } from "@/lib/storefront-sections";
+import { normalizeBannerConfig } from "@/lib/storefront-sections";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 import { getBrandCollection } from "@/server/services/brand-collection-service";
 import { listStorefrontProducts } from "@/server/services/store-order-service";
@@ -70,7 +71,8 @@ function BannerSlideImage({
   );
 }
 
-function BannerSection({ config, basePath }: { config: BannerConfig; basePath: string }) {
+function BannerSection({ config: rawConfig, basePath }: { config: BannerConfig; basePath: string }) {
+  const config = normalizeBannerConfig(rawConfig);
   const slides = config.slides.filter((s) => s.imageUrl);
   if (slides.length === 0 && !config.title) return null;
   const aspectClass = config.aspectRatio === "square" ? "aspect-square" : "aspect-[21/9] sm:aspect-[3/1]";

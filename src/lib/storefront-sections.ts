@@ -91,6 +91,29 @@ const bannerConfigSchema = z.object({
 });
 export type BannerConfig = z.infer<typeof bannerConfigSchema>;
 
+/// Normaliza un config de BANNER tal como llega crudo de la base (nunca
+/// se revalida contra el schema al leer — solo al guardar, ver
+/// parseSectionConfig) al shape nuevo con `slides`. Antes del carrusel
+/// del 2026-09-15, `config.imageUrl` era un string suelto; sin este
+/// resguardo, una sección vieja tira "Cannot read properties of
+/// undefined (reading 'filter')" y tumba la página entera — le pasó a
+/// una vitrina real (hlc.marcolini.lat) porque el script de backfill de
+/// esa migración corrió contra la base de desarrollo, nunca contra la
+/// de producción. Se usa tanto en la vitrina pública como en el editor
+/// del portal, así no depende de que ningún script haya corrido.
+export function normalizeBannerConfig(raw: unknown): BannerConfig {
+  const config = (raw ?? {}) as Partial<BannerConfig> & { imageUrl?: string | null };
+  if (Array.isArray(config.slides)) return config as BannerConfig;
+  return {
+    aspectRatio: config.aspectRatio ?? "horizontal",
+    slides: config.imageUrl ? [{ imageUrl: config.imageUrl, link: "" }] : [],
+    title: config.title ?? "",
+    subtitle: config.subtitle ?? "",
+    buttonText: config.buttonText ?? "",
+    buttonLink: config.buttonLink ?? "",
+  };
+}
+
 const featuredCollectionConfigSchema = z.object({
   collectionId: z.string().nullable().default(null),
   title: z.string().max(120).default(""),
