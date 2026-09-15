@@ -147,15 +147,19 @@ const headerSchema = withDefaults({
   sticky: z.boolean().default(true),
   logoSize: z.enum(["small", "medium", "large"]).default("medium"),
   /// Si el menú de navegación (ver StorefrontMenuPanel) se muestra en el
-  /// encabezado — en computadora como links normales, en celular como
-  /// un ícono de hamburguesa a la izquierda que abre un panel lateral
-  /// con los mismos ítems (ver store-header.tsx). El control del pie de
+  /// encabezado — en computadora siempre como links normales; en celular,
+  /// según mobile.menuStyle (ver store-header.tsx). El control del pie de
   /// página es aparte, ver footer.menuPrimary.show — habilitado por
   /// defecto. Ver conversación del 2026-09-14.
   showMenu: z.boolean().default(true),
   mobile: withDefaults({
     logoPosition: z.enum(["center", "left"]).default("center"),
     show: z.enum(["search", "categories", "icons"]).default("search"),
+    /// "hamburger" = ícono a la izquierda del logo que abre un panel
+    /// lateral; "below" = fila deslizable con los ítems debajo del
+    /// encabezado. Antes se mostraban las dos formas a la vez; pedido
+    /// explícito de elegir una. Ver conversación del 2026-09-15.
+    menuStyle: z.enum(["hamburger", "below"]).default("below"),
   }),
   desktop: withDefaults({
     logoPosition: z.enum(["left", "center"]).default("left"),

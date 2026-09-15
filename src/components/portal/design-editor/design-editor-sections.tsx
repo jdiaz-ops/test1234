@@ -294,10 +294,18 @@ export function HeaderSection({ theme, patch }: { theme: ThemeConfig; patch: Pat
           onChange={(v) => patch({ header: { mobile: { show: v ? "search" : "icons" } } })}
         />
         <p className="text-[11px] text-brand-ink-soft -mt-1">
-          Reemplaza el logo centrado por logo a la izquierda + buscador —
-          el menú de categorías sigue debajo, deslizable, prendido o
-          apagado esto.
+          Reemplaza el logo centrado por logo a la izquierda + buscador.
         </p>
+        <Field label="Estilo del menú">
+          <select
+            value={h.mobile.menuStyle}
+            onChange={(e) => patch({ header: { mobile: { menuStyle: e.target.value } } })}
+            className="input text-sm"
+          >
+            <option value="below">Barra deslizable debajo del encabezado</option>
+            <option value="hamburger">Ícono de hamburguesa (abre un panel lateral)</option>
+          </select>
+        </Field>
       </div>
 
       <div className="border-t border-brand-line pt-4 space-y-3">

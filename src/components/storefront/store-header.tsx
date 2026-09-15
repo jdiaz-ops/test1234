@@ -89,6 +89,11 @@ export function StoreHeader({
   // Habilitado por defecto (ver theme.header.showMenu) — sin ítems en el
   // menú no hay nada que mostrar, así que igual se apaga.
   const showMenu = header.showMenu && menuItems.length > 0;
+  // Uno u otro, no los dos — pedido explícito: "Tal vez el menú que se
+  // pueda seleccionar el estilo? Hamburger o debajo encabezado." Ver
+  // conversación del 2026-09-15.
+  const showHamburger = showMenu && header.mobile.menuStyle === "hamburger";
+  const showMobileNavRow = showMenu && header.mobile.menuStyle === "below";
 
   const logoLink = (
     <Link href={basePath || "/"} className="flex items-center gap-3 shrink-0">
@@ -112,7 +117,7 @@ export function StoreHeader({
   // más abajo) para no alterar el conteo de columnas del grid/flex del
   // encabezado en computadora — el botón trae su propio sm:hidden, así
   // que en computadora no ocupa espacio ni se nota que está ahí.
-  const logo = showMenu ? (
+  const logo = showHamburger ? (
     <div className="flex items-center gap-2">
       <button
         type="button"
@@ -143,12 +148,11 @@ export function StoreHeader({
     </nav>
   );
 
-  // Fila deslizable debajo del encabezado, en celular — siempre visible
-  // si hay menú, sin importar qué se eligió en "Mostrar" (buscador o
-  // íconos ya no la tapan, van juntos). Pedido explícito: "la barra de
-  // menú así debajo que sea deslizable". Ver conversación del
-  // 2026-09-15.
-  const mobileNavRow = showMenu && (
+  // Fila deslizable debajo del encabezado, en celular — visible cuando el
+  // estilo elegido es "below" (independiente de "Mostrar": buscador o
+  // íconos ya no la tapan). Pedido explícito: "la barra de menú así
+  // debajo que sea deslizable". Ver conversación del 2026-09-15.
+  const mobileNavRow = showMobileNavRow && (
     <nav className="sm:hidden flex items-center gap-5 overflow-x-auto">
       {menuItems.map((item) =>
         renderMenuLink(item, basePath, "text-sm text-brand-ink-soft hover:text-brand-ink whitespace-nowrap shrink-0"),
@@ -236,7 +240,7 @@ export function StoreHeader({
         </div>
       </header>
 
-      {showMenu && (
+      {showHamburger && (
         <>
           <div
             onClick={() => setMenuOpen(false)}
