@@ -170,7 +170,9 @@ const announcementMessageSchema = z.object({
 
 const announcementBarSchema = withDefaults({
   enabled: z.boolean().default(false),
-  messages: z.array(announcementMessageSchema).max(3).default([]),
+  /// Hasta 4 — pedido explícito de la marca ("3 o 4 textos que se
+  /// deslizan"), ver conversación del 2026-09-15.
+  messages: z.array(announcementMessageSchema).max(4).default([]),
 });
 
 // ----------------------------------------------------------------------------

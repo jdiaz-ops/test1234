@@ -357,7 +357,7 @@ export function MenuVisibilitySection({ theme, patch }: { theme: ThemeConfig; pa
 
 export function AnnouncementSection({ theme, patch }: { theme: ThemeConfig; patch: PatchFn }) {
   const a = theme.announcementBar;
-  const messages = [0, 1, 2].map((i) => a.messages[i] ?? { text: "", link: "" });
+  const messages = [0, 1, 2, 3].map((i) => a.messages[i] ?? { text: "", link: "" });
 
   function updateMessage(index: number, field: "text" | "link", value: string) {
     const next = messages.map((m, i) => (i === index ? { ...m, [field]: value } : m));
