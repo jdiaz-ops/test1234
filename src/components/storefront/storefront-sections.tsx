@@ -20,6 +20,7 @@ import type {
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 import { getBrandCollection } from "@/server/services/brand-collection-service";
 import { listStorefrontProducts } from "@/server/services/store-order-service";
+import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { CatalogTemplate } from "@/components/storefront/catalog-templates";
 import { prisma } from "@/lib/prisma";
 
@@ -129,34 +130,62 @@ async function FeaturedCollectionSection({
   const products = collection.products
     .map((p) => p.product)
     .filter((p) => p.status === "ACTIVE" && p.available)
-    .slice(0, 8);
+    .slice(0, 12);
   if (products.length === 0) return null;
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">
-      <h2 className="font-display text-xl font-semibold text-brand-ink mb-4">
-        {config.title || collection.name}
-      </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="flex items-end justify-between gap-4 mb-4">
+        <h2 className="font-display text-xl font-semibold text-brand-ink">
+          {config.title || collection.name}
+        </h2>
+        <Link
+          href={`${basePath}/coleccion/${collection.slug}`}
+          className="text-xs font-medium text-brand-accent hover:underline shrink-0 whitespace-nowrap"
+        >
+          Ver más →
+        </Link>
+      </div>
+      {/* Carrusel deslizable con tarjetas grandes (imagen + título +
+          precio + agregar al carrito) en vez de la grilla chica de
+          antes — pedido explícito: "que las secciones de colecciones
+          [...] sea deslizable y así de grandes y presentados. Con un
+          link de ver más que lleva hacia la colección." Ver
+          conversación del 2026-09-15. */}
+      <div className="flex gap-4 overflow-x-auto snap-x pb-1">
         {products.map((p) => (
-          <Link
+          <div
             key={p.id}
-            href={`${basePath}/${p.slug}`}
-            className="rounded-xl border border-brand-line overflow-hidden bg-brand-surface block"
+            className="w-44 sm:w-52 shrink-0 snap-start rounded-2xl border border-brand-line bg-brand-surface overflow-hidden flex flex-col"
           >
-            {p.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.imageUrl} alt={p.name} className="w-full aspect-square object-cover" />
-            ) : (
-              <div className="w-full aspect-square bg-brand-accent-soft" />
-            )}
-            <div className="p-2">
-              <p className="text-xs font-medium text-brand-ink truncate">{p.name}</p>
-              <p className="text-xs text-brand-ink-soft font-mono">
-                {formatCOP(Number(p.price))}
-              </p>
+            <Link href={`${basePath}/${p.slug}`}>
+              {p.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
+                <img src={p.imageUrl} alt={p.name} className="w-full aspect-square object-cover" />
+              ) : (
+                <div className="w-full aspect-square bg-brand-accent-soft" />
+              )}
+            </Link>
+            <div className="p-3 flex flex-col gap-2 flex-1">
+              <Link href={`${basePath}/${p.slug}`}>
+                <p className="text-xs font-medium text-brand-ink leading-snug line-clamp-2">{p.name}</p>
+              </Link>
+              <p className="text-xs font-mono text-brand-ink-soft">{formatCOP(Number(p.price))}</p>
+              <AddToCartButton
+                basePath={basePath}
+                product={{
+                  id: p.id,
+                  slug: p.slug ?? "",
+                  name: p.name,
+                  price: Number(p.price),
+                  imageUrl: p.imageUrl,
+                  stock: p.stock,
+                  type: p.type,
+                }}
+                className="mt-auto w-full bg-brand-accent text-white rounded-full px-3 py-1.5 text-[11px] font-semibold hover:opacity-90 disabled:opacity-40"
+              />
             </div>
-          </Link>
+          </div>
         ))}
       </div>
     </div>

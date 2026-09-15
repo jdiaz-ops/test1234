@@ -288,17 +288,16 @@ export function HeaderSection({ theme, patch }: { theme: ThemeConfig; patch: Pat
             <option value="left">Izquierda</option>
           </select>
         </Field>
-        <Field label="Mostrar" hint={h.mobile.show === "search" ? "Sin buscador en Marcolini todavía — se usa como link a Categorías." : undefined}>
-          <select
-            value={h.mobile.show}
-            onChange={(e) => patch({ header: { mobile: { show: e.target.value } } })}
-            className="input text-sm"
-          >
-            <option value="search">Buscador grande</option>
-            <option value="categories">Barra horizontal de categorías</option>
-            <option value="icons">Sólo íconos (menú, buscador y carrito)</option>
-          </select>
-        </Field>
+        <Checkbox
+          label="Buscador en el encabezado"
+          checked={h.mobile.show === "search"}
+          onChange={(v) => patch({ header: { mobile: { show: v ? "search" : "icons" } } })}
+        />
+        <p className="text-[11px] text-brand-ink-soft -mt-1">
+          Reemplaza el logo centrado por logo a la izquierda + buscador —
+          el menú de categorías sigue debajo, deslizable, prendido o
+          apagado esto.
+        </p>
       </div>
 
       <div className="border-t border-brand-line pt-4 space-y-3">

@@ -20,6 +20,33 @@ function isExternalUrl(url: string) {
   return !url.startsWith("/");
 }
 
+/// Un solo ítem de menú, compartido por el nav de computadora, la fila
+/// deslizable de celular y el panel del hamburguesa — antes cada uno
+/// repetía el mismo if/else externo-vs-interno por su cuenta.
+function renderMenuLink(
+  item: StoreHeaderMenuItem,
+  basePath: string,
+  className: string,
+  onClick?: () => void,
+) {
+  return isExternalUrl(item.url) ? (
+    <a
+      key={item.id}
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onClick}
+      className={className}
+    >
+      {item.label}
+    </a>
+  ) : (
+    <Link key={item.id} href={resolveMenuHref(item.url, basePath)} onClick={onClick} className={className}>
+      {item.label}
+    </Link>
+  );
+}
+
 const LOGO_SIZE_CLASS = {
   small: "w-7 h-7 text-sm",
   medium: "w-9 h-9 text-base",
@@ -58,6 +85,7 @@ export function StoreHeader({
   const iconSizeClass = header.desktop.iconSize === "large" ? "sm:px-4 sm:py-2 sm:text-sm" : "sm:px-3 sm:py-1.5 sm:text-xs";
   const desktopCentered = header.desktop.logoPosition === "center";
   const mobileCentered = header.mobile.logoPosition === "center";
+  const showSearch = header.mobile.show === "search";
   // Habilitado por defecto (ver theme.header.showMenu) — sin ítems en el
   // menú no hay nada que mostrar, así que igual se apaga.
   const showMenu = header.showMenu && menuItems.length > 0;
@@ -102,34 +130,59 @@ export function StoreHeader({
     logoLink
   );
 
-  const nav = showMenu && (
-    <nav
-      className={`items-center gap-5 ${
-        header.mobile.show === "categories" ? "flex overflow-x-auto sm:overflow-visible" : "hidden sm:flex"
-      }`}
-    >
+  // Solo en computadora — en celular el menú vive en la fila deslizable
+  // de abajo (mobileNavRow) o en el panel del hamburguesa, nunca acá. Ver
+  // conversación del 2026-09-15 (antes esto también se mostraba en
+  // celular cuando mobile.show === "categories", duplicado con la fila
+  // de abajo).
+  const desktopNav = showMenu && (
+    <nav className="hidden sm:flex items-center gap-5">
       {menuItems.map((item) =>
-        isExternalUrl(item.url) ? (
-          <a
-            key={item.id}
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-brand-ink-soft hover:text-brand-ink whitespace-nowrap"
-          >
-            {item.label}
-          </a>
-        ) : (
-          <Link
-            key={item.id}
-            href={resolveMenuHref(item.url, basePath)}
-            className="text-sm text-brand-ink-soft hover:text-brand-ink whitespace-nowrap"
-          >
-            {item.label}
-          </Link>
-        ),
+        renderMenuLink(item, basePath, "text-sm text-brand-ink-soft hover:text-brand-ink whitespace-nowrap"),
       )}
     </nav>
+  );
+
+  // Fila deslizable debajo del encabezado, en celular — siempre visible
+  // si hay menú, sin importar qué se eligió en "Mostrar" (buscador o
+  // íconos ya no la tapan, van juntos). Pedido explícito: "la barra de
+  // menú así debajo que sea deslizable". Ver conversación del
+  // 2026-09-15.
+  const mobileNavRow = showMenu && (
+    <nav className="sm:hidden flex items-center gap-5 overflow-x-auto">
+      {menuItems.map((item) =>
+        renderMenuLink(item, basePath, "text-sm text-brand-ink-soft hover:text-brand-ink whitespace-nowrap shrink-0"),
+      )}
+    </nav>
+  );
+
+  // Buscador grande de celular — un <form> GET liso a /buscar, sin JS:
+  // funciona incluso donde la hidratación no prende. Se activa desde
+  // Diseño → Encabezado → Mostrar → "Buscador grande". Ver conversación
+  // del 2026-09-15.
+  const searchBar = showSearch && (
+    <form action={`${basePath}/buscar`} method="GET" role="search" className="flex-1 min-w-0">
+      <div className="relative">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-ink-soft pointer-events-none"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+        <input
+          type="search"
+          name="q"
+          placeholder="Buscar"
+          className="w-full rounded-full border border-brand-line bg-brand-bg pl-9 pr-3 py-2 text-sm text-brand-ink placeholder:text-brand-ink-soft focus:outline-none focus:ring-1 focus:ring-brand-accent"
+        />
+      </div>
+    </form>
   );
 
   const cartButton = (
@@ -156,19 +209,30 @@ export function StoreHeader({
         style={bgStyle}
       >
         <div className="max-w-3xl mx-auto px-6 py-4 space-y-2">
+          {/* Con buscador: fila fija logo-izquierda / buscador-centro /
+              carrito, propia de celular (la fila de computadora de abajo
+              se ocupa de esa pantalla). Sin buscador: el layout de
+              siempre, con las posiciones que la marca eligió. */}
+          {searchBar && (
+            <div className="flex items-center gap-3 sm:hidden">
+              {logo}
+              {searchBar}
+              {cartButton}
+            </div>
+          )}
           <div
-            className={`flex items-center gap-4 ${
+            className={`items-center gap-4 ${searchBar ? "hidden sm:flex" : "flex"} ${
               desktopCentered ? "sm:grid sm:grid-cols-3" : "justify-between"
             } ${mobileCentered ? "justify-center relative" : "justify-between"}`}
           >
             <div className={mobileCentered ? "absolute left-6 sm:static" : ""}>{logo}</div>
-            {desktopCentered && <div className="hidden sm:flex justify-center">{nav}</div>}
+            {desktopCentered && <div className="hidden sm:flex justify-center">{desktopNav}</div>}
             <div className={`flex items-center gap-4 ${desktopCentered ? "justify-end" : ""} ${mobileCentered ? "ml-auto" : ""}`}>
-              {!desktopCentered && nav}
+              {!desktopCentered && desktopNav}
               {cartButton}
             </div>
           </div>
-          {header.mobile.show === "categories" && <div className="sm:hidden">{nav}</div>}
+          {mobileNavRow}
         </div>
       </header>
 
@@ -202,27 +266,7 @@ export function StoreHeader({
             </div>
             <nav className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
               {menuItems.map((item) =>
-                isExternalUrl(item.url) ? (
-                  <a
-                    key={item.id}
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setMenuOpen(false)}
-                    className="text-sm text-brand-ink py-2.5 hover:text-brand-accent"
-                  >
-                    {item.label}
-                  </a>
-                ) : (
-                  <Link
-                    key={item.id}
-                    href={resolveMenuHref(item.url, basePath)}
-                    onClick={() => setMenuOpen(false)}
-                    className="text-sm text-brand-ink py-2.5 hover:text-brand-accent"
-                  >
-                    {item.label}
-                  </Link>
-                ),
+                renderMenuLink(item, basePath, "text-sm text-brand-ink py-2.5 hover:text-brand-accent", () => setMenuOpen(false)),
               )}
             </nav>
           </div>

@@ -43,6 +43,27 @@ export async function listStorefrontProducts(brandId: string) {
   });
 }
 
+/// Buscador de la vitrina (header, "Buscador grande" en Diseño →
+/// Encabezado) — coincide por nombre o SKU, sin distinguir mayúsculas.
+/// Ver conversación del 2026-09-15.
+export async function searchStorefrontProducts(brandId: string, query: string) {
+  const q = query.trim();
+  if (!q) return [];
+  return prisma.product.findMany({
+    where: {
+      brandId,
+      manual: true,
+      status: "ACTIVE",
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { sku: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    take: 60,
+  });
+}
+
 export async function getStorefrontProduct(brandId: string, slug: string) {
   return prisma.product.findFirst({
     where: { brandId, manual: true, slug, status: { not: "DRAFT" } },
