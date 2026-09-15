@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type {
   BannerConfig,
+  BannerSlide,
   FeaturedCollectionConfig,
   TextConfig,
   ImageCarouselConfig,
@@ -41,20 +42,54 @@ function resolveLink(link: string, basePath: string) {
   return `${basePath}/${link}`;
 }
 
+/// Una imagen de slide, clickeable a su propio link si lo tiene —
+/// `wrapperClassName` trae el tamaño/posicionamiento (distinto si es la
+/// única imagen vs. si va dentro del carrusel). Ver conversación del
+/// 2026-09-15.
+function BannerSlideImage({
+  slide,
+  basePath,
+  wrapperClassName,
+}: {
+  slide: BannerSlide;
+  basePath: string;
+  wrapperClassName: string;
+}) {
+  const img = (
+    // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
+    <img src={slide.imageUrl} alt="" className="w-full h-full object-cover" />
+  );
+  const href = resolveLink(slide.link, basePath);
+  return href ? (
+    <Link href={href} className={wrapperClassName}>
+      {img}
+    </Link>
+  ) : (
+    <div className={wrapperClassName}>{img}</div>
+  );
+}
+
 function BannerSection({ config, basePath }: { config: BannerConfig; basePath: string }) {
-  if (!config.imageUrl && !config.title) return null;
+  const slides = config.slides.filter((s) => s.imageUrl);
+  if (slides.length === 0 && !config.title) return null;
+  const aspectClass = config.aspectRatio === "square" ? "aspect-square" : "aspect-[21/9] sm:aspect-[3/1]";
   return (
-    <div className="relative w-full aspect-[21/9] sm:aspect-[3/1] overflow-hidden bg-brand-accent-soft">
-      {config.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
-        <img
-          src={config.imageUrl}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+    <div className={`relative w-full ${aspectClass} overflow-hidden bg-brand-accent-soft`}>
+      {slides.length === 1 && (
+        <BannerSlideImage slide={slides[0]} basePath={basePath} wrapperClassName="absolute inset-0 block" />
+      )}
+      {/* Más de una imagen = carrusel deslizable (scroll-snap, sin JS) —
+          cada imagen ocupa el ancho completo y arrastra a su propio
+          link. Ver conversación del 2026-09-15. */}
+      {slides.length > 1 && (
+        <div className="absolute inset-0 flex overflow-x-auto snap-x snap-mandatory">
+          {slides.map((s, i) => (
+            <BannerSlideImage key={i} slide={s} basePath={basePath} wrapperClassName="w-full h-full shrink-0 snap-center block" />
+          ))}
+        </div>
       )}
       {(config.title || config.subtitle || config.buttonText) && (
-        <div className="absolute inset-0 bg-black/25 flex flex-col items-center justify-center text-center px-6">
+        <div className="absolute inset-0 bg-black/25 flex flex-col items-center justify-center text-center px-6 pointer-events-none">
           {config.title && (
             <h2 className="font-display text-2xl sm:text-4xl font-semibold text-white drop-shadow">
               {config.title}
@@ -68,7 +103,7 @@ function BannerSection({ config, basePath }: { config: BannerConfig; basePath: s
           {config.buttonText && config.buttonLink && (
             <Link
               href={resolveLink(config.buttonLink, basePath) ?? basePath}
-              className="mt-4 bg-white text-brand-ink text-sm font-medium rounded-full px-6 py-2.5 hover:opacity-90"
+              className="mt-4 bg-white text-brand-ink text-sm font-medium rounded-full px-6 py-2.5 hover:opacity-90 pointer-events-auto"
             >
               {config.buttonText}
             </Link>

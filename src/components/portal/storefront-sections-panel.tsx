@@ -96,11 +96,52 @@ function ImagePicker({
 }
 
 function BannerFields({ config, onChange }: { config: BannerConfig; onChange: (next: BannerConfig) => void }) {
+  function updateSlideImage(i: number, url: string | null) {
+    // El "Quitar" del ImagePicker manda null — sin imagen no tiene
+    // sentido guardar el slide, así que se quita la fila entera.
+    if (!url) {
+      onChange({ ...config, slides: config.slides.filter((_, idx) => idx !== i) });
+      return;
+    }
+    onChange({ ...config, slides: config.slides.map((s, idx) => (idx === i ? { ...s, imageUrl: url } : s)) });
+  }
+  function updateSlideLink(i: number, link: string) {
+    onChange({ ...config, slides: config.slides.map((s, idx) => (idx === i ? { ...s, link } : s)) });
+  }
   return (
     <div className="space-y-3">
-      <ImagePicker imageUrl={config.imageUrl} onChange={(url) => onChange({ ...config, imageUrl: url })} />
-      <div className="grid sm:grid-cols-2 gap-2">
-        <input value={config.title} onChange={(e) => onChange({ ...config, title: e.target.value })} placeholder="Título" className="input text-sm" />
+      <div className="flex items-center gap-2">
+        <select
+          value={config.aspectRatio}
+          onChange={(e) => onChange({ ...config, aspectRatio: e.target.value as BannerConfig["aspectRatio"] })}
+          className="input text-sm max-w-40"
+        >
+          <option value="horizontal">Horizontal</option>
+          <option value="square">Cuadrado</option>
+        </select>
+      </div>
+      <p className="text-[11px] text-brand-ink-soft">
+        Con más de una imagen se arma un carrusel deslizable — cada imagen puede llevar a su propio link al hacer clic.
+      </p>
+      {config.slides.map((s, i) => (
+        <div key={i} className="rounded-lg border border-brand-line p-3 space-y-2">
+          <ImagePicker imageUrl={s.imageUrl} onChange={(url) => updateSlideImage(i, url)} small />
+          <input
+            value={s.link}
+            onChange={(e) => updateSlideLink(i, e.target.value)}
+            placeholder="Link al hacer clic en esta imagen (opcional, ej. /coleccion/verano)"
+            className="input text-sm"
+          />
+        </div>
+      ))}
+      {config.slides.length < 6 && (
+        <ImagePicker
+          imageUrl={null}
+          onChange={(url) => url && onChange({ ...config, slides: [...config.slides, { imageUrl: url, link: "" }] })}
+        />
+      )}
+      <div className="grid sm:grid-cols-2 gap-2 pt-3 border-t border-brand-line">
+        <input value={config.title} onChange={(e) => onChange({ ...config, title: e.target.value })} placeholder="Título (opcional, arriba de todas las imágenes)" className="input text-sm" />
         <input value={config.subtitle} onChange={(e) => onChange({ ...config, subtitle: e.target.value })} placeholder="Subtítulo (opcional)" className="input text-sm" />
         <input value={config.buttonText} onChange={(e) => onChange({ ...config, buttonText: e.target.value })} placeholder="Texto del botón (opcional)" className="input text-sm" />
         <input value={config.buttonLink} onChange={(e) => onChange({ ...config, buttonLink: e.target.value })} placeholder="Link del botón (ej. /mi-producto)" className="input text-sm" />
