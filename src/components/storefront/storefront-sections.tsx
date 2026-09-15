@@ -273,6 +273,16 @@ async function CategoryGridSection({
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
+      {(config.title || config.subtitle) && (
+        <div className="mb-4">
+          {config.title && (
+            <h2 className="font-display text-xl font-semibold text-brand-ink">{config.title}</h2>
+          )}
+          {config.subtitle && (
+            <p className="text-sm text-brand-ink-soft mt-1">{config.subtitle}</p>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
         {items.map((item, i) => {
           // La foto propia del ítem manda — si la marca no subió una acá,

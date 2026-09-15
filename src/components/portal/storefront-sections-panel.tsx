@@ -249,10 +249,22 @@ function CategoryGridFields({
   collections: CollectionOption[];
 }) {
   function updateItem(i: number, patch: Partial<CategoryGridConfig["items"][number]>) {
-    onChange({ items: config.items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)) });
+    onChange({ ...config, items: config.items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)) });
   }
   return (
     <div className="space-y-3">
+      <input
+        value={config.title}
+        onChange={(e) => onChange({ ...config, title: e.target.value })}
+        placeholder="Título (opcional, ej. Compra por categoría)"
+        className="input text-sm"
+      />
+      <input
+        value={config.subtitle}
+        onChange={(e) => onChange({ ...config, subtitle: e.target.value })}
+        placeholder="Bajada (opcional, un párrafo corto)"
+        className="input text-sm"
+      />
       <p className="text-[11px] text-brand-ink-soft">Se muestran en cuadrícula — hasta 6, no hace falta llenarlas todas.</p>
       {config.items.map((item, i) => (
         <div key={i} className="rounded-lg border border-brand-line p-3 space-y-2">

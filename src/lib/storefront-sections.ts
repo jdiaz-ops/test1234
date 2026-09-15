@@ -134,6 +134,10 @@ const categoryGridItemSchema = z.object({
   label: z.string().max(40).default(""),
 });
 const categoryGridConfigSchema = z.object({
+  /// Título/bajada opcionales arriba de la cuadrícula — ej. "Compra por
+  /// categoría". Ver conversación del 2026-09-15.
+  title: z.string().max(120).default(""),
+  subtitle: z.string().max(240).default(""),
   items: z
     .array(categoryGridItemSchema)
     .length(6)
