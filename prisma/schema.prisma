@@ -354,6 +354,7 @@ enum StorefrontSectionType {
   BRAND_CAROUSEL // tira de logos/imagenes (ej. "como se vio en", marcas asociadas)
   VIDEO // un video embebido (YouTube/Vimeo) + título opcional
   INSTAGRAM_CTA // banner simple invitando a seguir en Instagram (sin feed en vivo)
+  PRODUCT_CATALOG // todos los productos activos, en la plantilla elegida (Clásica/Minimal/Editorial) — antes vivía fijo en la página de inicio, ahora es una sección más que se agrega/quita como cualquier otra
   /// Estos 3 quedaron reservados sin usar a propósito: TEXT (título +
   /// párrafo) ya cubre "Mensaje de bienvenida"/"Mensaje institucional"
   /// (la marca simplemente agrega dos secciones TEXT), y BANNER (imagen +

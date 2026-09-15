@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import {
-  getStorefrontBrand,
-  listStorefrontProducts,
-} from "@/server/services/store-order-service";
+import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { StoreHeader } from "@/components/storefront/store-header";
-import { CatalogTemplate } from "@/components/storefront/catalog-templates";
 import { StorefrontSections } from "@/components/storefront/storefront-sections";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { listEnabledStorefrontSections } from "@/server/services/storefront-section-service";
@@ -39,8 +35,7 @@ export default async function StorefrontCatalogPage({
   const brand = await getStorefrontBrand(slug);
   if (!brand) notFound();
 
-  const [products, basePath, sections, menuItems, theme] = await Promise.all([
-    listStorefrontProducts(brand.id),
+  const [basePath, sections, menuItems, theme] = await Promise.all([
     getStoreBasePath(slug),
     listEnabledStorefrontSections(brand.id),
     listStorefrontMenuItems(brand.id),
@@ -56,44 +51,21 @@ export default async function StorefrontCatalogPage({
         basePath={basePath}
         menuItems={menuItems}
       />
+      {/* Diseño → Página de inicio es el único lugar para agregar o quitar
+          elementos de la home — la descripción de la marca y el catálogo
+          ya no viven fijos acá, son secciones más (TEXT / PRODUCT_CATALOG).
+          Ver conversación del 2026-09-15. */}
       <StorefrontSections
         sections={sections.map((s) => ({ id: s.id, type: s.type, config: s.config }))}
         brandId={brand.id}
         basePath={basePath}
         instagramHandle={brand.instagramHandle}
+        template={brand.storefrontTemplate}
+        productsPerRow={theme.productListing.productsPerRow}
       />
-      <div className="max-w-3xl mx-auto px-6 py-10">
-        {brand.description && (
-          <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
-            {brand.description}
-          </p>
-        )}
-
-        {products.length === 0 ? (
-          <p className="text-sm text-brand-ink-soft text-center py-16">
-            Todavía no hay productos publicados en esta tienda.
-          </p>
-        ) : (
-          <CatalogTemplate
-            template={brand.storefrontTemplate}
-            basePath={basePath}
-            productsPerRow={theme.productListing.productsPerRow}
-            products={products.map((p) => ({
-              id: p.id,
-              slug: p.slug,
-              name: p.name,
-              price: Number(p.price),
-              imageUrl: p.imageUrl,
-              stock: p.stock,
-              type: p.type,
-            }))}
-          />
-        )}
-
-        <p className="text-center mt-14 font-mono text-xs text-brand-ink-soft">
-          Vendido por {brand.companyName} vía Marcolini
-        </p>
-      </div>
+      <p className="text-center mt-4 mb-10 font-mono text-xs text-brand-ink-soft">
+        Vendido por {brand.companyName} vía Marcolini
+      </p>
     </div>
   );
 }

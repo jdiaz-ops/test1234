@@ -21,6 +21,7 @@ import {
   type BrandCarouselConfig,
   type VideoConfig,
   type InstagramCtaConfig,
+  type ProductCatalogConfig,
 } from "@/lib/storefront-sections";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 
@@ -471,6 +472,18 @@ function InstagramCtaFields({ config, onChange }: { config: InstagramCtaConfig; 
   );
 }
 
+function ProductCatalogFields({ config, onChange }: { config: ProductCatalogConfig; onChange: (next: ProductCatalogConfig) => void }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-brand-ink-soft">
+        Todos tus productos activos, en la plantilla que elegiste en Diseño
+        → Plantilla — se arma solo, no hay nada más que configurar acá.
+      </p>
+      <input value={config.title} onChange={(e) => onChange({ ...config, title: e.target.value })} placeholder="Título (opcional)" className="input text-sm" />
+    </div>
+  );
+}
+
 function SectionCard({
   section,
   collections,
@@ -565,6 +578,9 @@ function SectionCard({
       {section.type === "BRAND_CAROUSEL" && <BrandCarouselFields config={config as unknown as BrandCarouselConfig} onChange={saveConfig} />}
       {section.type === "VIDEO" && <VideoFields config={config as unknown as VideoConfig} onChange={saveConfig} />}
       {section.type === "INSTAGRAM_CTA" && <InstagramCtaFields config={config as unknown as InstagramCtaConfig} onChange={saveConfig} />}
+      {section.type === "PRODUCT_CATALOG" && (
+        <ProductCatalogFields config={config as unknown as ProductCatalogConfig} onChange={saveConfig} />
+      )}
     </div>
   );
 }
@@ -632,8 +648,9 @@ export function StorefrontSectionsPanel({ initialSections }: { initialSections: 
       <p className="text-sm font-medium text-brand-ink mb-1">Secciones de tu página de inicio</p>
       <p className="text-xs text-brand-ink-soft mb-4 max-w-lg">
         Arma tu página con secciones ya diseñadas — prende, apaga, reordena y
-        llena el contenido, sin tocar código. Van encima de tu catálogo de
-        productos.
+        llena el contenido, sin tocar código. Este es el único lugar para
+        agregar o quitar elementos de tu página de inicio, incluido tu
+        catálogo de productos (sección &quot;Catálogo de productos&quot;).
       </p>
 
       {error && <p className="text-sm text-red-600 mb-3">{error}</p>}

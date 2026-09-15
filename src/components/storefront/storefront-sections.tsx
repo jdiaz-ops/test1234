@@ -14,9 +14,12 @@ import type {
   BrandCarouselConfig,
   VideoConfig,
   InstagramCtaConfig,
+  ProductCatalogConfig,
 } from "@/lib/storefront-sections";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 import { getBrandCollection } from "@/server/services/brand-collection-service";
+import { listStorefrontProducts } from "@/server/services/store-order-service";
+import { CatalogTemplate } from "@/components/storefront/catalog-templates";
 import { prisma } from "@/lib/prisma";
 
 function formatCOP(amount: number) {
@@ -544,16 +547,69 @@ function InstagramCtaSection({
   );
 }
 
+/// Todo el catálogo activo, en la plantilla elegida por la marca — antes
+/// vivía fijo en la página de inicio (`t/[slug]/page.tsx`), ahora es una
+/// sección más que se agrega/quita/reordena desde Diseño → Página de
+/// inicio, como cualquier otra. Ver conversación del 2026-09-15.
+async function ProductCatalogSection({
+  config,
+  brandId,
+  basePath,
+  template,
+  productsPerRow,
+}: {
+  config: ProductCatalogConfig;
+  brandId: string;
+  basePath: string;
+  template: string;
+  productsPerRow?: "1-3" | "2-4";
+}) {
+  const products = await listStorefrontProducts(brandId);
+  return (
+    <div className="max-w-3xl mx-auto px-6 py-10">
+      {config.title && (
+        <h2 className="font-display text-xl font-semibold text-brand-ink mb-4">{config.title}</h2>
+      )}
+      {products.length === 0 ? (
+        <p className="text-sm text-brand-ink-soft text-center py-16">
+          Todavía no hay productos publicados en esta tienda.
+        </p>
+      ) : (
+        <CatalogTemplate
+          template={template}
+          basePath={basePath}
+          productsPerRow={productsPerRow}
+          products={products.map((p) => ({
+            id: p.id,
+            slug: p.slug,
+            name: p.name,
+            price: Number(p.price),
+            imageUrl: p.imageUrl,
+            stock: p.stock,
+            type: p.type,
+          }))}
+        />
+      )}
+    </div>
+  );
+}
+
 export async function StorefrontSections({
   sections,
   brandId,
   basePath,
   instagramHandle = null,
+  template = "CLASICA",
+  productsPerRow,
 }: {
   sections: { id: string; type: string; config: unknown }[];
   brandId: string;
   basePath: string;
   instagramHandle?: string | null;
+  /// Solo hacen falta cuando alguna sección es PRODUCT_CATALOG — el resto
+  /// de las secciones no dependen de la plantilla del catálogo.
+  template?: string;
+  productsPerRow?: "1-3" | "2-4";
 }) {
   if (sections.length === 0) return null;
   return (
@@ -638,6 +694,17 @@ export async function StorefrontSections({
                 key={s.id}
                 config={s.config as InstagramCtaConfig}
                 instagramHandle={instagramHandle}
+              />
+            );
+          case "PRODUCT_CATALOG":
+            return (
+              <ProductCatalogSection
+                key={s.id}
+                config={s.config as ProductCatalogConfig}
+                brandId={brandId}
+                basePath={basePath}
+                template={template}
+                productsPerRow={productsPerRow}
               />
             );
           default:

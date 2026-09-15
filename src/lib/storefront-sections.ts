@@ -27,6 +27,7 @@ export const SECTION_TYPES = [
   "BRAND_CAROUSEL",
   "VIDEO",
   "INSTAGRAM_CTA",
+  "PRODUCT_CATALOG",
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
@@ -45,6 +46,7 @@ export const SECTION_TYPE_LABEL: Record<SectionType, string> = {
   BRAND_CAROUSEL: "Carrusel de logos",
   VIDEO: "Video",
   INSTAGRAM_CTA: "Síguenos en Instagram",
+  PRODUCT_CATALOG: "Catálogo de productos",
 };
 
 export const SECTION_TYPE_DESCRIPTION: Record<SectionType, string> = {
@@ -62,6 +64,7 @@ export const SECTION_TYPE_DESCRIPTION: Record<SectionType, string> = {
   BRAND_CAROUSEL: "Tira de logos o imágenes chicas — marcas asociadas, sellos, \"como se vio en\".",
   VIDEO: "Un video de YouTube o Vimeo embebido, con título opcional.",
   INSTAGRAM_CTA: "Banner simple invitando a seguir tu cuenta de Instagram.",
+  PRODUCT_CATALOG: "Todos tus productos activos, en la plantilla que elegiste — se arma solo.",
 };
 
 const bannerConfigSchema = z.object({
@@ -201,6 +204,17 @@ const instagramCtaConfigSchema = z.object({
 });
 export type InstagramCtaConfig = z.infer<typeof instagramCtaConfigSchema>;
 
+/// Todo el catálogo activo, en la plantilla elegida (Clásica/Minimal/
+/// Editorial) — antes vivía fijo en la página de inicio, ahora es una
+/// sección más que se agrega/quita/reordena como cualquier otra. Ver
+/// conversación del 2026-09-15: "Quita todo eso. Que el único sitio para
+/// poner o quitar elementos de la homepage sea desde diseño, página
+/// inicio."
+const productCatalogConfigSchema = z.object({
+  title: z.string().max(120).default(""),
+});
+export type ProductCatalogConfig = z.infer<typeof productCatalogConfigSchema>;
+
 export const SECTION_CONFIG_SCHEMA: Record<SectionType, z.ZodTypeAny> = {
   BANNER: bannerConfigSchema,
   FEATURED_COLLECTION: featuredCollectionConfigSchema,
@@ -216,6 +230,7 @@ export const SECTION_CONFIG_SCHEMA: Record<SectionType, z.ZodTypeAny> = {
   BRAND_CAROUSEL: brandCarouselConfigSchema,
   VIDEO: videoConfigSchema,
   INSTAGRAM_CTA: instagramCtaConfigSchema,
+  PRODUCT_CATALOG: productCatalogConfigSchema,
 };
 
 export const DEFAULT_SECTION_CONFIG: Record<SectionType, unknown> = Object.fromEntries(
