@@ -287,7 +287,10 @@ async function CategoryGridSection({
               href={`${basePath}/coleccion/${item.collection!.slug}`}
               className="flex flex-col items-center gap-1.5 group"
             >
-              <div className="w-full aspect-square rounded-full overflow-hidden bg-brand-accent-soft relative flex items-center justify-center">
+              {/* Cuadrada, mismo radio que las tarjetas de producto — la
+                  marca prefiere esto a un círculo tipo "historias". Ver
+                  conversación del 2026-09-15. */}
+              <div className="w-full aspect-square rounded-2xl overflow-hidden bg-brand-accent-soft relative flex items-center justify-center">
                 {imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
                   <img
