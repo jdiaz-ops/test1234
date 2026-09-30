@@ -24,7 +24,7 @@ export function CheckoutForm({
   referredCode,
 }: {
   brandSlug: string;
-  /// BrandProfile.taxRatePercent (10% por defecto) — solo para mostrar un
+  /// BrandProfile.taxRatePercent — solo para mostrar cuánto IVA va incluido; un
   /// estimado en el resumen; el monto real que se cobra lo calcula
   /// createStoreOrder en el servidor. Ver conversación del 2026-09-14.
   taxRatePercent: number;
@@ -147,8 +147,14 @@ export function CheckoutForm({
   }, [brandSlug, needsShipping, shippingRegion]);
 
   const shippingCost = shippingQuote.amount ?? 0;
-  const taxAmount = Math.round((afterDiscount * taxRatePercent) / 100);
-  const total = afterDiscount + taxAmount + shippingCost;
+  // Los precios que la marca carga ya traen el IVA (precio al público, como
+  // en Colombia). El IVA se muestra solo como información — la parte del
+  // subtotal que corresponde al impuesto — y NO se suma al total. Antes se
+  // sumaba encima del precio y el comprador pagaba de más. Mismo cálculo
+  // en el servidor (ver store-order-service.ts). Ver conversación del
+  // 2026-09-30.
+  const taxAmount = Math.round(afterDiscount - afterDiscount / (1 + taxRatePercent / 100));
+  const total = afterDiscount + shippingCost;
 
   async function handleApplyCode(codeOverride?: string) {
     const toApply = codeOverride ?? code;
@@ -462,8 +468,8 @@ export function CheckoutForm({
             </div>
           )}
           {taxAmount > 0 && (
-            <div className="flex justify-between text-brand-ink-soft">
-              <span>IVA</span>
+            <div className="flex justify-between text-brand-ink-soft text-xs">
+              <span>Incluye IVA ({taxRatePercent}%)</span>
               <span className="font-mono">{formatCOP(taxAmount)}</span>
             </div>
           )}

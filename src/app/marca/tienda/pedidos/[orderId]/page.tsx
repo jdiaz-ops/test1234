@@ -259,7 +259,7 @@ export default async function TiendaPedidoDetallePage({
             )}
             {order.taxCents > 0 && (
               <div className="flex justify-between">
-                <span className="text-brand-ink-soft">IVA</span>
+                <span className="text-brand-ink-soft">IVA incluido en el precio</span>
                 <span className="font-mono text-brand-ink">
                   {formatCOP(order.taxCents)}
                 </span>

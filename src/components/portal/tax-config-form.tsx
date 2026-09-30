@@ -60,8 +60,10 @@ export function TaxConfigForm({
           Mercado e impuestos
         </p>
         <p className="text-xs text-brand-ink-soft max-w-lg">
-          El IVA se calcula automático en cada pedido del checkout nativo y
-          se le muestra al comprador antes de pagar.
+          Los precios que cargas ya incluyen el IVA. Con esta tasa, en cada
+          pedido se calcula y se muestra cuánto de ese precio es impuesto
+          (&quot;Incluye IVA&quot;), sin sumarle nada al comprador. En Colombia
+          la tarifa general es 19%.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-3 max-w-sm">

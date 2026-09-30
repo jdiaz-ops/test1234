@@ -418,16 +418,17 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     shippingCents = Math.round(Number(rate.price) * 100);
   }
 
-  // IVA de la marca (BrandProfile.taxRatePercent, 10% por defecto — ver
-  // conversación del 2026-09-14) sobre el subtotal ya con descuento, sin
-  // incluir el envío. Se guarda el valor calculado en centavos, no el %,
-  // para que un pedido viejo no cambie de total si la marca ajusta la tasa
-  // después (ver StoreOrder.taxCents en el schema).
-  const taxCents = Math.round(
-    (afterDiscount * Number(brand.taxRatePercent)) / 100,
-  );
+  // Los precios ya traen el IVA (precio al público). taxCents es la parte
+  // del subtotal con descuento que corresponde al impuesto — informativa,
+  // para el comprobante y la contabilidad de la marca — y NO se suma al
+  // total. Antes se calculaba encima del precio y se cobraba de más ("el
+  // precio que se ingresa viene IVA incluido"). Se guarda en centavos, no
+  // el %, para que un pedido viejo no cambie si la marca ajusta la tasa
+  // después (ver StoreOrder.taxCents). Ver conversación del 2026-09-30.
+  const taxRate = Number(brand.taxRatePercent) / 100;
+  const taxCents = Math.round(afterDiscount - afterDiscount / (1 + taxRate));
 
-  const totalCents = afterDiscount + taxCents + shippingCents;
+  const totalCents = afterDiscount + shippingCents;
   if (totalCents <= 0) {
     throw new StoreOrderError("El total del pedido debe ser mayor a cero.");
   }

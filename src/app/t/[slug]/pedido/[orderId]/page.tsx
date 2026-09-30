@@ -152,8 +152,8 @@ export default async function StorefrontOrderStatusPage({
               </div>
             )}
             {order.taxCents > 0 && (
-              <div className="flex justify-between text-brand-ink-soft">
-                <span>IVA</span>
+              <div className="flex justify-between text-brand-ink-soft text-xs">
+                <span>Incluye IVA</span>
                 <span className="font-mono">
                   {formatCOP(order.taxCents / 100)}
                 </span>

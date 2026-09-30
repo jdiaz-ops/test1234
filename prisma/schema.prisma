@@ -628,10 +628,12 @@ model BrandProfile {
   fulfillmentLeadDays Int     @default(0)
 
   /// Mercado — hoy solo Colombia, pero se deja como texto por si algún
-  /// día se agregan más países. La tasa de impuesto se suma al total del
-  /// checkout (ver createStoreOrder) y se muestra como línea aparte.
+  /// día se agregan más países. Los precios ya incluyen el IVA: la tasa
+  /// solo sirve para mostrar cuánto del precio es impuesto (ver
+  /// createStoreOrder), no se suma al total. 19% = tarifa general de
+  /// Colombia. Ver conversación del 2026-09-30.
   market         String  @default("CO")
-  taxRatePercent Decimal @default(10) @db.Decimal(5, 2)
+  taxRatePercent Decimal @default(19) @db.Decimal(5, 2)
 
   /// Pasarela de pago de "Mi tienda" — ver PaymentProvider/PaymentMode
   /// arriba. Las 8 llaves (4 de prueba + 4 de producción) son las que Wompi
