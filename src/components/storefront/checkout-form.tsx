@@ -425,19 +425,29 @@ export function CheckoutForm({
             Marcolini con los creadores, no puede quedar escondida como un
             campo "opcional" más del formulario. Ver conversación del
             2026-09-14. */}
-        <div className="rounded-xl border-2 border-brand-accent bg-brand-accent-soft p-3 space-y-2">
-          <p className="text-sm font-semibold text-brand-ink">
-            🎁 ¿Tienes un código de creador?
-          </p>
+        {/* Sin emoji y sobre fondo blanco con borde fino — el bloque
+            gris de antes "se veía triste" con la paleta blanco y negro.
+            Ver conversación del 2026-09-30. */}
+        <div className="rounded-xl border border-brand-line bg-brand-surface p-4 space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <div className="space-y-0.5">
+            <p className="font-display text-sm font-semibold text-brand-ink">
+              ¿Tienes un código de creador de contenido?
+            </p>
+            <p className="text-xs text-brand-ink-soft">
+              Si un creador te compartió su código, escríbelo acá y te aplicamos su descuento.
+            </p>
+          </div>
           <div className="flex gap-2">
             <input
               value={code}
               onChange={(e) => {
-                setCode(e.target.value);
+                setCode(e.target.value.toUpperCase());
                 setDiscountPercent(null);
               }}
-              className="input font-mono flex-1 bg-white"
+              className="input font-mono flex-1 uppercase"
               placeholder="Ej. LAURA30"
+              autoCapitalize="characters"
+              spellCheck={false}
             />
             <button
               type="button"
@@ -451,7 +461,7 @@ export function CheckoutForm({
           {codeError && <p className="text-xs text-red-600">{codeError}</p>}
           {discountPercent != null && (
             <p className="text-xs text-brand-ink font-medium">
-              ✓ Código aplicado — {discountPercent}% de descuento.
+              Código aplicado: {discountPercent}% de descuento.
             </p>
           )}
         </div>
