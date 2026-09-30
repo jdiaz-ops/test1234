@@ -17,7 +17,7 @@ export function ClasicaTemplate({
 }) {
   return (
     <div
-      className={`grid gap-4 ${productsPerRow === "1-3" ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}
+      className={`grid gap-3 sm:gap-4 ${productsPerRow === "1-3" ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}
     >
       {products.map((product) => (
         <ProductCard key={product.id} product={product} basePath={basePath} />

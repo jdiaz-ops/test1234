@@ -49,7 +49,7 @@ export function MinimalTemplate({
             <ProductPrice
               price={product.price}
               compareAtPrice={product.compareAtPrice}
-              className="text-sm font-mono mt-1"
+              className="text-sm mt-1"
             />
           </div>
           <div className="shrink-0">

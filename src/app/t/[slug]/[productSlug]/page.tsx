@@ -12,6 +12,7 @@ import { VariantPicker } from "@/components/storefront/variant-picker";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { ProductShippingCalculator } from "@/components/storefront/product-shipping-calculator";
 import { FloatingAddToCartBar } from "@/components/storefront/floating-add-to-cart-bar";
+import { ProductPrice } from "@/components/storefront/product-card";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
@@ -120,15 +121,12 @@ export default async function StorefrontProductPage({
             </div>
 
             {!product.hasVariants && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-mono text-lg text-brand-ink">
-                  {formatCOP(Number(product.price))}
-                </span>
-                {product.compareAtPrice && (
-                  <span className="font-mono text-sm text-brand-ink-soft line-through">
-                    {formatCOP(Number(product.compareAtPrice))}
-                  </span>
-                )}
+              <div className="flex items-center gap-3 flex-wrap">
+                <ProductPrice
+                  price={Number(product.price)}
+                  compareAtPrice={product.compareAtPrice != null ? Number(product.compareAtPrice) : null}
+                  className="text-2xl"
+                />
                 {savedAmountPercent != null && savedAmountPercent > 0 && (
                   <span
                     className="text-xs font-medium rounded-full px-2 py-0.5"

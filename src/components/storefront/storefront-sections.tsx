@@ -191,7 +191,7 @@ async function FeaturedCollectionSection({
   if (products.length === 0) return null;
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       <div className="flex items-end justify-between gap-4 mb-4">
         <h2 className="font-display text-xl font-semibold text-brand-ink">
           {config.title || collection.name}
@@ -209,7 +209,7 @@ async function FeaturedCollectionSection({
           [...] sea deslizable y así de grandes y presentados. Con un
           link de ver más que lleva hacia la colección." Ver
           conversación del 2026-09-15. */}
-      <div className="flex gap-4 overflow-x-auto snap-x pb-1">
+      <div className="flex gap-3 sm:gap-4 overflow-x-auto snap-x pb-1">
         {products.map((p) => (
           <ProductCard
             key={p.id}
@@ -466,15 +466,15 @@ function ProductGrid({
 }) {
   if (products.length === 0) return null;
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       {title && (
         <h2 className="font-display text-xl font-semibold text-brand-ink mb-4">{title}</h2>
       )}
       <div
         className={
           display === "carousel"
-            ? "flex gap-4 overflow-x-auto snap-x pb-1"
-            : "grid grid-cols-2 sm:grid-cols-4 gap-4"
+            ? "flex gap-3 sm:gap-4 overflow-x-auto snap-x pb-1"
+            : "grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4"
         }
       >
         {products.map((p) => (
@@ -682,7 +682,7 @@ async function ProductCatalogSection({
 }) {
   const products = await listStorefrontProducts(brandId);
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       {config.title && (
         <h2 className="font-display text-xl font-semibold text-brand-ink mb-4">{config.title}</h2>
       )}

@@ -58,7 +58,7 @@ export default async function StorefrontCollectionPage({
         basePath={basePath}
         menuItems={menuItems.map((i) => ({ id: i.id, label: i.label, url: i.url }))}
       />
-      <div className="max-w-3xl mx-auto px-6 py-10">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
         <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
           COLECCIÓN
         </p>

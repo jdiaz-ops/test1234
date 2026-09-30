@@ -57,7 +57,7 @@ export default async function StorefrontSearchPage({
         basePath={basePath}
         menuItems={menuItems.map((i) => ({ id: i.id, label: i.label, url: i.url }))}
       />
-      <div className="max-w-3xl mx-auto px-6 py-10">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
         <form action={`${basePath}/buscar`} method="GET" role="search" className="mb-6 sm:hidden">
           <input
             type="search"

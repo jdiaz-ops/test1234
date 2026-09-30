@@ -48,7 +48,7 @@ export function EditorialTemplate({
             <ProductPrice
               price={featured.price}
               compareAtPrice={featured.compareAtPrice}
-              className="font-mono mt-1"
+              className="text-lg mt-1"
             />
           </div>
           <AddToCartButton
@@ -93,7 +93,7 @@ export function EditorialTemplate({
               <ProductPrice
                 price={product.price}
                 compareAtPrice={product.compareAtPrice}
-                className="text-[11px] font-mono"
+                className="text-xs"
               />
             </div>
           ))}
