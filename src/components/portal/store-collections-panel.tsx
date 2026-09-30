@@ -243,10 +243,52 @@ function CollectionForm({
   );
 }
 
+/// El link público de la colección con botón para copiarlo — la marca
+/// lo pega en Instagram, WhatsApp, el menú de la tienda, etc. Pedido
+/// explícito: "de las colecciones no se ve la url de la colección para
+/// poder copiarlas". Ver conversación del 2026-09-30.
+function CollectionUrl({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      window.prompt("Copia el link:", url);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 min-w-0 mt-1">
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-mono text-[11px] text-brand-ink-soft truncate hover:underline"
+      >
+        {url.replace(/^https?:\/\//, "")}
+      </a>
+      <button
+        type="button"
+        onClick={copy}
+        className="text-[11px] font-medium text-brand-accent hover:underline shrink-0"
+      >
+        {copied ? "Copiado ✓" : "Copiar"}
+      </button>
+    </div>
+  );
+}
+
 export function StoreCollectionsPanel({
   initialCollections,
+  storeUrl,
 }: {
   initialCollections: BrandCollectionRow[];
+  /// Dirección pública de la tienda (https://{slug}.marcolini.lat o el
+  /// dominio propio) — null si la marca todavía no configuró su link.
+  storeUrl: string | null;
 }) {
   const [collections, setCollections] = useState(initialCollections);
   const [mode, setMode] = useState<
@@ -331,6 +373,12 @@ export function StoreCollectionsPanel({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
+      {!storeUrl && collections.length > 0 && (
+        <p className="text-xs text-brand-ink-soft">
+          Configura el link de tu tienda en Configuración para ver la URL de cada colección.
+        </p>
+      )}
+
       {collections.length === 0 ? (
         <p className="text-sm text-brand-ink-soft">
           Todavía no tienes colecciones — agrúpalas por temporada, tipo de
@@ -351,6 +399,7 @@ export function StoreCollectionsPanel({
                 <p className="text-xs text-brand-ink-soft">
                   {c.productCount} producto{c.productCount === 1 ? "" : "s"}
                 </p>
+                {storeUrl && <CollectionUrl url={`${storeUrl}/coleccion/${c.slug}`} />}
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <button
