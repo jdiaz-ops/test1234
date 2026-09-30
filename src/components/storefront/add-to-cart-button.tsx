@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useCart } from "@/components/storefront/cart-context";
-import { useStorefrontTheme } from "@/components/storefront/storefront-theme-context";
 
 type Product = {
   id: string;
@@ -28,14 +27,12 @@ export function AddToCartButton({
   /// Ej. producto con variantes y todavía no elige ninguna combinación
   /// completa.
   disabled?: boolean;
-  /// Ya no hace falta para theme.cart.quickCart.actionOnAdd = "openCart"
-  /// (ahora abre el drawer del carrito en vez de navegar) — se deja en
-  /// el tipo sin desestructurar para no tener que tocar cada lugar que
+  /// Ya no se usa (el botón no navega a ninguna página) — se deja en el
+  /// tipo sin desestructurar para no tener que tocar cada lugar que
   /// todavía lo manda.
   basePath?: string;
 }) {
-  const { addItem, openDrawer } = useCart();
-  const { cart } = useStorefrontTheme();
+  const { addItem } = useCart();
   const [added, setAdded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,10 +55,6 @@ export function AddToCartButton({
     if (!result.ok) {
       setError(result.error);
       setTimeout(() => setError(null), 3000);
-      return;
-    }
-    if (cart.quickCart.enabled && cart.quickCart.actionOnAdd === "openCart") {
-      openDrawer();
       return;
     }
     setAdded(true);

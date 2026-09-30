@@ -3,14 +3,6 @@
 import { useEffect, useState } from "react";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 
-function formatCOP(amount: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 type Product = {
   id: string;
   slug: string;
@@ -21,11 +13,13 @@ type Product = {
   type?: "PHYSICAL" | "SERVICE" | "DIGITAL";
 };
 
-/// Barra flotante fija abajo con el producto + "Agregar al carrito" —
-/// aparece cuando el comprador scrollea y pierde de vista el botón
-/// principal de la ficha (observa `sentinelId`, un <div> vacío que la
-/// página pone justo debajo de ese botón). Ver
-/// theme.productDetail.floatingAddToCart — habilitada por defecto.
+/// Barra flotante fija abajo con solo el botón "Agregar al carrito",
+/// centrado — aparece cuando el comprador scrollea y pierde de vista el
+/// botón principal de la ficha (observa `sentinelId`, un <div> vacío que
+/// la página pone justo debajo de ese botón). Ver
+/// theme.productDetail.floatingAddToCart — habilitada por defecto. Antes
+/// llevaba también la foto, el nombre y el precio; la marca pidió solo el
+/// botón. Ver conversación del 2026-09-30.
 ///
 /// Con variantes no repite el selector acá (evita duplicar ese estado) —
 /// en su lugar el botón lleva de vuelta arriba a elegir la combinación.
@@ -67,37 +61,22 @@ export function FloatingAddToCartBar({
     document.getElementById(sentinelId)?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
+  const buttonClass =
+    "bg-brand-accent text-white rounded-full px-10 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40";
+
   return (
     <div
       className={`fixed ${bottomOffsetClass} inset-x-0 z-30 border-t border-brand-line bg-brand-surface px-4 py-3 shadow-[0_-2px_12px_rgba(0,0,0,0.06)] transition-transform duration-200 ${
         visible ? "translate-y-0" : "translate-y-full pointer-events-none"
       }`}
     >
-      <div className="flex items-center gap-3 max-w-[1600px] mx-auto">
-        {product.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element -- foto del producto
-          <img
-            src={product.imageUrl}
-            alt=""
-            className="w-10 h-10 rounded-lg object-cover shrink-0 hidden xs:block"
-          />
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-brand-ink truncate">{product.name}</p>
-          <p className="text-xs font-mono text-brand-ink-soft">{formatCOP(product.price)}</p>
-        </div>
+      <div className="flex justify-center">
         {hasVariants ? (
-          <button
-            type="button"
-            onClick={scrollToOptions}
-            className="shrink-0 bg-brand-accent text-white rounded-full px-5 py-2.5 text-sm font-semibold hover:opacity-90"
-          >
+          <button type="button" onClick={scrollToOptions} className={buttonClass}>
             Elegir opciones
           </button>
         ) : (
-          <div className="shrink-0">
-            <AddToCartButton basePath={basePath} product={product} />
-          </div>
+          <AddToCartButton basePath={basePath} product={product} className={buttonClass} />
         )}
       </div>
     </div>

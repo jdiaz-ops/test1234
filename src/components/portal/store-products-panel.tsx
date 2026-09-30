@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   StoreProductForm,
@@ -16,94 +16,11 @@ function formatCOP(amount: number) {
   }).format(amount);
 }
 
-type SyncedProductOption = { id: string; name: string; imageUrl: string | null; price: number };
-
-/// Lista de productos ya sincronizados de Shopify/WooCommerce para elegir
-/// cuál importar — al elegir uno, precarga el formulario de Crear
-/// producto (sin guardar nada todavía, la marca revisa/edita y guarda
-/// ella). Ver conversación del 2026-09-14: "me gusta la función de poder
-/// importar productos".
-function ImportPicker({
-  onPick,
-  onCancel,
-}: {
-  onPick: (productId: string) => void;
-  onCancel: () => void;
-}) {
-  const [products, setProducts] = useState<SyncedProductOption[] | null>(null);
-  const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    fetch("/api/marca/tienda/productos/sincronizados")
-      .then((r) => r.json())
-      .then((body) => setProducts(body.products ?? []))
-      .catch(() => setProducts([]));
-  }, []);
-
-  const filtered = (products ?? []).filter((p) =>
-    p.name.toLowerCase().includes(query.toLowerCase()),
-  );
-
-  return (
-    <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-brand-ink">
-          Importar producto sincronizado
-        </p>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-xs text-brand-ink-soft hover:underline"
-        >
-          Cancelar
-        </button>
-      </div>
-      <p className="text-xs text-brand-ink-soft">
-        Elige un producto de tu tienda Shopify/WooCommerce ya sincronizada —
-        precargamos nombre, descripción, precio, peso, SKU y fotos, tú
-        revisas y guardas.
-      </p>
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Buscar producto"
-        className="input text-sm"
-      />
-      <div className="max-h-80 overflow-y-auto divide-y divide-brand-line rounded-xl border border-brand-line">
-        {products === null ? (
-          <p className="text-xs text-brand-ink-soft p-3">Cargando...</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-xs text-brand-ink-soft p-3">
-            {products.length === 0
-              ? "No tienes productos sincronizados todavía — conecta tu tienda desde Cuenta."
-              : "Sin resultados."}
-          </p>
-        ) : (
-          filtered.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => onPick(p.id)}
-              className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-brand-bg"
-            >
-              {p.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
-              ) : (
-                <div className="w-10 h-10 rounded-lg bg-brand-bg shrink-0" />
-              )}
-              <span className="flex-1 min-w-0 text-sm text-brand-ink truncate">{p.name}</span>
-              <span className="font-mono text-xs text-brand-ink-soft shrink-0">
-                {formatCOP(p.price)}
-              </span>
-            </button>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
+/// Lista de productos de "Mi tienda" con Agregar (a mano) e Importar desde
+/// Shopify (CSV). El viejo "Importar producto" — elegir uno ya
+/// sincronizado por la conexión Shopify/WooCommerce para precargar el
+/// formulario — se quitó a pedido de la marca: al lado del importador de
+/// CSV confundía. Ver conversación del 2026-09-30.
 export function StoreProductsPanel({
   initialProducts,
 }: {
@@ -115,14 +32,12 @@ export function StoreProductsPanel({
     | { kind: "list" }
     | { kind: "create"; seed?: Partial<ManualProduct> }
     | { kind: "edit"; product: ManualProduct }
-    | { kind: "import" }
     | { kind: "shopify" }
   >({
     kind: "list",
   });
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
 
   function reloadProducts() {
     router.refresh();
@@ -138,24 +53,6 @@ export function StoreProductsPanel({
   function refreshAfterSave() {
     setMode({ kind: "list" });
     reloadProducts();
-  }
-
-  async function handleImportPick(productId: string) {
-    setImporting(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/marca/tienda/productos/sincronizados/${productId}`);
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(body?.error ?? "No se pudo cargar el producto.");
-        return;
-      }
-      setMode({ kind: "create", seed: body.product });
-    } catch {
-      setError("No se pudo cargar — revisa tu conexión.");
-    } finally {
-      setImporting(false);
-    }
   }
 
   async function handleDelete(productId: string) {
@@ -189,10 +86,10 @@ export function StoreProductsPanel({
     }
   }
 
-  /// Precarga el formulario de Crear con los datos del producto elegido
-  /// (mismo mecanismo que "Importar producto") — la marca revisa/ajusta
-  /// el nombre u otros campos y guarda como uno nuevo, en Borrador para
-  /// no publicarlo sin querer. Ver conversación del 2026-09-14.
+  /// Precarga el formulario de Crear con los datos del producto elegido —
+  /// la marca revisa/ajusta el nombre u otros campos y guarda como uno
+  /// nuevo, en Borrador para no publicarlo sin querer. Ver conversación
+  /// del 2026-09-14.
   function handleDuplicate(product: ManualProduct) {
     setMode({
       kind: "create",
@@ -229,14 +126,6 @@ export function StoreProductsPanel({
       />
     );
   }
-  if (mode.kind === "import") {
-    return (
-      <ImportPicker
-        onPick={handleImportPick}
-        onCancel={() => setMode({ kind: "list" })}
-      />
-    );
-  }
   if (mode.kind === "shopify") {
     return (
       <ShopifyCsvImporter
@@ -258,18 +147,10 @@ export function StoreProductsPanel({
         </button>
         <button
           type="button"
-          onClick={() => setMode({ kind: "import" })}
-          disabled={importing}
-          className="border border-brand-line rounded-full px-6 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft disabled:opacity-50"
-        >
-          {importing ? "Cargando..." : "Importar producto"}
-        </button>
-        <button
-          type="button"
           onClick={() => setMode({ kind: "shopify" })}
           className="border border-brand-line rounded-full px-6 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft"
         >
-          Importar desde Shopify (CSV)
+          Importar desde Shopify
         </button>
       </div>
 

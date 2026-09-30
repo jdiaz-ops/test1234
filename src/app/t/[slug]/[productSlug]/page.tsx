@@ -10,7 +10,6 @@ import { StoreHeader } from "@/components/storefront/store-header";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { VariantPicker } from "@/components/storefront/variant-picker";
 import { ProductGallery } from "@/components/storefront/product-gallery";
-import { ProductShippingCalculator } from "@/components/storefront/product-shipping-calculator";
 import { FloatingAddToCartBar } from "@/components/storefront/floating-add-to-cart-bar";
 import { ProductCard, ProductPrice, toCardProduct } from "@/components/storefront/product-card";
 import { getStoreBasePath } from "@/lib/store-base-path";
@@ -210,13 +209,6 @@ export default async function StorefrontProductPage({
                   }}
                 />
 
-                {productDetail.shippingCalculator && !isService && !isDigital && (
-                  <ProductShippingCalculator
-                    brandSlug={slug}
-                    priceCents={Math.round(Number(product.price) * 100)}
-                    weightKg={product.weight != null ? Number(product.weight) : 0}
-                  />
-                )}
               </>
             )}
 

@@ -7,7 +7,6 @@ import { StoreHeader } from "@/components/storefront/store-header";
 import { CollectionProductGrid } from "@/components/storefront/collection-product-grid";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { stripHtml } from "@/lib/sanitize-html";
-import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 
 export async function generateMetadata({
   params,
@@ -41,10 +40,9 @@ export default async function StorefrontCollectionPage({
   const collection = await getPublicBrandCollection(brand.id, collectionSlug);
   if (!collection) notFound();
 
-  const [menuItems, basePath, theme] = await Promise.all([
+  const [menuItems, basePath] = await Promise.all([
     listStorefrontMenuItems(brand.id),
     getStoreBasePath(slug),
-    getStorefrontTheme(brand.id),
   ]);
 
   const products = collection.products.map((p) => p.product);
@@ -76,7 +74,6 @@ export default async function StorefrontCollectionPage({
         ) : (
           <CollectionProductGrid
             basePath={basePath}
-            config={theme.collections}
             products={products.map((p) => ({
               id: p.id,
               slug: p.slug,

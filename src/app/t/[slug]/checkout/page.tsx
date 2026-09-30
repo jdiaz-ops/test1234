@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { getActiveWompiKeys } from "@/server/integrations/wompi-client";
-import { StoreHeader } from "@/components/storefront/store-header";
 import { CheckoutForm } from "@/components/storefront/checkout-form";
+import { CartIcon } from "@/components/storefront/mobile-nav-icons";
 import { getStoreBasePath } from "@/lib/store-base-path";
 
 export default async function StorefrontCheckoutPage({
@@ -26,13 +27,37 @@ export default async function StorefrontCheckoutPage({
 
   return (
     <div className="min-h-screen bg-brand-bg">
-      <StoreHeader
-        brandSlug={slug}
-        brandName={brand.companyName}
-        logoUrl={brand.logoUrl}
-        basePath={basePath}
-      />
-      <div className="max-w-3xl mx-auto px-6 py-10">
+      {/* Encabezado de checkout como el de Shopify: solo el logo de la
+          marca, centrado, sobre una franja de color, y el carrito a la
+          derecha para volver — sin menú ni buscador, que acá distraen de
+          terminar la compra. Ver conversación del 2026-09-30. */}
+      <header className="bg-brand-accent-soft border-b border-brand-line">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 grid grid-cols-[1fr_auto_1fr] items-center">
+          <div />
+          <Link href={basePath || "/"} className="flex items-center justify-center">
+            {brand.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- logo subido por la marca
+              <img
+                src={brand.logoUrl}
+                alt={brand.companyName}
+                className="h-14 w-auto max-w-[220px] object-contain"
+              />
+            ) : (
+              <span className="font-display text-lg font-semibold text-brand-ink">
+                {brand.companyName}
+              </span>
+            )}
+          </Link>
+          <Link
+            href={`${basePath}/carrito`}
+            aria-label="Volver al carrito"
+            className="justify-self-end w-10 h-10 flex items-center justify-center rounded-full text-brand-ink hover:bg-brand-surface"
+          >
+            <CartIcon className="w-6 h-6" />
+          </Link>
+        </div>
+      </header>
+      <div className="max-w-5xl mx-auto px-4 sm:px-8 py-10">
         <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
           CHECKOUT
         </p>

@@ -15,7 +15,6 @@ import {
   pickShippingRate,
 } from "@/server/services/shipping-zone-service";
 import { ensureStoreCustomerExists } from "@/server/services/store-customer-service";
-import { getPublishedTheme } from "@/server/services/brand-theme-service";
 
 /// Carrito y checkout nativos de "Mi tienda" — la vitrina pública de una
 /// marca en marcolini.lat/t/{storefrontSlug}. El carrito vive en el
@@ -323,17 +322,6 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   }
 
   const afterDiscount = subtotalCents - discountCents;
-
-  // Monto mínimo de compra (ver theme.cart.minPurchaseAmount en el
-  // editor de Diseño) — el carrito ya lo bloquea en el cliente, esto lo
-  // vuelve a exigir del lado del servidor para que no se pueda saltar
-  // pegándole directo a este endpoint.
-  const theme = await getPublishedTheme(brand.id);
-  if (theme.cart.minPurchaseAmount != null && afterDiscount < theme.cart.minPurchaseAmount * 100) {
-    throw new StoreOrderError(
-      `El monto mínimo de compra es ${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(theme.cart.minPurchaseAmount)}.`,
-    );
-  }
 
   // Zona de envío que cubra el departamento elegido (o la zona catch-all
   // "Resto de Colombia") — cada zona puede traer varias tarifas con

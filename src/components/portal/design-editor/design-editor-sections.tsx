@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ThemeConfig } from "@/lib/brand-theme";
-import { GOOGLE_FONT_OPTIONS, COLOR_PRESETS, TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
+import { GOOGLE_FONT_OPTIONS, TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 
 export type Patch = Record<string, unknown>;
 export type PatchFn = (patch: Patch) => void;
@@ -115,28 +115,13 @@ export function ColorsSection({ theme, patch }: { theme: ThemeConfig; patch: Pat
         </div>
       </div>
 
+      {/* Sin "Combinaciones predeterminadas" — se quitaron a pedido de la
+          marca; el default de toda tienda nueva ya es blanco y negro (ver
+          DEFAULT_COLORS). Ver conversación del 2026-09-30. */}
       <div className="border-t border-brand-line pt-4 space-y-4">
         <p className="text-xs font-medium text-brand-ink">Colores de contraste</p>
         <ColorRow label="Color de fondo" value={c.fondo} onChange={(v) => setColor("fondo", v)} />
         <ColorRow label="Color de textos" value={c.texto} onChange={(v) => setColor("texto", v)} />
-      </div>
-
-      <div className="border-t border-brand-line pt-4">
-        <p className="text-xs font-medium text-brand-ink mb-2">Combinaciones predeterminadas</p>
-        <div className="flex flex-wrap gap-2">
-          {COLOR_PRESETS.map((preset) => (
-            <button
-              key={preset.name}
-              type="button"
-              onClick={() => patch({ colors: preset.colors })}
-              className="rounded-lg border border-brand-line overflow-hidden w-16 hover:border-brand-accent"
-              title={preset.name}
-            >
-              <div className="h-6" style={{ background: preset.colors.principal }} />
-              <div className="h-3" style={{ background: preset.colors.texto }} />
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
@@ -628,47 +613,6 @@ export function ProductListingSection({ theme, patch }: { theme: ThemeConfig; pa
           <option value="2-4">2 en celular y 4 en computadora</option>
         </select>
       </Field>
-      <Checkbox label="Compra rápida desde el listado" checked={p.quickAdd} onChange={(v) => patch({ productListing: { quickAdd: v } })} />
-      <div className="space-y-2">
-        <Checkbox label="Mostrar variantes de color en el listado" checked={p.showColorVariants} onChange={(v) => patch({ productListing: { showColorVariants: v } })} />
-        <Checkbox label="Mostrar la segunda foto al pasar el mouse" checked={p.hoverSecondPhoto} onChange={(v) => patch({ productListing: { hoverSecondPhoto: v } })} />
-        <Checkbox label="Mostrar las fotos en un carrusel por producto" checked={p.photoCarousel} onChange={(v) => patch({ productListing: { photoCarousel: v } })} />
-        <p className="text-[11px] text-brand-ink-soft">
-          Estas 3 quedan guardadas para más adelante — el listado hoy solo trae una foto por producto, faltaría traer la galería completa a la tarjeta para que se vean.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// ----------------------------------------------------------------------------
-// Colecciones — las landing de categoría (/coleccion/{slug}).
-// ----------------------------------------------------------------------------
-
-export function CollectionsSection({ theme, patch }: { theme: ThemeConfig; patch: PatchFn }) {
-  const c = theme.collections;
-  return (
-    <div className="space-y-4 max-w-sm">
-      <p className="text-xs text-brand-ink-soft">
-        Cómo se ve la tarjeta de producto en la página de cada colección
-        (categoría) de tu tienda — siempre 2 por fila, en cualquier
-        pantalla. No afecta el listado principal de tu home, ese se
-        configura en &ldquo;Listado de productos&rdquo;.
-      </p>
-      <div className="space-y-2">
-        <Checkbox label="Mostrar imagen del producto" checked={c.showImage} onChange={(v) => patch({ collections: { showImage: v } })} />
-        <Checkbox label="Mostrar título del producto" checked={c.showTitle} onChange={(v) => patch({ collections: { showTitle: v } })} />
-        <Checkbox
-          label='Mostrar botón "Ver producto"'
-          checked={c.showViewProductButton}
-          onChange={(v) => patch({ collections: { showViewProductButton: v } })}
-        />
-        <Checkbox
-          label='Mostrar botón "Agregar al carrito"'
-          checked={c.showAddToCartButton}
-          onChange={(v) => patch({ collections: { showAddToCartButton: v } })}
-        />
-      </div>
       <p className="text-[11px] text-brand-ink-soft">
         Tamaño recomendado de foto: cuadrada, 1000×1000px (mínimo
         800×800px) — así se ve nítida en pantallas de alta resolución sin
@@ -703,7 +647,6 @@ export function ProductDetailSection({
         Aparece abajo cuando el comprador scrollea y pierde de vista el
         botón principal — te conviene tenerlo prendido.
       </p>
-      <Checkbox label="Mostrar calculadora de envío en la ficha" checked={d.shippingCalculator} onChange={(v) => patch({ productDetail: { shippingCalculator: v } })} />
       <Checkbox label="Mostrar el monto ahorrado por descuento" checked={d.showSavedAmount} onChange={(v) => patch({ productDetail: { showSavedAmount: v } })} />
       <Checkbox label="Mostrar variantes como botones" checked={d.variantsAsButtons} onChange={(v) => patch({ productDetail: { variantsAsButtons: v } })} />
       <Checkbox label="Mostrar la foto de la variante de color como botón" checked={d.colorVariantAsPhoto} onChange={(v) => patch({ productDetail: { colorVariantAsPhoto: v } })} />
@@ -833,44 +776,12 @@ export function ProductDetailSection({
 export function CartSection({ theme, patch }: { theme: ThemeConfig; patch: PatchFn }) {
   const c = theme.cart;
   return (
+    // "Ver más productos", monto mínimo de compra, carrito rápido y la
+    // calculadora de envío se quitaron a pedido de la marca (simplificar).
+    // Ver conversación del 2026-09-30.
     <div className="space-y-4 max-w-sm">
-      <Checkbox label='Mostrar el botón "Ver más productos"' checked={c.showViewMoreButton} onChange={(v) => patch({ cart: { showViewMoreButton: v } })} />
-
-      <Field label="Monto mínimo de compra" hint="¿Cuál es el monto mínimo que tus clientes deben gastar?">
-        <input
-          type="number"
-          min="0"
-          value={c.minPurchaseAmount ?? ""}
-          onChange={(e) => patch({ cart: { minPurchaseAmount: e.target.value === "" ? null : Number(e.target.value) } })}
-          placeholder="Sin mínimo"
-          className="input text-sm"
-        />
-      </Field>
-
-      <div className="border-t border-brand-line pt-4 space-y-2">
-        <p className="text-xs font-medium text-brand-ink">Carrito de compras rápidas</p>
-        <Checkbox
-          label="Permitir agregar productos sin ir a otra página"
-          checked={c.quickCart.enabled}
-          onChange={(v) => patch({ cart: { quickCart: { enabled: v } } })}
-        />
-        {c.quickCart.enabled && (
-          <Field label="Acción al agregar un producto al carrito">
-            <select
-              value={c.quickCart.actionOnAdd}
-              onChange={(e) => patch({ cart: { quickCart: { actionOnAdd: e.target.value } } })}
-              className="input text-sm"
-            >
-              <option value="notification">Mostrar una notificación</option>
-              <option value="openCart">Abrir el carrito</option>
-            </select>
-          </Field>
-        )}
-      </div>
-
       <Checkbox label="Sugerir productos complementarios" checked={c.suggestComplementary} onChange={(v) => patch({ cart: { suggestComplementary: v } })} />
       <Checkbox label="Permitir aplicar cupón de descuento en el carrito" checked={c.allowCoupon} onChange={(v) => patch({ cart: { allowCoupon: v } })} />
-      <Checkbox label="Mostrar calculadora de costos de envío en el carrito" checked={c.shippingCalculator} onChange={(v) => patch({ cart: { shippingCalculator: v } })} />
     </div>
   );
 }

@@ -12,7 +12,6 @@ import {
   AnnouncementSection,
   FooterSection,
   ProductListingSection,
-  CollectionsSection,
   ProductDetailSection,
   CartSection,
   MobileNavSection,
@@ -27,7 +26,6 @@ import {
   StorefrontMenuPanel,
   type StorefrontMenuItemRow,
 } from "@/components/portal/storefront-menu-panel";
-import { StorefrontTemplateForm } from "@/components/portal/storefront-template-form";
 
 /// "Tipo de diseño" (DesignTypeSection) y "Edición avanzada de CSS"
 /// (CssSection) ya no se muestran — pedido explícito de simplificar el
@@ -43,7 +41,6 @@ type NavKey =
   | "announcement"
   | "footer"
   | "productListing"
-  | "collections"
   | "productDetail"
   | "cart"
   | "mobileNav"
@@ -84,13 +81,14 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
     ],
   },
   {
-    // Nombres cortos y explícitos: "Catálogo" reúne la plantilla (antes
-    // su propia pestaña "Plantilla") y las opciones del listado; "Página
-    // de colección" para no confundir con Colecciones del menú lateral.
+    // Nombres cortos y explícitos. "Página de colección" (opciones aparte
+    // para la tarjeta de las colecciones) y la plantilla del catálogo
+    // (Clásica/Minimal/Editorial) se quitaron a pedido de la marca —
+    // confundían con "Catálogo"; ahora la tarjeta es una sola en toda la
+    // tienda. Ver conversación del 2026-09-30.
     title: "Otras páginas",
     items: [
       { key: "productListing", label: "Catálogo" },
-      { key: "collections", label: "Página de colección" },
       { key: "productDetail", label: "Página de producto" },
       { key: "cart", label: "Carrito" },
       { key: "popup", label: "Pop-up promocional" },
@@ -109,7 +107,6 @@ export function DesignEditorPanel({
   initialSections,
   initialMenuItems,
   storefrontSlug,
-  initialTemplate,
 }: {
   initialTheme: ThemeConfig;
   storePages: { slug: string; title: string }[];
@@ -118,11 +115,6 @@ export function DesignEditorPanel({
   /// Para la vista previa (la tienda real en un iframe) — null si la
   /// marca todavía no configuró el link de su tienda.
   storefrontSlug: string | null;
-  /// Plantilla del catálogo (Clásica/Minimal/Editorial) — vive en
-  /// BrandProfile, no en el tema; antes tenía su propia pestaña
-  /// "Plantilla", ahora se elige en Catálogo. Ver conversación del
-  /// 2026-09-30.
-  initialTemplate: string;
 }) {
   const [theme, setTheme] = useState(initialTheme);
   const [active, setActive] = useState<NavKey | null>(null);
@@ -287,13 +279,7 @@ export function DesignEditorPanel({
           {active === "sections" && <StorefrontSectionsPanel initialSections={initialSections} />}
           {active === "announcement" && <AnnouncementSection theme={theme} patch={patch} />}
           {active === "footer" && <FooterSection theme={theme} patch={patch} />}
-          {active === "productListing" && (
-            <div className="space-y-6">
-              <StorefrontTemplateForm initialTemplate={initialTemplate} />
-              <ProductListingSection theme={theme} patch={patch} />
-            </div>
-          )}
-          {active === "collections" && <CollectionsSection theme={theme} patch={patch} />}
+          {active === "productListing" && <ProductListingSection theme={theme} patch={patch} />}
           {active === "productDetail" && (
             <ProductDetailSection theme={theme} patch={patch} storePages={storePages} />
           )}

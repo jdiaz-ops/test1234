@@ -24,9 +24,11 @@ function withDefaults<Shape extends z.ZodRawShape>(shape: Shape) {
 }
 
 // ----------------------------------------------------------------------------
-// Colores — los valores por defecto son el rosado/nude actual de Marcolini
-// (ver globals.css), así que una marca que nunca publicó un tema ve
-// exactamente lo mismo que hoy.
+// Colores — por defecto blanco y negro (fondo blanco, textos y botones
+// negros, gris claro para la barra de anuncio): muchas marcas son blanco y
+// negro y así arrancan sin tocar nada; la que quiera color lo personaliza.
+// Antes el default era el rosado/nude del portal de Marcolini. Las tiendas
+// que ya guardaron sus colores no cambian. Ver conversación del 2026-09-30.
 // ----------------------------------------------------------------------------
 
 const hexColor = () =>
@@ -35,12 +37,12 @@ const hexColor = () =>
     .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Color inválido (ej. #d1477b)");
 
 export const DEFAULT_COLORS = {
-  principal: "#d1477b",
-  secundario: "#f6dde7",
-  acento: "#2f9e6b",
+  principal: "#111111",
+  secundario: "#f2f2f2",
+  acento: "#111111",
   usarAcento: false,
-  fondo: "#fcf1ee",
-  texto: "#2e1f22",
+  fondo: "#ffffff",
+  texto: "#111111",
 };
 
 const colorsSchema = withDefaults({
@@ -55,27 +57,6 @@ const colorsSchema = withDefaults({
   fondo: hexColor().default(DEFAULT_COLORS.fondo),
   texto: hexColor().default(DEFAULT_COLORS.texto),
 });
-
-/// Combinaciones predefinidas para resetear los colores de un click — ver
-/// el bloque "Combinaciones predeterminadas" de Tiendanube.
-export const COLOR_PRESETS: { name: string; colors: typeof DEFAULT_COLORS }[] = [
-  {
-    name: "Marcolini (original)",
-    colors: DEFAULT_COLORS,
-  },
-  {
-    name: "Lavanda",
-    colors: { principal: "#6b5ca5", secundario: "#e4defa", acento: "#2f9e6b", usarAcento: false, fondo: "#faf8ff", texto: "#221d33" },
-  },
-  {
-    name: "Verde salvia",
-    colors: { principal: "#3f6b4f", secundario: "#dfe9de", acento: "#c98a3a", usarAcento: false, fondo: "#f6f8f3", texto: "#1f2b21" },
-  },
-  {
-    name: "Negro y dorado",
-    colors: { principal: "#111111", secundario: "#f1e4bf", acento: "#c9a44a", usarAcento: true, fondo: "#ffffff", texto: "#111111" },
-  },
-];
 
 // ----------------------------------------------------------------------------
 // Tipografía — catálogo curado de Google Fonts (no texto libre, para no
@@ -228,38 +209,13 @@ const footerSchema = withDefaults({
 // Listado de productos
 // ----------------------------------------------------------------------------
 
+/// Solo "productos por fila": las opciones de compra rápida, variantes de
+/// color, segunda foto y carrusel (nunca implementadas en la tarjeta) y la
+/// sección aparte "Página de colección" se quitaron a pedido de la marca
+/// — la tarjeta de producto es una sola en toda la tienda (ver
+/// ProductCard). Ver conversación del 2026-09-30.
 const productListingSchema = withDefaults({
   productsPerRow: z.enum(["1-3", "2-4"]).default("2-4"),
-  quickAdd: z.boolean().default(true),
-  showColorVariants: z.boolean().default(false),
-  hoverSecondPhoto: z.boolean().default(false),
-  photoCarousel: z.boolean().default(false),
-});
-
-// ----------------------------------------------------------------------------
-// Colecciones — las landing de categoría (/coleccion/{slug}), separadas del
-// listado principal a pedido explícito de la marca: acá no existían en
-// Tiendanube tal cual (ahí "colecciones" son las categorías del catálogo,
-// no una sección de tema aparte) pero Marcolini sí las tiene como su
-// propia entidad, así que el editor de Diseño también les da su propio
-// espacio. Ver conversación del 2026-09-14.
-// ----------------------------------------------------------------------------
-
-/// Tarjeta de producto DEDICADA a las landing de colección — grilla fija
-/// de a 2 (no reusa el "productos por fila" del listado principal, que
-/// puede ir hasta 4 en computadora; acá siempre son 2, en cualquier
-/// pantalla, a pedido explícito de la marca) y con los dos botones a la
-/// vez (no uno u otro) — cada elemento se puede prender/apagar acá. Ver
-/// collection-product-grid.tsx y conversación del 2026-09-14.
-const collectionsSchema = withDefaults({
-  showImage: z.boolean().default(true),
-  showTitle: z.boolean().default(true),
-  /// Apagado por defecto desde el 2026-09-30 — la referencia de la marca
-  /// (su página de colección en Shopify) solo tiene "Agregar al carrito";
-  /// la foto y el nombre ya llevan al producto. Las tiendas que ya lo
-  /// tenían guardado en true lo conservan.
-  showViewProductButton: z.boolean().default(false),
-  showAddToCartButton: z.boolean().default(true),
 });
 
 // ----------------------------------------------------------------------------
@@ -283,10 +239,6 @@ const purchaseInfoItemSchema = z.object({
 });
 
 const productDetailSchema = withDefaults({
-  /// Reusa quoteShipping (ver store-order-service.ts) — el comprador
-  /// elige su departamento en la ficha y ve el costo antes de agregar
-  /// al carrito.
-  shippingCalculator: z.boolean().default(false),
   /// Barra flotante con el producto + "Agregar al carrito" que aparece
   /// cuando el comprador scrollea y pierde de vista el botón principal —
   /// habilitado por defecto (conviene), la marca lo puede apagar. Ver
@@ -322,16 +274,12 @@ const productDetailSchema = withDefaults({
 // Carrito
 // ----------------------------------------------------------------------------
 
+/// "Ver más productos", monto mínimo de compra, carrito rápido y la
+/// calculadora de envío en el carrito se quitaron a pedido de la marca
+/// (simplificar). Ver conversación del 2026-09-30.
 const cartSchema = withDefaults({
-  showViewMoreButton: z.boolean().default(true),
-  minPurchaseAmount: z.coerce.number().min(0).nullable().default(null),
-  quickCart: withDefaults({
-    enabled: z.boolean().default(false),
-    actionOnAdd: z.enum(["notification", "openCart"]).default("notification"),
-  }),
   suggestComplementary: z.boolean().default(false),
   allowCoupon: z.boolean().default(true),
-  shippingCalculator: z.boolean().default(false),
 });
 
 // ----------------------------------------------------------------------------
@@ -392,7 +340,6 @@ export const themeConfigSchema = z.object({
   announcementBar: announcementBarSchema,
   footer: footerSchema,
   productListing: productListingSchema,
-  collections: collectionsSchema,
   productDetail: productDetailSchema,
   cart: cartSchema,
   mobileNav: mobileNavSchema,

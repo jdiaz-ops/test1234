@@ -42,7 +42,6 @@ export default async function TiendaDisenoPage() {
       </p>
       <DesignEditorPanel
         initialTheme={theme}
-        initialTemplate={profile.storefrontTemplate}
         storePages={pages.map((p) => ({ slug: p.slug, title: p.title }))}
         initialSections={sections
           .filter((s): s is typeof s & { type: SectionType } =>
