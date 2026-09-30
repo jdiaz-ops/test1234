@@ -9,14 +9,6 @@ import {
 } from "@/components/portal/store-product-form";
 import { ShopifyCsvImporter } from "@/components/portal/shopify-csv-importer";
 
-function formatCOP(amount: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 /// Lista de productos de "Mi tienda" con Agregar (a mano) e Importar desde
 /// Shopify (CSV). El viejo "Importar producto" — elegir uno ya
 /// sincronizado por la conexión Shopify/WooCommerce para precargar el
@@ -87,17 +79,37 @@ function visibilityOf(p: ManualProduct): Visibility {
 const VISIBILITY_LABEL: Record<Visibility, { text: string; className: string; dot: string }> = {
   visible: { text: "Visible en la tienda", className: "text-green-700", dot: "bg-green-500" },
   soldout: { text: "Visible · agotado (no se puede comprar)", className: "text-amber-700", dot: "bg-amber-500" },
-  unlisted: { text: "Oculto del catálogo · solo con link directo", className: "text-amber-700", dot: "bg-amber-500" },
+  unlisted: { text: "No listado (solo con link directo)", className: "text-amber-700", dot: "bg-amber-500" },
   hidden: { text: "Oculto (borrador)", className: "text-red-600", dot: "bg-red-500" },
 };
 
 const FILTERS: { key: Visibility | "all"; label: string }[] = [
   { key: "all", label: "Todos" },
-  { key: "visible", label: "Visibles" },
+  { key: "visible", label: "Activos" },
   { key: "soldout", label: "Agotados" },
-  { key: "unlisted", label: "Solo con link" },
+  { key: "unlisted", label: "No listados" },
   { key: "hidden", label: "Ocultos" },
 ];
+
+/// Orden de la tabla — A-Z por defecto (pedido de la marca), con las
+/// mismas opciones básicas que Shopify. "Más recientes" usa el orden en
+/// que llegan de la API (createdAt desc, ver listManualProducts).
+type SortKey = "name-asc" | "name-desc" | "newest" | "oldest" | "price-asc" | "price-desc" | "stock-asc" | "stock-desc";
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "name-asc", label: "Nombre (A-Z)" },
+  { key: "name-desc", label: "Nombre (Z-A)" },
+  { key: "newest", label: "Más recientes" },
+  { key: "oldest", label: "Más antiguos" },
+  { key: "price-asc", label: "Precio: menor a mayor" },
+  { key: "price-desc", label: "Precio: mayor a menor" },
+  { key: "stock-asc", label: "Inventario: menor a mayor" },
+  { key: "stock-desc", label: "Inventario: mayor a menor" },
+];
+
+function totalStock(p: ManualProduct): number | null {
+  return p.hasVariants ? p.variants.reduce((sum, v) => sum + v.stock, 0) : p.stock;
+}
 
 export function StoreProductsPanel({
   initialProducts,
@@ -119,16 +131,45 @@ export function StoreProductsPanel({
     { visible: 0, soldout: 0, unlisted: 0, hidden: 0 } as Record<Visibility, number>,
   );
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<SortKey>("name-asc");
   const [rowBusy, setRowBusy] = useState<string | null>(null);
   const q = search.trim().toLowerCase();
-  const shownProducts = products.filter(
-    (p) =>
-      (filter === "all" || visibilityOf(p) === filter) &&
-      (!q || p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q)),
-  );
+  const recency = new Map(products.map((p, i) => [p.id, i]));
+  const byName = (a: ManualProduct, b: ManualProduct) =>
+    a.name.localeCompare(b.name, "es", { sensitivity: "base", numeric: true });
+  // Sin inventario definido (null = sin control) va al final al ordenar
+  // por inventario, en ambos sentidos.
+  const stockOrder = (dir: 1 | -1) => (a: ManualProduct, b: ManualProduct) => {
+    const sa = totalStock(a);
+    const sb = totalStock(b);
+    if (sa == null && sb == null) return byName(a, b);
+    if (sa == null) return 1;
+    if (sb == null) return -1;
+    return (sa - sb) * dir || byName(a, b);
+  };
+  const comparators: Record<SortKey, (a: ManualProduct, b: ManualProduct) => number> = {
+    "name-asc": byName,
+    "name-desc": (a, b) => byName(b, a),
+    newest: (a, b) => recency.get(a.id)! - recency.get(b.id)!,
+    oldest: (a, b) => recency.get(b.id)! - recency.get(a.id)!,
+    "price-asc": (a, b) => a.price - b.price || byName(a, b),
+    "price-desc": (a, b) => b.price - a.price || byName(a, b),
+    "stock-asc": stockOrder(1),
+    "stock-desc": stockOrder(-1),
+  };
+  const shownProducts = products
+    .filter(
+      (p) =>
+        (filter === "all" || visibilityOf(p) === filter) &&
+        (!q || p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q)),
+    )
+    .sort(comparators[sort]);
 
   /// Inventario o estado desde la fila (ver /api/marca/tienda/productos/rapido).
-  async function quickUpdate(productId: string, data: { stock?: number; status?: ProductStatusValue }) {
+  async function quickUpdate(
+    productId: string,
+    data: { stock?: number; status?: ProductStatusValue; price?: number; compareAtPrice?: number | null },
+  ) {
     setRowBusy(productId);
     setError(null);
     try {
@@ -143,7 +184,17 @@ export function StoreProductsPanel({
         return;
       }
       setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, stock: body.product.stock, status: body.product.status } : p)),
+        prev.map((p) =>
+          p.id === productId
+            ? {
+                ...p,
+                stock: body.product.stock,
+                status: body.product.status,
+                price: Number(body.product.price),
+                compareAtPrice: body.product.compareAtPrice != null ? Number(body.product.compareAtPrice) : null,
+              }
+            : p,
+        ),
       );
       router.refresh();
     } catch {
@@ -334,34 +385,60 @@ export function StoreProductsPanel({
         </div>
       )}
 
+      {/* Barra como la de Shopify: estado · buscar · ordenar. Ver
+          conversación del 2026-09-30. */}
       {products.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          {FILTERS.map((f) => {
-            const n = f.key === "all" ? products.length : counts[f.key];
-            if (f.key !== "all" && n === 0) return null;
-            const active = filter === f.key;
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setFilter(f.key)}
-                className={`rounded-full px-3 py-1 text-xs font-medium border ${
-                  active
-                    ? "bg-brand-ink text-brand-bg border-brand-ink"
-                    : "border-brand-line text-brand-ink hover:bg-brand-accent-soft"
-                }`}
-              >
-                {f.label} ({n})
-              </button>
-            );
-          })}
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o SKU"
-            className="input text-sm sm:ml-auto sm:max-w-xs"
-          />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-2xl border border-brand-line bg-brand-surface p-2">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as Visibility | "all")}
+            className="input text-sm py-2 sm:w-52"
+            aria-label="Filtrar por estado"
+          >
+            {FILTERS.map((f) => {
+              const n = f.key === "all" ? products.length : counts[f.key];
+              if (f.key !== "all" && n === 0 && filter !== f.key) return null;
+              return (
+                <option key={f.key} value={f.key}>
+                  {f.label} ({n})
+                </option>
+              );
+            })}
+          </select>
+          <div className="relative flex-1 min-w-0">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-ink-soft pointer-events-none"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre o SKU"
+              className="input text-sm py-2 pl-9 w-full"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-xs text-brand-ink-soft sm:shrink-0">
+            <span className="whitespace-nowrap">Ordenar por</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              className="input text-sm py-2 flex-1 sm:w-56"
+            >
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       )}
 
@@ -377,14 +454,15 @@ export function StoreProductsPanel({
         // y el inventario se escribe ahí mismo, sin abrir el formulario.
         // Ver conversación del 2026-09-30.
         <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-x-auto">
-          <table className="w-full text-sm min-w-[720px]">
+          <table className="w-full text-sm min-w-[860px]">
             <thead>
               <tr className="text-left text-xs text-brand-ink-soft border-b border-brand-line">
                 <th className="font-medium px-4 py-3">Producto</th>
-                <th className="font-medium px-3 py-3 w-48">Estado</th>
-                <th className="font-medium px-3 py-3 w-36">Inventario</th>
-                <th className="font-medium px-3 py-3 w-28 text-right">Precio</th>
-                <th className="px-4 py-3 w-64" />
+                <th className="font-medium px-3 py-3 w-44">Estado</th>
+                <th className="font-medium px-3 py-3 w-32">Inventario</th>
+                <th className="font-medium px-3 py-3 w-32">Precio</th>
+                <th className="font-medium px-3 py-3 w-32">Precio antes</th>
+                <th className="px-4 py-3 w-56" />
               </tr>
             </thead>
             <tbody>
@@ -427,13 +505,18 @@ export function StoreProductsPanel({
                           className="input text-xs py-1.5"
                           aria-label={`Estado de ${product.name}`}
                         >
-                          <option value="ACTIVE">Activo (visible)</option>
-                          <option value="DRAFT">Oculto (borrador)</option>
-                          <option value="UNLISTED">Solo con link directo</option>
+                          <option value="ACTIVE">Activo</option>
+                          <option value="DRAFT">Oculto</option>
+                          {product.status === "UNLISTED" && <option value="UNLISTED">No listado</option>}
                         </select>
                       </div>
                       {visibilityOf(product) === "soldout" && (
-                        <p className="text-[11px] text-amber-700 mt-1 ml-4">Agotado: se ve pero no se puede comprar</p>
+                        // Sin inventario el producto NO se esconde: sigue
+                        // en la tienda marcado "Agotado" y sin poder
+                        // comprarse. Ver conversación del 2026-09-30.
+                        <span className="inline-block mt-1.5 ml-4 rounded-full bg-amber-100 text-amber-800 text-[11px] font-medium px-2 py-0.5">
+                          Agotado en la tienda
+                        </span>
                       )}
                     </td>
                     <td className="px-3 py-2.5">
@@ -455,8 +538,28 @@ export function StoreProductsPanel({
                         />
                       )}
                     </td>
-                    <td className="px-3 py-2.5 text-right font-mono text-brand-ink whitespace-nowrap">
-                      {product.hasVariants ? "Varios" : formatCOP(product.price)}
+                    <td className="px-3 py-2.5">
+                      {product.hasVariants ? (
+                        <span className="text-xs text-brand-ink-soft">Varios</span>
+                      ) : (
+                        <MoneyCell
+                          value={product.price}
+                          disabled={busy}
+                          onSave={(price) => quickUpdate(product.id, { price: price ?? undefined })}
+                        />
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {product.hasVariants ? (
+                        <span className="text-xs text-brand-ink-soft">—</span>
+                      ) : (
+                        <MoneyCell
+                          value={product.compareAtPrice}
+                          disabled={busy}
+                          allowEmpty
+                          onSave={(compareAtPrice) => quickUpdate(product.id, { compareAtPrice })}
+                        />
+                      )}
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center justify-end gap-3 whitespace-nowrap">
@@ -493,6 +596,65 @@ export function StoreProductsPanel({
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+/// Precio / precio antes en la fila — igual que StockCell: se guarda al
+/// salir del campo o con Enter, solo si cambió. Con `allowEmpty`, vaciar
+/// el campo quita el valor (el producto deja de estar en oferta). Acepta
+/// "15.000" o "15000".
+function MoneyCell({
+  value,
+  disabled,
+  allowEmpty,
+  onSave,
+}: {
+  value: number | null;
+  disabled?: boolean;
+  allowEmpty?: boolean;
+  onSave: (v: number | null) => void;
+}) {
+  const [draft, setDraft] = useState(value == null ? "" : String(value));
+  const [last, setLast] = useState(value);
+  if (value !== last) {
+    setLast(value);
+    setDraft(value == null ? "" : String(value));
+  }
+  function commit() {
+    const text = draft.trim();
+    if (text === "") {
+      if (allowEmpty) {
+        if (value != null) onSave(null);
+      } else {
+        setDraft(value == null ? "" : String(value));
+      }
+      return;
+    }
+    const n = Number(text.replace(/[.\s]/g, "").replace(",", "."));
+    if (!Number.isFinite(n) || n <= 0) {
+      setDraft(value == null ? "" : String(value));
+      return;
+    }
+    if (n !== value) onSave(n);
+  }
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-brand-ink-soft">$</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={draft}
+        disabled={disabled}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        placeholder={allowEmpty ? "—" : ""}
+        aria-label={allowEmpty ? "Precio antes" : "Precio"}
+        className="input text-sm py-1.5 w-24 font-mono"
+      />
     </div>
   );
 }

@@ -221,6 +221,9 @@ export const quickUpdateProductSchema = z.object({
   productId: z.string().min(1),
   stock: z.coerce.number().int().min(0, "No puede ser negativo").optional(),
   status: z.enum(["ACTIVE", "DRAFT", "UNLISTED"]).optional(),
+  price: z.coerce.number().positive("El precio debe ser mayor a cero").optional(),
+  /// null = quitar el "precio antes" (deja de estar en oferta).
+  compareAtPrice: z.coerce.number().positive().nullable().optional(),
 });
 
 /// Un lote de productos ya leídos del CSV de Shopify en el navegador (ver

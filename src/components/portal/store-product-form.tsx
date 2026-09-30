@@ -30,14 +30,12 @@ const STATUS_OPTIONS: {
   },
   {
     value: "DRAFT",
-    label: "Borrador",
-    description: "Oculto del todo — no se puede ver ni comprar, ni con el link directo.",
+    label: "Oculto",
+    description: "No se puede ver ni comprar en tu tienda.",
   },
-  {
-    value: "UNLISTED",
-    label: "No listado",
-    description: "No aparece en tu vitrina, pero se puede ver y comprar con el link directo.",
-  },
+  // "No listado" (UNLISTED: solo con link directo) se quitó de las
+  // opciones a pedido de la marca ("no entiendo esa opción, quita eso").
+  // El valor sigue existiendo por si algún producto viejo lo tiene.
 ];
 
 export type ManualProductVariant = {

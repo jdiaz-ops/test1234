@@ -128,6 +128,14 @@ export function ProductCard({
           <div className="w-full aspect-square" />
         )}
         <DiscountBadge price={product.price} compareAtPrice={product.compareAtPrice} />
+        {product.stock != null && product.stock <= 0 && (
+          // Agotado: el producto se sigue viendo (no se esconde), con la
+          // etiqueta sobre la foto y el botón deshabilitado — como en
+          // Shopify. Ver conversación del 2026-09-30.
+          <span className="absolute bottom-2 left-2 bg-brand-ink text-brand-bg text-[11px] font-bold uppercase tracking-wide px-2 py-1">
+            Agotado
+          </span>
+        )}
       </Link>
       <div className="pt-3 flex flex-col gap-1.5 flex-1">
         <Link href={href}>

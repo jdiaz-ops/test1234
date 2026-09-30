@@ -373,28 +373,38 @@ export async function updateManualProduct(
 export async function quickUpdateManualProduct(
   brandId: string,
   productId: string,
-  data: { stock?: number; status?: "ACTIVE" | "DRAFT" | "UNLISTED" },
+  data: {
+    stock?: number;
+    status?: "ACTIVE" | "DRAFT" | "UNLISTED";
+    price?: number;
+    compareAtPrice?: number | null;
+  },
 ) {
   const product = await prisma.product.findFirst({
     where: { id: productId, brandId, manual: true },
-    select: { id: true, hasVariants: true, price: true },
+    select: { id: true, hasVariants: true, price: true, compareAtPrice: true },
   });
   if (!product) throw new BrandStoreProductError("Producto no encontrado.");
-  if (data.stock != null && product.hasVariants) {
+  if ((data.stock != null || data.price != null || data.compareAtPrice !== undefined) && product.hasVariants) {
     throw new BrandStoreProductError(
-      "Este producto tiene variantes: el inventario se ajusta por variante desde Editar.",
+      "Este producto tiene variantes: inventario y precios se ajustan por variante desde Editar.",
     );
   }
-  if (data.status === "ACTIVE" && !product.hasVariants && Number(product.price) <= 0) {
+  if (data.status === "ACTIVE" && !product.hasVariants && Number(product.price) <= 0 && !data.price) {
     throw new BrandStoreProductError("Ponle un precio antes de activarlo.");
   }
+  // El "precio antes" tiene que ser mayor al precio para que sea una
+  // oferta de verdad — si no, se guarda igual pero la tienda no muestra
+  // descuento (ver discountPercent en product-card.tsx).
   return prisma.product.update({
     where: { id: productId },
     data: {
       ...(data.stock != null ? { stock: data.stock } : {}),
       ...(data.status ? { status: data.status, available: data.status !== "DRAFT" } : {}),
+      ...(data.price != null ? { price: data.price } : {}),
+      ...(data.compareAtPrice !== undefined ? { compareAtPrice: data.compareAtPrice } : {}),
     },
-    select: { id: true, stock: true, status: true },
+    select: { id: true, stock: true, status: true, price: true, compareAtPrice: true },
   });
 }
 
