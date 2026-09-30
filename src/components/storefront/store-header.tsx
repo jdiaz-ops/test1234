@@ -47,7 +47,16 @@ function renderMenuLink(
   );
 }
 
-const LOGO_SIZE_CLASS = {
+/// Alto del logo — el ancho sale solo de la proporción de la imagen, sin
+/// marco ni recorte circular.
+const LOGO_HEIGHT_CLASS = {
+  small: "h-7",
+  medium: "h-9",
+  large: "h-14",
+};
+
+/// El círculo con la inicial, solo para la marca que todavía no subió logo.
+const LOGO_FALLBACK_CLASS = {
   small: "w-7 h-7 text-sm",
   medium: "w-9 h-9 text-base",
   large: "w-12 h-12 text-lg",
@@ -81,7 +90,6 @@ export function StoreHeader({
     header.bgColorRef === "fondo"
       ? undefined
       : { background: resolveColorRef(theme.colors, header.bgColorRef) };
-  const logoSizeClass = LOGO_SIZE_CLASS[header.logoSize];
   const iconSizeClass = header.desktop.iconSize === "large" ? "sm:px-4 sm:py-2 sm:text-sm" : "sm:px-3 sm:py-1.5 sm:text-xs";
   const desktopCentered = header.desktop.logoPosition === "center";
   const mobileCentered = header.mobile.logoPosition === "center";
@@ -95,6 +103,11 @@ export function StoreHeader({
   const showHamburger = showMenu && header.mobile.menuStyle === "hamburger";
   const showMobileNavRow = showMenu && header.mobile.menuStyle === "below";
 
+  // Con logo va solo el logo — sin nombre al lado ni marco: el logo ya es
+  // la marca, como en Shopify. El nombre en texto queda solo como respaldo
+  // para la marca que todavía no subió logo. Pedido explícito: "Quitar ese
+  // texto de ahí. El logo sin recuadro o círculo." Ver conversación del
+  // 2026-09-30.
   const logoLink = (
     <Link href={basePath || "/"} className="flex items-center gap-3 shrink-0">
       {logoUrl ? (
@@ -102,14 +115,18 @@ export function StoreHeader({
         <img
           src={logoUrl}
           alt={brandName}
-          className={`${logoSizeClass} rounded-full object-cover border border-brand-line`}
+          className={`${LOGO_HEIGHT_CLASS[header.logoSize]} w-auto max-w-[180px] object-contain`}
         />
       ) : (
-        <div className={`${logoSizeClass} rounded-full bg-brand-accent-soft flex items-center justify-center font-display font-semibold text-brand-accent`}>
-          {brandName[0]?.toUpperCase()}
-        </div>
+        <>
+          <div
+            className={`${LOGO_FALLBACK_CLASS[header.logoSize]} rounded-full bg-brand-accent-soft flex items-center justify-center font-display font-semibold text-brand-accent`}
+          >
+            {brandName[0]?.toUpperCase()}
+          </div>
+          <span className="font-display font-semibold text-brand-ink">{brandName}</span>
+        </>
       )}
-      <span className="font-display font-semibold text-brand-ink">{brandName}</span>
     </Link>
   );
 
