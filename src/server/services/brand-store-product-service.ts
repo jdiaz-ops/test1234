@@ -17,7 +17,11 @@ type VariantInput = {
   weightUnit?: "KG" | "G";
 };
 
-type ManualProductInput = {
+export type ManualProductInput = {
+  /// Solo lo manda la importación por CSV de Shopify (estable por handle,
+  /// ver shopify-csv-import-service.ts) — Crear producto lo deja vacío y
+  /// se genera uno propio abajo.
+  externalId?: string;
   name: string;
   description?: string;
   price: number;
@@ -245,7 +249,7 @@ export async function createManualProduct(
         // Los productos manuales no tienen un id de tienda externa real — se
         // genera uno propio, con un prefijo que nunca puede chocar con un
         // externalId real de Shopify/WooCommerce (esos son numéricos o GIDs).
-        externalId: `manual-${crypto.randomUUID()}`,
+        externalId: data.externalId ?? `manual-${crypto.randomUUID()}`,
         manual: true,
         name: data.name,
         description: data.description

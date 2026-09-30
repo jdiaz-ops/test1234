@@ -6,6 +6,7 @@ import {
   StoreProductForm,
   type ManualProduct,
 } from "@/components/portal/store-product-form";
+import { ShopifyCsvImporter } from "@/components/portal/shopify-csv-importer";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -115,6 +116,7 @@ export function StoreProductsPanel({
     | { kind: "create"; seed?: Partial<ManualProduct> }
     | { kind: "edit"; product: ManualProduct }
     | { kind: "import" }
+    | { kind: "shopify" }
   >({
     kind: "list",
   });
@@ -122,8 +124,7 @@ export function StoreProductsPanel({
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
-  function refreshAfterSave() {
-    setMode({ kind: "list" });
+  function reloadProducts() {
     router.refresh();
     // El server component vuelve a mandar la lista actualizada por props en
     // el próximo render — mientras tanto, disparamos un GET nosotros mismos
@@ -132,6 +133,11 @@ export function StoreProductsPanel({
       .then((r) => r.json())
       .then((body) => setProducts(body.products ?? []))
       .catch(() => {});
+  }
+
+  function refreshAfterSave() {
+    setMode({ kind: "list" });
+    reloadProducts();
   }
 
   async function handleImportPick(productId: string) {
@@ -231,10 +237,18 @@ export function StoreProductsPanel({
       />
     );
   }
+  if (mode.kind === "shopify") {
+    return (
+      <ShopifyCsvImporter
+        onImported={reloadProducts}
+        onClose={() => setMode({ kind: "list" })}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => setMode({ kind: "create" })}
@@ -249,6 +263,13 @@ export function StoreProductsPanel({
           className="border border-brand-line rounded-full px-6 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft disabled:opacity-50"
         >
           {importing ? "Cargando..." : "Importar producto"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode({ kind: "shopify" })}
+          className="border border-brand-line rounded-full px-6 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft"
+        >
+          Importar desde Shopify (CSV)
         </button>
       </div>
 

@@ -214,6 +214,40 @@ export const deleteManualProductSchema = z.object({
   productId: z.string().min(1),
 });
 
+/// Un lote de productos ya leídos del CSV de Shopify en el navegador (ver
+/// shopify-csv.ts) — mismas reglas por campo que createProductSchema, pero
+/// sin exigir stock ni precio > 0: la exportación de Shopify no trae
+/// cantidades y un producto sin precio entra como borrador. Ver
+/// shopify-csv-import-service.ts.
+export const importShopifyProductsSchema = z.object({
+  products: z
+    .array(
+      z.object({
+        handle: z.string().min(1).max(255),
+        name: z.string().min(2, "Ingresa el nombre del producto").max(255),
+        description: z.string().max(20000).optional().or(z.literal("")),
+        price: z.coerce.number().min(0),
+        compareAtPrice: z.coerce.number().positive().optional().nullable(),
+        images: z
+          .array(z.string().max(1000).regex(/^https?:\/\//, "URL de imagen inválida"))
+          .max(50)
+          .default([]),
+        sku: z.string().max(120).optional().or(z.literal("")),
+        barcode: z.string().max(120).optional().or(z.literal("")),
+        weight: z.coerce.number().min(0).optional().nullable(),
+        weightUnit: z.enum(["KG", "G"]).default("KG"),
+        stock: z.coerce.number().int().min(0).optional().nullable(),
+        status: z.enum(["ACTIVE", "DRAFT", "UNLISTED"]).default("ACTIVE"),
+        collectionName: z.string().min(2).max(80).optional().nullable(),
+        hasVariants: z.boolean().default(false),
+        optionNames: z.array(z.string().min(1).max(40)).max(3).default([]),
+        variants: z.array(variantInputSchema).max(100).default([]),
+      }),
+    )
+    .min(1, "No hay productos para importar")
+    .max(25, "Máximo 25 productos por lote"),
+});
+
 /// Todos los campos opcionales — la marca puede guardar solo las llaves de
 /// prueba primero, y agregar las de producción después sin perder nada.
 export const wompiCredentialsSchema = z.object({
