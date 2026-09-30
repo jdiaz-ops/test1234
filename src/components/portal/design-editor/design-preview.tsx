@@ -60,8 +60,17 @@ export function DesignPreview({ theme, brandName }: { theme: ThemeConfig; brandN
       >
         {activeMessage?.text && (
           <div
-            className="text-center text-[11px] py-1.5"
-            style={{ background: colors.secundario, color: colors.texto }}
+            className={`text-center py-1.5 ${
+              announcementBar.textSize === "large"
+                ? "text-sm"
+                : announcementBar.textSize === "medium"
+                  ? "text-xs"
+                  : "text-[11px]"
+            }`}
+            style={{
+              background: resolveColorRef(colors, announcementBar.bgColorRef),
+              color: resolveColorRef(colors, announcementBar.textColorRef),
+            }}
           >
             {activeMessage.text}
           </div>

@@ -410,6 +410,45 @@ export function AnnouncementSection({ theme, patch }: { theme: ThemeConfig; patc
         checked={a.enabled}
         onChange={(v) => patch({ announcementBar: { enabled: v } })}
       />
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Color de fondo">
+          <select
+            value={a.bgColorRef}
+            onChange={(e) => patch({ announcementBar: { bgColorRef: e.target.value } })}
+            className="input text-sm"
+          >
+            <option value="secundario">Color secundario</option>
+            <option value="principal">Color principal</option>
+            <option value="acento">Color de acento</option>
+            <option value="fondo">Color de fondo</option>
+            <option value="texto">Color de textos</option>
+          </select>
+        </Field>
+        <Field label="Color del texto">
+          <select
+            value={a.textColorRef}
+            onChange={(e) => patch({ announcementBar: { textColorRef: e.target.value } })}
+            className="input text-sm"
+          >
+            <option value="texto">Color de textos</option>
+            <option value="fondo">Color de fondo</option>
+            <option value="principal">Color principal</option>
+            <option value="secundario">Color secundario</option>
+            <option value="acento">Color de acento</option>
+          </select>
+        </Field>
+        <Field label="Tamaño del texto">
+          <select
+            value={a.textSize}
+            onChange={(e) => patch({ announcementBar: { textSize: e.target.value } })}
+            className="input text-sm"
+          >
+            <option value="small">Chico</option>
+            <option value="medium">Mediano</option>
+            <option value="large">Grande</option>
+          </select>
+        </Field>
+      </div>
       {messages.map((m, i) => (
         <div key={i} className="space-y-2">
           <p className="text-xs font-medium text-brand-ink">Mensaje {i + 1}</p>

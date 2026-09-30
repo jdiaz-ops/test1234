@@ -177,6 +177,12 @@ const announcementBarSchema = withDefaults({
   /// Hasta 4 — pedido explícito de la marca ("3 o 4 textos que se
   /// deslizan"), ver conversación del 2026-09-15.
   messages: z.array(announcementMessageSchema).max(4).default([]),
+  /// Colores y tamaño de la barra, elegidos de la paleta (igual que el
+  /// pie de página) — antes estaban fijos en secundario/texto y letra
+  /// chica, sin dónde cambiarlos. Ver conversación del 2026-09-30.
+  bgColorRef: z.enum(["principal", "secundario", "acento", "fondo", "texto"]).default("secundario"),
+  textColorRef: z.enum(["principal", "secundario", "acento", "fondo", "texto"]).default("texto"),
+  textSize: z.enum(["small", "medium", "large"]).default("small"),
 });
 
 // ----------------------------------------------------------------------------

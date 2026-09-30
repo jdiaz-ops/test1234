@@ -73,7 +73,7 @@ export default async function StorefrontLayout({
             style={cssVars as React.CSSProperties}
             className={theme.mobileNav.enabled ? "pb-16 sm:pb-0" : undefined}
           >
-            <AnnouncementBar config={theme.announcementBar} />
+            <AnnouncementBar config={theme.announcementBar} colors={theme.colors} />
             {children}
             <StoreFooter
               config={theme.footer}
