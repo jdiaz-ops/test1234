@@ -387,3 +387,20 @@ ${reason ? `<p style="color:#555">Motivo: ${escapeHtml(reason)}</p>` : ""}
     ),
   );
 }
+
+/// A la marca: llegó una reseña nueva para revisar.
+export async function sendNewReviewBrandEmail(
+  to: string,
+  params: { productName: string; authorName: string; rating: number; body: string; reviewsUrl: string },
+) {
+  await send(
+    to,
+    `Nueva reseña de ${params.rating} ${params.rating === 1 ? "estrella" : "estrellas"} para ${params.productName}`,
+    `<div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:560px;margin:0 auto;font-size:14px;line-height:1.5">
+<p><strong>${escapeHtml(params.authorName)}</strong> dejó una reseña de ${"★".repeat(params.rating)}${"☆".repeat(5 - params.rating)} para <strong>${escapeHtml(params.productName)}</strong>:</p>
+<blockquote style="border-left:3px solid #ddd;margin:0;padding:4px 12px;color:#444">${escapeHtml(params.body)}</blockquote>
+<p>No se publica hasta que la apruebes.</p>
+<p><a href="${escapeHtml(params.reviewsUrl)}">Revisar reseñas</a></p>
+</div>`,
+  );
+}

@@ -214,6 +214,12 @@ export const deleteManualProductSchema = z.object({
   productId: z.string().min(1),
 });
 
+/// La marca publica, oculta o borra una reseña (Mi tienda → Reseñas).
+export const moderateReviewSchema = z.object({
+  reviewId: z.string().min(1),
+  action: z.enum(["approve", "hide", "delete"]),
+});
+
 /// Acción sobre varios productos a la vez (casillas de la tabla).
 export const bulkProductActionSchema = z.object({
   productIds: z.array(z.string().min(1)).min(1, "Elige al menos un producto").max(500),

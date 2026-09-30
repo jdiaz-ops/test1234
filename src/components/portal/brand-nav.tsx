@@ -41,6 +41,7 @@ const storeItems = [
   { href: "/marca/tienda/paginas", label: "Páginas" },
   { href: "/marca/tienda/pedidos", label: "Pedidos" },
   { href: "/marca/tienda/clientes", label: "Clientes" },
+  { href: "/marca/tienda/resenas", label: "Reseñas" },
   { href: "/marca/tienda/muestras", label: "Muestras" },
   { href: "/marca/tienda/pagos", label: "Pagos" },
   { href: "/marca/tienda/envios", label: "Envíos" },

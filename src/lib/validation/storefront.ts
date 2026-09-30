@@ -43,3 +43,14 @@ export const createStoreOrderSchema = z.object({
   servicePreferredAt: z.string().optional().or(z.literal("")),
   discountCode: z.string().max(40).optional().or(z.literal("")),
 });
+
+/// Reseña que deja un comprador en la ficha del producto (ver
+/// product-review-service.ts). El correo tiene que ser el de un pedido
+/// pagado que incluya ese producto.
+export const submitReviewSchema = z.object({
+  productId: z.string().min(1),
+  name: z.string().trim().min(2, "Escribe tu nombre").max(60, "Máximo 60 caracteres"),
+  email: z.string().trim().email("Escribe el correo con el que compraste"),
+  rating: z.coerce.number().int().min(1, "Elige de 1 a 5 estrellas").max(5, "Elige de 1 a 5 estrellas"),
+  body: z.string().trim().min(5, "Cuéntanos un poco más").max(1000, "Máximo 1000 caracteres"),
+});

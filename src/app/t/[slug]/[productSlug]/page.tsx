@@ -9,6 +9,8 @@ import {
 } from "@/server/services/store-order-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { QuantityAddToCart } from "@/components/storefront/quantity-add-to-cart";
+import { ProductReviews, Stars } from "@/components/storefront/product-reviews";
+import { getProductReviews } from "@/server/services/product-review-service";
 import { VariantPicker } from "@/components/storefront/variant-picker";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { FloatingAddToCartBar } from "@/components/storefront/floating-add-to-cart-bar";
@@ -62,11 +64,12 @@ export default async function StorefrontProductPage({
   const outOfStock = product.stock != null && product.stock <= 0;
   const isService = product.type === "SERVICE";
   const isDigital = product.type === "DIGITAL";
-  const [basePath, menuItems, theme, relatedProducts] = await Promise.all([
+  const [basePath, menuItems, theme, relatedProducts, reviewData] = await Promise.all([
     getStoreBasePath(slug),
     listStorefrontMenuItems(brand.id),
     getStorefrontTheme(brand.id),
     getRelatedProducts(brand.id, product.id),
+    getProductReviews(product.id),
   ]);
   const { productDetail } = theme;
   const savedAmountPercent =
@@ -125,6 +128,12 @@ export default async function StorefrontProductPage({
               <h1 className="font-display text-2xl font-semibold text-brand-ink">
                 {product.name}
               </h1>
+              {reviewData.count > 0 && (
+                <a href="#opiniones" className="mt-1 inline-flex items-center gap-2 text-xs text-brand-ink-soft hover:underline">
+                  <Stars value={reviewData.average} />
+                  {reviewData.count} {reviewData.count === 1 ? "opinión" : "opiniones"}
+                </a>
+              )}
             </div>
 
             {!product.hasVariants && (
@@ -282,6 +291,14 @@ export default async function StorefrontProductPage({
             />
           </section>
         )}
+
+        <ProductReviews
+          brandSlug={slug}
+          productId={product.id}
+          average={reviewData.average}
+          count={reviewData.count}
+          reviews={reviewData.reviews.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }))}
+        />
 
         {productDetail.floatingAddToCart && (
           <FloatingAddToCartBar
