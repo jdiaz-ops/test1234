@@ -155,6 +155,26 @@ function ColorRow({
   onChange: (v: string) => void;
   disabled?: boolean;
 }) {
+  // El código se puede escribir a mano (ej. #2AAAE0, como en el selector
+  // de Shopify) — mientras se escribe puede estar incompleto, así que el
+  // texto vive acá y solo se manda arriba cuando es un hex válido. Si el
+  // valor cambia por otro lado (la paleta de colores, el selector), el
+  // texto se alinea. Ver conversación del 2026-09-30.
+  const [draft, setDraft] = useState(value);
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    setDraft(value);
+  }
+  function handleText(raw: string) {
+    const text = raw.trim();
+    setDraft(text);
+    const withHash = text.startsWith("#") ? text : `#${text}`;
+    const expanded = /^#[0-9a-f]{3}$/i.test(withHash)
+      ? `#${withHash[1]}${withHash[1]}${withHash[2]}${withHash[2]}${withHash[3]}${withHash[3]}`
+      : withHash;
+    if (/^#[0-9a-f]{6}$/i.test(expanded)) onChange(expanded.toLowerCase());
+  }
   return (
     <div className={`flex items-center gap-3 ${disabled ? "opacity-40" : ""}`}>
       <input
@@ -163,6 +183,18 @@ function ColorRow({
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         className="w-10 h-10 rounded-lg border border-brand-line cursor-pointer shrink-0"
+      />
+      <input
+        type="text"
+        value={draft}
+        onChange={(e) => handleText(e.target.value)}
+        onBlur={() => setDraft(value)}
+        disabled={disabled}
+        maxLength={7}
+        spellCheck={false}
+        placeholder="#000000"
+        aria-label={`Código de color: ${label}`}
+        className="input text-sm font-mono uppercase max-w-28 shrink-0"
       />
       <div>
         <p className="text-sm text-brand-ink">{label}</p>
