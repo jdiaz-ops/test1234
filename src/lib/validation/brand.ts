@@ -673,6 +673,13 @@ export const updateOrderFulfillmentSchema = z.object({
   trackingNumber: z.string().max(120).optional().or(z.literal("")),
 });
 
+/// Devolución de un pedido pagado (ver refundStoreOrder).
+export const refundOrderSchema = z.object({
+  orderId: z.string().min(1),
+  reason: z.string().max(500, "Máximo 500 caracteres").optional().or(z.literal("")),
+  restock: z.boolean().default(true),
+});
+
 export const updateOrderNotesSchema = z.object({
   orderId: z.string().min(1),
   internalNotes: z.string().max(2000).optional().or(z.literal("")),

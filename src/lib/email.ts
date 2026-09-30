@@ -203,3 +203,187 @@ export async function sendBroadcastEmail(to: string, subject: string, body: stri
     .join("\n");
   await send(to, subject, paragraphs);
 }
+
+// ----------------------------------------------------------------------------
+// Pedidos de "Mi tienda" — confirmación al comprador, aviso de venta a la
+// marca, envío con guía y devolución. Ver conversación del 2026-09-30 ("la
+// marca tiene que recibir correo también").
+// ----------------------------------------------------------------------------
+
+/// Todo lo que escribe el comprador (nombre, dirección, notas) pasa por acá
+/// antes de entrar al HTML del correo.
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatCOPCents(cents: number) {
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
+}
+
+export type OrderEmailData = {
+  orderNumber: string;
+  brandName: string;
+  brandLogoUrl: string | null;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  items: { name: string; variantLabel: string | null; quantity: number; unitPriceCents: number }[];
+  subtotalCents: number;
+  discountCents: number;
+  discountCode: string | null;
+  shippingCents: number;
+  taxCents: number;
+  totalCents: number;
+  shippingAddress: string | null;
+  shippingCity: string | null;
+  shippingRegion: string | null;
+  shippingNotes: string | null;
+};
+
+function emailLayout(brandName: string, logoUrl: string | null, inner: string) {
+  const header = logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(brandName)}" style="max-height:56px;max-width:200px">`
+    : `<strong style="font-size:18px">${escapeHtml(brandName)}</strong>`;
+  return `<div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:560px;margin:0 auto">
+  <div style="text-align:center;padding:24px 0;border-bottom:1px solid #eee">${header}</div>
+  <div style="padding:24px 0;font-size:14px;line-height:1.5">${inner}</div>
+</div>`;
+}
+
+function itemsTable(data: OrderEmailData) {
+  const rows = data.items
+    .map(
+      (i) => `<tr>
+  <td style="padding:8px 0;border-bottom:1px solid #eee">${escapeHtml(i.name)}${
+        i.variantLabel ? `<br><span style="color:#666;font-size:12px">${escapeHtml(i.variantLabel)}</span>` : ""
+      }</td>
+  <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:center">${i.quantity}</td>
+  <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right">${formatCOPCents(i.unitPriceCents * i.quantity)}</td>
+</tr>`,
+    )
+    .join("");
+  const line = (label: string, value: string, bold = false) =>
+    `<tr><td colspan="2" style="padding:4px 0;${bold ? "font-weight:bold" : "color:#555"}">${label}</td><td style="padding:4px 0;text-align:right;${bold ? "font-weight:bold" : ""}">${value}</td></tr>`;
+  return `<table style="width:100%;border-collapse:collapse;font-size:14px">
+<tr><th style="text-align:left;padding-bottom:6px">Producto</th><th style="padding-bottom:6px">Cant.</th><th style="text-align:right;padding-bottom:6px">Valor</th></tr>
+${rows}
+${line("Subtotal", formatCOPCents(data.subtotalCents))}
+${data.discountCents > 0 ? line(`Descuento${data.discountCode ? ` (${escapeHtml(data.discountCode)})` : ""}`, `-${formatCOPCents(data.discountCents)}`) : ""}
+${line("Envío", data.shippingCents > 0 ? formatCOPCents(data.shippingCents) : "Gratis")}
+${line("Total", formatCOPCents(data.totalCents), true)}
+${data.taxCents > 0 ? line("Incluye IVA", formatCOPCents(data.taxCents)) : ""}
+</table>`;
+}
+
+function addressBlock(data: OrderEmailData) {
+  if (!data.shippingAddress) return "";
+  const place = [data.shippingCity, data.shippingRegion].filter(Boolean).map((v) => escapeHtml(v!)).join(", ");
+  return `<p style="margin-top:20px"><strong>Dirección de envío</strong><br>${escapeHtml(data.buyerName)}<br>${escapeHtml(
+    data.shippingAddress,
+  )}<br>${place}${data.shippingNotes ? `<br><span style="color:#666">${escapeHtml(data.shippingNotes)}</span>` : ""}</p>`;
+}
+
+function button(href: string, label: string) {
+  return `<p style="text-align:center;margin:28px 0"><a href="${escapeHtml(
+    href,
+  )}" style="background:#111;color:#fff;text-decoration:none;padding:12px 24px;font-weight:bold;display:inline-block">${label}</a></p>`;
+}
+
+/// Al comprador, apenas Wompi aprueba el pago.
+export async function sendOrderConfirmationEmail(data: OrderEmailData, orderUrl: string | null) {
+  const firstName = data.buyerName.trim().split(/\s+/)[0] ?? "";
+  await send(
+    data.buyerEmail,
+    `Tu pedido #${data.orderNumber} en ${data.brandName} está confirmado`,
+    emailLayout(
+      data.brandName,
+      data.brandLogoUrl,
+      `<p>Hola ${escapeHtml(firstName)},</p>
+<p>Recibimos tu pago. Tu pedido <strong>#${data.orderNumber}</strong> ya está confirmado y ${escapeHtml(
+        data.brandName,
+      )} lo está preparando. Te avisamos por este medio cuando salga.</p>
+${itemsTable(data)}
+${addressBlock(data)}
+${orderUrl ? button(orderUrl, "Ver mi pedido") : ""}`,
+    ),
+  );
+}
+
+/// A la marca: "tienes una venta".
+export async function sendNewOrderBrandEmail(to: string, data: OrderEmailData, portalOrderUrl: string) {
+  await send(
+    to,
+    `Nueva venta: pedido #${data.orderNumber} por ${formatCOPCents(data.totalCents)}`,
+    emailLayout(
+      data.brandName,
+      data.brandLogoUrl,
+      `<p><strong>¡Tienes una venta nueva!</strong></p>
+<p>${escapeHtml(data.buyerName)} pagó el pedido <strong>#${data.orderNumber}</strong>.<br>
+<span style="color:#555">${escapeHtml(data.buyerEmail)} · ${escapeHtml(data.buyerPhone)}</span></p>
+${data.discountCode ? `<p>Usó el código de creador <strong>${escapeHtml(data.discountCode)}</strong>.</p>` : ""}
+${itemsTable(data)}
+${addressBlock(data)}
+${button(portalOrderUrl, "Ver el pedido")}
+<p style="color:#666;font-size:12px">El inventario de estos productos ya se descontó.</p>`,
+    ),
+  );
+}
+
+/// Al comprador, cuando la marca marca el pedido como enviado.
+export async function sendOrderShippedEmail(
+  data: Pick<OrderEmailData, "orderNumber" | "brandName" | "brandLogoUrl" | "buyerName" | "buyerEmail">,
+  shipment: { carrier: string | null; trackingNumber: string | null; trackingUrl: string | null },
+  orderUrl: string | null,
+) {
+  const firstName = data.buyerName.trim().split(/\s+/)[0] ?? "";
+  await send(
+    data.buyerEmail,
+    `Tu pedido #${data.orderNumber} de ${data.brandName} va en camino`,
+    emailLayout(
+      data.brandName,
+      data.brandLogoUrl,
+      `<p>Hola ${escapeHtml(firstName)},</p>
+<p>Tu pedido <strong>#${data.orderNumber}</strong> ya salió.</p>
+${
+  shipment.carrier || shipment.trackingNumber
+    ? `<p>${shipment.carrier ? `Transportadora: <strong>${escapeHtml(shipment.carrier)}</strong><br>` : ""}${
+        shipment.trackingNumber ? `Número de guía: <strong>${escapeHtml(shipment.trackingNumber)}</strong>` : ""
+      }</p>`
+    : ""
+}
+${shipment.trackingUrl ? button(shipment.trackingUrl, "Rastrear mi envío") : ""}
+${orderUrl ? `<p><a href="${escapeHtml(orderUrl)}">Ver mi pedido</a></p>` : ""}`,
+    ),
+  );
+}
+
+/// Al comprador, cuando la marca registra una devolución.
+export async function sendOrderRefundedEmail(
+  data: Pick<OrderEmailData, "orderNumber" | "brandName" | "brandLogoUrl" | "buyerName" | "buyerEmail" | "totalCents">,
+  reason: string | null,
+) {
+  const firstName = data.buyerName.trim().split(/\s+/)[0] ?? "";
+  await send(
+    data.buyerEmail,
+    `Devolución de tu pedido #${data.orderNumber} en ${data.brandName}`,
+    emailLayout(
+      data.brandName,
+      data.brandLogoUrl,
+      `<p>Hola ${escapeHtml(firstName)},</p>
+<p>${escapeHtml(data.brandName)} registró la devolución de tu pedido <strong>#${data.orderNumber}</strong> por ${formatCOPCents(
+        data.totalCents,
+      )}.</p>
+${reason ? `<p style="color:#555">Motivo: ${escapeHtml(reason)}</p>` : ""}
+<p>El dinero vuelve por el mismo medio con el que pagaste. Según tu banco puede tardar algunos días hábiles en verse.</p>`,
+    ),
+  );
+}

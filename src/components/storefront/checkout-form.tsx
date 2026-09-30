@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useCart } from "@/components/storefront/cart-context";
 import { cartLineKey } from "@/lib/storefront-cart";
 import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
+import { taxIncluded, orderTotal } from "@/lib/order-math";
 import {
   WompiCheckoutButton,
   type WompiWidgetParams,
@@ -153,8 +154,8 @@ export function CheckoutForm({
   // sumaba encima del precio y el comprador pagaba de más. Mismo cálculo
   // en el servidor (ver store-order-service.ts). Ver conversación del
   // 2026-09-30.
-  const taxAmount = Math.round(afterDiscount - afterDiscount / (1 + taxRatePercent / 100));
-  const total = afterDiscount + shippingCost;
+  const taxAmount = taxIncluded(afterDiscount, taxRatePercent);
+  const total = orderTotal({ subtotal, discount: discountAmount, shipping: shippingCost });
 
   async function handleApplyCode(codeOverride?: string) {
     const toApply = codeOverride ?? code;

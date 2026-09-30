@@ -15,6 +15,14 @@ import {
   pickShippingRate,
 } from "@/server/services/shipping-zone-service";
 import { ensureStoreCustomerExists } from "@/server/services/store-customer-service";
+import { taxIncluded, orderTotal, stockMovements } from "@/lib/order-math";
+import { applyStockMovements } from "@/server/services/store-stock-service";
+import {
+  sendOrderPaidEmails,
+  sendOrderShippedEmailFor,
+  sendOrderRefundedEmailFor,
+} from "@/server/services/store-order-email-service";
+import { recordRefundFromWebhook } from "@/server/services/attribution-service";
 
 /// Carrito y checkout nativos de "Mi tienda" — la vitrina pública de una
 /// marca en marcolini.lat/t/{storefrontSlug}. El carrito vive en el
@@ -425,10 +433,9 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   // precio que se ingresa viene IVA incluido"). Se guarda en centavos, no
   // el %, para que un pedido viejo no cambie si la marca ajusta la tasa
   // después (ver StoreOrder.taxCents). Ver conversación del 2026-09-30.
-  const taxRate = Number(brand.taxRatePercent) / 100;
-  const taxCents = Math.round(afterDiscount - afterDiscount / (1 + taxRate));
+  const taxCents = taxIncluded(afterDiscount, Number(brand.taxRatePercent));
 
-  const totalCents = afterDiscount + shippingCents;
+  const totalCents = orderTotal({ subtotal: subtotalCents, discount: discountCents, shipping: shippingCents });
   if (totalCents <= 0) {
     throw new StoreOrderError("El total del pedido debe ser mayor a cero.");
   }
@@ -604,7 +611,9 @@ export async function updateOrderFulfillment(
   }
 
   const now = new Date();
-  return prisma.storeOrder.update({
+  const becomesShipped =
+    !order.shippedAt && (data.fulfillmentStatus === "SHIPPED" || data.fulfillmentStatus === "DELIVERED");
+  const result = await prisma.storeOrder.update({
     where: { id: order.id },
     data: {
       fulfillmentStatus: data.fulfillmentStatus,
@@ -626,6 +635,56 @@ export async function updateOrderFulfillment(
         order.deliveredAt ?? (data.fulfillmentStatus === "DELIVERED" ? now : null),
     },
   });
+  // La primera vez que sale, el comprador recibe la guía y el link de
+  // rastreo. Ver conversación del 2026-09-30.
+  if (becomesShipped) await sendOrderShippedEmailFor(order.id);
+  return result;
+}
+
+/// Devolución de un pedido pagado, registrada por la marca desde el
+/// detalle del pedido. El dinero se devuelve desde el panel de Wompi (la
+/// API de Wompi no permite reembolsar todos los medios de pago); acá se
+/// deja constancia, se repone el inventario si la marca lo pide, se
+/// detiene la comisión del creador y se le avisa al comprador. Ver
+/// conversación del 2026-09-30.
+export async function refundStoreOrder(
+  brandId: string,
+  data: { orderId: string; reason?: string | null; restock: boolean },
+) {
+  const order = await prisma.storeOrder.findFirst({
+    where: { id: data.orderId, brandId },
+    include: { items: { select: { productId: true, variantId: true, quantity: true } } },
+  });
+  if (!order) throw new StoreOrderError("Pedido no encontrado.");
+  if (order.status === "REFUNDED") throw new StoreOrderError("Este pedido ya tiene la devolución registrada.");
+  if (order.status !== "PAID") throw new StoreOrderError("Solo se puede devolver un pedido pagado.");
+
+  const reason = data.reason?.trim() || null;
+  const updated = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.storeOrder.updateMany({
+      where: { id: order.id, status: "PAID" },
+      data: { status: "REFUNDED", refundedAt: new Date(), refundReason: reason, restocked: data.restock },
+    });
+    if (claimed.count === 0) throw new StoreOrderError("Este pedido ya cambió de estado. Recarga la página.");
+    if (data.restock) await applyStockMovements(tx, stockMovements(order.items), 1);
+    return tx.storeOrder.findUniqueOrThrow({ where: { id: order.id } });
+  });
+
+  if (order.discountCode) {
+    try {
+      await recordRefundFromWebhook({
+        brandId,
+        source: "MARCOLINI",
+        externalOrderId: order.id,
+        refundedAt: updated.refundedAt ?? new Date(),
+      });
+    } catch (err) {
+      console.error(`[mi-tienda] No se pudo revertir la comisión del pedido ${order.id}:`, err);
+    }
+  }
+
+  await sendOrderRefundedEmailFor(order.id, reason);
+  return updated;
 }
 
 /// Notas internas — nunca las ve el comprador. Ver conversación del
@@ -659,15 +718,33 @@ export async function applyWompiTransactionStatus(params: {
   if (order.status !== "PENDING") return { order };
 
   if (params.wompiStatus === "APPROVED") {
-    const updated = await prisma.storeOrder.update({
-      where: { id: order.id },
-      data: {
-        status: "PAID",
-        wompiTransactionId: params.wompiTransactionId,
-        wompiStatus: params.wompiStatus,
-        paidAt: new Date(),
-      },
+    // Marca pagado y descuenta el inventario en una sola transacción. El
+    // updateMany condicionado a PENDING hace que, si el webhook y la
+    // consulta directa a Wompi llegan al mismo tiempo, solo uno de los dos
+    // "gane" y el inventario se descuente una sola vez. Antes el pago se
+    // registraba pero el inventario nunca bajaba. Ver conversación del
+    // 2026-09-30.
+    const updated = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.storeOrder.updateMany({
+        where: { id: order.id, status: "PENDING" },
+        data: {
+          status: "PAID",
+          wompiTransactionId: params.wompiTransactionId,
+          wompiStatus: params.wompiStatus,
+          paidAt: new Date(),
+        },
+      });
+      if (claimed.count === 0) return null;
+      const items = await tx.storeOrderItem.findMany({
+        where: { orderId: order.id },
+        select: { productId: true, variantId: true, quantity: true },
+      });
+      await applyStockMovements(tx, stockMovements(items), -1);
+      return tx.storeOrder.findUniqueOrThrow({ where: { id: order.id } });
     });
+    if (!updated) {
+      return { order: await prisma.storeOrder.findUnique({ where: { id: order.id } }) };
+    }
 
     // Registra/actualiza el cliente en el CRM de "Mi tienda" — así el
     // registro existe desde la primera compra, sin que la marca tenga
@@ -711,6 +788,10 @@ export async function applyWompiTransactionStatus(params: {
         );
       }
     }
+
+    // Confirmación al comprador + "tienes una venta" a la marca. Nunca
+    // tumba el pago (ver sendOrderPaidEmails).
+    await sendOrderPaidEmails(order.id);
 
     return { order: updated };
   }

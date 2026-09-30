@@ -3,7 +3,7 @@ import Link from "next/link";
 export type StoreOrderRow = {
   id: string;
   kind: "PURCHASE" | "SAMPLE";
-  status: "PENDING" | "PAID" | "FAILED" | "EXPIRED";
+  status: "PENDING" | "PAID" | "FAILED" | "EXPIRED" | "REFUNDED";
   fulfillmentStatus: "UNFULFILLED" | "PREPARED" | "SHIPPED" | "DELIVERED";
   reference: string;
   buyerName: string;
@@ -48,6 +48,7 @@ const STATUS_LABEL: Record<StoreOrderRow["status"], string> = {
   PAID: "Pagado",
   FAILED: "Fallido",
   EXPIRED: "Vencido",
+  REFUNDED: "Devuelto",
 };
 
 const STATUS_CLASS: Record<StoreOrderRow["status"], string> = {
@@ -55,6 +56,7 @@ const STATUS_CLASS: Record<StoreOrderRow["status"], string> = {
   PAID: "bg-brand-accent-soft text-brand-accent",
   FAILED: "bg-red-100 text-red-700",
   EXPIRED: "bg-gray-100 text-gray-500",
+  REFUNDED: "bg-purple-100 text-purple-700",
 };
 
 const FULFILLMENT_LABEL: Record<StoreOrderRow["fulfillmentStatus"], string> = {

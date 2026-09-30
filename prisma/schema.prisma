@@ -652,6 +652,7 @@ model BrandProfile {
   wompiIntegrityKeyProd String?
 
   storeOrders         StoreOrder[]
+  productReviews      ProductReview[]
   sampleRequests      SampleRequest[]
   contentLicenses     ContentLicense[]
   paidContentRequests PaidContentRequest[]
@@ -1054,6 +1055,7 @@ enum StoreOrderStatus {
   PAID // Wompi confirmó la transacción como aprobada (o es una muestra, $0)
   FAILED // Wompi la rechazó / declinó / dio error
   EXPIRED // nunca se completó y el link/reference quedó vencido
+  REFUNDED // la marca registró la devolución (ver refundStoreOrder) — el dinero se devuelve desde Wompi
 }
 
 /// Estado de preparación/entrega, aparte del pago (StoreOrderStatus) —
@@ -1183,6 +1185,13 @@ model StoreOrder {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   paidAt    DateTime?
+
+  /// Devolución registrada por la marca (ver refundStoreOrder). restocked
+  /// = si al registrarla se repuso el inventario. Ver conversación del
+  /// 2026-09-30.
+  refundedAt   DateTime?
+  refundReason String?
+  restocked    Boolean   @default(false)
 
   @@index([brandId, status])
 }
@@ -2140,6 +2149,7 @@ model Product {
 
   collectionItems CollectionProduct[]
   storeOrderItems StoreOrderItem[]
+  reviews         ProductReview[]
   sampleRequests  SampleRequest[]
 
   lastSyncedAt DateTime @default(now())
@@ -2379,4 +2389,56 @@ model ShippingZoneRate {
   createdAt DateTime @default(now())
 
   @@index([zoneId])
+}
+
+// ----------------------------------------------------------------------------
+// RESEÑAS DE PRODUCTOS (agregado 2026-09-30) — solo compradores con un
+// pedido pagado de ese producto (se verifica por correo), y la marca decide
+// cuáles se publican. Ver product-review-service.ts.
+// ----------------------------------------------------------------------------
+
+enum ProductReviewStatus {
+  PENDING // esperando que la marca la apruebe
+  APPROVED // publicada en la ficha del producto
+  HIDDEN // la marca la ocultó
+}
+
+model ProductReview {
+  id String @id @default(cuid())
+
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// Pedido pagado que la habilitó — prueba de que sí compró.
+  orderId String?
+
+  authorName  String
+  authorEmail String
+  rating      Int // 1 a 5
+  body        String
+
+  status ProductReviewStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, authorEmail])
+  @@index([brandId, status])
+  @@index([productId, status])
+}
+
+// ----------------------------------------------------------------------------
+// LÍMITE DE INTENTOS (agregado 2026-09-30) — ventana fija por llave
+// ("codigo:{ip}", "pedido:{ip}"...). Vive en la base de datos porque en
+// Vercel cada petición puede caer en una instancia distinta y un contador
+// en memoria no serviría. Ver src/lib/rate-limit.ts.
+// ----------------------------------------------------------------------------
+
+model RateLimit {
+  key         String   @id
+  windowStart DateTime
+  count       Int
 }

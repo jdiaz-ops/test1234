@@ -9,6 +9,7 @@ import {
 import { applyWompiTransactionStatus } from "@/server/services/store-order-service";
 import { ClearCartIfPaid } from "@/components/storefront/clear-cart-if-paid";
 import { getStoreBasePath } from "@/lib/store-base-path";
+import { trackingUrlFor } from "@/lib/carriers";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -34,6 +35,10 @@ const STATUS_COPY: Record<string, { title: string; body: string }> = {
   EXPIRED: {
     title: "El pedido venció",
     body: "Vuelve a la tienda para hacer el pedido de nuevo.",
+  },
+  REFUNDED: {
+    title: "Tu pedido fue devuelto",
+    body: "La marca registró la devolución. El dinero vuelve por el mismo medio con el que pagaste.",
   },
 };
 
@@ -101,6 +106,32 @@ export default async function StorefrontOrderStatusPage({
               : "La marca va a confirmar (o proponerte otra) la fecha y hora — te avisamos por correo."
             : copy.body}
         </p>
+
+        {/* Envío en camino: transportadora, guía y link de rastreo — lo
+            mismo que le llegó por correo. Ver conversación del 2026-09-30. */}
+        {order.status === "PAID" && order.shippedAt && (
+          <div className="text-left rounded-xl border border-brand-line p-4 mb-4 text-sm space-y-1">
+            <p className="font-medium text-brand-ink">
+              {order.deliveredAt ? "Tu pedido fue entregado" : "Tu pedido va en camino"}
+            </p>
+            {order.carrier && <p className="text-brand-ink-soft">Transportadora: {order.carrier}</p>}
+            {order.trackingNumber && (
+              <p className="text-brand-ink-soft">
+                Número de guía: <span className="font-mono text-brand-ink">{order.trackingNumber}</span>
+              </p>
+            )}
+            {trackingUrlFor(order.carrier) && (
+              <a
+                href={trackingUrlFor(order.carrier)!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-1 text-brand-ink underline font-medium"
+              >
+                Rastrear en {order.carrier}
+              </a>
+            )}
+          </div>
+        )}
 
         <div className="text-left rounded-xl border border-brand-line p-4 mb-6 space-y-1.5 text-sm">
           {order.items.map((item) => (

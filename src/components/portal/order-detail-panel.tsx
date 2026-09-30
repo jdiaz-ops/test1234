@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { CARRIERS } from "@/lib/carriers";
 
 export type OrderDetailItem = {
   id: string;
@@ -153,6 +155,9 @@ export function OrderFulfillmentPanel({
 }) {
   const [status, setStatus] = useState<FulfillmentStatusValue>(initialStatus);
   const [carrier, setCarrier] = useState(initialCarrier ?? "");
+  // "Otra": la transportadora no está en la lista y se escribe a mano.
+  const isKnownCarrier = (value: string) => CARRIERS.some((c) => c.name === value);
+  const [otherCarrier, setOtherCarrier] = useState(Boolean(initialCarrier) && !isKnownCarrier(initialCarrier ?? ""));
   const [trackingNumber, setTrackingNumber] = useState(initialTrackingNumber ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -214,15 +219,40 @@ export function OrderFulfillmentPanel({
       <div className="grid sm:grid-cols-2 gap-2">
         <div>
           <label className="block text-xs text-brand-ink mb-1">Transportadora</label>
-          <input
-            value={carrier}
+          <select
+            value={otherCarrier ? "__other" : carrier}
             onChange={(e) => {
-              setCarrier(e.target.value);
+              const value = e.target.value;
               setSaved(false);
+              if (value === "__other") {
+                setOtherCarrier(true);
+                setCarrier("");
+              } else {
+                setOtherCarrier(false);
+                setCarrier(value);
+              }
             }}
-            placeholder="Ej. Servientrega"
             className="input text-sm"
-          />
+          >
+            <option value="">Elige una</option>
+            {CARRIERS.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+            <option value="__other">Otra</option>
+          </select>
+          {otherCarrier && (
+            <input
+              value={carrier}
+              onChange={(e) => {
+                setCarrier(e.target.value);
+                setSaved(false);
+              }}
+              placeholder="Nombre de la transportadora"
+              className="input text-sm mt-2"
+            />
+          )}
         </div>
         <div>
           <label className="block text-xs text-brand-ink mb-1">Número de guía</label>
@@ -242,6 +272,11 @@ export function OrderFulfillmentPanel({
           {times.shippedAt && <p>Enviado: {formatDateTime(times.shippedAt)}</p>}
           {times.deliveredAt && <p>Entregado: {formatDateTime(times.deliveredAt)}</p>}
         </div>
+      )}
+      {!times.shippedAt && (
+        <p className="text-xs text-brand-ink-soft">
+          Cuando lo marques como Enviado, el comprador recibe un correo con la transportadora, el número de guía y el link para rastrearlo.
+        </p>
       )}
       {error && <p className="text-xs text-red-600">{error}</p>}
       <button
@@ -378,6 +413,118 @@ export function OrderItemsList({
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/// Devolución de un pedido pagado. El dinero se devuelve desde el panel de
+/// Wompi; acá queda registrada, se repone el inventario si la marca lo
+/// marca, se detiene la comisión del creador y el comprador recibe un
+/// correo. Ver refundStoreOrder y conversación del 2026-09-30.
+export function OrderRefundPanel({
+  orderId,
+  totalLabel,
+  hasPhysicalItems,
+  refund,
+}: {
+  orderId: string;
+  totalLabel: string;
+  hasPhysicalItems: boolean;
+  /// Si ya está devuelto, los datos de la devolución.
+  refund: { refundedAt: string; reason: string | null; restocked: boolean } | null;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [restock, setRestock] = useState(hasPhysicalItems);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (refund) {
+    return (
+      <div className="space-y-1 text-sm">
+        <p className="text-brand-ink">Devuelto el {formatDateTime(refund.refundedAt)}.</p>
+        {refund.reason && <p className="text-brand-ink-soft">Motivo: {refund.reason}</p>}
+        <p className="text-brand-ink-soft">
+          {refund.restocked ? "El inventario se repuso." : "El inventario no se repuso."}
+        </p>
+      </div>
+    );
+  }
+
+  async function handleRefund() {
+    if (!window.confirm(`¿Registrar la devolución de ${totalLabel}? Esto no se puede deshacer.`)) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/marca/tienda/pedidos/devolucion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, reason, restock }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "No se pudo registrar la devolución.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("No se pudo registrar — revisa tu conexión.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-sm text-red-600 hover:underline"
+      >
+        Registrar devolución
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-3 text-sm">
+      <p className="text-brand-ink-soft">
+        Primero devuelve el dinero desde tu panel de Wompi (Transacciones → la del pedido → Anular o reembolsar).
+        Después regístralo acá: el pedido queda como Devuelto, la comisión del creador se cancela y el comprador
+        recibe un correo.
+      </p>
+      <div>
+        <label className="block text-xs text-brand-ink mb-1">Motivo (opcional, lo ve el comprador)</label>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={2}
+          maxLength={500}
+          className="input text-sm"
+          placeholder="Ej. El producto llegó en mal estado"
+        />
+      </div>
+      {hasPhysicalItems && (
+        <label className="flex items-center gap-2 text-brand-ink">
+          <input type="checkbox" checked={restock} onChange={(e) => setRestock(e.target.checked)} />
+          Reponer el inventario de estos productos
+        </label>
+      )}
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleRefund}
+          disabled={saving}
+          className="bg-red-600 text-white rounded-full px-4 py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? "Registrando..." : `Registrar devolución de ${totalLabel}`}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="text-xs text-brand-ink-soft hover:underline">
+          Cancelar
+        </button>
+      </div>
     </div>
   );
 }

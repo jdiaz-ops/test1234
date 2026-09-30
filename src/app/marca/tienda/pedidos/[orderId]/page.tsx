@@ -6,6 +6,7 @@ import {
   OrderItemsList,
   OrderFulfillmentPanel,
   OrderNotesEditor,
+  OrderRefundPanel,
 } from "@/components/portal/order-detail-panel";
 
 function formatCOP(cents: number) {
@@ -29,6 +30,7 @@ const STATUS_LABEL: Record<string, string> = {
   PAID: "Pagado",
   FAILED: "Fallido",
   EXPIRED: "Vencido",
+  REFUNDED: "Devuelto",
 };
 
 const STATUS_CLASS: Record<string, string> = {
@@ -36,6 +38,7 @@ const STATUS_CLASS: Record<string, string> = {
   PAID: "bg-brand-accent-soft text-brand-accent",
   FAILED: "bg-red-100 text-red-700",
   EXPIRED: "bg-gray-100 text-gray-500",
+  REFUNDED: "bg-purple-100 text-purple-700",
 };
 
 const FULFILLMENT_LABEL: Record<string, string> = {
@@ -287,6 +290,26 @@ export default async function TiendaPedidoDetallePage({
               </p>
             )}
           </div>
+
+          {(order.status === "PAID" || order.status === "REFUNDED") && (
+            <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-2">
+              <p className="text-xs font-medium text-brand-ink-soft">Devolución</p>
+              <OrderRefundPanel
+                orderId={order.id}
+                totalLabel={formatCOP(order.totalCents)}
+                hasPhysicalItems={!isService && !isDigital}
+                refund={
+                  order.status === "REFUNDED" && order.refundedAt
+                    ? {
+                        refundedAt: order.refundedAt.toISOString(),
+                        reason: order.refundReason,
+                        restocked: order.restocked,
+                      }
+                    : null
+                }
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

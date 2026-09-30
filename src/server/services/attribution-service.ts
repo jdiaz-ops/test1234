@@ -438,7 +438,9 @@ async function checkAbnormalOrderSpike(enrollmentId: string) {
 /// el comportamiento seguro por defecto.
 export async function recordRefundFromWebhook(params: {
   brandId: string;
-  source: "SHOPIFY" | "WOOCOMMERCE";
+  /// MARCOLINI = devolución registrada por la marca en un pedido del
+  /// checkout de "Mi tienda" (ver refundStoreOrder).
+  source: "SHOPIFY" | "WOOCOMMERCE" | "MARCOLINI";
   externalOrderId: string;
   refundedAt: Date;
 }) {
