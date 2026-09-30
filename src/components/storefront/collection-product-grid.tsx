@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
-import { CARD_BUTTON_CLASS, DiscountBadge, ProductPrice } from "@/components/storefront/product-card";
+import {
+  CARD_BUTTON_CLASS,
+  CARD_PRIMARY_BUTTON_CLASS,
+  DiscountBadge,
+  ProductPrice,
+} from "@/components/storefront/product-card";
 import type { ThemeConfig } from "@/lib/brand-theme";
 
 type CollectionProduct = {
@@ -31,16 +36,16 @@ export function CollectionProductGrid({
   config: ThemeConfig["collections"];
 }) {
   return (
-    // Fijo de a 2 en celular (pedido explícito) — en computadora, 3 por
-    // fila: con 4 las tarjetas quedan angostas para dos botones apilados
-    // ("Ver producto" + "Agregar al carrito"), 3 les deja más aire.
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+    // Fijo de a 2 en celular (pedido explícito) y 4 por fila en
+    // computadora, como la página de colección de la tienda Shopify que la
+    // marca tomó de referencia. Ver conversación del 2026-09-30.
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
       {products.map((product) => {
         const href = `${basePath}/${product.slug}`;
         return (
           <div key={product.id} className="flex flex-col">
             {config.showImage && (
-              <Link href={href} className="relative block overflow-hidden rounded-lg bg-brand-accent-soft">
+              <Link href={href} className="relative block bg-brand-accent-soft">
                 {product.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
                   <img
@@ -54,7 +59,7 @@ export function CollectionProductGrid({
                 <DiscountBadge price={product.price} compareAtPrice={product.compareAtPrice} />
               </Link>
             )}
-            <div className="pt-2.5 flex flex-col gap-1.5 flex-1">
+            <div className="pt-3 flex flex-col gap-1.5 flex-1">
               {config.showTitle && (
                 <Link href={href}>
                   {product.type === "SERVICE" && (
@@ -68,7 +73,7 @@ export function CollectionProductGrid({
                   </p>
                 </Link>
               )}
-              <ProductPrice price={product.price} compareAtPrice={product.compareAtPrice} />
+              <ProductPrice price={product.price} compareAtPrice={product.compareAtPrice} className="text-lg" />
               {(config.showViewProductButton || config.showAddToCartButton) && (
                 <div className="mt-auto pt-1 flex flex-col gap-1.5">
                   {config.showViewProductButton && (
@@ -91,7 +96,7 @@ export function CollectionProductGrid({
                         stock: product.stock,
                         type: product.type,
                       }}
-                      className={`${CARD_BUTTON_CLASS} bg-brand-accent text-white hover:opacity-90 disabled:opacity-40`}
+                      className={`${CARD_BUTTON_CLASS} ${CARD_PRIMARY_BUTTON_CLASS}`}
                     />
                   )}
                 </div>
