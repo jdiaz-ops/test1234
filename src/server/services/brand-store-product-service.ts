@@ -366,6 +366,25 @@ export async function updateManualProduct(
   return updated;
 }
 
+/// Pone en Activo todos los borradores de la marca que se pueden vender
+/// (tienen precio o variantes) — el botón "Activar todos los borradores"
+/// de la lista de productos. Nació para recuperar los productos que una
+/// reimportación del CSV de Shopify había mandado a borrador de golpe
+/// (ver shopify-csv-import-service.ts); sirve igual para publicar un lote
+/// de una vez. Devuelve cuántos cambió.
+export async function activateDraftProducts(brandId: string) {
+  const result = await prisma.product.updateMany({
+    where: {
+      brandId,
+      manual: true,
+      status: "DRAFT",
+      OR: [{ price: { gt: 0 } }, { hasVariants: true }],
+    },
+    data: { status: "ACTIVE", available: true },
+  });
+  return result.count;
+}
+
 export async function deleteManualProduct(brandId: string, productId: string) {
   const product = await prisma.product.findFirst({
     where: { id: productId, brandId, manual: true },

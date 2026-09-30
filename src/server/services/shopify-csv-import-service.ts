@@ -84,7 +84,13 @@ export async function importShopifyProducts(
         weight: item.weight ?? null,
         weightUnit: item.weightUnit,
         stock: item.stock ?? null,
-        status: item.status,
+        // Un producto que ya existe conserva el estado que tiene en
+        // Marcolini. Antes tomaba el del CSV en cada subida, y como la
+        // exportación refleja el estado en Shopify (Published/Status), al
+        // volver a subir el archivo para traer inventario los productos
+        // que en Shopify ya estaban despublicados pasaban a borrador acá
+        // y "desaparecían de la web". Ver conversación del 2026-09-30.
+        status: existing ? existing.status : item.status,
         type: "PHYSICAL",
         collectionIds: Array.from(collectionIds),
         hasVariants: item.hasVariants,

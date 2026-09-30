@@ -38,6 +38,41 @@ export function StoreProductsPanel({
   });
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activating, setActivating] = useState(false);
+  const [activatedNotice, setActivatedNotice] = useState<string | null>(null);
+
+  /// Borradores que sí se podrían vender (con precio o variantes) — los
+  /// que cuenta el aviso de "no se ven en la tienda". Un borrador sin
+  /// precio no se activa en lote: hay que ponerle precio primero.
+  const sellableDrafts = products.filter(
+    (p) => p.status === "DRAFT" && (p.hasVariants || p.price > 0),
+  ).length;
+
+  async function handleActivateDrafts() {
+    if (
+      !window.confirm(
+        `¿Activar ${sellableDrafts} productos en borrador? Van a verse y poder comprarse en tu tienda de inmediato.`,
+      )
+    )
+      return;
+    setActivating(true);
+    setError(null);
+    setActivatedNotice(null);
+    try {
+      const res = await fetch("/api/marca/tienda/productos/activar-borradores", { method: "POST" });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "No se pudieron activar los borradores.");
+        return;
+      }
+      setActivatedNotice(`Listo: ${body?.count ?? 0} productos activados.`);
+      reloadProducts();
+    } catch {
+      setError("No se pudieron activar — revisa tu conexión.");
+    } finally {
+      setActivating(false);
+    }
+  }
 
   function reloadProducts() {
     router.refresh();
@@ -155,6 +190,25 @@ export function StoreProductsPanel({
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
+      {activatedNotice && <p className="text-sm text-green-700">{activatedNotice}</p>}
+
+      {sellableDrafts > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-amber-900">
+            {sellableDrafts === 1
+              ? "Tienes 1 producto en borrador: no se ve en tu tienda."
+              : `Tienes ${sellableDrafts} productos en borrador: no se ven en tu tienda.`}
+          </p>
+          <button
+            type="button"
+            onClick={handleActivateDrafts}
+            disabled={activating}
+            className="rounded-full bg-brand-ink text-brand-bg px-5 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            {activating ? "Activando…" : sellableDrafts === 1 ? "Activar ese producto" : "Activar todos los borradores"}
+          </button>
+        </div>
+      )}
 
       {products.length === 0 ? (
         <p className="text-sm text-brand-ink-soft">

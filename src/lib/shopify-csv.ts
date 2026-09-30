@@ -53,6 +53,10 @@ export type ShopifyCsvStats = {
   /// actual de Shopify ya no trae la columna "Variant Inventory Qty"
   /// (el inventario se exporta aparte).
   unknownStock: number;
+  /// Productos que entrarían como borrador (despublicados o archivados en
+  /// Shopify, o sin precio) — solo aplica a productos nuevos; los que ya
+  /// existen conservan su estado (ver shopify-csv-import-service.ts).
+  draft: number;
 };
 
 export type ShopifyCsvParseResult = {
@@ -225,7 +229,7 @@ export function parseShopifyProductsCsv(text: string): ShopifyCsvParseResult {
 
   const products: ShopifyImportProduct[] = [];
   const warnings: string[] = [];
-  const stats: ShopifyCsvStats = { products: 0, withVariants: 0, images: 0, unknownStock: 0 };
+  const stats: ShopifyCsvStats = { products: 0, withVariants: 0, images: 0, unknownStock: 0, draft: 0 };
 
   const stockFor = (row: Row): number | null => {
     if (!hasQtyColumn) return null;
@@ -338,6 +342,7 @@ export function parseShopifyProductsCsv(text: string): ShopifyCsvParseResult {
 
     stats.products++;
     stats.images += images.length;
+    if (products[products.length - 1]?.status === "DRAFT") stats.draft++;
     if (unknownStock) stats.unknownStock++;
   }
 

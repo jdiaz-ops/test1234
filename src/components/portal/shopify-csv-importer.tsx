@@ -154,6 +154,18 @@ export function ShopifyCsvImporter({
                   hasta que les pongas stock desde Editar.
                 </p>
               )}
+              {parsed.stats.draft > 0 && (
+                <p className="text-xs text-brand-ink-soft">
+                  {parsed.stats.draft} de estos productos están despublicados,
+                  archivados o sin precio en Shopify: si son nuevos acá entran
+                  como borrador (no se ven en la tienda hasta que los actives).
+                </p>
+              )}
+              <p className="text-xs text-brand-ink-soft">
+                Los productos que ya existen en Marcolini se actualizan (datos,
+                fotos, inventario) pero conservan su estado actual: si están
+                activos, siguen activos.
+              </p>
               {parsed.warnings.length > 0 && (
                 <ul className="text-xs text-amber-700 list-disc pl-4 space-y-0.5">
                   {parsed.warnings.slice(0, 8).map((warning, i) => (
