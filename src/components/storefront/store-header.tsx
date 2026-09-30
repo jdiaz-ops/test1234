@@ -94,7 +94,7 @@ export function StoreHeader({
   const cartLarge = header.desktop.iconSize === "large";
   const desktopCentered = header.desktop.logoPosition === "center";
   const mobileCentered = header.mobile.logoPosition === "center";
-  const showSearch = header.mobile.show === "search";
+  const showSearch = header.showSearch;
   // Habilitado por defecto (ver theme.header.showMenu) — sin ítems en el
   // menú no hay nada que mostrar, así que igual se apaga.
   const showMenu = header.showMenu && menuItems.length > 0;
@@ -210,6 +210,31 @@ export function StoreHeader({
   // El mismo ícono de carrito que el navegador de abajo, con el contador
   // encima — antes era una pastilla con la palabra "Carrito". Ver
   // conversación del 2026-09-30.
+  // Lupa de computadora — lleva a la página de búsqueda; en celular no
+  // hace falta porque ahí va la barra grande (searchBar).
+  const desktopSearchLink = showSearch && (
+    <Link
+      href={`${basePath}/buscar`}
+      aria-label="Buscar"
+      className={`hidden sm:flex shrink-0 items-center justify-center rounded-full text-brand-ink hover:bg-brand-accent-soft ${
+        cartLarge ? "w-12 h-12" : "w-10 h-10"
+      }`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={cartLarge ? "w-7 h-7" : "w-6 h-6"}
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
+      </svg>
+    </Link>
+  );
+
   const cartButton = (
     <button
       type="button"
@@ -257,6 +282,7 @@ export function StoreHeader({
             {desktopCentered && <div className="hidden sm:flex justify-center">{desktopNav}</div>}
             <div className={`flex items-center gap-4 ${desktopCentered ? "justify-end" : ""} ${mobileCentered ? "ml-auto" : ""}`}>
               {!desktopCentered && desktopNav}
+              {desktopSearchLink}
               {cartButton}
             </div>
           </div>

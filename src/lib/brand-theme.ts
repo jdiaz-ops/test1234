@@ -140,6 +140,12 @@ const headerSchema = withDefaults({
   /// página es aparte, ver footer.menuPrimary.show — habilitado por
   /// defecto. Ver conversación del 2026-09-14.
   showMenu: z.boolean().default(true),
+  /// Buscador en el encabezado, en celular y computadora a la vez: en
+  /// celular es la barra de búsqueda junto al logo, en computadora la
+  /// lupa junto al carrito. Reemplaza a mobile.show, que solo aplicaba a
+  /// celular ("la opción de poder ver o no el buscador"). Ver conversación
+  /// del 2026-09-30.
+  showSearch: z.boolean().default(true),
   mobile: withDefaults({
     logoPosition: z.enum(["center", "left"]).default("center"),
     show: z.enum(["search", "categories", "icons"]).default("search"),

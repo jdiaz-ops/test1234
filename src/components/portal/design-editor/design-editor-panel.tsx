@@ -88,10 +88,12 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
     // tienda. Ver conversación del 2026-09-30.
     title: "Otras páginas",
     items: [
-      { key: "productListing", label: "Catálogo" },
+      { key: "productListing", label: "Página de colecciones" },
       { key: "productDetail", label: "Página de producto" },
       { key: "cart", label: "Carrito" },
-      { key: "popup", label: "Pop-up promocional" },
+      // "Pop-up promocional" se escondió del menú a pedido de la marca
+      // (sigue en el tema y en la vitrina si alguna tienda lo dejó
+      // activo). Ver conversación del 2026-09-30.
     ],
   },
 ];

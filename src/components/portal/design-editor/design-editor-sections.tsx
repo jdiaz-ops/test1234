@@ -318,6 +318,14 @@ export function HeaderSection({ theme, patch }: { theme: ThemeConfig; patch: Pat
         </select>
       </Field>
       <Checkbox
+        label="Mostrar buscador"
+        checked={h.showSearch}
+        onChange={(v) => patch({ header: { showSearch: v } })}
+      />
+      <p className="text-[11px] text-brand-ink-soft -mt-1">
+        En celular es la barra de búsqueda junto al logo; en computador, la lupa junto al carrito.
+      </p>
+      <Checkbox
         label="Encabezado siempre visible al navegar el sitio"
         checked={h.sticky}
         onChange={(v) => patch({ header: { sticky: v } })}
@@ -346,14 +354,6 @@ export function HeaderSection({ theme, patch }: { theme: ThemeConfig; patch: Pat
             <option value="left">Izquierda</option>
           </select>
         </Field>
-        <Checkbox
-          label="Buscador en el encabezado"
-          checked={h.mobile.show === "search"}
-          onChange={(v) => patch({ header: { mobile: { show: v ? "search" : "icons" } } })}
-        />
-        <p className="text-[11px] text-brand-ink-soft -mt-1">
-          Reemplaza el logo centrado por logo a la izquierda + buscador.
-        </p>
         <Field label="Estilo del menú">
           <select
             value={h.mobile.menuStyle}
@@ -821,7 +821,12 @@ export function CartSection({ theme, patch }: { theme: ThemeConfig; patch: Patch
     // calculadora de envío se quitaron a pedido de la marca (simplificar).
     // Ver conversación del 2026-09-30.
     <div className="space-y-4 max-w-sm">
-      <Checkbox label="Sugerir productos complementarios" checked={c.suggestComplementary} onChange={(v) => patch({ cart: { suggestComplementary: v } })} />
+      <Checkbox label="Sugerir productos complementarios en el carrito" checked={c.suggestComplementary} onChange={(v) => patch({ cart: { suggestComplementary: v } })} />
+      <p className="text-[11px] text-brand-ink-soft -mt-2">
+        Debajo de lo que lleva el comprador aparece &quot;Completa tu compra&quot; con hasta 4
+        productos de las mismas colecciones que los del carrito (si no hay, los más
+        recientes de la tienda), cada uno con su botón de agregar.
+      </p>
       <Checkbox label="Permitir aplicar cupón de descuento en el carrito" checked={c.allowCoupon} onChange={(v) => patch({ cart: { allowCoupon: v } })} />
     </div>
   );

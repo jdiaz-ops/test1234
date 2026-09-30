@@ -121,6 +121,54 @@ export async function getRelatedProducts(brandId: string, productId: string, lim
   return related;
 }
 
+/// "Completa tu compra" en el carrito (ver theme.cart.suggestComplementary
+/// y CartList): hasta `limit` productos activos de las mismas colecciones
+/// que los que ya lleva el comprador, sin repetir los del carrito. Si no
+/// hay ninguno (productos sin colección, o la colección entera ya está en
+/// el carrito), los más recientes de la tienda. Ver conversación del
+/// 2026-09-30.
+export async function getComplementaryProducts(brandId: string, cartProductIds: string[], limit = 4) {
+  const select = {
+    id: true,
+    name: true,
+    slug: true,
+    imageUrl: true,
+    price: true,
+    compareAtPrice: true,
+    stock: true,
+    type: true,
+    hasVariants: true,
+  } as const;
+  const base = { brandId, manual: true as const, status: "ACTIVE" as const, id: { notIn: cartProductIds } };
+
+  const collectionIds = (
+    await prisma.productBrandCollection.findMany({
+      where: { productId: { in: cartProductIds } },
+      select: { collectionId: true },
+    })
+  ).map((c) => c.collectionId);
+
+  const fromCollections =
+    collectionIds.length > 0
+      ? await prisma.product.findMany({
+          where: { ...base, brandCollections: { some: { collectionId: { in: collectionIds } } } },
+          select,
+          orderBy: { createdAt: "desc" },
+          take: limit,
+        })
+      : [];
+  if (fromCollections.length >= limit) return fromCollections;
+
+  const seen = new Set(fromCollections.map((p) => p.id));
+  const latest = await prisma.product.findMany({
+    where: { ...base, id: { notIn: [...cartProductIds, ...seen] } },
+    select,
+    orderBy: { createdAt: "desc" },
+    take: limit - fromCollections.length,
+  });
+  return [...fromCollections, ...latest];
+}
+
 /// Cotiza el envío para un departamento + peso/monto dados, sin crear
 /// nada — el checkout la usa para mostrar el costo real antes de pagar
 /// (ya no hay tarifa única de respaldo, ver createStoreOrder). Null si la

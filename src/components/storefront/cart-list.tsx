@@ -1,10 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/components/storefront/cart-context";
 import { useStorefrontTheme } from "@/components/storefront/storefront-theme-context";
 import { cartLineKey } from "@/lib/storefront-cart";
+import { CARD_BUTTON_CLASS, CARD_PRIMARY_BUTTON_CLASS } from "@/components/storefront/product-card";
+
+type Suggestion = {
+  id: string;
+  name: string;
+  slug: string | null;
+  imageUrl: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  stock: number | null;
+  type: "PHYSICAL" | "SERVICE" | "DIGITAL";
+  hasVariants: boolean;
+};
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -21,8 +34,28 @@ export function CartList({
   brandSlug: string;
   basePath?: string;
 }) {
-  const { items, subtotal, updateQuantity, removeItem, discountCode, setDiscountCode, closeDrawer } = useCart();
+  const { items, subtotal, updateQuantity, removeItem, discountCode, setDiscountCode, closeDrawer, addItem } = useCart();
   const { cart } = useStorefrontTheme();
+
+  // "Completa tu compra" — se pide al servidor cada vez que cambia QUÉ
+  // productos hay en el carrito (no la cantidad), ver
+  // getComplementaryProducts. Ver conversación del 2026-09-30.
+  const cartProductIds = Array.from(new Set(items.map((i) => i.productId))).sort().join(",");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  useEffect(() => {
+    if (!cart.suggestComplementary || !cartProductIds) return;
+    let cancelled = false;
+    fetch(`/api/tienda/${brandSlug}/complementarios?ids=${encodeURIComponent(cartProductIds)}`)
+      .then((r) => (r.ok ? r.json() : { products: [] }))
+      .then((body) => {
+        if (!cancelled) setSuggestions(body.products ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [cart.suggestComplementary, cartProductIds, brandSlug]);
+  const visibleSuggestions = suggestions.filter((s) => !items.some((i) => i.productId === s.id));
 
   const [codeInput, setCodeInput] = useState(discountCode ?? "");
   const [checkingCode, setCheckingCode] = useState(false);
@@ -169,6 +202,64 @@ export function CartList({
             </div>
           )}
           {codeError && <p className="text-xs text-red-600 mt-1">{codeError}</p>}
+        </div>
+      )}
+
+      {cart.suggestComplementary && visibleSuggestions.length > 0 && (
+        <div className="pt-4 border-t border-brand-line space-y-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-brand-ink">Completa tu compra</p>
+          {visibleSuggestions.map((s) => {
+            const href = `${basePath}/${s.slug ?? ""}`;
+            const sameType = items.length === 0 || items[0].type === s.type;
+            const canAdd = !s.hasVariants && sameType && !(s.stock != null && s.stock <= 0);
+            return (
+              <div key={s.id} className="flex items-center gap-3">
+                <Link href={href} onClick={closeDrawer} className="shrink-0">
+                  {s.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- foto del producto
+                    <img src={s.imageUrl} alt={s.name} className="w-14 h-14 object-cover border border-brand-line" />
+                  ) : (
+                    <div className="w-14 h-14 bg-brand-accent-soft" />
+                  )}
+                </Link>
+                <div className="flex-1 min-w-0">
+                  <Link href={href} onClick={closeDrawer} className="text-sm font-medium text-brand-ink line-clamp-2 leading-snug">
+                    {s.name}
+                  </Link>
+                  <p className="text-xs font-mono text-brand-ink-soft">{formatCOP(s.price)}</p>
+                </div>
+                {canAdd ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      addItem({
+                        productId: s.id,
+                        variantId: null,
+                        variantLabel: null,
+                        slug: s.slug ?? "",
+                        name: s.name,
+                        price: s.price,
+                        imageUrl: s.imageUrl,
+                        stock: s.stock,
+                        type: s.type,
+                      })
+                    }
+                    className={`${CARD_BUTTON_CLASS} ${CARD_PRIMARY_BUTTON_CLASS} !w-auto shrink-0 px-4 py-2`}
+                  >
+                    Agregar
+                  </button>
+                ) : (
+                  <Link
+                    href={href}
+                    onClick={closeDrawer}
+                    className="text-xs font-bold uppercase tracking-wide text-brand-ink underline shrink-0"
+                  >
+                    Ver
+                  </Link>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
