@@ -56,7 +56,7 @@ function StockCell({
         }}
         placeholder="—"
         aria-label="Inventario"
-        className="input text-sm py-1.5 w-20 font-mono"
+        className="input text-sm py-1.5 !w-20 shrink-0 font-mono"
       />
       <span className="text-[11px] text-brand-ink-soft">{label}</span>
     </div>
@@ -454,14 +454,14 @@ export function StoreProductsPanel({
         // y el inventario se escribe ahí mismo, sin abrir el formulario.
         // Ver conversación del 2026-09-30.
         <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-x-auto">
-          <table className="w-full text-sm min-w-[860px]">
+          <table className="w-full text-sm min-w-[960px]">
             <thead>
               <tr className="text-left text-xs text-brand-ink-soft border-b border-brand-line">
                 <th className="font-medium px-4 py-3">Producto</th>
-                <th className="font-medium px-3 py-3 w-44">Estado</th>
+                <th className="font-medium px-3 py-3 w-48">Estado</th>
                 <th className="font-medium px-3 py-3 w-32">Inventario</th>
-                <th className="font-medium px-3 py-3 w-32">Precio</th>
-                <th className="font-medium px-3 py-3 w-32">Precio antes</th>
+                <th className="font-medium px-3 py-3 w-36">Precio</th>
+                <th className="font-medium px-3 py-3 w-36">Precio antes</th>
                 <th className="px-4 py-3 w-56" />
               </tr>
             </thead>
@@ -502,7 +502,7 @@ export function StoreProductsPanel({
                           value={product.status}
                           disabled={busy}
                           onChange={(e) => quickUpdate(product.id, { status: e.target.value as ProductStatusValue })}
-                          className="input text-xs py-1.5"
+                          className="input text-xs py-1.5 !w-[132px] shrink-0"
                           aria-label={`Estado de ${product.name}`}
                         >
                           <option value="ACTIVE">Activo</option>
@@ -600,6 +600,10 @@ export function StoreProductsPanel({
   );
 }
 
+function formatThousands(n: number) {
+  return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(n);
+}
+
 /// Precio / precio antes en la fila — igual que StockCell: se guarda al
 /// salir del campo o con Enter, solo si cambió. Con `allowEmpty`, vaciar
 /// el campo quita el valor (el producto deja de estar en oferta). Acepta
@@ -615,28 +619,37 @@ function MoneyCell({
   allowEmpty?: boolean;
   onSave: (v: number | null) => void;
 }) {
-  const [draft, setDraft] = useState(value == null ? "" : String(value));
+  // Siempre con separador de miles, como pesos colombianos (4.000,
+  // 15.000) — también mientras se escribe. Ver conversación del
+  // 2026-09-30 ("los decimales siempre").
+  const shown = (v: number | null) => (v == null ? "" : formatThousands(v));
+  const [draft, setDraft] = useState(shown(value));
   const [last, setLast] = useState(value);
   if (value !== last) {
     setLast(value);
-    setDraft(value == null ? "" : String(value));
+    setDraft(shown(value));
+  }
+  function handleChange(raw: string) {
+    const digits = raw.replace(/\D/g, "");
+    setDraft(digits ? formatThousands(Number(digits)) : "");
   }
   function commit() {
-    const text = draft.trim();
-    if (text === "") {
+    const digits = draft.replace(/\D/g, "");
+    if (digits === "") {
       if (allowEmpty) {
         if (value != null) onSave(null);
       } else {
-        setDraft(value == null ? "" : String(value));
+        setDraft(shown(value));
       }
       return;
     }
-    const n = Number(text.replace(/[.\s]/g, "").replace(",", "."));
+    const n = Number(digits);
     if (!Number.isFinite(n) || n <= 0) {
-      setDraft(value == null ? "" : String(value));
+      setDraft(shown(value));
       return;
     }
     if (n !== value) onSave(n);
+    else setDraft(shown(value));
   }
   return (
     <div className="flex items-center gap-1">
@@ -646,14 +659,14 @@ function MoneyCell({
         inputMode="numeric"
         value={draft}
         disabled={disabled}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => handleChange(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
         placeholder={allowEmpty ? "—" : ""}
         aria-label={allowEmpty ? "Precio antes" : "Precio"}
-        className="input text-sm py-1.5 w-24 font-mono"
+        className="input text-sm py-1.5 !w-28 shrink-0 font-mono"
       />
     </div>
   );
