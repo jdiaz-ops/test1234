@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCart } from "@/components/storefront/cart-context";
 import { useStorefrontTheme } from "@/components/storefront/storefront-theme-context";
 import { resolveColorRef } from "@/lib/brand-theme";
+import { CartIcon } from "@/components/storefront/mobile-nav-icons";
 
 export type StoreHeaderMenuItem = { id: string; label: string; url: string };
 
@@ -90,7 +91,7 @@ export function StoreHeader({
     header.bgColorRef === "fondo"
       ? undefined
       : { background: resolveColorRef(theme.colors, header.bgColorRef) };
-  const iconSizeClass = header.desktop.iconSize === "large" ? "sm:px-4 sm:py-2 sm:text-sm" : "sm:px-3 sm:py-1.5 sm:text-xs";
+  const cartLarge = header.desktop.iconSize === "large";
   const desktopCentered = header.desktop.logoPosition === "center";
   const mobileCentered = header.mobile.logoPosition === "center";
   const showSearch = header.mobile.show === "search";
@@ -206,15 +207,21 @@ export function StoreHeader({
     </form>
   );
 
+  // El mismo ícono de carrito que el navegador de abajo, con el contador
+  // encima — antes era una pastilla con la palabra "Carrito". Ver
+  // conversación del 2026-09-30.
   const cartButton = (
     <button
       type="button"
       onClick={openDrawer}
-      className={`relative rounded-full border border-brand-line px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft shrink-0 ${iconSizeClass}`}
+      aria-label={count > 0 ? `Carrito, ${count} productos` : "Carrito"}
+      className={`relative shrink-0 flex items-center justify-center rounded-full text-brand-ink hover:bg-brand-accent-soft ${
+        cartLarge ? "w-10 h-10 sm:w-12 sm:h-12" : "w-10 h-10"
+      }`}
     >
-      Carrito
+      <CartIcon className={cartLarge ? "w-6 h-6 sm:w-7 sm:h-7" : "w-6 h-6"} />
       {count > 0 && (
-        <span className="absolute -top-2 -right-2 bg-brand-accent text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-mono">
+        <span className="absolute -top-0.5 -right-0.5 bg-brand-accent text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-mono">
           {count}
         </span>
       )}

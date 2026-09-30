@@ -23,9 +23,12 @@ function CategoriesIcon() {
   );
 }
 
-function CartIcon() {
+/// También es el carrito del encabezado (ver store-header.tsx) — el mismo
+/// ícono arriba y abajo, pedido explícito de la marca. Ver conversación
+/// del 2026-09-30.
+export function CartIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <path d="M3 4h2l.4 2M6 16h12l3-8H5.4M6 16 5.4 6M6 16l-1.2 3H4" />
       <circle cx="9.5" cy="20" r="1.2" />
       <circle cx="17.5" cy="20" r="1.2" />
