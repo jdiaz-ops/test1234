@@ -1,0 +1,55 @@
+# Revisión automática de cada cambio: tipos, lint y pruebas (las de cálculos
+# y las de base de datos, contra un Postgres desechable del propio CI, nunca
+# contra la base real). Ver tests/ y conversación del 2026-09-30.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: marcolini_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/marcolini_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/marcolini_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Aplicar migraciones a la base de prueba
+        run: npx prisma migrate deploy
+
+      - name: Revisar tipos
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Pruebas
+        run: npm test

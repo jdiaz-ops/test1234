@@ -7,6 +7,8 @@
     "build": "node scripts/migrate-deploy.mjs && next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -53,7 +55,8 @@
     "playwright": "^1.62.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   },
   "overrides": {
     "deepmerge-ts": "^8.0.0"
