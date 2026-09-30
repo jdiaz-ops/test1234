@@ -1,47 +1,81 @@
 "use client";
 
-import { useState } from "react";
-import type { ThemeConfig } from "@/lib/brand-theme";
-import { resolveColorRef, fontStack } from "@/lib/brand-theme";
+import { useEffect, useRef, useState } from "react";
 
-const LOGO_SIZE_PX: Record<ThemeConfig["header"]["logoSize"], number> = {
-  small: 24,
-  medium: 32,
-  large: 44,
-};
+const DESKTOP_WIDTH = 1280;
+const MOBILE_WIDTH = 390;
 
-/// Preview representativo del look de la tienda — encabezado + un tramo
-/// de la home + footer reaccionando en vivo a lo que se toca en el
-/// editor. A propósito NO es la vitrina real pixel a pixel (evitaría
-/// duplicar toda la lógica de StoreHeader/StoreFooter dentro del panel
-/// de edición) — es suficiente para ver de un vistazo si los colores y
-/// la tipografía combinan, antes de publicar. Ver conversación del
-/// 2026-09-14.
-export function DesignPreview({ theme, brandName }: { theme: ThemeConfig; brandName: string }) {
-  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
-  const { colors, header, announcementBar, footer } = theme;
+/// Vista previa = la tienda real dentro de un iframe, mostrando el
+/// BORRADOR del tema (la vitrina reconoce que la está mirando su dueña
+/// desde el editor — ver getStorefrontTheme). Antes era un dibujo
+/// genérico armado con los colores del tema, que no mostraba el logo, el
+/// banner ni las secciones reales ("la vista previa no está siendo para
+/// nada útil"). En "Computadora" la tienda se renderiza a 1280px y se
+/// escala para caber en el espacio disponible; en "Celular" va a 390px.
+/// `version` sube cada vez que se guarda el borrador y recarga el iframe.
+/// Ver conversación del 2026-09-30.
+export function DesignPreview({
+  storefrontSlug,
+  version,
+}: {
+  storefrontSlug: string | null;
+  version: number;
+}) {
+  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const firstVersion = useRef(version);
 
-  const headerBg =
-    header.bgColorRef === "fondo" ? colors.fondo : resolveColorRef(colors, header.bgColorRef);
-  const footerBg = footer.useCustomColors ? resolveColorRef(colors, footer.bgColorRef) : colors.texto;
-  const footerText = footer.useCustomColors ? resolveColorRef(colors, footer.textColorRef) : colors.fondo;
-  const headingFont = fontStack(theme.typography.headingFont);
-  const bodyFont = fontStack(theme.typography.bodyFont);
-  const radius = theme.designType.roundedBorders ? "14px" : "4px";
-  const activeMessage = announcementBar.enabled ? announcementBar.messages[0] : null;
+  // ResizeObserver avisa una vez apenas se observa el elemento, así que
+  // no hace falta medir a mano al montar.
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      setBox({ width: el.clientWidth, height: el.clientHeight });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [device, storefrontSlug]);
+
+  // Recarga en el lugar (mismo origen) para no parpadear en blanco; si el
+  // navegador terminó en otro origen (cross-origin), volver a asignar el
+  // src recarga igual.
+  useEffect(() => {
+    if (version === firstVersion.current) return;
+    const frame = frameRef.current;
+    if (!frame) return;
+    try {
+      frame.contentWindow?.location.reload();
+    } catch {
+      const url = frame.src;
+      frame.src = url;
+    }
+  }, [version]);
+
+  if (!storefrontSlug) {
+    return (
+      <div className="sticky top-6 rounded-2xl border border-brand-line bg-brand-surface p-4">
+        <p className="text-xs font-medium text-brand-ink-soft mb-1">Vista previa</p>
+        <p className="text-sm text-brand-ink-soft">
+          Configura el link de tu tienda en Configuración para ver acá tu tienda con los cambios.
+        </p>
+      </div>
+    );
+  }
+
+  const src = `/t/${storefrontSlug}`;
+  const scale = box.width > 0 ? box.width / DESKTOP_WIDTH : 0.5;
+  const boxHeight = Math.max(box.height, 520);
 
   return (
     <div className="sticky top-6">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-medium text-brand-ink-soft">Vista previa</p>
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <p className="text-xs font-medium text-brand-ink-soft">
+          Vista previa — tu tienda con los cambios sin publicar
+        </p>
         <div className="flex gap-1">
-          <button
-            type="button"
-            onClick={() => setDevice("desktop")}
-            className={`text-[11px] rounded-full px-2.5 py-1 border ${device === "desktop" ? "bg-brand-accent text-white border-brand-accent" : "border-brand-line text-brand-ink-soft"}`}
-          >
-            Computadora
-          </button>
           <button
             type="button"
             onClick={() => setDevice("mobile")}
@@ -49,110 +83,54 @@ export function DesignPreview({ theme, brandName }: { theme: ThemeConfig; brandN
           >
             Celular
           </button>
+          <button
+            type="button"
+            onClick={() => setDevice("desktop")}
+            className={`text-[11px] rounded-full px-2.5 py-1 border ${device === "desktop" ? "bg-brand-accent text-white border-brand-accent" : "border-brand-line text-brand-ink-soft"}`}
+          >
+            Computadora
+          </button>
         </div>
       </div>
 
       <div
-        className={`rounded-2xl border border-brand-line overflow-hidden shadow-sm mx-auto transition-all ${
-          device === "mobile" ? "max-w-[320px]" : "max-w-full"
+        ref={boxRef}
+        className={`rounded-2xl border border-brand-line overflow-hidden shadow-sm bg-white ${
+          device === "mobile" ? "max-w-full mx-auto" : "w-full"
         }`}
-        style={{ background: colors.fondo, fontFamily: bodyFont }}
+        style={{
+          width: device === "mobile" ? MOBILE_WIDTH : undefined,
+          height: "min(calc(100vh - 190px), 900px)",
+          minHeight: 520,
+        }}
       >
-        {activeMessage?.text && (
-          <div
-            className={`text-center py-1.5 ${
-              announcementBar.textSize === "large"
-                ? "text-sm"
-                : announcementBar.textSize === "medium"
-                  ? "text-xs"
-                  : "text-[11px]"
-            }`}
+        {device === "mobile" ? (
+          <iframe
+            key="mobile"
+            ref={frameRef}
+            src={src}
+            title="Vista previa de tu tienda"
+            className="w-full h-full border-0"
+          />
+        ) : (
+          <iframe
+            key="desktop"
+            ref={frameRef}
+            src={src}
+            title="Vista previa de tu tienda"
+            className="border-0 origin-top-left"
             style={{
-              background: resolveColorRef(colors, announcementBar.bgColorRef),
-              color: resolveColorRef(colors, announcementBar.textColorRef),
+              width: DESKTOP_WIDTH,
+              height: boxHeight / scale,
+              transform: `scale(${scale})`,
             }}
-          >
-            {activeMessage.text}
-          </div>
+          />
         )}
-
-        <div
-          className="flex items-center justify-between px-4 py-3 border-b"
-          style={{ background: headerBg, borderColor: "rgba(0,0,0,0.08)" }}
-        >
-          <div className="flex items-center gap-2">
-            <div
-              className="rounded-full flex items-center justify-center font-semibold shrink-0"
-              style={{
-                width: LOGO_SIZE_PX[header.logoSize],
-                height: LOGO_SIZE_PX[header.logoSize],
-                background: `color-mix(in srgb, ${colors.principal} 16%, white)`,
-                color: colors.principal,
-                fontFamily: headingFont,
-                fontSize: LOGO_SIZE_PX[header.logoSize] * 0.45,
-              }}
-            >
-              {brandName[0]?.toUpperCase() ?? "M"}
-            </div>
-            {device === "desktop" && (
-              <span className="text-sm font-semibold" style={{ fontFamily: headingFont, color: colors.texto }}>
-                {brandName}
-              </span>
-            )}
-          </div>
-          <div
-            className="text-[11px] rounded-full px-3 py-1 border"
-            style={{ borderColor: colors.texto, color: colors.texto, opacity: 0.7 }}
-          >
-            Carrito
-          </div>
-        </div>
-
-        <div
-          className="aspect-[16/9] flex items-center justify-center text-center px-6"
-          style={{
-            background: `color-mix(in srgb, ${colors.principal} 20%, white)`,
-            borderRadius: 0,
-          }}
-        >
-          <div>
-            <p
-              className="font-semibold"
-              style={{ fontFamily: headingFont, fontSize: device === "mobile" ? 18 : 24, color: colors.texto }}
-            >
-              Tu tienda, tu estilo
-            </p>
-            <button
-              type="button"
-              className="mt-3 text-xs font-medium px-4 py-2"
-              style={{ background: colors.principal, color: "#fff", borderRadius: radius }}
-            >
-              Ver productos
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 p-4">
-          {[1, 2].map((i) => (
-            <div key={i} style={{ borderRadius: radius, overflow: "hidden" }} className="border border-black/5">
-              <div className="aspect-square" style={{ background: `color-mix(in srgb, ${colors.principal} 12%, white)` }} />
-              <div className="p-2">
-                <p className="text-[11px] truncate" style={{ color: colors.texto }}>
-                  Producto de ejemplo
-                </p>
-                <p className="text-[11px] font-mono" style={{ color: colors.principal }}>
-                  $45.000
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="px-4 py-4 text-[11px] flex items-center justify-between" style={{ background: footerBg, color: footerText }}>
-          <span style={{ fontFamily: headingFont }}>{footer.contact.show ? footer.contact.title : brandName}</span>
-          <span className="opacity-60">vendido con Marcolini</span>
-        </div>
       </div>
+      <p className="text-[11px] text-brand-ink-soft mt-2">
+        Se actualiza sola al guardar. Los compradores siguen viendo lo publicado hasta que le des
+        &ldquo;Publicar cambios&rdquo;.
+      </p>
     </div>
   );
 }

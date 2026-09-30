@@ -92,7 +92,13 @@ export default auth(async (req) => {
   // funcionando — solo que ahora mandan al comprador al subdominio nuevo,
   // que es el que se sigue promocionando de acá en adelante.
   const legacyMatch = !isApiRoute ? pathname.match(/^\/t\/([a-z0-9-]+)(\/.*)?$/) : null;
-  if (legacyMatch) {
+  // Dentro de un iframe no se redirige: la vista previa del editor de
+  // Diseño carga /t/{slug} en el mismo dominio del portal para que viaje
+  // la sesión de la marca y la vitrina muestre el borrador (ver
+  // getStorefrontTheme) — al subdominio la cookie de sesión no llega. Ver
+  // conversación del 2026-09-30.
+  const inIframe = req.headers.get("sec-fetch-dest") === "iframe";
+  if (legacyMatch && !inIframe) {
     const [, slug, rest] = legacyMatch;
     const url = req.nextUrl.clone();
     url.hostname = `${slug}.${ROOT_DOMAIN}`;

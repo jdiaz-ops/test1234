@@ -236,7 +236,7 @@ export function StoreHeader({
         } ${bgStyle ? "" : "bg-brand-bg/95 backdrop-blur"}`}
         style={bgStyle}
       >
-        <div className="max-w-3xl mx-auto px-6 py-4 space-y-2">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-4 space-y-2">
           {/* Con buscador: fila fija logo-izquierda / buscador-centro /
               carrito, propia de celular (la fila de computadora de abajo
               se ocupa de esa pantalla). Sin buscador: el layout de

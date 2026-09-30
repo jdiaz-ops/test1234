@@ -6,7 +6,7 @@ import { StorefrontSections } from "@/components/storefront/storefront-sections"
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { listEnabledStorefrontSections } from "@/server/services/storefront-section-service";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
-import { getPublishedTheme } from "@/server/services/brand-theme-service";
+import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 
 export async function generateMetadata({
   params,
@@ -39,7 +39,7 @@ export default async function StorefrontCatalogPage({
     getStoreBasePath(slug),
     listEnabledStorefrontSections(brand.id),
     listStorefrontMenuItems(brand.id),
-    getPublishedTheme(brand.id),
+    getStorefrontTheme(brand.id),
   ]);
 
   return (

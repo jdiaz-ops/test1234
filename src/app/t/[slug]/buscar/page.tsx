@@ -8,7 +8,7 @@ import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CollectionProductGrid } from "@/components/storefront/collection-product-grid";
 import { getStoreBasePath } from "@/lib/store-base-path";
-import { getPublishedTheme } from "@/server/services/brand-theme-service";
+import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 
 export async function generateMetadata({
   params,
@@ -44,7 +44,7 @@ export default async function StorefrontSearchPage({
   const [menuItems, basePath, theme, products] = await Promise.all([
     listStorefrontMenuItems(brand.id),
     getStoreBasePath(slug),
-    getPublishedTheme(brand.id),
+    getStorefrontTheme(brand.id),
     searchStorefrontProducts(brand.id, q),
   ]);
 
@@ -57,7 +57,7 @@ export default async function StorefrontSearchPage({
         basePath={basePath}
         menuItems={menuItems.map((i) => ({ id: i.id, label: i.label, url: i.url }))}
       />
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
         <form action={`${basePath}/buscar`} method="GET" role="search" className="mb-6 sm:hidden">
           <input
             type="search"

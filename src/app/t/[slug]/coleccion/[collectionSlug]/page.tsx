@@ -7,7 +7,7 @@ import { StoreHeader } from "@/components/storefront/store-header";
 import { CollectionProductGrid } from "@/components/storefront/collection-product-grid";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { stripHtml } from "@/lib/sanitize-html";
-import { getPublishedTheme } from "@/server/services/brand-theme-service";
+import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 
 export async function generateMetadata({
   params,
@@ -44,7 +44,7 @@ export default async function StorefrontCollectionPage({
   const [menuItems, basePath, theme] = await Promise.all([
     listStorefrontMenuItems(brand.id),
     getStoreBasePath(slug),
-    getPublishedTheme(brand.id),
+    getStorefrontTheme(brand.id),
   ]);
 
   const products = collection.products.map((p) => p.product);
@@ -58,7 +58,7 @@ export default async function StorefrontCollectionPage({
         basePath={basePath}
         menuItems={menuItems.map((i) => ({ id: i.id, label: i.label, url: i.url }))}
       />
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
         <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
           COLECCIÓN
         </p>

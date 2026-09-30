@@ -16,7 +16,7 @@ import { ProductCard, ProductPrice, toCardProduct } from "@/components/storefron
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
-import { getPublishedTheme } from "@/server/services/brand-theme-service";
+import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 
 export async function generateMetadata({
@@ -55,7 +55,7 @@ export default async function StorefrontProductPage({
   const [basePath, menuItems, theme, relatedProducts] = await Promise.all([
     getStoreBasePath(slug),
     listStorefrontMenuItems(brand.id),
-    getPublishedTheme(brand.id),
+    getStorefrontTheme(brand.id),
     getRelatedProducts(brand.id, product.id),
   ]);
   const { productDetail } = theme;
@@ -90,7 +90,7 @@ export default async function StorefrontProductPage({
             Shopify son de 2000px+) y la página se desborda de lado.
             Tailwind arma las columnas con minmax(0, 1fr), que es lo que lo
             evita. Ver conversación del 2026-09-30. */}
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-1 sm:grid-cols-2 gap-8">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 grid grid-cols-1 sm:grid-cols-2 gap-8">
           <div className="min-w-0">
             <ProductGallery
               images={
@@ -291,7 +291,7 @@ export default async function StorefrontProductPage({
         )}
 
         {relatedProducts.length > 0 && (
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-14">
+          <div className="max-w-[1600px] mx-auto px-4 sm:px-8 pb-14">
             <h2 className="font-display text-lg font-semibold text-brand-ink mb-4">
               {productDetail.relatedTitles.alternative}
             </h2>

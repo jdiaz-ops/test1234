@@ -104,15 +104,21 @@ export function DesignEditorPanel({
   storePages,
   initialSections,
   initialMenuItems,
+  storefrontSlug,
 }: {
   initialTheme: ThemeConfig;
   storePages: { slug: string; title: string }[];
   initialSections: StorefrontSectionRow[];
   initialMenuItems: StorefrontMenuItemRow[];
+  /// Para la vista previa (la tienda real en un iframe) — null si la
+  /// marca todavía no configuró el link de su tienda.
+  storefrontSlug: string | null;
 }) {
   const [theme, setTheme] = useState(initialTheme);
   const [active, setActive] = useState<NavKey | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // Sube con cada borrador guardado — la vista previa recarga al verlo cambiar.
+  const [previewVersion, setPreviewVersion] = useState(0);
   const [publishing, setPublishing] = useState(false);
   const [publishedJustNow, setPublishedJustNow] = useState(false);
   const pendingPatch = useRef<Patch>({});
@@ -135,6 +141,7 @@ export function DesignEditorPanel({
       .then((r) => r.json())
       .then((body) => {
         setSaveStatus(body?.ok ? "saved" : "error");
+        if (body?.ok) setPreviewVersion((v) => v + 1);
       })
       .catch(() => setSaveStatus("error"));
   }
@@ -176,10 +183,12 @@ export function DesignEditorPanel({
     if (res.ok && body?.theme) {
       setTheme(body.theme);
       pendingPatch.current = {};
+      setPreviewVersion((v) => v + 1);
     }
   }
 
   const activeLabel = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.key === active)?.label;
+  const isWide = active != null && WIDE_PANELS.includes(active);
 
   return (
     <div>
@@ -208,22 +217,24 @@ export function DesignEditorPanel({
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[240px_1fr_320px] gap-6">
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-3">
-          {active && (
-            <button
-              type="button"
-              onClick={() => setActive(null)}
-              className="text-xs text-brand-accent hover:underline mb-3 flex items-center gap-1"
-            >
-              ← Volver
-            </button>
-          )}
+      {/* Un solo panel de edición a la izquierda (la lista de secciones, y al
+          elegir una, su formulario en ese mismo lugar — como el editor de
+          Shopify) y la vista previa real ocupando todo el resto. Antes eran
+          tres columnas: la de la izquierda quedaba vacía apenas se elegía
+          algo y la del medio tan angosta que los campos se cortaban ("la
+          columna del centro la info no sale del todo"). Ver conversación
+          del 2026-09-30. Los paneles anchos (Página de inicio, Menú) usan
+          todo el ancho y esconden la vista previa. */}
+      <div className={`grid gap-6 ${isWide ? "" : "lg:grid-cols-[420px_minmax(0,1fr)]"}`}>
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 min-h-[420px]">
           {!active ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
+              <p className="text-sm text-brand-ink-soft">
+                Elige qué parte de tu tienda editar — a la derecha ves el resultado con tus cambios sin publicar.
+              </p>
               {NAV_GROUPS.map((group) => (
                 <div key={group.title}>
-                  <p className="text-[11px] font-medium text-brand-ink-soft uppercase tracking-wide mb-1.5 px-2">
+                  <p className="text-[11px] font-medium text-brand-ink-soft uppercase tracking-wide mb-1.5">
                     {group.title}
                   </p>
                   <div className="space-y-0.5">
@@ -232,7 +243,7 @@ export function DesignEditorPanel({
                         key={item.key}
                         type="button"
                         onClick={() => setActive(item.key)}
-                        className="w-full text-left rounded-lg px-2 py-1.5 text-sm text-brand-ink hover:bg-brand-accent-soft flex items-center justify-between"
+                        className="w-full text-left rounded-lg px-3 py-2.5 text-sm text-brand-ink hover:bg-brand-accent-soft flex items-center justify-between"
                       >
                         {item.label}
                         <span className="text-brand-ink-soft">›</span>
@@ -243,17 +254,16 @@ export function DesignEditorPanel({
               ))}
             </div>
           ) : (
-            <p className="text-sm font-medium text-brand-ink px-2 py-1.5">{activeLabel}</p>
-          )}
-        </div>
-
-        <div
-          className={`rounded-2xl border border-brand-line bg-brand-surface p-5 min-h-[420px] ${
-            active && WIDE_PANELS.includes(active) ? "lg:col-span-2" : ""
-          }`}
-        >
-          {!active && (
-            <p className="text-sm text-brand-ink-soft">Elige una sección de la izquierda para empezar a editar.</p>
+            <>
+              <button
+                type="button"
+                onClick={() => setActive(null)}
+                className="text-xs text-brand-accent hover:underline mb-2 flex items-center gap-1"
+              >
+                ← Todas las secciones
+              </button>
+              <h2 className="font-display text-lg font-semibold text-brand-ink mb-4">{activeLabel}</h2>
+            </>
           )}
           {active === "colors" && <ColorsSection theme={theme} patch={patch} />}
           {active === "typography" && <TypographySection theme={theme} patch={patch} />}
@@ -277,9 +287,9 @@ export function DesignEditorPanel({
           {active === "popup" && <PopupSection theme={theme} patch={patch} />}
         </div>
 
-        {!(active && WIDE_PANELS.includes(active)) && (
-          <div className="hidden lg:block">
-            <DesignPreview theme={theme} brandName="Tu marca" />
+        {!isWide && (
+          <div className="hidden lg:block min-w-0">
+            <DesignPreview storefrontSlug={storefrontSlug} version={previewVersion} />
           </div>
         )}
       </div>

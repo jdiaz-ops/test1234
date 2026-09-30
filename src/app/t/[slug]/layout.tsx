@@ -8,7 +8,7 @@ import { CartDrawer } from "@/components/storefront/cart-drawer";
 import { StorefrontThemeProvider } from "@/components/storefront/storefront-theme-context";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
-import { getPublishedTheme } from "@/server/services/brand-theme-service";
+import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import {
   themeToCssVars,
@@ -46,7 +46,7 @@ export default async function StorefrontLayout({
   }
 
   const [theme, menuItemsRaw, basePath] = await Promise.all([
-    getPublishedTheme(brand.id),
+    getStorefrontTheme(brand.id),
     listStorefrontMenuItems(brand.id),
     getStoreBasePath(slug),
   ]);

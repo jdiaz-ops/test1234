@@ -250,7 +250,11 @@ const productListingSchema = withDefaults({
 const collectionsSchema = withDefaults({
   showImage: z.boolean().default(true),
   showTitle: z.boolean().default(true),
-  showViewProductButton: z.boolean().default(true),
+  /// Apagado por defecto desde el 2026-09-30 — la referencia de la marca
+  /// (su página de colección en Shopify) solo tiene "Agregar al carrito";
+  /// la foto y el nombre ya llevan al producto. Las tiendas que ya lo
+  /// tenían guardado en true lo conservan.
+  showViewProductButton: z.boolean().default(false),
   showAddToCartButton: z.boolean().default(true),
 });
 

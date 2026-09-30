@@ -50,7 +50,7 @@ export function StoreFooter({
 
   return (
     <footer style={{ background: bg, color: text }} className="mt-16">
-      <div className="max-w-3xl mx-auto px-6 py-10 grid sm:grid-cols-3 gap-8 text-sm">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 grid sm:grid-cols-3 gap-8 text-sm">
         {config.aboutUs.show && (
           <div>
             {config.aboutUs.title && (
@@ -148,7 +148,7 @@ export function StoreFooter({
 
       {config.seals.length > 0 && (
         <div className="border-t border-white/10 py-4">
-          <div className="max-w-3xl mx-auto px-6 flex items-center justify-center gap-3 flex-wrap opacity-90">
+          <div className="max-w-[1600px] mx-auto px-4 sm:px-8 flex items-center justify-center gap-3 flex-wrap opacity-90">
             {config.seals.map((seal, i) => (
               // eslint-disable-next-line @next/next/no-img-element -- sello subido por la marca
               <img key={i} src={seal.imageUrl} alt="" className="h-6 w-auto" />

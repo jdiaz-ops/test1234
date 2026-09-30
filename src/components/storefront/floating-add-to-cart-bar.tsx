@@ -73,7 +73,7 @@ export function FloatingAddToCartBar({
         visible ? "translate-y-0" : "translate-y-full pointer-events-none"
       }`}
     >
-      <div className="flex items-center gap-3 max-w-3xl mx-auto">
+      <div className="flex items-center gap-3 max-w-[1600px] mx-auto">
         {product.imageUrl && (
           // eslint-disable-next-line @next/next/no-img-element -- foto del producto
           <img

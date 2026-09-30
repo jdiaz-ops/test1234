@@ -167,7 +167,7 @@ async function FeaturedCollectionSection({
   if (products.length === 0) return null;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
       <div className="flex items-end justify-between gap-4 mb-4">
         <h2 className="font-display text-xl font-semibold text-brand-ink">
           {config.title || collection.name}
@@ -191,7 +191,7 @@ async function FeaturedCollectionSection({
             key={p.id}
             product={toCardProduct(p)}
             basePath={basePath}
-            className="w-44 sm:w-52 shrink-0 snap-start"
+            className="w-44 sm:w-60 lg:w-72 shrink-0 snap-start"
           />
         ))}
       </div>
@@ -202,7 +202,7 @@ async function FeaturedCollectionSection({
 function TextSection({ config }: { config: TextConfig }) {
   if (!config.heading && !config.body) return null;
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10 text-center">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 text-center">
       {config.heading && (
         <h2 className="font-display text-xl font-semibold text-brand-ink mb-2">
           {config.heading}
@@ -247,7 +247,7 @@ function ShippingInfoBannersSection({ config }: { config: ShippingInfoBannersCon
   const items = config.items.filter((i) => i.show && (i.title || i.description));
   if (items.length === 0) return null;
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {items.map((item, i) => {
           const emoji = trustIconEmoji(item.icon);
@@ -300,7 +300,7 @@ async function CategoryBannersSection({
   if (items.length === 0) return null;
 
   return (
-    <div className={`max-w-3xl mx-auto ${config.extendFullWidth ? "px-0" : "px-6"} py-8`}>
+    <div className={`max-w-[1600px] mx-auto ${config.extendFullWidth ? "px-0" : "px-4 sm:px-8"} py-8`}>
       <div className={`grid gap-3 ${items.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-3"}`}>
         {items.map((item, i) => (
           <Link
@@ -346,7 +346,7 @@ async function CategoryGridSection({
   if (items.length === 0) return null;
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8">
       {(config.title || config.subtitle) && (
         <div className="mb-4">
           {config.title && (
@@ -405,7 +405,7 @@ function PromoBannersSection({ config, basePath }: { config: PromoBannersConfig;
   const items = config.items.filter((i) => i.show && i.imageUrl);
   if (items.length === 0) return null;
   return (
-    <div className={`max-w-3xl mx-auto ${config.extendFullWidth ? "px-0" : "px-6"} py-8`}>
+    <div className={`max-w-[1600px] mx-auto ${config.extendFullWidth ? "px-0" : "px-4 sm:px-8"} py-8`}>
       <div className={`grid gap-3 ${items.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-3"}`}>
         {items.map((item, i) => {
           const href = resolveLink(item.link, basePath);
@@ -442,7 +442,7 @@ function ProductGrid({
 }) {
   if (products.length === 0) return null;
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
       {title && (
         <h2 className="font-display text-xl font-semibold text-brand-ink mb-4">{title}</h2>
       )}
@@ -458,7 +458,7 @@ function ProductGrid({
             key={p.id}
             product={p}
             basePath={basePath}
-            className={display === "carousel" ? "w-44 sm:w-52 shrink-0 snap-start" : ""}
+            className={display === "carousel" ? "w-44 sm:w-60 lg:w-72 shrink-0 snap-start" : ""}
           />
         ))}
       </div>
@@ -568,7 +568,7 @@ function BrandCarouselSection({ config }: { config: BrandCarouselConfig }) {
   const items = config.items.filter((i) => i.imageUrl);
   if (items.length === 0) return null;
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8">
       <div className="flex items-center gap-6 overflow-x-auto">
         {items.map((item, i) => {
           // eslint-disable-next-line @next/next/no-img-element -- logo subido por la marca
@@ -598,7 +598,7 @@ function VideoSection({ config }: { config: VideoConfig }) {
   const embedUrl = config.url ? embedVideoUrl(config.url) : null;
   if (!embedUrl) return null;
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
       {config.title && (
         <h2 className="font-display text-xl font-semibold text-brand-ink mb-4">{config.title}</h2>
       )}
@@ -628,7 +628,7 @@ function InstagramCtaSection({
       href={`https://instagram.com/${instagramHandle.replace(/^@/, "")}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="block max-w-3xl mx-auto px-6 py-8 text-center hover:opacity-90"
+      className="block max-w-[1600px] mx-auto px-4 sm:px-8 py-8 text-center hover:opacity-90"
     >
       <p className="font-display text-lg font-semibold text-brand-ink">{config.title}</p>
       {config.description && (
@@ -658,7 +658,7 @@ async function ProductCatalogSection({
 }) {
   const products = await listStorefrontProducts(brandId);
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
       {config.title && (
         <h2 className="font-display text-xl font-semibold text-brand-ink mb-4">{config.title}</h2>
       )}
