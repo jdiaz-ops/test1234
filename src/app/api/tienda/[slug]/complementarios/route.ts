@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { limitOrReject } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { getComplementaryProducts } from "@/server/services/store-order-service";
 
@@ -8,6 +9,10 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  // Sugerencias del carrito: 60 por minuto por IP. Ver src/lib/rate-limit.ts.
+  const limited = await limitOrReject(req, "complementarios", 60, 60);
+  if (limited) return limited;
+
   const { slug } = await params;
   const brand = await prisma.brandProfile.findUnique({
     where: { storefrontSlug: slug },

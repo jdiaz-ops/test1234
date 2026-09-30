@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { limitOrReject } from "@/lib/rate-limit";
 import { createStoreOrderSchema } from "@/lib/validation/storefront";
 import {
   createStoreOrder,
@@ -12,6 +13,11 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  // Crear pedidos: 40 cada 10 minutos por IP (holgado por las IPs
+  // compartidas de los operadores móviles). Ver src/lib/rate-limit.ts.
+  const limited = await limitOrReject(req, "pedido", 40, 600);
+  if (limited) return limited;
+
   const { slug } = await params;
 
   const body = await req.json();

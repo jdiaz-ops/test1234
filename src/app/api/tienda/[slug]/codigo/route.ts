@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { limitOrReject } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { validateDiscountCodeSchema } from "@/lib/validation/storefront";
 import {
@@ -12,6 +13,14 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  // Probar códigos de creador: 60 intentos cada 10 minutos por IP. Holgado
+  // a propósito: en Colombia muchos celulares salen a internet por la misma
+  // IP del operador, y cuando un creador publica su código muchos
+  // seguidores lo prueban a la vez. Frena a un robot probando miles, no a
+  // compradores reales. Ver src/lib/rate-limit.ts.
+  const limited = await limitOrReject(req, "codigo", 60, 600);
+  if (limited) return limited;
+
   const { slug } = await params;
   const brand = await prisma.brandProfile.findUnique({
     where: { storefrontSlug: slug },

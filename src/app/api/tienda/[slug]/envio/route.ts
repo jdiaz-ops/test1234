@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { limitOrReject } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { quoteShippingSchema } from "@/lib/validation/storefront";
 import { quoteShipping } from "@/server/services/store-order-service";
@@ -16,6 +17,10 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  // Cotizar envío: 60 por minuto por IP. Ver src/lib/rate-limit.ts.
+  const limited = await limitOrReject(req, "envio", 60, 60);
+  if (limited) return limited;
+
   const { slug } = await params;
   const brand = await prisma.brandProfile.findUnique({
     where: { storefrontSlug: slug },

@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
+import { limitOrReject } from "@/lib/rate-limit";
 import { registerCreatorSchema } from "@/lib/validation/auth";
 import { registerCreator, AuthServiceError } from "@/server/services/auth-service";
 
 export async function POST(req: Request) {
+  // Crear cuentas: 20 por hora por IP. Ver src/lib/rate-limit.ts.
+  const limited = await limitOrReject(req, "registro", 20, 3600);
+  if (limited) return limited;
+
   const body = await req.json();
   const parsed = registerCreatorSchema.safeParse(body);
 
