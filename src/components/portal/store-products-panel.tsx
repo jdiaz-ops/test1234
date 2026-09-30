@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   StoreProductForm,
   type ManualProduct,
+  type ProductStatusValue,
 } from "@/components/portal/store-product-form";
 import { ShopifyCsvImporter } from "@/components/portal/shopify-csv-importer";
 
@@ -21,6 +22,55 @@ function formatCOP(amount: number) {
 /// sincronizado por la conexión Shopify/WooCommerce para precargar el
 /// formulario — se quitó a pedido de la marca: al lado del importador de
 /// CSV confundía. Ver conversación del 2026-09-30.
+/// Casilla de inventario de la fila: se escribe el número y se guarda al
+/// salir del campo o con Enter (solo si cambió).
+function StockCell({
+  value,
+  disabled,
+  label,
+  onSave,
+}: {
+  value: number | null;
+  disabled?: boolean;
+  label: string;
+  onSave: (stock: number) => void;
+}) {
+  const [draft, setDraft] = useState(value == null ? "" : String(value));
+  const [last, setLast] = useState(value);
+  if (value !== last) {
+    setLast(value);
+    setDraft(value == null ? "" : String(value));
+  }
+  function commit() {
+    const n = Number(draft);
+    if (draft === "" || !Number.isInteger(n) || n < 0) {
+      setDraft(value == null ? "" : String(value));
+      return;
+    }
+    if (n !== value) onSave(n);
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        type="number"
+        min={0}
+        step={1}
+        value={draft}
+        disabled={disabled}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        placeholder="—"
+        aria-label="Inventario"
+        className="input text-sm py-1.5 w-20 font-mono"
+      />
+      <span className="text-[11px] text-brand-ink-soft">{label}</span>
+    </div>
+  );
+}
+
 /// Qué ve el comprador de este producto, en una palabra — la marca no
 /// tenía "una forma fácil de ver si un producto está activo, visible o
 /// no". Ver conversación del 2026-09-30.
@@ -68,7 +118,40 @@ export function StoreProductsPanel({
     },
     { visible: 0, soldout: 0, unlisted: 0, hidden: 0 } as Record<Visibility, number>,
   );
-  const shownProducts = filter === "all" ? products : products.filter((p) => visibilityOf(p) === filter);
+  const [search, setSearch] = useState("");
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const q = search.trim().toLowerCase();
+  const shownProducts = products.filter(
+    (p) =>
+      (filter === "all" || visibilityOf(p) === filter) &&
+      (!q || p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q)),
+  );
+
+  /// Inventario o estado desde la fila (ver /api/marca/tienda/productos/rapido).
+  async function quickUpdate(productId: string, data: { stock?: number; status?: ProductStatusValue }) {
+    setRowBusy(productId);
+    setError(null);
+    try {
+      const res = await fetch("/api/marca/tienda/productos/rapido", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, ...data }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "No se pudo guardar el cambio.");
+        return;
+      }
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, stock: body.product.stock, status: body.product.status } : p)),
+      );
+      router.refresh();
+    } catch {
+      setError("No se pudo guardar — revisa tu conexión.");
+    } finally {
+      setRowBusy(null);
+    }
+  }
   const [mode, setMode] = useState<
     | { kind: "list" }
     | { kind: "create"; seed?: Partial<ManualProduct> }
@@ -252,7 +335,7 @@ export function StoreProductsPanel({
       )}
 
       {products.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {FILTERS.map((f) => {
             const n = f.key === "all" ? products.length : counts[f.key];
             if (f.key !== "all" && n === 0) return null;
@@ -272,6 +355,13 @@ export function StoreProductsPanel({
               </button>
             );
           })}
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre o SKU"
+            className="input text-sm sm:ml-auto sm:max-w-xs"
+          />
         </div>
       )}
 
@@ -280,105 +370,127 @@ export function StoreProductsPanel({
           Todavía no has agregado ningún producto.
         </p>
       ) : shownProducts.length === 0 ? (
-        <p className="text-sm text-brand-ink-soft">No hay productos en este grupo.</p>
+        <p className="text-sm text-brand-ink-soft">No hay productos que coincidan.</p>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-4">
-          {shownProducts.map((product) => (
-            <div
-              key={product.id}
-              className="rounded-2xl border border-brand-line bg-brand-surface p-4 flex gap-3"
-            >
-              {product.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={product.imageUrl}
-                  alt=""
-                  className="w-16 h-16 rounded-lg object-cover shrink-0"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-lg bg-brand-bg shrink-0" />
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  {product.type === "SERVICE" && (
-                    <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-purple-100 text-purple-700 shrink-0">
-                      SERVICIO
-                    </span>
-                  )}
-                  {product.type === "DIGITAL" && (
-                    <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-blue-100 text-blue-700 shrink-0">
-                      DIGITAL
-                    </span>
-                  )}
-                  <p className="font-display font-semibold text-brand-ink truncate">
-                    {product.name}
-                  </p>
-                </div>
-                <p className="text-sm text-brand-ink-soft">
-                  {product.hasVariants
-                    ? "Varios precios"
-                    : formatCOP(product.price)}
-                </p>
-                {(() => {
-                  const v = VISIBILITY_LABEL[visibilityOf(product)];
-                  return (
-                    <p className={`text-xs mt-1 flex items-center gap-1.5 ${v.className}`}>
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${v.dot}`} />
-                      {v.text}
-                    </p>
-                  );
-                })()}
-                {product.hasVariants ? (
-                  <p className="text-xs text-brand-ink-soft mt-0.5">
-                    {product.variants.length} variantes ·{" "}
-                    {product.variants.reduce((sum, v) => sum + v.stock, 0)} en
-                    stock
-                  </p>
-                ) : (
-                  product.stock != null && (
-                    <p className="text-xs text-brand-ink-soft mt-0.5">
-                      {product.type === "SERVICE" ? "Cupos" : "Inventario"}:{" "}
-                      {product.stock}
-                    </p>
-                  )
-                )}
-                <div className="flex items-center gap-3 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => setMode({ kind: "edit", product })}
-                    className="text-xs text-brand-accent hover:underline"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDuplicate(product)}
-                    className="text-xs text-brand-accent hover:underline"
-                  >
-                    Duplicar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(product.id)}
-                    disabled={deletingId === product.id}
-                    className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                  >
-                    {deletingId === product.id ? "Eliminando..." : "Eliminar"}
-                  </button>
-                  {storeUrl && product.slug && product.status !== "DRAFT" && (
-                    <a
-                      href={`${storeUrl}/${product.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-brand-ink-soft hover:underline ml-auto"
-                    >
-                      Ver en la tienda ↗
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+        // Tabla como la de Shopify (Producto · Estado · Inventario ·
+        // Precio · acciones): el estado se cambia con el selector de la fila
+        // y el inventario se escribe ahí mismo, sin abrir el formulario.
+        // Ver conversación del 2026-09-30.
+        <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-x-auto">
+          <table className="w-full text-sm min-w-[720px]">
+            <thead>
+              <tr className="text-left text-xs text-brand-ink-soft border-b border-brand-line">
+                <th className="font-medium px-4 py-3">Producto</th>
+                <th className="font-medium px-3 py-3 w-48">Estado</th>
+                <th className="font-medium px-3 py-3 w-36">Inventario</th>
+                <th className="font-medium px-3 py-3 w-28 text-right">Precio</th>
+                <th className="px-4 py-3 w-64" />
+              </tr>
+            </thead>
+            <tbody>
+              {shownProducts.map((product) => {
+                const v = VISIBILITY_LABEL[visibilityOf(product)];
+                const busy = rowBusy === product.id;
+                return (
+                  <tr key={product.id} className="border-b border-brand-line last:border-b-0 align-middle">
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {product.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={product.imageUrl} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0 border border-brand-line" />
+                        ) : (
+                          <div className="w-11 h-11 rounded-lg bg-brand-bg shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => setMode({ kind: "edit", product })}
+                            className="font-medium text-brand-ink hover:underline text-left line-clamp-2 leading-snug"
+                          >
+                            {product.name}
+                          </button>
+                          {product.type !== "PHYSICAL" && (
+                            <p className="text-[10px] font-mono text-brand-ink-soft">
+                              {product.type === "SERVICE" ? "SERVICIO" : "DIGITAL"}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${v.dot}`} title={v.text} />
+                        <select
+                          value={product.status}
+                          disabled={busy}
+                          onChange={(e) => quickUpdate(product.id, { status: e.target.value as ProductStatusValue })}
+                          className="input text-xs py-1.5"
+                          aria-label={`Estado de ${product.name}`}
+                        >
+                          <option value="ACTIVE">Activo (visible)</option>
+                          <option value="DRAFT">Oculto (borrador)</option>
+                          <option value="UNLISTED">Solo con link directo</option>
+                        </select>
+                      </div>
+                      {visibilityOf(product) === "soldout" && (
+                        <p className="text-[11px] text-amber-700 mt-1 ml-4">Agotado: se ve pero no se puede comprar</p>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {product.hasVariants ? (
+                        <button
+                          type="button"
+                          onClick={() => setMode({ kind: "edit", product })}
+                          className="text-xs text-brand-ink-soft hover:underline text-left"
+                          title="Con variantes el inventario se ajusta por variante"
+                        >
+                          {product.variants.reduce((sum, va) => sum + va.stock, 0)} en {product.variants.length} variantes
+                        </button>
+                      ) : (
+                        <StockCell
+                          value={product.stock}
+                          disabled={busy}
+                          label={product.type === "SERVICE" ? "cupos" : "unidades"}
+                          onSave={(stock) => quickUpdate(product.id, { stock })}
+                        />
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono text-brand-ink whitespace-nowrap">
+                      {product.hasVariants ? "Varios" : formatCOP(product.price)}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center justify-end gap-3 whitespace-nowrap">
+                        <button type="button" onClick={() => setMode({ kind: "edit", product })} className="text-xs text-brand-accent hover:underline">
+                          Editar
+                        </button>
+                        <button type="button" onClick={() => handleDuplicate(product)} className="text-xs text-brand-accent hover:underline">
+                          Duplicar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(product.id)}
+                          disabled={deletingId === product.id}
+                          className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                        >
+                          {deletingId === product.id ? "Eliminando..." : "Eliminar"}
+                        </button>
+                        {storeUrl && product.slug && product.status !== "DRAFT" && (
+                          <a
+                            href={`${storeUrl}/${product.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-brand-ink-soft hover:underline"
+                          >
+                            Ver ↗
+                          </a>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

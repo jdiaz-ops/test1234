@@ -366,6 +366,38 @@ export async function updateManualProduct(
   return updated;
 }
 
+/// Inventario y/o estado desde la fila de la tabla de Productos, sin pasar
+/// por el formulario completo. El inventario solo aplica a productos sin
+/// variantes (con variantes vive en cada variante → Editar). Ver
+/// conversación del 2026-09-30.
+export async function quickUpdateManualProduct(
+  brandId: string,
+  productId: string,
+  data: { stock?: number; status?: "ACTIVE" | "DRAFT" | "UNLISTED" },
+) {
+  const product = await prisma.product.findFirst({
+    where: { id: productId, brandId, manual: true },
+    select: { id: true, hasVariants: true, price: true },
+  });
+  if (!product) throw new BrandStoreProductError("Producto no encontrado.");
+  if (data.stock != null && product.hasVariants) {
+    throw new BrandStoreProductError(
+      "Este producto tiene variantes: el inventario se ajusta por variante desde Editar.",
+    );
+  }
+  if (data.status === "ACTIVE" && !product.hasVariants && Number(product.price) <= 0) {
+    throw new BrandStoreProductError("Ponle un precio antes de activarlo.");
+  }
+  return prisma.product.update({
+    where: { id: productId },
+    data: {
+      ...(data.stock != null ? { stock: data.stock } : {}),
+      ...(data.status ? { status: data.status, available: data.status !== "DRAFT" } : {}),
+    },
+    select: { id: true, stock: true, status: true },
+  });
+}
+
 /// Pone en Activo todos los borradores de la marca que se pueden vender
 /// (tienen precio o variantes) — el botón "Activar todos los borradores"
 /// de la lista de productos. Nació para recuperar los productos que una

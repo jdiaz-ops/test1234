@@ -214,6 +214,15 @@ export const deleteManualProductSchema = z.object({
   productId: z.string().min(1),
 });
 
+/// Cambio rápido desde la tabla de Productos (sin abrir el formulario):
+/// inventario y/o estado. Ver store-products-panel.tsx y conversación del
+/// 2026-09-30 ("permíteme ajustar inventario desde ahí, activar/esconder").
+export const quickUpdateProductSchema = z.object({
+  productId: z.string().min(1),
+  stock: z.coerce.number().int().min(0, "No puede ser negativo").optional(),
+  status: z.enum(["ACTIVE", "DRAFT", "UNLISTED"]).optional(),
+});
+
 /// Un lote de productos ya leídos del CSV de Shopify en el navegador (ver
 /// shopify-csv.ts) — mismas reglas por campo que createProductSchema, pero
 /// sin exigir stock ni precio > 0: la exportación de Shopify no trae
