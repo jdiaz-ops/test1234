@@ -12,20 +12,12 @@ import { VariantPicker } from "@/components/storefront/variant-picker";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { ProductShippingCalculator } from "@/components/storefront/product-shipping-calculator";
 import { FloatingAddToCartBar } from "@/components/storefront/floating-add-to-cart-bar";
-import { ProductPrice } from "@/components/storefront/product-card";
+import { ProductCard, ProductPrice, toCardProduct } from "@/components/storefront/product-card";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { getPublishedTheme } from "@/server/services/brand-theme-service";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
-
-function formatCOP(amount: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
 
 export async function generateMetadata({
   params,
@@ -93,8 +85,13 @@ export default async function StorefrontProductPage({
           basePath={basePath}
           menuItems={menuItems}
         />
-        <div className="max-w-3xl mx-auto px-6 py-10 grid sm:grid-cols-2 gap-8">
-          <div>
+        {/* grid-cols-1 explícito en celular: sin plantilla de columnas, la
+            columna implícita crece hasta el ancho real de la foto (las de
+            Shopify son de 2000px+) y la página se desborda de lado.
+            Tailwind arma las columnas con minmax(0, 1fr), que es lo que lo
+            evita. Ver conversación del 2026-09-30. */}
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-1 sm:grid-cols-2 gap-8">
+          <div className="min-w-0">
             <ProductGallery
               images={
                 product.images.length > 0
@@ -294,28 +291,13 @@ export default async function StorefrontProductPage({
         )}
 
         {relatedProducts.length > 0 && (
-          <div className="max-w-3xl mx-auto px-6 pb-14">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-14">
             <h2 className="font-display text-lg font-semibold text-brand-ink mb-4">
               {productDetail.relatedTitles.alternative}
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               {relatedProducts.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`${basePath}/${p.slug}`}
-                  className="rounded-xl border border-brand-line overflow-hidden bg-brand-surface block"
-                >
-                  {p.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.imageUrl} alt={p.name} className="w-full aspect-square object-cover" />
-                  ) : (
-                    <div className="w-full aspect-square bg-brand-accent-soft" />
-                  )}
-                  <div className="p-2">
-                    <p className="text-xs font-medium text-brand-ink truncate">{p.name}</p>
-                    <p className="text-xs text-brand-ink-soft font-mono">{formatCOP(Number(p.price))}</p>
-                  </div>
-                </Link>
+                <ProductCard key={p.id} product={toCardProduct(p)} basePath={basePath} />
               ))}
             </div>
           </div>

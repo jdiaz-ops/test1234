@@ -19,21 +19,24 @@ export function ProductGallery({
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       {/* eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca */}
       <img
         src={images[active] ?? images[0]}
         alt={alt}
         className="w-full aspect-square object-cover rounded-2xl border border-brand-line"
       />
+      {/* La tira de miniaturas se desliza de lado — un producto importado
+          de Shopify puede traer 20+ fotos y sin esto la fila empujaba el
+          ancho de toda la página. Ver conversación del 2026-09-30. */}
       {images.length > 1 && (
-        <div className="flex gap-2 mt-3">
+        <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
           {images.map((url, idx) => (
             <button
               key={url + idx}
               type="button"
               onClick={() => setActive(idx)}
-              className={`w-14 h-14 rounded-lg overflow-hidden border ${
+              className={`w-14 h-14 shrink-0 rounded-lg overflow-hidden border ${
                 idx === active ? "border-brand-accent" : "border-brand-line"
               }`}
             >

@@ -22,32 +22,8 @@ import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 import { getBrandCollection } from "@/server/services/brand-collection-service";
 import { listStorefrontProducts } from "@/server/services/store-order-service";
 import { CatalogTemplate } from "@/components/storefront/catalog-templates";
-import { ProductCard, type CardProduct } from "@/components/storefront/product-card";
+import { ProductCard, toCardProduct, type CardProduct } from "@/components/storefront/product-card";
 import { prisma } from "@/lib/prisma";
-
-/// Las consultas de Prisma traen Decimal — la tarjeta espera números
-/// planos (ver CardProduct).
-function toCardProduct(p: {
-  id: string;
-  name: string;
-  slug: string | null;
-  imageUrl: string | null;
-  price: unknown;
-  compareAtPrice: unknown;
-  stock: number | null;
-  type: "PHYSICAL" | "SERVICE" | "DIGITAL";
-}): CardProduct {
-  return {
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
-    imageUrl: p.imageUrl,
-    price: Number(p.price),
-    compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
-    stock: p.stock,
-    type: p.type,
-  };
-}
 
 const CARD_SELECT = {
   id: true,

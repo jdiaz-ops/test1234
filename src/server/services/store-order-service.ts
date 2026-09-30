@@ -95,7 +95,16 @@ export async function getRelatedProducts(brandId: string, productId: string, lim
       id: { not: productId },
       brandCollections: { some: { collectionId: { in: collectionIds } } },
     },
-    select: { id: true, name: true, slug: true, imageUrl: true, price: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      imageUrl: true,
+      price: true,
+      compareAtPrice: true,
+      stock: true,
+      type: true,
+    },
     take: limit,
   });
   return related;

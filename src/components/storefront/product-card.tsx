@@ -13,6 +13,30 @@ export type CardProduct = {
   type: "PHYSICAL" | "SERVICE" | "DIGITAL";
 };
 
+/// Las consultas de Prisma traen Decimal — la tarjeta espera números
+/// planos.
+export function toCardProduct(p: {
+  id: string;
+  name: string;
+  slug: string | null;
+  imageUrl: string | null;
+  price: unknown;
+  compareAtPrice: unknown;
+  stock: number | null;
+  type: "PHYSICAL" | "SERVICE" | "DIGITAL";
+}): CardProduct {
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    imageUrl: p.imageUrl,
+    price: Number(p.price),
+    compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
+    stock: p.stock,
+    type: p.type,
+  };
+}
+
 /// Clases compartidas por los botones de las tarjetas (agregar al carrito,
 /// ver producto) — rectangulares, de ancho completo y en mayúsculas, como
 /// el botón de compra de Shopify que la marca tomó de referencia.
