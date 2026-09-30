@@ -63,6 +63,18 @@ export async function searchStorefrontProducts(brandId: string, query: string) {
   });
 }
 
+/// Para links viejos de la tienda Shopify que la marca migró (Instagram,
+/// WhatsApp, Google): el handle de Shopify queda guardado en externalId
+/// ("shopify-csv-{handle}", ver shopify-csv-import-service.ts), así que si
+/// un slug no existe se busca por ahí y la página redirige al slug actual.
+/// Ver conversación del 2026-09-30.
+export async function findStorefrontProductByShopifyHandle(brandId: string, handle: string) {
+  return prisma.product.findFirst({
+    where: { brandId, manual: true, externalId: `shopify-csv-${handle}`, status: { not: "DRAFT" } },
+    select: { slug: true },
+  });
+}
+
 export async function getStorefrontProduct(brandId: string, slug: string) {
   return prisma.product.findFirst({
     where: { brandId, manual: true, slug, status: { not: "DRAFT" } },

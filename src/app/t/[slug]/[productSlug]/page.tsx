@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import {
   getStorefrontBrand,
   getStorefrontProduct,
   getRelatedProducts,
+  findStorefrontProductByShopifyHandle,
 } from "@/server/services/store-order-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
@@ -46,7 +47,17 @@ export default async function StorefrontProductPage({
   if (!brand) notFound();
 
   const product = await getStorefrontProduct(brand.id, productSlug);
-  if (!product || !product.available) notFound();
+  if (!product) {
+    // URL vieja de Shopify (o de antes de que el editor conservara el
+    // slug) → manda al slug actual del mismo producto. Ver
+    // findStorefrontProductByShopifyHandle.
+    const byHandle = await findStorefrontProductByShopifyHandle(brand.id, productSlug);
+    if (byHandle?.slug && byHandle.slug !== productSlug) {
+      permanentRedirect(`${await getStoreBasePath(slug)}/${byHandle.slug}`);
+    }
+    notFound();
+  }
+  if (!product.available) notFound();
 
   const outOfStock = product.stock != null && product.stock <= 0;
   const isService = product.type === "SERVICE";

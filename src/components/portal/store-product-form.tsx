@@ -234,7 +234,12 @@ export function StoreProductForm({
       name,
       description,
       images,
-      slug: slugify(name),
+      // Editando, la URL del producto se conserva (como el handle en
+      // Shopify) — antes se rearmaba desde el nombre y los productos
+      // importados perdían su URL original (la marca abrió
+      // /back-to-basics-placa-stamping y vio un 404 después de guardar).
+      // Ver conversación del 2026-09-30.
+      slug: initial?.slug || slugify(name),
       price: hasVariants ? 0 : price,
       compareAtPrice: hasVariants ? null : compareAtPrice,
       sku: hasVariants ? "" : sku,
