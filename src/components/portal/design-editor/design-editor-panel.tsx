@@ -7,7 +7,6 @@ import { DesignPreview } from "./design-preview";
 import {
   ColorsSection,
   TypographySection,
-  DesignTypeSection,
   HeaderSection,
   MenuVisibilitySection,
   AnnouncementSection,
@@ -18,7 +17,6 @@ import {
   CartSection,
   MobileNavSection,
   PopupSection,
-  CssSection,
   type Patch,
 } from "./design-editor-sections";
 import {
@@ -30,10 +28,14 @@ import {
   type StorefrontMenuItemRow,
 } from "@/components/portal/storefront-menu-panel";
 
+/// "Tipo de diseño" (DesignTypeSection) y "Edición avanzada de CSS"
+/// (CssSection) ya no se muestran — pedido explícito de simplificar el
+/// editor, ver conversación del 2026-09-30. Los valores guardados siguen
+/// aplicando (bordes redondeados por defecto; el CSS propio que alguna
+/// marca ya tuviera), solo no se editan desde acá.
 type NavKey =
   | "colors"
   | "typography"
-  | "designType"
   | "header"
   | "menu"
   | "sections"
@@ -44,8 +46,7 @@ type NavKey =
   | "productDetail"
   | "cart"
   | "mobileNav"
-  | "popup"
-  | "css";
+  | "popup";
 
 /// NavKeys cuya sección de abajo es un panel autosuficiente (lista + CRUD
 /// propio, con su propio fetch), no un formulario del tema — ocupan las 2
@@ -62,9 +63,11 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
     ],
   },
   {
-    title: "Configuración avanzada",
+    // En el orden en que el comprador los ve, de arriba hacia abajo —
+    // pedido explícito de la marca, ver conversación del 2026-09-30.
+    title: "Estructura de tu tienda",
     items: [
-      { key: "designType", label: "Tipo de diseño" },
+      { key: "announcement", label: "Barra de anuncio" },
       { key: "header", label: "Encabezado" },
       // Antes vivía en Páginas, separado del resto del diseño — se mudó
       // acá porque es tan "diseño" como el resto (qué ve el comprador en
@@ -75,15 +78,18 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
       // Plantilla, separados de acá; ahora es acá, como en Tiendanube
       // (ver conversación del 2026-09-14).
       { key: "sections", label: "Página de inicio" },
-      { key: "announcement", label: "Barra de anuncio" },
+      { key: "mobileNav", label: "Navegador móvil" },
       { key: "footer", label: "Pie de página" },
+    ],
+  },
+  {
+    title: "Otros ajustes",
+    items: [
       { key: "productListing", label: "Listado de productos" },
       { key: "collections", label: "Colecciones" },
       { key: "productDetail", label: "Detalle del producto" },
       { key: "cart", label: "Carrito de compras" },
-      { key: "mobileNav", label: "Navegador móvil" },
       { key: "popup", label: "Pop-up promocional" },
-      { key: "css", label: "Edición avanzada de CSS" },
     ],
   },
 ];
@@ -251,7 +257,6 @@ export function DesignEditorPanel({
           )}
           {active === "colors" && <ColorsSection theme={theme} patch={patch} />}
           {active === "typography" && <TypographySection theme={theme} patch={patch} />}
-          {active === "designType" && <DesignTypeSection theme={theme} patch={patch} />}
           {active === "header" && <HeaderSection theme={theme} patch={patch} />}
           {active === "menu" && (
             <>
@@ -270,7 +275,6 @@ export function DesignEditorPanel({
           {active === "cart" && <CartSection theme={theme} patch={patch} />}
           {active === "mobileNav" && <MobileNavSection theme={theme} patch={patch} />}
           {active === "popup" && <PopupSection theme={theme} patch={patch} />}
-          {active === "css" && <CssSection theme={theme} patch={patch} />}
         </div>
 
         {!(active && WIDE_PANELS.includes(active)) && (
