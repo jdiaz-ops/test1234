@@ -8,7 +8,7 @@ import {
   findStorefrontProductByShopifyHandle,
 } from "@/server/services/store-order-service";
 import { StoreHeader } from "@/components/storefront/store-header";
-import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { QuantityAddToCart } from "@/components/storefront/quantity-add-to-cart";
 import { VariantPicker } from "@/components/storefront/variant-picker";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { FloatingAddToCartBar } from "@/components/storefront/floating-add-to-cart-bar";
@@ -100,7 +100,7 @@ export default async function StorefrontProductPage({
             Shopify son de 2000px+) y la página se desborda de lado.
             Tailwind arma las columnas con minmax(0, 1fr), que es lo que lo
             evita. Ver conversación del 2026-09-30. */}
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 grid grid-cols-1 sm:grid-cols-2 gap-8">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 grid grid-cols-1 sm:grid-cols-2 gap-8 lg:gap-14">
           <div className="min-w-0">
             <ProductGallery
               images={
@@ -143,18 +143,6 @@ export default async function StorefrontProductPage({
                   </span>
                 )}
               </div>
-            )}
-
-            {product.description && (
-              <div
-                className="rich-text-content text-sm text-brand-ink-soft"
-                // Ya viene saneado desde brand-store-product-service.ts al
-                // guardar — se vuelve a sanear acá por si algún otro camino
-                // de escritura (ej. una futura sincronización) se lo salta.
-                dangerouslySetInnerHTML={{
-                  __html: sanitizeProductDescription(product.description),
-                }}
-              />
             )}
 
             {isService && (
@@ -207,8 +195,7 @@ export default async function StorefrontProductPage({
                   </p>
                 )}
 
-                <AddToCartButton
-                  basePath={basePath}
+                <QuantityAddToCart
                   product={{
                     id: product.id,
                     slug: product.slug ?? "",
@@ -219,7 +206,6 @@ export default async function StorefrontProductPage({
                     type: product.type,
                   }}
                 />
-
               </>
             )}
 
@@ -274,6 +260,28 @@ export default async function StorefrontProductPage({
             )}
           </div>
         </div>
+
+        {/* La descripción va debajo de foto + compra, a todo el ancho y con
+            el título centrado — como en la tienda Shopify de referencia
+            (la marca: "y debajo la caja de descripción"). Antes iba en la
+            columna derecha, entre el precio y el botón. Ver conversación
+            del 2026-09-30. */}
+        {product.description && (
+          <section className="max-w-[1600px] mx-auto px-4 sm:px-8 pb-14">
+            <h2 className="font-display text-xl font-bold uppercase tracking-wide text-brand-ink text-center mb-6">
+              Descripción
+            </h2>
+            <div
+              className="rich-text-content text-sm text-brand-ink max-w-5xl mx-auto"
+              // Ya viene saneado desde brand-store-product-service.ts al
+              // guardar — se vuelve a sanear acá por si algún otro camino
+              // de escritura (ej. una futura sincronización) se lo salta.
+              dangerouslySetInnerHTML={{
+                __html: sanitizeProductDescription(product.description),
+              }}
+            />
+          </section>
+        )}
 
         {productDetail.floatingAddToCart && (
           <FloatingAddToCartBar

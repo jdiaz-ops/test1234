@@ -21,9 +21,13 @@ export function AddToCartButton({
   product,
   className,
   disabled,
+  quantity = 1,
 }: {
   product: Product;
   className?: string;
+  /// Cuántas unidades agrega por clic — lo manda el selector de cantidad
+  /// de la ficha (ver quantity-add-to-cart.tsx); las tarjetas agregan 1.
+  quantity?: number;
   /// Ej. producto con variantes y todavía no elige ninguna combinación
   /// completa.
   disabled?: boolean;
@@ -51,7 +55,7 @@ export function AddToCartButton({
       imageUrl: product.imageUrl,
       stock: product.stock,
       type: product.type ?? "PHYSICAL",
-    });
+    }, quantity);
     if (!result.ok) {
       setError(result.error);
       setTimeout(() => setError(null), 3000);
@@ -62,7 +66,7 @@ export function AddToCartButton({
   }
 
   return (
-    <div>
+    <div className="h-full flex flex-col">
       <button
         type="button"
         onClick={handleClick}

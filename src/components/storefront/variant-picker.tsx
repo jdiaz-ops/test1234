@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { QuantityAddToCart } from "@/components/storefront/quantity-add-to-cart";
 import { useStorefrontTheme } from "@/components/storefront/storefront-theme-context";
 
 export type StorefrontVariant = {
@@ -35,7 +35,6 @@ export function VariantPicker({
   baseImageUrl,
   optionNames,
   variants,
-  basePath,
 }: {
   productId: string;
   productSlug: string;
@@ -44,6 +43,8 @@ export function VariantPicker({
   baseImageUrl: string | null;
   optionNames: string[];
   variants: StorefrontVariant[];
+  /// Ya no se usa (el botón no navega) — queda en el tipo para no tocar a
+  /// quien todavía lo manda.
   basePath?: string;
 }) {
   // Arranca sin nada elegido — obliga a elegir cada eje antes de poder
@@ -175,9 +176,8 @@ export function VariantPicker({
         <p className="text-sm text-brand-ink-soft">Agotado en esa combinación.</p>
       )}
 
-      <AddToCartButton
+      <QuantityAddToCart
         disabled={!matchedVariant || outOfStock}
-        basePath={basePath}
         product={{
           id: productId,
           slug: productSlug,
