@@ -21,13 +21,54 @@ function formatCOP(amount: number) {
 /// sincronizado por la conexión Shopify/WooCommerce para precargar el
 /// formulario — se quitó a pedido de la marca: al lado del importador de
 /// CSV confundía. Ver conversación del 2026-09-30.
+/// Qué ve el comprador de este producto, en una palabra — la marca no
+/// tenía "una forma fácil de ver si un producto está activo, visible o
+/// no". Ver conversación del 2026-09-30.
+type Visibility = "visible" | "soldout" | "unlisted" | "hidden";
+
+function visibilityOf(p: ManualProduct): Visibility {
+  if (p.status === "DRAFT") return "hidden";
+  if (p.status === "UNLISTED") return "unlisted";
+  const stock = p.hasVariants ? p.variants.reduce((sum, v) => sum + v.stock, 0) : p.stock;
+  if (stock != null && stock <= 0) return "soldout";
+  return "visible";
+}
+
+const VISIBILITY_LABEL: Record<Visibility, { text: string; className: string; dot: string }> = {
+  visible: { text: "Visible en la tienda", className: "text-green-700", dot: "bg-green-500" },
+  soldout: { text: "Visible · agotado (no se puede comprar)", className: "text-amber-700", dot: "bg-amber-500" },
+  unlisted: { text: "Oculto del catálogo · solo con link directo", className: "text-amber-700", dot: "bg-amber-500" },
+  hidden: { text: "Oculto (borrador)", className: "text-red-600", dot: "bg-red-500" },
+};
+
+const FILTERS: { key: Visibility | "all"; label: string }[] = [
+  { key: "all", label: "Todos" },
+  { key: "visible", label: "Visibles" },
+  { key: "soldout", label: "Agotados" },
+  { key: "unlisted", label: "Solo con link" },
+  { key: "hidden", label: "Ocultos" },
+];
+
 export function StoreProductsPanel({
   initialProducts,
+  storeUrl,
 }: {
   initialProducts: ManualProduct[];
+  /// Dirección pública de la tienda para "Ver en la tienda" — null si la
+  /// marca todavía no configuró su subdominio.
+  storeUrl?: string | null;
 }) {
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
+  const [filter, setFilter] = useState<Visibility | "all">("all");
+  const counts = products.reduce(
+    (acc, p) => {
+      acc[visibilityOf(p)]++;
+      return acc;
+    },
+    { visible: 0, soldout: 0, unlisted: 0, hidden: 0 } as Record<Visibility, number>,
+  );
+  const shownProducts = filter === "all" ? products : products.filter((p) => visibilityOf(p) === filter);
   const [mode, setMode] = useState<
     | { kind: "list" }
     | { kind: "create"; seed?: Partial<ManualProduct> }
@@ -210,13 +251,39 @@ export function StoreProductsPanel({
         </div>
       )}
 
+      {products.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((f) => {
+            const n = f.key === "all" ? products.length : counts[f.key];
+            if (f.key !== "all" && n === 0) return null;
+            const active = filter === f.key;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFilter(f.key)}
+                className={`rounded-full px-3 py-1 text-xs font-medium border ${
+                  active
+                    ? "bg-brand-ink text-brand-bg border-brand-ink"
+                    : "border-brand-line text-brand-ink hover:bg-brand-accent-soft"
+                }`}
+              >
+                {f.label} ({n})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {products.length === 0 ? (
         <p className="text-sm text-brand-ink-soft">
           Todavía no has agregado ningún producto.
         </p>
+      ) : shownProducts.length === 0 ? (
+        <p className="text-sm text-brand-ink-soft">No hay productos en este grupo.</p>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
-          {products.map((product) => (
+          {shownProducts.map((product) => (
             <div
               key={product.id}
               className="rounded-2xl border border-brand-line bg-brand-surface p-4 flex gap-3"
@@ -252,12 +319,15 @@ export function StoreProductsPanel({
                     ? "Varios precios"
                     : formatCOP(product.price)}
                 </p>
-                {product.status === "DRAFT" && (
-                  <p className="text-xs text-red-600 mt-0.5">Borrador</p>
-                )}
-                {product.status === "UNLISTED" && (
-                  <p className="text-xs text-amber-600 mt-0.5">No listado</p>
-                )}
+                {(() => {
+                  const v = VISIBILITY_LABEL[visibilityOf(product)];
+                  return (
+                    <p className={`text-xs mt-1 flex items-center gap-1.5 ${v.className}`}>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${v.dot}`} />
+                      {v.text}
+                    </p>
+                  );
+                })()}
                 {product.hasVariants ? (
                   <p className="text-xs text-brand-ink-soft mt-0.5">
                     {product.variants.length} variantes ·{" "}
@@ -295,6 +365,16 @@ export function StoreProductsPanel({
                   >
                     {deletingId === product.id ? "Eliminando..." : "Eliminar"}
                   </button>
+                  {storeUrl && product.slug && product.status !== "DRAFT" && (
+                    <a
+                      href={`${storeUrl}/${product.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-brand-ink-soft hover:underline ml-auto"
+                    >
+                      Ver en la tienda ↗
+                    </a>
+                  )}
                 </div>
               </div>
             </div>

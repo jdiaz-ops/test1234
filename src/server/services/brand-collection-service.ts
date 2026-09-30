@@ -38,6 +38,10 @@ export async function getPublicBrandCollection(brandId: string, slug: string) {
     where: { brandId_slug: { brandId, slug } },
     include: {
       products: {
+        // Orden fijo: el de entrada a la colección (importación o
+        // guardado). Sin orderBy Postgres devuelve las filas en el orden
+        // que le queda cómodo y cambia con cada edición.
+        orderBy: { createdAt: "asc" },
         include: {
           product: {
             select: {
@@ -90,6 +94,7 @@ export async function getBrandCollection(brandId: string, collectionId: string) 
     where: { id: collectionId, brandId },
     include: {
       products: {
+        orderBy: { createdAt: "asc" },
         include: {
           product: {
             select: {
@@ -256,15 +261,28 @@ export async function setProductCollections(
   });
   const ownedIds = new Set(owned.map((c) => c.id));
 
+  // Solo se toca lo que cambió. Antes se borraban TODAS las filas y se
+  // volvían a crear en cada guardado, y como el orden de los productos en
+  // una colección es el de esas filas (createdAt), cada producto editado
+  // pasaba al final: en la portada, que muestra los primeros 12 de la
+  // colección destacada, "desaparecía". Ver conversación del 2026-09-30.
+  const current = await prisma.productBrandCollection.findMany({
+    where: { productId },
+    select: { collectionId: true },
+  });
+  const currentIds = new Set(current.map((c) => c.collectionId));
+  const toRemove = Array.from(currentIds).filter((id) => !ownedIds.has(id));
+  const toAdd = Array.from(ownedIds).filter((id) => !currentIds.has(id));
+  if (toRemove.length === 0 && toAdd.length === 0) return;
+
   await prisma.$transaction([
-    prisma.productBrandCollection.deleteMany({ where: { productId } }),
-    ...(ownedIds.size > 0
+    ...(toRemove.length > 0
+      ? [prisma.productBrandCollection.deleteMany({ where: { productId, collectionId: { in: toRemove } } })]
+      : []),
+    ...(toAdd.length > 0
       ? [
           prisma.productBrandCollection.createMany({
-            data: Array.from(ownedIds).map((collectionId) => ({
-              productId,
-              collectionId,
-            })),
+            data: toAdd.map((collectionId) => ({ productId, collectionId })),
           }),
         ]
       : []),
