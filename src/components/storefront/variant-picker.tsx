@@ -143,7 +143,7 @@ export function VariantPicker({
                         ? `rounded-full overflow-hidden w-10 h-10 border-2 ${isSelected ? "border-brand-accent" : "border-brand-line"}`
                         : `text-sm rounded-full px-4 py-1.5 border ${
                             isSelected
-                              ? "bg-brand-accent text-white border-brand-accent"
+                              ? "bg-brand-button text-brand-button-text border-brand-button"
                               : "border-brand-line text-brand-ink hover:bg-brand-accent-soft"
                           }`
                     }

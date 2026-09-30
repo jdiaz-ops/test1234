@@ -19,7 +19,7 @@ export function MobileBottomNav({
   basePath: string;
 }) {
   const pathname = usePathname();
-  const { openDrawer } = useCart();
+  const { openDrawer, count } = useCart();
   const visible = config.items
     .map((item, i) => ({ ...item, index: i }))
     .filter((item) => item.enabled);
@@ -44,14 +44,24 @@ export function MobileBottomNav({
         const isHome = href === basePath || href === `${basePath}/`;
         const active = isHome ? pathname === href || pathname === `${basePath}/` : pathname.startsWith(href);
         const Icon = MOBILE_NAV_DEFAULT_ICONS[item.index] ?? MOBILE_NAV_DEFAULT_ICONS[0];
+        // El ícono del carrito lleva el mismo numerito de artículos que el
+        // botón del encabezado (ver store-header.tsx) — la marca notó que
+        // abajo no salía. Ver conversación del 2026-09-30.
         const content = (
           <>
-            {item.iconUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- ícono subido por la marca
-              <img src={item.iconUrl} alt="" className="w-5 h-5 object-contain" />
-            ) : (
-              <Icon />
-            )}
+            <span className="relative inline-flex">
+              {item.iconUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- ícono subido por la marca
+                <img src={item.iconUrl} alt="" className="w-5 h-5 object-contain" />
+              ) : (
+                <Icon />
+              )}
+              {isCart && count > 0 && (
+                <span className="absolute -top-2 -right-2.5 bg-brand-accent text-white text-[10px] rounded-full w-[18px] h-[18px] flex items-center justify-center font-mono leading-none">
+                  {count}
+                </span>
+              )}
+            </span>
             <span className="text-[10px] font-medium leading-none truncate max-w-[72px]">
               {item.label}
             </span>

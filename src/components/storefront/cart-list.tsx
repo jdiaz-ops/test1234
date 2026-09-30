@@ -69,7 +69,7 @@ export function CartList({
         <Link
           href={basePath || "/"}
           onClick={closeDrawer}
-          className="inline-block rounded-full bg-brand-accent text-white px-5 py-2 text-sm font-semibold hover:opacity-90"
+          className="inline-block rounded-full bg-brand-button text-brand-button-text px-5 py-2 text-sm font-semibold hover:opacity-90"
         >
           Ver productos
         </Link>
@@ -183,7 +183,7 @@ export function CartList({
           <Link
             href={`${basePath}/checkout`}
             onClick={closeDrawer}
-            className="rounded-full bg-brand-accent text-white px-6 py-2.5 text-sm font-semibold hover:opacity-90"
+            className="rounded-full bg-brand-button text-brand-button-text px-6 py-2.5 text-sm font-semibold hover:opacity-90"
           >
             Ir al pago →
           </Link>

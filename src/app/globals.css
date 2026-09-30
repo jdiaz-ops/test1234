@@ -25,6 +25,8 @@
      si algo las usa fuera de ese contexto. */
   --brand-secondary: #f6dde7; /* fondo de la barra de anuncio */
   --brand-highlight: #2f9e6b; /* promos, envío gratis, descuentos */
+  --brand-button: #111111; /* botones de compra (agregar, ir al pago, pagar) */
+  --brand-button-text: #ffffff; /* texto de esos botones (contraste automático) */
 }
 
 @theme inline {
@@ -38,6 +40,8 @@
   --color-brand-accent: var(--brand-accent);
   --color-brand-accent-soft: var(--brand-accent-soft);
   --color-brand-line: var(--brand-line);
+  --color-brand-button: var(--brand-button);
+  --color-brand-button-text: var(--brand-button-text);
 
   --font-sans: var(--font-body);
   --font-mono: var(--font-mono-brand);

@@ -69,7 +69,7 @@ export function AddToCartButton({
         disabled={outOfStock || disabled}
         className={
           className ??
-          "w-full bg-brand-accent text-white rounded-full px-5 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40"
+          "w-full bg-brand-button text-brand-button-text rounded-full px-5 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40"
         }
       >
         {outOfStock

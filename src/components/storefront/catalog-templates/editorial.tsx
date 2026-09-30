@@ -62,7 +62,7 @@ export function EditorialTemplate({
               stock: featured.stock,
               type: featured.type,
             }}
-            className="bg-brand-accent text-white rounded-full px-6 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40"
+            className="bg-brand-button text-brand-button-text rounded-full px-6 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40"
           />
         </div>
       </Link>

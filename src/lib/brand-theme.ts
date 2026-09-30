@@ -43,6 +43,7 @@ export const DEFAULT_COLORS = {
   usarAcento: false,
   fondo: "#ffffff",
   texto: "#111111",
+  botones: "#111111",
 };
 
 const colorsSchema = withDefaults({
@@ -56,6 +57,12 @@ const colorsSchema = withDefaults({
   usarAcento: z.boolean().default(DEFAULT_COLORS.usarAcento),
   fondo: hexColor().default(DEFAULT_COLORS.fondo),
   texto: hexColor().default(DEFAULT_COLORS.texto),
+  /// Todos los botones de compra (agregar al carrito, ir al pago, pagar).
+  /// Antes salían con `principal` (rosado) en unos lados y con `texto` en
+  /// otros — la marca los vio de dos colores distintos y pidió un solo
+  /// control. Las tiendas guardadas antes de este campo reciben el
+  /// default (negro). Ver conversación del 2026-09-30.
+  botones: hexColor().default(DEFAULT_COLORS.botones),
 });
 
 // ----------------------------------------------------------------------------
@@ -421,6 +428,21 @@ export function resolveColorRef(
 /// configuran directo se derivan con color-mix() en el navegador — no
 /// hace falta una librería de color en el servidor para aclarar/oscurecer
 /// un hex.
+/// Blanco o negro, el que más contraste haga con `hex` — para el texto
+/// de los botones, que la marca no elige aparte (un botón negro con letras
+/// negras sería invisible). Luminancia relativa aproximada (sRGB).
+export function contrastTextFor(hex: string): "#ffffff" | "#111111" {
+  const raw = hex.replace("#", "");
+  const full = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw;
+  const n = parseInt(full, 16);
+  if (Number.isNaN(n)) return "#ffffff";
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return lum > 0.6 ? "#111111" : "#ffffff";
+}
+
 export function themeToCssVars(theme: ThemeConfig): Record<string, string> {
   const { colors, typography } = theme;
   const highlight = resolveColorRef(colors, "acento");
@@ -434,6 +456,8 @@ export function themeToCssVars(theme: ThemeConfig): Record<string, string> {
     "--brand-line": `color-mix(in srgb, ${colors.texto} 12%, white)`,
     "--brand-secondary": colors.secundario,
     "--brand-highlight": highlight,
+    "--brand-button": colors.botones,
+    "--brand-button-text": contrastTextFor(colors.botones),
     "--font-display": fontStack(typography.headingFont),
     "--font-body": fontStack(typography.bodyFont),
   };

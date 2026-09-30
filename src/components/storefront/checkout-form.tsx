@@ -378,7 +378,7 @@ export function CheckoutForm({
                   submitting ||
                   (needsShipping && (!shippingRegion || shippingQuote.loading || shippingQuote.amount == null))
                 }
-                className="w-full bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
+                className="w-full bg-brand-button text-brand-button-text rounded-full px-6 py-3 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
               >
                 {submitting
                   ? "Creando pedido..."
@@ -437,7 +437,7 @@ export function CheckoutForm({
               type="button"
               onClick={() => handleApplyCode()}
               disabled={checkingCode || !code.trim()}
-              className="rounded-full bg-brand-accent text-white px-4 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
+              className="rounded-full bg-brand-button text-brand-button-text px-4 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
             >
               {checkingCode ? "..." : "Aplicar"}
             </button>

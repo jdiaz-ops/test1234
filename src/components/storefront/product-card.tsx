@@ -43,11 +43,12 @@ export function toCardProduct(p: {
 export const CARD_BUTTON_CLASS =
   "w-full px-3 py-3 text-xs font-bold uppercase tracking-wide";
 
-/// Botón principal de la tarjeta (agregar al carrito): oscuro, como el
-/// botón negro de Shopify — usa el color de texto de la marca sobre su
-/// fondo, así queda legible con cualquier paleta.
+/// Botón principal de la tarjeta (agregar al carrito): el "Color de
+/// botones" de Diseño → Colores, con texto blanco o negro según contraste
+/// (ver contrastTextFor en brand-theme.ts). Es el mismo color que usan
+/// "Ir al pago", "Pagar" y el resto de botones de compra.
 export const CARD_PRIMARY_BUTTON_CLASS =
-  "bg-brand-ink text-brand-bg hover:opacity-90 disabled:opacity-40";
+  "bg-brand-button text-brand-button-text hover:opacity-90 disabled:opacity-40";
 
 /// % de descuento cuando hay un precio tachado mayor al real — null si
 /// el producto no está en oferta.

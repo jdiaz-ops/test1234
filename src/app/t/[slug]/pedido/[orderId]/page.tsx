@@ -200,7 +200,7 @@ export default async function StorefrontOrderStatusPage({
 
         <Link
           href={basePath || "/"}
-          className="inline-block rounded-full bg-brand-accent text-white px-5 py-2 text-sm font-semibold hover:opacity-90"
+          className="inline-block rounded-full bg-brand-button text-brand-button-text px-5 py-2 text-sm font-semibold hover:opacity-90"
         >
           Volver a la tienda
         </Link>

@@ -62,7 +62,7 @@ export function FloatingAddToCartBar({
   }
 
   const buttonClass =
-    "bg-brand-accent text-white rounded-full px-10 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40";
+    "bg-brand-button text-brand-button-text rounded-full px-10 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40";
 
   return (
     <div

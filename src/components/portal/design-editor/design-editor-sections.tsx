@@ -101,27 +101,63 @@ export function ColorsSection({ theme, patch }: { theme: ThemeConfig; patch: Pat
   const setColor = (key: keyof ThemeConfig["colors"], value: string | boolean) =>
     patch({ colors: { [key]: value } });
 
+  // Cada color dice exactamente qué partes de la tienda pinta — la marca
+  // pidió que esto fuera claro ("simplifica esto o más bien detalla").
+  // Primero los tres que definen la tienda (fondo, textos, botones) y
+  // después los de detalle. Sin "Combinaciones predeterminadas": el
+  // default de toda tienda nueva es blanco y negro (ver DEFAULT_COLORS).
+  // Ver conversación del 2026-09-30.
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <ColorRow label="Color principal" hint="Botones, precio, links, firma de marca." value={c.principal} onChange={(v) => setColor("principal", v)} />
-        <ColorRow label="Color secundario" hint="Fondo de la barra de anuncio." value={c.secundario} onChange={(v) => setColor("secundario", v)} />
+      <div className="space-y-5">
+        <p className="text-xs font-medium text-brand-ink">Los básicos</p>
+        <ColorRow
+          label="Color de fondo"
+          hint="El fondo de todas las páginas de la tienda."
+          value={c.fondo}
+          onChange={(v) => setColor("fondo", v)}
+        />
+        <ColorRow
+          label="Color de textos"
+          hint="Títulos, nombres de productos, descripciones y precios normales."
+          value={c.texto}
+          onChange={(v) => setColor("texto", v)}
+        />
+        <ColorRow
+          label="Color de botones"
+          hint="Agregar al carrito, Ir al pago, Pagar y los demás botones de compra. El texto del botón sale blanco o negro solo, según cuál se lea mejor."
+          value={c.botones}
+          onChange={(v) => setColor("botones", v)}
+        />
+      </div>
+
+      <div className="border-t border-brand-line pt-5 space-y-5">
+        <p className="text-xs font-medium text-brand-ink">Detalles</p>
+        <ColorRow
+          label="Color principal"
+          hint="Precio en oferta, el -20% en las fotos, links, el numerito del carrito y el ícono activo de la barra inferior."
+          value={c.principal}
+          onChange={(v) => setColor("principal", v)}
+        />
+        <ColorRow
+          label="Color secundario"
+          hint="Fondo de la barra de anuncio cuando no le pones color propio en Barra de anuncio. También se puede elegir como fondo en Encabezado y Pie de página."
+          value={c.secundario}
+          onChange={(v) => setColor("secundario", v)}
+        />
         <div>
-          <ColorRow label="Color de acento" hint="Promociones, descuentos, envío gratis." value={c.acento} onChange={(v) => setColor("acento", v)} disabled={!c.usarAcento} />
-          <label className="flex items-center gap-2 text-xs text-brand-ink-soft mt-1 ml-1">
+          <ColorRow
+            label="Color de acento"
+            hint="Ahorras X% en la página de producto, envío gratis y avisos de promoción. Si no lo activas, esas partes usan el color principal."
+            value={c.acento}
+            onChange={(v) => setColor("acento", v)}
+            disabled={!c.usarAcento}
+          />
+          <label className="flex items-center gap-2 text-xs text-brand-ink-soft mt-2 ml-1">
             <input type="checkbox" checked={c.usarAcento} onChange={(e) => setColor("usarAcento", e.target.checked)} />
             Usar color de acento
           </label>
         </div>
-      </div>
-
-      {/* Sin "Combinaciones predeterminadas" — se quitaron a pedido de la
-          marca; el default de toda tienda nueva ya es blanco y negro (ver
-          DEFAULT_COLORS). Ver conversación del 2026-09-30. */}
-      <div className="border-t border-brand-line pt-4 space-y-4">
-        <p className="text-xs font-medium text-brand-ink">Colores de contraste</p>
-        <ColorRow label="Color de fondo" value={c.fondo} onChange={(v) => setColor("fondo", v)} />
-        <ColorRow label="Color de textos" value={c.texto} onChange={(v) => setColor("texto", v)} />
       </div>
     </div>
   );
@@ -160,30 +196,35 @@ function ColorRow({
       : withHash;
     if (/^#[0-9a-f]{6}$/i.test(expanded)) onChange(expanded.toLowerCase());
   }
+  // Nombre y explicación arriba, a todo el ancho, y debajo el selector +
+  // el código — así la explicación de qué pinta cada color no queda
+  // apretada en una columna angosta al lado de los inputs.
   return (
-    <div className={`flex items-center gap-3 ${disabled ? "opacity-40" : ""}`}>
-      <input
-        type="color"
-        value={/^#([0-9a-f]{6})$/i.test(value) ? value : "#000000"}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className="w-10 h-10 rounded-lg border border-brand-line cursor-pointer shrink-0"
-      />
-      <input
-        type="text"
-        value={draft}
-        onChange={(e) => handleText(e.target.value)}
-        onBlur={() => setDraft(value)}
-        disabled={disabled}
-        maxLength={7}
-        spellCheck={false}
-        placeholder="#000000"
-        aria-label={`Código de color: ${label}`}
-        className="input text-sm font-mono uppercase max-w-28 shrink-0"
-      />
+    <div className={`space-y-2 ${disabled ? "opacity-40" : ""}`}>
       <div>
-        <p className="text-sm text-brand-ink">{label}</p>
-        {hint && <p className="text-xs text-brand-ink-soft">{hint}</p>}
+        <p className="text-sm font-medium text-brand-ink">{label}</p>
+        {hint && <p className="text-xs text-brand-ink-soft leading-relaxed">{hint}</p>}
+      </div>
+      <div className="flex items-center gap-3">
+        <input
+          type="color"
+          value={/^#([0-9a-f]{6})$/i.test(value) ? value : "#000000"}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className="w-10 h-10 rounded-lg border border-brand-line cursor-pointer shrink-0"
+        />
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => handleText(e.target.value)}
+          onBlur={() => setDraft(value)}
+          disabled={disabled}
+          maxLength={7}
+          spellCheck={false}
+          placeholder="#000000"
+          aria-label={`Código de color: ${label}`}
+          className="input text-sm font-mono uppercase max-w-28 shrink-0"
+        />
       </div>
     </div>
   );
