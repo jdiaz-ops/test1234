@@ -99,16 +99,20 @@ export function CheckoutForm({
   // así que una tarifa condicionada por peso puede dar un estimado
   // distinto al cobro real — el que manda siempre es el que recalcula
   // createStoreOrder al confirmar.
+  // `amount` en pesos, como todo el resto de este formulario (subtotal,
+  // IVA, total). La API cotiza en centavos — se convierte al recibir; antes
+  // se sumaban los centavos como si fueran pesos y el envío salía 100
+  // veces más caro ($8.000 → $800.000). Ver conversación del 2026-09-30.
   const [shippingQuote, setShippingQuote] = useState<{
-    cents: number | null;
+    amount: number | null;
     error: string | null;
     loading: boolean;
-  }>({ cents: null, error: null, loading: false });
+  }>({ amount: null, error: null, loading: false });
 
   useEffect(() => {
     if (!needsShipping || !shippingRegion) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- resetea la cotización cuando el comprador borra/cambia de tipo de pedido, no hay forma de derivarlo sin guardar estado
-      setShippingQuote({ cents: null, error: null, loading: false });
+      setShippingQuote({ amount: null, error: null, loading: false });
       return;
     }
     let cancelled = false;
@@ -116,20 +120,24 @@ export function CheckoutForm({
     fetch(`/api/tienda/${brandSlug}/envio`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ region: shippingRegion, orderAmountCents: afterDiscount, weightKg: 0 }),
+      body: JSON.stringify({
+        region: shippingRegion,
+        orderAmountCents: Math.round(afterDiscount * 100),
+        weightKg: 0,
+      }),
     })
       .then((r) => r.json())
       .then((body) => {
         if (cancelled) return;
         if (body?.ok) {
-          setShippingQuote({ cents: body.shippingCents, error: null, loading: false });
+          setShippingQuote({ amount: body.shippingCents / 100, error: null, loading: false });
         } else {
-          setShippingQuote({ cents: null, error: body?.error ?? "No se pudo cotizar el envío.", loading: false });
+          setShippingQuote({ amount: null, error: body?.error ?? "No se pudo cotizar el envío.", loading: false });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setShippingQuote({ cents: null, error: "No se pudo cotizar el envío — revisa tu conexión.", loading: false });
+          setShippingQuote({ amount: null, error: "No se pudo cotizar el envío — revisa tu conexión.", loading: false });
         }
       });
     return () => {
@@ -138,7 +146,7 @@ export function CheckoutForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- afterDiscount cambia con cada tecla del código de descuento, no hace falta recotizar por eso solo
   }, [brandSlug, needsShipping, shippingRegion]);
 
-  const shippingCost = shippingQuote.cents ?? 0;
+  const shippingCost = shippingQuote.amount ?? 0;
   const taxAmount = Math.round((afterDiscount * taxRatePercent) / 100);
   const total = afterDiscount + taxAmount + shippingCost;
 
@@ -368,7 +376,7 @@ export function CheckoutForm({
                 type="submit"
                 disabled={
                   submitting ||
-                  (needsShipping && (!shippingRegion || shippingQuote.loading || shippingQuote.cents == null))
+                  (needsShipping && (!shippingRegion || shippingQuote.loading || shippingQuote.amount == null))
                 }
                 className="w-full bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
               >
@@ -467,7 +475,7 @@ export function CheckoutForm({
                   ? "Elige tu departamento"
                   : shippingQuote.loading
                     ? "Calculando..."
-                    : shippingQuote.cents == null
+                    : shippingQuote.amount == null
                       ? "—"
                       : shippingCost === 0
                         ? "Gratis"
