@@ -118,8 +118,9 @@ function BannerFields({ config: rawConfig, onChange }: { config: BannerConfig; o
           onChange={(e) => onChange({ ...config, aspectRatio: e.target.value as BannerConfig["aspectRatio"] })}
           className="input text-sm max-w-40"
         >
-          <option value="horizontal">Horizontal</option>
-          <option value="square">Cuadrado</option>
+          <option value="original">Ajustar a la imagen (sin recortar)</option>
+          <option value="horizontal">Horizontal (franja 3:1, recorta)</option>
+          <option value="square">Cuadrado (recorta)</option>
         </select>
       </div>
       <p className="text-[11px] text-brand-ink-soft">

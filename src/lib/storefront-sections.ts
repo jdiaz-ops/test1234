@@ -50,7 +50,7 @@ export const SECTION_TYPE_LABEL: Record<SectionType, string> = {
 };
 
 export const SECTION_TYPE_DESCRIPTION: Record<SectionType, string> = {
-  BANNER: "Una o varias imágenes de ancho completo (armá un carrusel), horizontal o cuadrado, cada una con su propio link, más título/texto/botón opcionales — el hero de tu tienda (podés agregar varios).",
+  BANNER: "Una o varias imágenes de ancho completo (armá un carrusel), al tamaño de la imagen, horizontal o cuadrado, cada una con su propio link, más título/texto/botón opcionales — el hero de tu tienda (podés agregar varios).",
   FEATURED_COLLECTION: "Muestra los productos de una de tus colecciones en una cuadrícula.",
   TEXT: "Un título y un párrafo — para un mensaje de bienvenida, institucional, o contar algo de tu marca (podés agregar varios).",
   IMAGE_CAROUSEL: "Una o más imágenes de ancho completo, sin texto — el hero clásico de tienda.",
@@ -79,10 +79,12 @@ const bannerSlideSchema = z.object({
 export type BannerSlide = z.infer<typeof bannerSlideSchema>;
 
 const bannerConfigSchema = z.object({
-  /// "horizontal" = el banner de siempre (ancho, tipo hero). "square" =
-  /// 1:1, para fotos de producto/lookbook que no estiran bien en ancho
-  /// completo. Ver conversación del 2026-09-15.
-  aspectRatio: z.enum(["horizontal", "square"]).default("horizontal"),
+  /// "original" = la imagen se muestra entera, al alto que le dé su propia
+  /// proporción (sin recortar) — pedido explícito: "el banner debe fit",
+  /// ver conversación del 2026-09-30. "horizontal" = franja ancha tipo
+  /// hero (3:1 en computadora), recorta lo que sobre. "square" = 1:1,
+  /// para fotos de producto/lookbook. Ver conversación del 2026-09-15.
+  aspectRatio: z.enum(["original", "horizontal", "square"]).default("original"),
   slides: z.array(bannerSlideSchema).max(6).default([]),
   title: z.string().max(120).default(""),
   subtitle: z.string().max(240).default(""),
@@ -105,7 +107,7 @@ export function normalizeBannerConfig(raw: unknown): BannerConfig {
   const config = (raw ?? {}) as Partial<BannerConfig> & { imageUrl?: string | null };
   if (Array.isArray(config.slides)) return config as BannerConfig;
   return {
-    aspectRatio: config.aspectRatio ?? "horizontal",
+    aspectRatio: config.aspectRatio ?? "original",
     slides: config.imageUrl ? [{ imageUrl: config.imageUrl, link: "" }] : [],
     title: config.title ?? "",
     subtitle: config.subtitle ?? "",

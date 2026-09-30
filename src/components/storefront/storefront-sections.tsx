@@ -52,14 +52,22 @@ function BannerSlideImage({
   slide,
   basePath,
   wrapperClassName,
+  fit,
 }: {
   slide: BannerSlide;
   basePath: string;
   wrapperClassName: string;
+  /// true = la imagen manda el alto (entera, sin recortar); false = llena
+  /// el marco de proporción fija y recorta lo que sobre.
+  fit: boolean;
 }) {
   const img = (
     // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
-    <img src={slide.imageUrl} alt="" className="w-full h-full object-cover" />
+    <img
+      src={slide.imageUrl}
+      alt=""
+      className={fit ? "w-full h-auto block" : "w-full h-full object-cover"}
+    />
   );
   const href = resolveLink(slide.link, basePath);
   return href ? (
@@ -75,19 +83,39 @@ function BannerSection({ config: rawConfig, basePath }: { config: BannerConfig; 
   const config = normalizeBannerConfig(rawConfig);
   const slides = config.slides.filter((s) => s.imageUrl);
   if (slides.length === 0 && !config.title) return null;
-  const aspectClass = config.aspectRatio === "square" ? "aspect-square" : "aspect-[21/9] sm:aspect-[3/1]";
+  // Con "original" no hay marco de proporción fija: la imagen entera
+  // define el alto del banner (sin recortar). Ver conversación del
+  // 2026-09-30: "el banner debe fit".
+  const fit = config.aspectRatio === "original";
+  const aspectClass =
+    config.aspectRatio === "square"
+      ? "aspect-square"
+      : config.aspectRatio === "horizontal"
+        ? "aspect-[21/9] sm:aspect-[3/1]"
+        : "";
   return (
     <div className={`relative w-full ${aspectClass} overflow-hidden bg-brand-accent-soft`}>
       {slides.length === 1 && (
-        <BannerSlideImage slide={slides[0]} basePath={basePath} wrapperClassName="absolute inset-0 block" />
+        <BannerSlideImage
+          slide={slides[0]}
+          basePath={basePath}
+          fit={fit}
+          wrapperClassName={fit ? "block w-full" : "absolute inset-0 block"}
+        />
       )}
       {/* Más de una imagen = carrusel deslizable (scroll-snap, sin JS) —
           cada imagen ocupa el ancho completo y arrastra a su propio
           link. Ver conversación del 2026-09-15. */}
       {slides.length > 1 && (
-        <div className="absolute inset-0 flex overflow-x-auto snap-x snap-mandatory">
+        <div className={`flex overflow-x-auto snap-x snap-mandatory ${fit ? "" : "absolute inset-0"}`}>
           {slides.map((s, i) => (
-            <BannerSlideImage key={i} slide={s} basePath={basePath} wrapperClassName="w-full h-full shrink-0 snap-center block" />
+            <BannerSlideImage
+              key={i}
+              slide={s}
+              basePath={basePath}
+              fit={fit}
+              wrapperClassName={`w-full shrink-0 snap-center block ${fit ? "" : "h-full"}`}
+            />
           ))}
         </div>
       )}
