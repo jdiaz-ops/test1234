@@ -17,10 +17,20 @@ export default async function TiendaPedidosPage() {
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
         Pedidos
       </h1>
-      <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Compras de tu vitrina y muestras aprobadas — el envío lo gestionas tú,
-        Marcolini solo lo registra acá.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <p className="text-sm text-brand-ink-soft max-w-lg">
+          Compras de tu vitrina y muestras aprobadas — el envío lo gestionas tú,
+          Marcolini solo lo registra acá.
+        </p>
+        {/* Pedidos pagados y devueltos en .xlsx, para contabilidad. Ver
+            store-export-service.ts. */}
+        <a
+          href="/api/marca/tienda/pedidos/exportar"
+          className="border border-brand-line rounded-full px-5 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft shrink-0"
+        >
+          Exportar a Excel
+        </a>
+      </div>
       <StoreOrdersPanel
         initialOrders={orders.map((o) => ({
           id: o.id,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   StoreProductForm,
@@ -133,6 +133,77 @@ export function StoreProductsPanel({
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");
   const [rowBusy, setRowBusy] = useState<string | null>(null);
+  // Edición en grupo: productos marcados con la casilla de la fila. Ver
+  // conversación del 2026-09-30.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null);
+  const [collections, setCollections] = useState<{ id: string; name: string }[]>([]);
+  const [bulkCollectionId, setBulkCollectionId] = useState("");
+  useEffect(() => {
+    fetch("/api/marca/tienda/colecciones")
+      .then((r) => r.json())
+      .then((body) =>
+        setCollections((body.collections ?? []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))),
+      )
+      .catch(() => {});
+  }, []);
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function runBulk(action: "activate" | "hide" | "addCollection" | "removeCollection") {
+    if (selected.size === 0) return;
+    if ((action === "addCollection" || action === "removeCollection") && !bulkCollectionId) {
+      setError("Elige primero la colección.");
+      return;
+    }
+    setBulkBusy(true);
+    setError(null);
+    setBulkNotice(null);
+    try {
+      const res = await fetch("/api/marca/tienda/productos/lote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productIds: Array.from(selected),
+          action,
+          collectionId: bulkCollectionId || undefined,
+        }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "No se pudo aplicar el cambio.");
+        return;
+      }
+      const verb = {
+        activate: "activados",
+        hide: "ocultos",
+        addCollection: "agregados a la colección",
+        removeCollection: "quitados de la colección",
+      }[action];
+      setBulkNotice(
+        `Listo: ${body.changed} ${verb}.` +
+          (body.skipped > 0
+            ? action === "activate"
+              ? ` ${body.skipped} sin precio se quedaron ocultos.`
+              : ` ${body.skipped} ya estaban así.`
+            : ""),
+      );
+      setSelected(new Set());
+      reloadProducts();
+    } catch {
+      setError("No se pudo aplicar — revisa tu conexión.");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
   const q = search.trim().toLowerCase();
   const recency = new Map(products.map((p, i) => [p.id, i]));
   const byName = (a: ManualProduct, b: ManualProduct) =>
@@ -362,6 +433,14 @@ export function StoreProductsPanel({
         >
           Importar desde Shopify
         </button>
+        {products.length > 0 && (
+          <a
+            href="/api/marca/tienda/productos/exportar"
+            className="border border-brand-line rounded-full px-6 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft"
+          >
+            Exportar a Excel
+          </a>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -442,6 +521,72 @@ export function StoreProductsPanel({
         </div>
       )}
 
+      {bulkNotice && <p className="text-sm text-green-700">{bulkNotice}</p>}
+
+      {selected.size > 0 && (
+        <div className="sticky top-2 z-10 rounded-2xl border border-brand-ink bg-brand-surface p-3 flex flex-wrap items-center gap-2 shadow-sm">
+          <p className="text-sm font-medium text-brand-ink mr-2">
+            {selected.size} {selected.size === 1 ? "seleccionado" : "seleccionados"}
+          </p>
+          <button
+            type="button"
+            onClick={() => runBulk("activate")}
+            disabled={bulkBusy}
+            className="rounded-full border border-brand-line px-3 py-1.5 text-xs font-medium text-brand-ink hover:bg-brand-accent-soft disabled:opacity-50"
+          >
+            Activar
+          </button>
+          <button
+            type="button"
+            onClick={() => runBulk("hide")}
+            disabled={bulkBusy}
+            className="rounded-full border border-brand-line px-3 py-1.5 text-xs font-medium text-brand-ink hover:bg-brand-accent-soft disabled:opacity-50"
+          >
+            Ocultar
+          </button>
+          {collections.length > 0 && (
+            <>
+              <select
+                value={bulkCollectionId}
+                onChange={(e) => setBulkCollectionId(e.target.value)}
+                className="input text-xs py-1.5 !w-48 shrink-0"
+                aria-label="Colección"
+              >
+                <option value="">Elige una colección</option>
+                {collections.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => runBulk("addCollection")}
+                disabled={bulkBusy || !bulkCollectionId}
+                className="rounded-full border border-brand-line px-3 py-1.5 text-xs font-medium text-brand-ink hover:bg-brand-accent-soft disabled:opacity-50"
+              >
+                Agregar a la colección
+              </button>
+              <button
+                type="button"
+                onClick={() => runBulk("removeCollection")}
+                disabled={bulkBusy || !bulkCollectionId}
+                className="rounded-full border border-brand-line px-3 py-1.5 text-xs font-medium text-brand-ink hover:bg-brand-accent-soft disabled:opacity-50"
+              >
+                Quitar de la colección
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setSelected(new Set())}
+            className="text-xs text-brand-ink-soft hover:underline ml-auto"
+          >
+            Deseleccionar
+          </button>
+        </div>
+      )}
+
       {products.length === 0 ? (
         <p className="text-sm text-brand-ink-soft">
           Todavía no has agregado ningún producto.
@@ -457,6 +602,16 @@ export function StoreProductsPanel({
           <table className="w-full text-sm min-w-[960px]">
             <thead>
               <tr className="text-left text-xs text-brand-ink-soft border-b border-brand-line">
+                <th className="pl-4 py-3 w-8">
+                  <input
+                    type="checkbox"
+                    aria-label="Seleccionar todos"
+                    checked={shownProducts.length > 0 && shownProducts.every((p) => selected.has(p.id))}
+                    onChange={(e) =>
+                      setSelected(e.target.checked ? new Set(shownProducts.map((p) => p.id)) : new Set())
+                    }
+                  />
+                </th>
                 <th className="font-medium px-4 py-3">Producto</th>
                 <th className="font-medium px-3 py-3 w-48">Estado</th>
                 <th className="font-medium px-3 py-3 w-32">Inventario</th>
@@ -470,7 +625,20 @@ export function StoreProductsPanel({
                 const v = VISIBILITY_LABEL[visibilityOf(product)];
                 const busy = rowBusy === product.id;
                 return (
-                  <tr key={product.id} className="border-b border-brand-line last:border-b-0 align-middle">
+                  <tr
+                    key={product.id}
+                    className={`border-b border-brand-line last:border-b-0 align-middle ${
+                      selected.has(product.id) ? "bg-brand-accent-soft/40" : ""
+                    }`}
+                  >
+                    <td className="pl-4 py-2.5">
+                      <input
+                        type="checkbox"
+                        aria-label={`Seleccionar ${product.name}`}
+                        checked={selected.has(product.id)}
+                        onChange={() => toggleSelected(product.id)}
+                      />
+                    </td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-3 min-w-0">
                         {product.imageUrl ? (

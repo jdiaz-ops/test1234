@@ -214,6 +214,13 @@ export const deleteManualProductSchema = z.object({
   productId: z.string().min(1),
 });
 
+/// Acción sobre varios productos a la vez (casillas de la tabla).
+export const bulkProductActionSchema = z.object({
+  productIds: z.array(z.string().min(1)).min(1, "Elige al menos un producto").max(500),
+  action: z.enum(["activate", "hide", "addCollection", "removeCollection"]),
+  collectionId: z.string().min(1).optional(),
+});
+
 /// Cambio rápido desde la tabla de Productos (sin abrir el formulario):
 /// inventario y/o estado. Ver store-products-panel.tsx y conversación del
 /// 2026-09-30 ("permíteme ajustar inventario desde ahí, activar/esconder").

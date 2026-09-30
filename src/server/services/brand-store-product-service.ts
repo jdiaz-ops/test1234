@@ -408,6 +408,62 @@ export async function quickUpdateManualProduct(
   });
 }
 
+/// Edición en grupo desde la tabla de Productos: activar, ocultar, o
+/// agregar/quitar de una colección varios productos a la vez. Solo toca
+/// productos de esta marca. Activar se salta los que no tienen precio
+/// (no se pueden vender). Devuelve cuántos cambió y cuántos se saltó. Ver
+/// conversación del 2026-09-30.
+export async function bulkProductAction(
+  brandId: string,
+  data: {
+    productIds: string[];
+    action: "activate" | "hide" | "addCollection" | "removeCollection";
+    collectionId?: string;
+  },
+) {
+  const owned = await prisma.product.findMany({
+    where: { id: { in: data.productIds }, brandId, manual: true },
+    select: { id: true, price: true, hasVariants: true },
+  });
+  const ids = owned.map((p) => p.id);
+  if (ids.length === 0) throw new BrandStoreProductError("No se encontraron esos productos.");
+
+  if (data.action === "activate") {
+    const sellable = owned.filter((p) => p.hasVariants || Number(p.price) > 0).map((p) => p.id);
+    const result = await prisma.product.updateMany({
+      where: { id: { in: sellable } },
+      data: { status: "ACTIVE", available: true },
+    });
+    return { changed: result.count, skipped: ids.length - sellable.length };
+  }
+  if (data.action === "hide") {
+    const result = await prisma.product.updateMany({
+      where: { id: { in: ids } },
+      data: { status: "DRAFT", available: false },
+    });
+    return { changed: result.count, skipped: 0 };
+  }
+
+  if (!data.collectionId) throw new BrandStoreProductError("Elige una colección.");
+  const collection = await prisma.brandCollection.findFirst({
+    where: { id: data.collectionId, brandId },
+    select: { id: true },
+  });
+  if (!collection) throw new BrandStoreProductError("Colección no encontrada.");
+
+  if (data.action === "addCollection") {
+    const result = await prisma.productBrandCollection.createMany({
+      data: ids.map((productId) => ({ productId, collectionId: collection.id })),
+      skipDuplicates: true,
+    });
+    return { changed: result.count, skipped: ids.length - result.count };
+  }
+  const result = await prisma.productBrandCollection.deleteMany({
+    where: { collectionId: collection.id, productId: { in: ids } },
+  });
+  return { changed: result.count, skipped: ids.length - result.count };
+}
+
 /// Pone en Activo todos los borradores de la marca que se pueden vender
 /// (tienen precio o variantes) — el botón "Activar todos los borradores"
 /// de la lista de productos. Nació para recuperar los productos que una
