@@ -14,6 +14,13 @@ import {
   BrandStoreProductError,
 } from "@/server/services/brand-store-product-service";
 
+/// Un error inesperado (Prisma, red) antes salía como 500 sin cuerpo y el
+/// editor mostraba solo "No se pudo guardar el producto." — se deja
+/// rastro en los logs de Vercel y se manda un mensaje que sí dice qué
+/// hacer. Ver conversación del 2026-09-30.
+const UNEXPECTED_ERROR =
+  "No se pudo guardar por un error del servidor. Intenta de nuevo en un momento; si sigue pasando, avísanos.";
+
 export async function GET() {
   const profile = await requireBrandProfile();
   if (!profile)
@@ -48,7 +55,8 @@ export async function POST(req: Request) {
   } catch (err) {
     if (err instanceof BrandStoreProductError)
       return NextResponse.json({ error: err.message }, { status: 400 });
-    throw err;
+    console.error("[productos] POST falló", err);
+    return NextResponse.json({ error: UNEXPECTED_ERROR }, { status: 500 });
   }
 }
 
@@ -73,7 +81,8 @@ export async function PATCH(req: Request) {
   } catch (err) {
     if (err instanceof BrandStoreProductError)
       return NextResponse.json({ error: err.message }, { status: 400 });
-    throw err;
+    console.error("[productos] PATCH falló", err);
+    return NextResponse.json({ error: UNEXPECTED_ERROR }, { status: 500 });
   }
 }
 

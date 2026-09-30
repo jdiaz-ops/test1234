@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { setProductCollections } from "@/server/services/brand-collection-service";
 import { sanitizeProductDescription } from "@/lib/sanitize-html";
 
@@ -192,43 +193,44 @@ async function buildStorefrontProductUrl(brandId: string, productSlug: string) {
 /// Reemplaza toda la galería de un producto por la lista de URLs dada — la
 /// primera queda como portada (Product.imageUrl), igual que reemplaza
 /// todas las variantes cuando hasVariants = true. Ambas cosas viven en la
-/// misma transacción que crea/actualiza el producto (ver abajo).
-function replaceImagesOps(productId: string, images: string[]) {
-  return [
-    prisma.productImage.deleteMany({ where: { productId } }),
-    ...(images.length > 0
-      ? [
-          prisma.productImage.createMany({
-            data: images.map((url, position) => ({ productId, url, position })),
-          }),
-        ]
-      : []),
-  ];
+/// misma transacción que actualiza el producto (ver abajo), y por eso
+/// reciben `db` = el cliente de ESA transacción. Antes usaban el cliente
+/// global: las fotos se insertaban por otra conexión mientras la
+/// transacción tenía bloqueada la fila del producto (Postgres toma el
+/// bloqueo fuerte cuando cambia el slug, que es índice único — el caso de
+/// todo producto importado de Shopify, cuyo slug vino del handle y no del
+/// nombre), la inserción se quedaba esperando a la transacción y la
+/// transacción a la inserción → expiraba a los 5 s y el editor mostraba
+/// "No se pudo guardar el producto" sin más. Ver conversación del
+/// 2026-09-30.
+async function replaceImages(db: Prisma.TransactionClient, productId: string, images: string[]) {
+  await db.productImage.deleteMany({ where: { productId } });
+  if (images.length > 0) {
+    await db.productImage.createMany({
+      data: images.map((url, position) => ({ productId, url, position })),
+    });
+  }
 }
 
-function replaceVariantsOps(productId: string, variants: VariantInput[]) {
-  return [
-    prisma.productVariant.deleteMany({ where: { productId } }),
-    ...(variants.length > 0
-      ? [
-          prisma.productVariant.createMany({
-            data: variants.map((v, position) => ({
-              productId,
-              option1Value: v.option1Value,
-              option2Value: v.option2Value,
-              option3Value: v.option3Value,
-              price: v.price,
-              sku: v.sku || null,
-              barcode: v.barcode || null,
-              stock: v.stock,
-              weight: v.weight ?? null,
-              weightUnit: v.weightUnit ?? "KG",
-              position,
-            })),
-          }),
-        ]
-      : []),
-  ];
+async function replaceVariants(db: Prisma.TransactionClient, productId: string, variants: VariantInput[]) {
+  await db.productVariant.deleteMany({ where: { productId } });
+  if (variants.length > 0) {
+    await db.productVariant.createMany({
+      data: variants.map((v, position) => ({
+        productId,
+        option1Value: v.option1Value,
+        option2Value: v.option2Value,
+        option3Value: v.option3Value,
+        price: v.price,
+        sku: v.sku || null,
+        barcode: v.barcode || null,
+        stock: v.stock,
+        weight: v.weight ?? null,
+        weightUnit: v.weightUnit ?? "KG",
+        position,
+      })),
+    });
+  }
 }
 
 export async function createManualProduct(
@@ -354,8 +356,8 @@ export async function updateManualProduct(
         optionNames: hasVariants ? (data.optionNames ?? []) : [],
       },
     });
-    for (const op of replaceImagesOps(productId, images)) await op;
-    for (const op of replaceVariantsOps(productId, variants)) await op;
+    await replaceImages(tx, productId, images);
+    await replaceVariants(tx, productId, variants);
     return result;
   });
 
