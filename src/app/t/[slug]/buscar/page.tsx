@@ -87,6 +87,7 @@ export default async function StorefrontSearchPage({
               slug: p.slug,
               name: p.name,
               price: Number(p.price),
+              compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
               imageUrl: p.imageUrl,
               stock: p.stock,
               type: p.type,

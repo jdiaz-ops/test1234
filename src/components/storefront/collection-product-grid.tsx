@@ -1,20 +1,14 @@
 import Link from "next/link";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { DiscountBadge, ProductPrice } from "@/components/storefront/product-card";
 import type { ThemeConfig } from "@/lib/brand-theme";
-
-function formatCOP(amount: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
 
 type CollectionProduct = {
   id: string;
   slug: string | null;
   name: string;
   price: number;
+  compareAtPrice: number | null;
   imageUrl: string | null;
   stock: number | null;
   type: "PHYSICAL" | "SERVICE" | "DIGITAL";
@@ -49,7 +43,7 @@ export function CollectionProductGrid({
             className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden flex flex-col"
           >
             {config.showImage && (
-              <Link href={href}>
+              <Link href={href} className="relative block">
                 {product.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
                   <img
@@ -60,6 +54,7 @@ export function CollectionProductGrid({
                 ) : (
                   <div className="w-full aspect-square bg-brand-accent-soft" />
                 )}
+                <DiscountBadge price={product.price} compareAtPrice={product.compareAtPrice} />
               </Link>
             )}
             <div className="p-3 flex flex-col gap-2 flex-1">
@@ -76,7 +71,7 @@ export function CollectionProductGrid({
                   </p>
                 </Link>
               )}
-              <p className="text-xs font-mono text-brand-ink-soft">{formatCOP(product.price)}</p>
+              <ProductPrice price={product.price} compareAtPrice={product.compareAtPrice} />
               {(config.showViewProductButton || config.showAddToCartButton) && (
                 <div className="mt-auto flex flex-col gap-1.5">
                   {config.showViewProductButton && (

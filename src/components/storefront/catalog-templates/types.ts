@@ -3,6 +3,7 @@ export type CatalogProduct = {
   slug: string | null;
   name: string;
   price: number;
+  compareAtPrice: number | null;
   imageUrl: string | null;
   stock: number | null;
   type: "PHYSICAL" | "SERVICE" | "DIGITAL";

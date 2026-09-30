@@ -398,6 +398,44 @@ function ProductGroupFields({
   );
 }
 
+/// Lista con casillas para elegir productos a mano — la usan Destacados y
+/// Ofertas (fuente "manual"). El orden en que se marcan es el orden en que
+/// salen en la vitrina.
+function ProductChecklist({
+  products,
+  selectedIds,
+  onToggle,
+}: {
+  products: ProductOption[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <div className="max-h-56 overflow-y-auto divide-y divide-brand-line rounded-lg border border-brand-line">
+      {products.length === 0 ? (
+        <p className="text-xs text-brand-ink-soft p-3">No tienes productos todavía.</p>
+      ) : (
+        products.map((p) => (
+          <label key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-brand-bg cursor-pointer">
+            <input type="checkbox" checked={selectedIds.includes(p.id)} onChange={() => onToggle(p.id)} />
+            {p.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={p.imageUrl} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded bg-brand-bg shrink-0" />
+            )}
+            <span className="truncate flex-1">{p.name}</span>
+          </label>
+        ))
+      )}
+    </div>
+  );
+}
+
+function toggleId(ids: string[], id: string) {
+  return ids.includes(id) ? ids.filter((p) => p !== id) : [...ids, id];
+}
+
 function FeaturedProductsFields({
   config,
   onChange,
@@ -407,13 +445,6 @@ function FeaturedProductsFields({
   onChange: (next: FeaturedProductsConfig) => void;
   products: ProductOption[];
 }) {
-  function toggleProduct(id: string) {
-    const has = config.productIds.includes(id);
-    onChange({
-      ...config,
-      productIds: has ? config.productIds.filter((p) => p !== id) : [...config.productIds, id],
-    });
-  }
   return (
     <div className="space-y-3">
       <ProductGroupFields
@@ -423,24 +454,11 @@ function FeaturedProductsFields({
         onDisplayChange={(v) => onChange({ ...config, display: v })}
       />
       <p className="text-xs text-brand-ink-soft">Elige cuáles destacar:</p>
-      <div className="max-h-56 overflow-y-auto divide-y divide-brand-line rounded-lg border border-brand-line">
-        {products.length === 0 ? (
-          <p className="text-xs text-brand-ink-soft p-3">No tienes productos todavía.</p>
-        ) : (
-          products.map((p) => (
-            <label key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-brand-bg cursor-pointer">
-              <input type="checkbox" checked={config.productIds.includes(p.id)} onChange={() => toggleProduct(p.id)} />
-              {p.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.imageUrl} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
-              ) : (
-                <div className="w-8 h-8 rounded bg-brand-bg shrink-0" />
-              )}
-              <span className="truncate flex-1">{p.name}</span>
-            </label>
-          ))
-        )}
-      </div>
+      <ProductChecklist
+        products={products}
+        selectedIds={config.productIds}
+        onToggle={(id) => onChange({ ...config, productIds: toggleId(config.productIds, id) })}
+      />
     </div>
   );
 }
@@ -456,14 +474,64 @@ function NewProductsFields({ config, onChange }: { config: NewProductsConfig; on
   );
 }
 
-function OnSaleProductsFields({ config, onChange }: { config: OnSaleProductsConfig; onChange: (next: OnSaleProductsConfig) => void }) {
+function OnSaleProductsFields({
+  config,
+  onChange,
+  collections,
+  products,
+}: {
+  config: OnSaleProductsConfig;
+  onChange: (next: OnSaleProductsConfig) => void;
+  collections: CollectionOption[];
+  products: ProductOption[];
+}) {
+  // Secciones guardadas antes del selector de fuente no traen estos
+  // campos (el config no se revalida al leer) — se leen con sus valores
+  // por defecto y se completan al guardar.
+  const source = config.source ?? "auto";
+  const productIds = config.productIds ?? [];
   return (
-    <ProductGroupFields
-      title={config.title}
-      display={config.display}
-      onTitleChange={(v) => onChange({ ...config, title: v })}
-      onDisplayChange={(v) => onChange({ ...config, display: v })}
-    />
+    <div className="space-y-3">
+      <ProductGroupFields
+        title={config.title}
+        display={config.display}
+        onTitleChange={(v) => onChange({ ...config, title: v })}
+        onDisplayChange={(v) => onChange({ ...config, display: v })}
+      />
+      <select
+        value={source}
+        onChange={(e) => onChange({ ...config, source: e.target.value as OnSaleProductsConfig["source"] })}
+        className="input text-sm"
+      >
+        <option value="auto">Automático — todos los productos con precio tachado</option>
+        <option value="collection">Los productos de una colección</option>
+        <option value="manual">Elegir productos uno por uno</option>
+      </select>
+      {source === "collection" && (
+        <select
+          value={config.collectionId ?? ""}
+          onChange={(e) => onChange({ ...config, collectionId: e.target.value || null })}
+          className="input text-sm"
+        >
+          <option value="">Elige una colección</option>
+          {collections.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      )}
+      {source === "manual" && (
+        <>
+          <p className="text-xs text-brand-ink-soft">Elige cuáles mostrar:</p>
+          <ProductChecklist
+            products={products}
+            selectedIds={productIds}
+            onToggle={(id) => onChange({ ...config, productIds: toggleId(productIds, id) })}
+          />
+        </>
+      )}
+    </div>
   );
 }
 
@@ -618,7 +686,14 @@ function SectionCard({
         <FeaturedProductsFields config={config as unknown as FeaturedProductsConfig} onChange={saveConfig} products={products} />
       )}
       {section.type === "NEW_PRODUCTS" && <NewProductsFields config={config as unknown as NewProductsConfig} onChange={saveConfig} />}
-      {section.type === "ON_SALE_PRODUCTS" && <OnSaleProductsFields config={config as unknown as OnSaleProductsConfig} onChange={saveConfig} />}
+      {section.type === "ON_SALE_PRODUCTS" && (
+        <OnSaleProductsFields
+          config={config as unknown as OnSaleProductsConfig}
+          onChange={saveConfig}
+          collections={collections}
+          products={products}
+        />
+      )}
       {section.type === "BRAND_CAROUSEL" && <BrandCarouselFields config={config as unknown as BrandCarouselConfig} onChange={saveConfig} />}
       {section.type === "VIDEO" && <VideoFields config={config as unknown as VideoConfig} onChange={saveConfig} />}
       {section.type === "INSTAGRAM_CTA" && <InstagramCtaFields config={config as unknown as InstagramCtaConfig} onChange={saveConfig} />}

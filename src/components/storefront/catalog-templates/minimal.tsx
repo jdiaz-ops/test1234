@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
-import { formatCOP, type CatalogProduct } from "./types";
+import { ProductPrice } from "@/components/storefront/product-card";
+import type { CatalogProduct } from "./types";
 
 /// Lista vertical, sin tarjetas ni bordes — el texto lleva el peso, no la
 /// imagen (que queda chica, redonda). Pensada para catálogos cortos y
@@ -45,9 +46,11 @@ export function MinimalTemplate({
                 {product.name}
               </p>
             </Link>
-            <p className="text-sm font-mono text-brand-ink-soft mt-1">
-              {formatCOP(product.price)}
-            </p>
+            <ProductPrice
+              price={product.price}
+              compareAtPrice={product.compareAtPrice}
+              className="text-sm font-mono mt-1"
+            />
           </div>
           <div className="shrink-0">
             <AddToCartButton

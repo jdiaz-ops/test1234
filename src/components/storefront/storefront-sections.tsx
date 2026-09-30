@@ -21,17 +21,44 @@ import { normalizeBannerConfig } from "@/lib/storefront-sections";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 import { getBrandCollection } from "@/server/services/brand-collection-service";
 import { listStorefrontProducts } from "@/server/services/store-order-service";
-import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { CatalogTemplate } from "@/components/storefront/catalog-templates";
+import { ProductCard, type CardProduct } from "@/components/storefront/product-card";
 import { prisma } from "@/lib/prisma";
 
-function formatCOP(amount: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(amount);
+/// Las consultas de Prisma traen Decimal — la tarjeta espera números
+/// planos (ver CardProduct).
+function toCardProduct(p: {
+  id: string;
+  name: string;
+  slug: string | null;
+  imageUrl: string | null;
+  price: unknown;
+  compareAtPrice: unknown;
+  stock: number | null;
+  type: "PHYSICAL" | "SERVICE" | "DIGITAL";
+}): CardProduct {
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    imageUrl: p.imageUrl,
+    price: Number(p.price),
+    compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
+    stock: p.stock,
+    type: p.type,
+  };
 }
+
+const CARD_SELECT = {
+  id: true,
+  name: true,
+  slug: true,
+  imageUrl: true,
+  price: true,
+  compareAtPrice: true,
+  stock: true,
+  type: true,
+} as const;
 
 function trustIconEmoji(icon: string) {
   return TRUST_ICON_OPTIONS.find((i) => i.value === icon)?.emoji ?? null;
@@ -184,38 +211,12 @@ async function FeaturedCollectionSection({
           conversación del 2026-09-15. */}
       <div className="flex gap-4 overflow-x-auto snap-x pb-1">
         {products.map((p) => (
-          <div
+          <ProductCard
             key={p.id}
-            className="w-44 sm:w-52 shrink-0 snap-start rounded-2xl border border-brand-line bg-brand-surface overflow-hidden flex flex-col"
-          >
-            <Link href={`${basePath}/${p.slug}`}>
-              {p.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
-                <img src={p.imageUrl} alt={p.name} className="w-full aspect-square object-cover" />
-              ) : (
-                <div className="w-full aspect-square bg-brand-accent-soft" />
-              )}
-            </Link>
-            <div className="p-3 flex flex-col gap-2 flex-1">
-              <Link href={`${basePath}/${p.slug}`}>
-                <p className="text-xs font-medium text-brand-ink leading-snug line-clamp-2">{p.name}</p>
-              </Link>
-              <p className="text-xs font-mono text-brand-ink-soft">{formatCOP(Number(p.price))}</p>
-              <AddToCartButton
-                basePath={basePath}
-                product={{
-                  id: p.id,
-                  slug: p.slug ?? "",
-                  name: p.name,
-                  price: Number(p.price),
-                  imageUrl: p.imageUrl,
-                  stock: p.stock,
-                  type: p.type,
-                }}
-                className="mt-auto w-full bg-brand-accent text-white rounded-full px-3 py-1.5 text-[11px] font-semibold hover:opacity-90 disabled:opacity-40"
-              />
-            </div>
-          </div>
+            product={toCardProduct(p)}
+            basePath={basePath}
+            className="w-44 sm:w-52 shrink-0 snap-start"
+          />
         ))}
       </div>
     </div>
@@ -449,6 +450,9 @@ function PromoBannersSection({ config, basePath }: { config: PromoBannersConfig;
   );
 }
 
+/// Destacados / Novedades / Ofertas — misma tarjeta que Colección
+/// destacada y que el catálogo Clásico (ver ProductCard), en grilla o
+/// carrusel.
 function ProductGrid({
   title,
   products,
@@ -456,7 +460,7 @@ function ProductGrid({
   basePath,
 }: {
   title: string;
-  products: { id: string; name: string; slug: string | null; imageUrl: string | null; price: unknown; compareAtPrice: unknown }[];
+  products: CardProduct[];
   display: "grid" | "carousel";
   basePath: string;
 }) {
@@ -474,35 +478,30 @@ function ProductGrid({
         }
       >
         {products.map((p) => (
-          <Link
+          <ProductCard
             key={p.id}
-            href={`${basePath}/${p.slug}`}
-            className={`rounded-xl border border-brand-line overflow-hidden bg-brand-surface block ${
-              display === "carousel" ? "w-36 sm:w-44 shrink-0 snap-start" : ""
-            }`}
-          >
-            {p.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.imageUrl} alt={p.name} className="w-full aspect-square object-cover" />
-            ) : (
-              <div className="w-full aspect-square bg-brand-accent-soft" />
-            )}
-            <div className="p-2">
-              <p className="text-xs font-medium text-brand-ink truncate">{p.name}</p>
-              <div className="flex items-center gap-1.5">
-                <p className="text-xs text-brand-ink-soft font-mono">{formatCOP(Number(p.price))}</p>
-                {p.compareAtPrice != null && Number(p.compareAtPrice) > Number(p.price) && (
-                  <p className="text-[10px] text-brand-ink-soft/60 font-mono line-through">
-                    {formatCOP(Number(p.compareAtPrice))}
-                  </p>
-                )}
-              </div>
-            </div>
-          </Link>
+            product={p}
+            basePath={basePath}
+            className={display === "carousel" ? "w-44 sm:w-52 shrink-0 snap-start" : ""}
+          />
         ))}
       </div>
     </div>
   );
+}
+
+/// Los productos elegidos a mano, en el orden en que la marca los marcó.
+async function listPickedProducts(brandId: string, productIds: string[]) {
+  if (productIds.length === 0) return [];
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds }, brandId, manual: true, status: "ACTIVE" },
+    select: CARD_SELECT,
+  });
+  const byId = new Map(products.map((p) => [p.id, p]));
+  return productIds
+    .map((id) => byId.get(id))
+    .filter((p): p is NonNullable<typeof p> => !!p)
+    .map(toCardProduct);
 }
 
 async function FeaturedProductsSection({
@@ -514,14 +513,8 @@ async function FeaturedProductsSection({
   brandId: string;
   basePath: string;
 }) {
-  if (config.productIds.length === 0) return null;
-  const products = await prisma.product.findMany({
-    where: { id: { in: config.productIds }, brandId, manual: true, status: "ACTIVE" },
-    select: { id: true, name: true, slug: true, imageUrl: true, price: true, compareAtPrice: true },
-  });
-  const byId = new Map(products.map((p) => [p.id, p]));
-  const ordered = config.productIds.map((id) => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p);
-  return <ProductGrid title={config.title} products={ordered} display={config.display} basePath={basePath} />;
+  const products = await listPickedProducts(brandId, config.productIds);
+  return <ProductGrid title={config.title} products={products} display={config.display} basePath={basePath} />;
 }
 
 async function NewProductsSection({
@@ -537,9 +530,16 @@ async function NewProductsSection({
     where: { brandId, manual: true, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
     take: 8,
-    select: { id: true, name: true, slug: true, imageUrl: true, price: true, compareAtPrice: true },
+    select: CARD_SELECT,
   });
-  return <ProductGrid title={config.title} products={products} display={config.display} basePath={basePath} />;
+  return (
+    <ProductGrid
+      title={config.title}
+      products={products.map(toCardProduct)}
+      display={config.display}
+      basePath={basePath}
+    />
+  );
 }
 
 async function OnSaleProductsSection({
@@ -551,6 +551,27 @@ async function OnSaleProductsSection({
   brandId: string;
   basePath: string;
 }) {
+  // Secciones guardadas antes del selector de fuente no traen `source`
+  // (el config no se revalida al leer) — se comportan como "auto".
+  const source = config.source ?? "auto";
+
+  if (source === "collection") {
+    if (!config.collectionId) return null;
+    const collection = await getBrandCollection(brandId, config.collectionId);
+    if (!collection) return null;
+    const products = collection.products
+      .map((p) => p.product)
+      .filter((p) => p.status === "ACTIVE" && p.available)
+      .slice(0, 24)
+      .map(toCardProduct);
+    return <ProductGrid title={config.title} products={products} display={config.display} basePath={basePath} />;
+  }
+
+  if (source === "manual") {
+    const products = await listPickedProducts(brandId, config.productIds ?? []);
+    return <ProductGrid title={config.title} products={products} display={config.display} basePath={basePath} />;
+  }
+
   // Prisma no compara dos columnas entre sí en el where — se trae un lote
   // razonable de productos activos y se filtra compareAtPrice > price en
   // memoria. Suficiente para el tamaño de catálogo de esta plataforma.
@@ -558,11 +579,12 @@ async function OnSaleProductsSection({
     where: { brandId, manual: true, status: "ACTIVE", compareAtPrice: { not: null } },
     orderBy: { createdAt: "desc" },
     take: 50,
-    select: { id: true, name: true, slug: true, imageUrl: true, price: true, compareAtPrice: true },
+    select: CARD_SELECT,
   });
   const onSale = candidates
     .filter((p) => p.compareAtPrice != null && Number(p.compareAtPrice) > Number(p.price))
-    .slice(0, 8);
+    .slice(0, 8)
+    .map(toCardProduct);
   return <ProductGrid title={config.title} products={onSale} display={config.display} basePath={basePath} />;
 }
 
@@ -673,15 +695,7 @@ async function ProductCatalogSection({
           template={template}
           basePath={basePath}
           productsPerRow={productsPerRow}
-          products={products.map((p) => ({
-            id: p.id,
-            slug: p.slug,
-            name: p.name,
-            price: Number(p.price),
-            imageUrl: p.imageUrl,
-            stock: p.stock,
-            type: p.type,
-          }))}
+          products={products.map(toCardProduct)}
         />
       )}
     </div>

@@ -60,7 +60,7 @@ export const SECTION_TYPE_DESCRIPTION: Record<SectionType, string> = {
   PROMO_BANNERS: "Hasta 3 banners promocionales sueltos, cada uno con su propio link.",
   FEATURED_PRODUCTS: "Elige a mano qué productos destacar, en grilla o carrusel.",
   NEW_PRODUCTS: "Tus productos más recientes, en grilla o carrusel — se arma solo.",
-  ON_SALE_PRODUCTS: "Productos con descuento activo, en grilla o carrusel — se arma solo.",
+  ON_SALE_PRODUCTS: "Productos con descuento activo (se arma solo), o los de una colección, o elegidos a mano — en grilla o carrusel.",
   BRAND_CAROUSEL: "Tira de logos o imágenes chicas — marcas asociadas, sellos, \"como se vio en\".",
   VIDEO: "Un video de YouTube o Vimeo embebido, con título opcional.",
   INSTAGRAM_CTA: "Banner simple invitando a seguir tu cuenta de Instagram.",
@@ -220,6 +220,14 @@ export type NewProductsConfig = z.infer<typeof newProductsConfigSchema>;
 const onSaleProductsConfigSchema = z.object({
   title: z.string().max(80).default("Ofertas"),
   display: productGroupDisplaySchema.default("carousel"),
+  /// "auto" = todos los productos con precio tachado (se arma solo, como
+  /// siempre). "collection" = los productos de una colección (ej. Outlet).
+  /// "manual" = elegidos uno por uno. Pedido explícito: "productos en
+  /// oferta dame la opción de escoger colecciones o productos
+  /// individuales", ver conversación del 2026-09-30.
+  source: z.enum(["auto", "collection", "manual"]).default("auto"),
+  collectionId: z.string().nullable().default(null),
+  productIds: z.array(z.string()).max(24).default([]),
 });
 export type OnSaleProductsConfig = z.infer<typeof onSaleProductsConfigSchema>;
 

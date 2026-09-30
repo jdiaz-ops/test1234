@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
-import { formatCOP, type CatalogProduct } from "./types";
+import { DiscountBadge, ProductPrice } from "@/components/storefront/product-card";
+import type { CatalogProduct } from "./types";
 
 /// Hero grande para el primer producto (el que la marca destaca primero al
 /// listarlos) + grid más chico para el resto — tipo revista, no catálogo
@@ -18,7 +19,7 @@ export function EditorialTemplate({
   return (
     <div>
       <Link href={`${basePath}/${featured.slug}`} className="block mb-10 group">
-        <div className="w-full aspect-[16/10] rounded-3xl overflow-hidden bg-brand-accent-soft">
+        <div className="relative w-full aspect-[16/10] rounded-3xl overflow-hidden bg-brand-accent-soft">
           {featured.imageUrl && (
             // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
             <img
@@ -27,6 +28,7 @@ export function EditorialTemplate({
               className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
             />
           )}
+          <DiscountBadge price={featured.price} compareAtPrice={featured.compareAtPrice} />
         </div>
         <div className="mt-4 flex items-end justify-between gap-4 flex-wrap">
           <div>
@@ -43,9 +45,11 @@ export function EditorialTemplate({
             <p className="font-display text-2xl font-semibold text-brand-ink">
               {featured.name}
             </p>
-            <p className="font-mono text-brand-ink-soft mt-1">
-              {formatCOP(featured.price)}
-            </p>
+            <ProductPrice
+              price={featured.price}
+              compareAtPrice={featured.compareAtPrice}
+              className="font-mono mt-1"
+            />
           </div>
           <AddToCartButton
             basePath={basePath}
@@ -69,7 +73,7 @@ export function EditorialTemplate({
             <div key={product.id} className="flex flex-col gap-1.5">
               <Link
                 href={`${basePath}/${product.slug}`}
-                className="block aspect-square rounded-xl overflow-hidden bg-brand-accent-soft"
+                className="relative block aspect-square rounded-xl overflow-hidden bg-brand-accent-soft"
               >
                 {product.imageUrl && (
                   // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
@@ -79,15 +83,18 @@ export function EditorialTemplate({
                     className="w-full h-full object-cover"
                   />
                 )}
+                <DiscountBadge price={product.price} compareAtPrice={product.compareAtPrice} />
               </Link>
               <Link href={`${basePath}/${product.slug}`}>
                 <p className="text-[11px] text-brand-ink leading-snug line-clamp-2">
                   {product.name}
                 </p>
               </Link>
-              <p className="text-[11px] font-mono text-brand-ink-soft">
-                {formatCOP(product.price)}
-              </p>
+              <ProductPrice
+                price={product.price}
+                compareAtPrice={product.compareAtPrice}
+                className="text-[11px] font-mono"
+              />
             </div>
           ))}
         </div>
