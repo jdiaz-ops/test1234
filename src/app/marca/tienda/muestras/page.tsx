@@ -1,6 +1,5 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreSamplesPanel } from "@/components/portal/store-samples-panel";
 import {
   listBrandSampleCatalog,
@@ -28,7 +27,6 @@ export default async function TiendaMuestrasPage() {
         Regala productos a creadores para que los prueben y los muestren en su
         contenido — inspirado en las muestras de TikTok Shop.
       </p>
-      <StoreSubNav />
       <StoreSamplesPanel
         initialProducts={products.map((p) => ({
           id: p.id,

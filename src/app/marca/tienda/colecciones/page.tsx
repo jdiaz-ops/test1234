@@ -1,6 +1,5 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreCollectionsPanel } from "@/components/portal/store-collections-panel";
 import { listBrandCollections } from "@/server/services/brand-collection-service";
 import { ROOT_DOMAIN } from "@/lib/subdomain";
@@ -34,7 +33,6 @@ export default async function TiendaColeccionesPage() {
         Agrupa tus productos — por temporada, tipo, lo que te sirva. Cada
         colección puede tener su propia imagen y descripción.
       </p>
-      <StoreSubNav />
       <StoreCollectionsPanel
         storeUrl={storeUrl}
         initialCollections={collections.map((c) => ({

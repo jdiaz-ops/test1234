@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { listStoreCustomers } from "@/server/services/store-customer-service";
 
 function formatCOP(cents: number) {
@@ -29,7 +28,6 @@ export default async function TiendaClientesPage() {
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         Todos los que te han comprado en tu tienda de Marcolini.
       </p>
-      <StoreSubNav />
 
       {customers.length === 0 ? (
         <p className="text-sm text-brand-ink-soft">

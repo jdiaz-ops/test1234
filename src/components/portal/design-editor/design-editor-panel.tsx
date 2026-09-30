@@ -27,6 +27,7 @@ import {
   StorefrontMenuPanel,
   type StorefrontMenuItemRow,
 } from "@/components/portal/storefront-menu-panel";
+import { StorefrontTemplateForm } from "@/components/portal/storefront-template-form";
 
 /// "Tipo de diseño" (DesignTypeSection) y "Edición avanzada de CSS"
 /// (CssSection) ya no se muestran — pedido explícito de simplificar el
@@ -58,7 +59,7 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
   {
     title: "Imagen de tu marca",
     items: [
-      { key: "colors", label: "Colores de tu marca" },
+      { key: "colors", label: "Colores" },
       { key: "typography", label: "Tipo de letra" },
     ],
   },
@@ -72,23 +73,26 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
       // Antes vivía en Páginas, separado del resto del diseño — se mudó
       // acá porque es tan "diseño" como el resto (qué ve el comprador en
       // el header). Ver conversación del 2026-09-14.
-      { key: "menu", label: "Menú de navegación" },
+      { key: "menu", label: "Menú" },
       // Los módulos de la home (banners, colecciones destacadas,
       // productos en oferta, etc.) — antes vivían solo en la pestaña
       // Plantilla, separados de acá; ahora es acá, como en Tiendanube
       // (ver conversación del 2026-09-14).
       { key: "sections", label: "Página de inicio" },
-      { key: "mobileNav", label: "Navegador móvil" },
+      { key: "mobileNav", label: "Barra inferior (celular)" },
       { key: "footer", label: "Pie de página" },
     ],
   },
   {
-    title: "Otros ajustes",
+    // Nombres cortos y explícitos: "Catálogo" reúne la plantilla (antes
+    // su propia pestaña "Plantilla") y las opciones del listado; "Página
+    // de colección" para no confundir con Colecciones del menú lateral.
+    title: "Otras páginas",
     items: [
-      { key: "productListing", label: "Listado de productos" },
-      { key: "collections", label: "Colecciones" },
-      { key: "productDetail", label: "Detalle del producto" },
-      { key: "cart", label: "Carrito de compras" },
+      { key: "productListing", label: "Catálogo" },
+      { key: "collections", label: "Página de colección" },
+      { key: "productDetail", label: "Página de producto" },
+      { key: "cart", label: "Carrito" },
       { key: "popup", label: "Pop-up promocional" },
     ],
   },
@@ -105,6 +109,7 @@ export function DesignEditorPanel({
   initialSections,
   initialMenuItems,
   storefrontSlug,
+  initialTemplate,
 }: {
   initialTheme: ThemeConfig;
   storePages: { slug: string; title: string }[];
@@ -113,6 +118,11 @@ export function DesignEditorPanel({
   /// Para la vista previa (la tienda real en un iframe) — null si la
   /// marca todavía no configuró el link de su tienda.
   storefrontSlug: string | null;
+  /// Plantilla del catálogo (Clásica/Minimal/Editorial) — vive en
+  /// BrandProfile, no en el tema; antes tenía su propia pestaña
+  /// "Plantilla", ahora se elige en Catálogo. Ver conversación del
+  /// 2026-09-30.
+  initialTemplate: string;
 }) {
   const [theme, setTheme] = useState(initialTheme);
   const [active, setActive] = useState<NavKey | null>(null);
@@ -277,7 +287,12 @@ export function DesignEditorPanel({
           {active === "sections" && <StorefrontSectionsPanel initialSections={initialSections} />}
           {active === "announcement" && <AnnouncementSection theme={theme} patch={patch} />}
           {active === "footer" && <FooterSection theme={theme} patch={patch} />}
-          {active === "productListing" && <ProductListingSection theme={theme} patch={patch} />}
+          {active === "productListing" && (
+            <div className="space-y-6">
+              <StorefrontTemplateForm initialTemplate={initialTemplate} />
+              <ProductListingSection theme={theme} patch={patch} />
+            </div>
+          )}
           {active === "collections" && <CollectionsSection theme={theme} patch={patch} />}
           {active === "productDetail" && (
             <ProductDetailSection theme={theme} patch={patch} storePages={storePages} />

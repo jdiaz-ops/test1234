@@ -177,11 +177,15 @@ const announcementBarSchema = withDefaults({
   /// Hasta 4 — pedido explícito de la marca ("3 o 4 textos que se
   /// deslizan"), ver conversación del 2026-09-15.
   messages: z.array(announcementMessageSchema).max(4).default([]),
-  /// Colores y tamaño de la barra, elegidos de la paleta (igual que el
-  /// pie de página) — antes estaban fijos en secundario/texto y letra
-  /// chica, sin dónde cambiarlos. Ver conversación del 2026-09-30.
-  bgColorRef: z.enum(["principal", "secundario", "acento", "fondo", "texto"]).default("secundario"),
-  textColorRef: z.enum(["principal", "secundario", "acento", "fondo", "texto"]).default("texto"),
+  /// Colores, letra y tamaño propios de la barra, elegidos directo con
+  /// selector/código y lista de fuentes — independientes de la paleta
+  /// general ("mejor dame la opción ahí mismo... independiente del módulo
+  /// de colores generales"). null = sigue la paleta como siempre:
+  /// secundario de fondo, texto de letra, y la letra del cuerpo. Ver
+  /// conversación del 2026-09-30.
+  bgColor: hexColor().nullable().default(null),
+  textColor: hexColor().nullable().default(null),
+  font: z.enum(FONT_VALUES).nullable().default(null),
   textSize: z.enum(["small", "medium", "large"]).default("small"),
 });
 

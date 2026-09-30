@@ -26,9 +26,19 @@ const items = [
 /// "Mi tienda" — catálogo, pagos y envíos propios de Marcolini, aparte de
 /// la conexión con Shopify/WooCommerce (esa sigue viviendo en Cuenta). Ver
 /// conversación del 2026-09-06.
+///
+/// Es la ÚNICA navegación de Mi tienda: antes cada página repetía casi la
+/// misma lista en pastillas arriba del contenido (StoreSubNav), con
+/// Plantilla/Diseño/Páginas solo ahí y no acá — "bastante confuso". El
+/// orden sigue el flujo de armar la tienda: cargar productos, agruparlos,
+/// darle diseño y contenido, operar (pedidos/clientes/muestras) y
+/// configurar cobros, envíos y el link. Plantilla se mudó adentro de
+/// Diseño → Catálogo. Ver conversación del 2026-09-30.
 const storeItems = [
-  { href: "/marca/tienda/productos", label: "Crear productos" },
+  { href: "/marca/tienda/productos", label: "Productos" },
   { href: "/marca/tienda/colecciones", label: "Colecciones" },
+  { href: "/marca/tienda/diseno", label: "Diseño" },
+  { href: "/marca/tienda/paginas", label: "Páginas" },
   { href: "/marca/tienda/pedidos", label: "Pedidos" },
   { href: "/marca/tienda/clientes", label: "Clientes" },
   { href: "/marca/tienda/muestras", label: "Muestras" },

@@ -53,7 +53,11 @@ export default async function StorefrontLayout({
   const menuItems = menuItemsRaw.map((i) => ({ id: i.id, label: i.label, url: i.url }));
 
   const cssVars = themeToCssVars(theme);
-  const fontsUrl = buildGoogleFontsUrl([theme.typography.headingFont, theme.typography.bodyFont]);
+  const fontsUrl = buildGoogleFontsUrl([
+    theme.typography.headingFont,
+    theme.typography.bodyFont,
+    ...(theme.announcementBar.font ? [theme.announcementBar.font] : []),
+  ]);
   const customCss = theme.customCss ? sanitizeCustomCss(theme.customCss) : "";
 
   return (

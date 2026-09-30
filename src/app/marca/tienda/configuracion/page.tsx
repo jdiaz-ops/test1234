@@ -1,6 +1,5 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreConfigForm } from "@/components/portal/store-config-form";
 import { CustomDomainForm } from "@/components/portal/custom-domain-form";
 import { TaxConfigForm } from "@/components/portal/tax-config-form";
@@ -20,7 +19,6 @@ export default async function TiendaConfiguracionPage() {
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         El link público de tu tienda dentro de Marcolini.
       </p>
-      <StoreSubNav />
       {/* El link real es siempre este subdominio (o un dominio propio, ver
           CustomDomainForm) — StoreConfigForm ya lo muestra/edita en ese
           mismo formato, así que acá solo queda el atajo para verla en

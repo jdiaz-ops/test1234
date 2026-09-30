@@ -1,6 +1,5 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreOrdersPanel } from "@/components/portal/store-orders-panel";
 import { listBrandOrders } from "@/server/services/store-order-service";
 
@@ -22,7 +21,6 @@ export default async function TiendaPedidosPage() {
         Compras de tu vitrina y muestras aprobadas — el envío lo gestionas tú,
         Marcolini solo lo registra acá.
       </p>
-      <StoreSubNav />
       <StoreOrdersPanel
         initialOrders={orders.map((o) => ({
           id: o.id,

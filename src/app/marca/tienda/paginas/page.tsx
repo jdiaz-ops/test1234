@@ -1,6 +1,5 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StorePagesPanel } from "@/components/portal/store-pages-panel";
 import { listStorePages } from "@/server/services/store-page-service";
 
@@ -27,7 +26,6 @@ export default async function TiendaPaginasPage() {
         conecta estas páginas, ve a Diseño → &ldquo;Menú de
         navegación&rdquo;.
       </p>
-      <StoreSubNav />
       <StorePagesPanel
         initialPages={pages.map((p) => ({
           id: p.id,

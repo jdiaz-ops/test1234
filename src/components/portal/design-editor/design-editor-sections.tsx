@@ -410,44 +410,47 @@ export function AnnouncementSection({ theme, patch }: { theme: ThemeConfig; patc
         checked={a.enabled}
         onChange={(v) => patch({ announcementBar: { enabled: v } })}
       />
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Color de fondo">
-          <select
-            value={a.bgColorRef}
-            onChange={(e) => patch({ announcementBar: { bgColorRef: e.target.value } })}
-            className="input text-sm"
-          >
-            <option value="secundario">Color secundario</option>
-            <option value="principal">Color principal</option>
-            <option value="acento">Color de acento</option>
-            <option value="fondo">Color de fondo</option>
-            <option value="texto">Color de textos</option>
-          </select>
-        </Field>
-        <Field label="Color del texto">
-          <select
-            value={a.textColorRef}
-            onChange={(e) => patch({ announcementBar: { textColorRef: e.target.value } })}
-            className="input text-sm"
-          >
-            <option value="texto">Color de textos</option>
-            <option value="fondo">Color de fondo</option>
-            <option value="principal">Color principal</option>
-            <option value="secundario">Color secundario</option>
-            <option value="acento">Color de acento</option>
-          </select>
-        </Field>
-        <Field label="Tamaño del texto">
-          <select
-            value={a.textSize}
-            onChange={(e) => patch({ announcementBar: { textSize: e.target.value } })}
-            className="input text-sm"
-          >
-            <option value="small">Chico</option>
-            <option value="medium">Mediano</option>
-            <option value="large">Grande</option>
-          </select>
-        </Field>
+      {/* Controles propios de la barra, directos (selector + código hex,
+          lista de fuentes) — independientes de la paleta general. Ver
+          conversación del 2026-09-30. */}
+      <div className="space-y-3">
+        <ColorRow
+          label="Color de fondo"
+          value={a.bgColor ?? theme.colors.secundario}
+          onChange={(v) => patch({ announcementBar: { bgColor: v } })}
+        />
+        <ColorRow
+          label="Color del texto"
+          value={a.textColor ?? theme.colors.texto}
+          onChange={(v) => patch({ announcementBar: { textColor: v } })}
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Tipo de letra">
+            <select
+              value={a.font ?? ""}
+              onChange={(e) => patch({ announcementBar: { font: e.target.value || null } })}
+              className="input text-sm"
+            >
+              <option value="">La de tu tienda</option>
+              {GOOGLE_FONT_OPTIONS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.value}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Tamaño del texto">
+            <select
+              value={a.textSize}
+              onChange={(e) => patch({ announcementBar: { textSize: e.target.value } })}
+              className="input text-sm"
+            >
+              <option value="small">Chico</option>
+              <option value="medium">Mediano</option>
+              <option value="large">Grande</option>
+            </select>
+          </Field>
+        </div>
       </div>
       {messages.map((m, i) => (
         <div key={i} className="space-y-2">

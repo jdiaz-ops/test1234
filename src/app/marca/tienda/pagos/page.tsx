@@ -1,6 +1,5 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StorePaymentForm } from "@/components/portal/store-payment-form";
 
 export default async function TiendaPagosPage() {
@@ -19,7 +18,6 @@ export default async function TiendaPagosPage() {
         Conecta tu propia pasarela de pago — el dinero de cada venta llega
         directo a tu cuenta, Marcolini nunca lo recibe.
       </p>
-      <StoreSubNav />
       <StorePaymentForm
         initial={{
           paymentProvider: profile.paymentProvider,

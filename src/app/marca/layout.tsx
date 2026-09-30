@@ -112,7 +112,10 @@ export default async function MarcaLayout({
             Tu marca no fue aprobada. Contáctanos si crees que fue un error.
           </div>
         )}
-        <div className="max-w-4xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
+        {/* 1280px en vez de 896px — el editor de Diseño (panel + vista previa
+            real) necesita el ancho; el resto de páginas acota sus textos
+            con max-w propios. Ver conversación del 2026-09-30. */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
           {children}
         </div>
       </PortalShell>

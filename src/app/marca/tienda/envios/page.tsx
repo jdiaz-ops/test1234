@@ -1,6 +1,5 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { StoreShippingForm } from "@/components/portal/store-shipping-form";
 import { StoreShippingZonesPanel } from "@/components/portal/store-shipping-zones-panel";
 import { DistributionCenterForm } from "@/components/portal/distribution-center-form";
@@ -24,7 +23,6 @@ export default async function TiendaEnviosPage() {
         Cómo se calcula el envío en tu checkout — tú te encargas del despacho
         del pedido, no Marcolini.
       </p>
-      <StoreSubNav />
 
       {zones.length === 0 && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 mb-4">

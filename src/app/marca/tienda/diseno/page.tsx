@@ -1,6 +1,5 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { StoreSubNav } from "@/components/portal/store-sub-nav";
 import { DesignEditorPanel } from "@/components/portal/design-editor/design-editor-panel";
 import { getDraftTheme } from "@/server/services/brand-theme-service";
 import {
@@ -37,13 +36,13 @@ export default async function TiendaDisenoPage() {
         Diseño
       </h1>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Colores, tipografía y todo lo que hace que tu tienda se sienta
-        tuya. Nada de esto se ve en tu tienda hasta que le des &ldquo;Publicar
-        cambios&rdquo;.
+        Colores, tipografía, encabezado, página de inicio, catálogo y todo lo
+        que hace que tu tienda se sienta tuya. Nada de esto se ve en tu tienda
+        hasta que le des &ldquo;Publicar cambios&rdquo;.
       </p>
-      <StoreSubNav />
       <DesignEditorPanel
         initialTheme={theme}
+        initialTemplate={profile.storefrontTemplate}
         storePages={pages.map((p) => ({ slug: p.slug, title: p.title }))}
         initialSections={sections
           .filter((s): s is typeof s & { type: SectionType } =>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { resolveColorRef, type ThemeConfig } from "@/lib/brand-theme";
+import { fontStack, resolveColorRef, type ThemeConfig } from "@/lib/brand-theme";
 
 const TEXT_SIZE_CLASS = {
   small: "text-xs py-2",
@@ -39,8 +39,9 @@ export function AnnouncementBar({
     <div
       className="overflow-hidden text-center font-medium"
       style={{
-        background: resolveColorRef(colors, config.bgColorRef),
-        color: resolveColorRef(colors, config.textColorRef),
+        background: config.bgColor ?? resolveColorRef(colors, "secundario"),
+        color: config.textColor ?? resolveColorRef(colors, "texto"),
+        fontFamily: config.font ? fontStack(config.font) : undefined,
       }}
     >
       <div
