@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { applyWompiTransactionStatus, createStoreOrder } from "@/server/services/store-order-service";
 import { RESERVATION_MINUTES } from "@/lib/order-math";
+import { POST as createOrderRoute } from "@/app/api/tienda/[slug]/ordenes/route";
 import { BUYER, createProduct, createSellingBrand, hasDb } from "./helpers";
 
 const email = (n: string) => `${n}-${Math.random().toString(36).slice(2, 8)}@prueba.test`;
@@ -155,5 +156,52 @@ describe.skipIf(!hasDb)("checkout: autorización de datos personales", () => {
       }),
     ).rejects.toThrow(/autoriza el tratamiento/);
     expect(await prisma.storeOrder.count({ where: { brandId: brand.id } })).toBe(0);
+  });
+});
+
+/// Por la ruta completa, como lo hace el navegador: antes la ruta no le
+/// pasaba la autorización a createStoreOrder y toda compra se rechazaba
+/// con "autoriza el tratamiento de tus datos" aunque la casilla estuviera
+/// marcada (las pruebas de arriba llaman a la función directo y no lo
+/// vieron). Ver conversación del 2026-10-01.
+describe.skipIf(!hasDb)("checkout: la ruta que usa el navegador", () => {
+  const post = (slug: string, body: unknown) =>
+    createOrderRoute(
+      new Request(`http://localhost/api/tienda/${slug}/ordenes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-for": `10.9.${Math.floor(Math.random() * 250)}.1` },
+        body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ slug }) },
+    );
+
+  it("con la casilla marcada crea el pedido y guarda los datos de factura", async () => {
+    const brand = await createSellingBrand();
+    const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });
+    const res = await post(brand.storefrontSlug!, {
+      ...BUYER,
+      buyerEmail: email("ruta"),
+      items: [{ productId: placa.id, quantity: 1 }],
+      billingIdType: "CC",
+      billingIdNumber: "1020304050",
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const order = await prisma.storeOrder.findUniqueOrThrow({ where: { id: body.orderId } });
+    expect(order.dataConsentAt).not.toBeNull();
+    expect(order).toMatchObject({ billingIdType: "CC", billingIdNumber: "1020304050" });
+  });
+
+  it("sin la casilla responde el mensaje de autorización", async () => {
+    const brand = await createSellingBrand();
+    const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });
+    const res = await post(brand.storefrontSlug!, {
+      ...BUYER,
+      dataConsent: false,
+      buyerEmail: email("ruta"),
+      items: [{ productId: placa.id, quantity: 1 }],
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/autoriza el tratamiento/);
   });
 });

@@ -41,6 +41,13 @@ export async function POST(
       shippingNotes: parsed.data.shippingNotes || null,
       servicePreferredAt: parsed.data.servicePreferredAt || undefined,
       discountCode: parsed.data.discountCode || null,
+      // Antes no se pasaba y createStoreOrder rechazaba toda compra con
+      // "autoriza el tratamiento de tus datos" aunque la casilla estuviera
+      // marcada. Ver conversación del 2026-10-01.
+      dataConsent: parsed.data.dataConsent,
+      billingIdType: parsed.data.billingIdType || undefined,
+      billingIdNumber: parsed.data.billingIdNumber || undefined,
+      billingName: parsed.data.billingName || undefined,
     });
     return NextResponse.json({ ok: true, orderId: order.id, wompi });
   } catch (err) {
