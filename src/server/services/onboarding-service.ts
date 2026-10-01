@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { BrandProfile } from "@prisma/client";
+import { STORE_CONNECTION_ENABLED } from "@/lib/features";
 
 export type OnboardingStep = {
   key: string;
@@ -35,9 +36,14 @@ export async function getBrandOnboardingStatus(profile: BrandProfile) {
     },
     {
       key: "tienda",
-      label: "Conectar tu tienda",
+      // Con la conexión de Shopify/WooCommerce apagada, la tienda es la de
+      // Marcolini ("Mi tienda"): cuenta como lista apenas tiene su link
+      // ({slug}.marcolini.lat). Antes solo valía una tienda conectada, y una
+      // marca con su tienda en Marcolini nunca salía en el marketplace de
+      // los creadores (2026-10-01).
+      label: STORE_CONNECTION_ENABLED ? "Conectar tu tienda" : "Crea tu tienda",
       description: "",
-      done: profile.storeConnectionStatus === "CONNECTED",
+      done: profile.storeConnectionStatus === "CONNECTED" || Boolean(profile.storefrontSlug),
     },
     {
       key: "pago",

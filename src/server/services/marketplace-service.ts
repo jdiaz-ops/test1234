@@ -60,10 +60,18 @@ export async function listActiveOffers(filters: {
               { logoUrl: "" },
               { description: null },
               { description: "" },
-              { websiteUrl: null },
-              { websiteUrl: "" },
             ],
-            storeConnectionStatus: "CONNECTED",
+            // Tienda lista: su tienda en Marcolini ({slug}.marcolini.lat),
+            // o una tienda externa conectada con su web. Antes solo valía
+            // la conectada, y una marca que vende en Marcolini no salía
+            // (ver getBrandOnboardingStatus, mismas condiciones).
+            OR: [
+              { storefrontSlug: { not: null } },
+              {
+                storeConnectionStatus: "CONNECTED",
+                NOT: [{ websiteUrl: null }, { websiteUrl: "" }],
+              },
+            ],
             billingAcknowledgedAt: { not: null },
             // Nivel 2 (OVERDUE) NO oculta del marketplace — solo el panel se
             // bloquea (ver isBrandPaymentLocked en payment-service.ts); el

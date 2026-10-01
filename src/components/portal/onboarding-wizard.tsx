@@ -6,6 +6,7 @@ import { BrandProfileForm } from "@/components/portal/brand-profile-form";
 import { StoreConnectionForm } from "@/components/portal/store-connection-form";
 import { BillingAcknowledgeStep } from "@/components/portal/billing-acknowledge-step";
 import { OfferForm } from "@/components/portal/offer-form";
+import { STORE_CONNECTION_ENABLED } from "@/lib/features";
 
 type ProfileValues = React.ComponentProps<typeof BrandProfileForm>["initial"];
 type ProfileFiles = React.ComponentProps<typeof BrandProfileForm>["files"];
@@ -77,7 +78,7 @@ export function OnboardingWizard({
                   </p>
                   {step.key === "tienda" && tiendaDone && (
                     <span className="text-[10px] font-medium text-green-700 bg-green-50 rounded-full px-2 py-0.5">
-                      ✓ Conectada
+                      {STORE_CONNECTION_ENABLED ? "✓ Conectada" : "✓ Lista"}
                     </span>
                   )}
                 </div>
@@ -111,7 +112,22 @@ export function OnboardingWizard({
                       hideWebsiteField
                     />
                   )}
-                  {step.key === "tienda" && (
+                  {step.key === "tienda" && !STORE_CONNECTION_ENABLED && (
+                    <div className="space-y-3">
+                      <p className="text-sm text-brand-ink-soft">
+                        Tu tienda vive dentro de Marcolini. Elige su link
+                        (tunombre.marcolini.lat) en Mi tienda → Configuración;
+                        apenas lo guardes, este paso queda listo.
+                      </p>
+                      <a
+                        href="/marca/tienda/configuracion"
+                        className="inline-block bg-brand-accent text-white text-sm font-medium rounded-full px-5 py-2.5 hover:opacity-90"
+                      >
+                        Ir a Mi tienda
+                      </a>
+                    </div>
+                  )}
+                  {step.key === "tienda" && STORE_CONNECTION_ENABLED && (
                     <StoreConnectionForm
                       initial={store.initial}
                       shopifyConnected={
