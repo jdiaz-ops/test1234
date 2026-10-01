@@ -443,8 +443,7 @@ export default function ParaCreadoresPage() {
                 <p className="text-brand-ink-soft leading-relaxed mb-6">
                   Explora el marketplace y descubre qué ofrece cada marca: el
                   descuento que recibirá tu comunidad y la comisión que ganarás
-                  por cada venta. Únete a tantas marcas como quieras y empieza a
-                  compartir sus códigos y enlaces desde un solo lugar.
+                  por cada venta.
                 </p>
                 <Link
                   href="/lista-de-espera"
