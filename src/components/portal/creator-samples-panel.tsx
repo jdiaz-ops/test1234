@@ -508,8 +508,8 @@ export function CreatorSamplesPanel({
           Muestras disponibles
         </h2>
         <p className="text-sm text-brand-ink-soft mb-4">
-          Productos que las marcas habilitaron para regalar — pídelos gratis y
-          muéstralos en tu contenido.
+          Productos que las marcas ofrecen como muestra. Solicita la que te
+          interese: cada marca revisa tu solicitud y decide si te la envía.
         </p>
         {initialProducts.length === 0 ? (
           <p className="text-sm text-brand-ink-soft">
