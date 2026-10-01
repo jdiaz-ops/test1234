@@ -268,6 +268,19 @@ export async function offerSampleToCreator(
   return request;
 }
 
+/// Muestras abiertas de la marca (ofrecidas sin respuesta o pedidas sin
+/// aprobar), para que en Creadores → Vinculados no vuelva a salir
+/// "Ofrecer muestra" como si nada (pedido de la marca el 2026-10-01). Una
+/// por creador: la más reciente.
+export async function listOpenSamplesByCreator(brandId: string) {
+  return prisma.sampleRequest.findMany({
+    where: { brandId, status: { in: ["PENDING", "OFFERED"] } },
+    select: { creatorId: true, status: true, product: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+    distinct: ["creatorId"],
+  });
+}
+
 /// Ofertas que la marca le mandó al creador y todavía esperan su respuesta.
 export async function listCreatorSampleOffers(creatorId: string) {
   return prisma.sampleRequest.findMany({

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SAMPLES_ENABLED } from "@/lib/features";
@@ -41,6 +42,7 @@ function OfferSampleForm({
   sampleProducts: SampleProductOption[];
   onDone: () => void;
 }) {
+  const router = useRouter();
   const [productId, setProductId] = useState(sampleProducts[0]?.id ?? "");
   const selectedProduct = sampleProducts.find((p) => p.id === productId);
   const [quantity, setQuantity] = useState(1);
@@ -64,6 +66,8 @@ function OfferSampleForm({
         return;
       }
       setSent(true);
+      // Para que la fila pase a "Muestra ofrecida" al cerrar.
+      router.refresh();
     } catch {
       setError("No se pudo enviar — revisa tu conexión.");
     } finally {
@@ -75,8 +79,8 @@ function OfferSampleForm({
     return (
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-brand-ink-soft">
-          No tienes ningún producto habilitado para muestras — actívalo en Mi
-          tienda → Muestras.
+          No tienes ningún producto habilitado para muestras — agrégalo en
+          Muestras.
         </p>
         <button onClick={onDone} className="text-xs text-brand-ink-soft hover:underline shrink-0">
           Cerrar
@@ -352,9 +356,13 @@ function OverrideEditor({
 export function EnrollmentsPanel({
   enrollments,
   sampleProducts,
+  openSamples = {},
 }: {
   enrollments: Enrollment[];
   sampleProducts: SampleProductOption[];
+  /// Muestra abierta por creador (ver listOpenSamplesByCreator): en vez del
+  /// botón "Ofrecer muestra" se muestra en qué va.
+  openSamples?: Record<string, { status: "PENDING" | "OFFERED"; productName: string }>;
 }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -458,7 +466,24 @@ export function EnrollmentsPanel({
                     <div className="flex gap-3">
                       {/* Escondido mientras las muestras estén apagadas
                           (ver src/lib/features.ts). */}
-                      {SAMPLES_ENABLED && (
+                      {SAMPLES_ENABLED && openSamples[e.creatorId]?.status === "OFFERED" && (
+                        <span
+                          title={openSamples[e.creatorId].productName}
+                          className="text-xs font-medium rounded-full px-2.5 py-1 bg-purple-100 text-purple-700 whitespace-nowrap"
+                        >
+                          Muestra ofrecida · esperando respuesta
+                        </span>
+                      )}
+                      {SAMPLES_ENABLED && openSamples[e.creatorId]?.status === "PENDING" && (
+                        <Link
+                          href="/marca/tienda/muestras"
+                          title={openSamples[e.creatorId].productName}
+                          className="text-xs text-brand-accent font-medium hover:underline whitespace-nowrap"
+                        >
+                          Pidió una muestra → Revisar
+                        </Link>
+                      )}
+                      {SAMPLES_ENABLED && !openSamples[e.creatorId] && (
                         <button
                           onClick={() => {
                             setOfferingSampleId(offeringSampleId === e.id ? null : e.id);

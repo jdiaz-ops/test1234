@@ -272,8 +272,8 @@ function RecruitPanel({
       {tab === "sample" &&
         (sampleProducts.length === 0 ? (
           <p className="text-xs text-brand-ink-soft">
-            No tienes ningún producto habilitado para muestras — actívalo en Mi
-            tienda → Muestras.
+            No tienes ningún producto habilitado para muestras — agrégalo en
+            Muestras.
           </p>
         ) : sampleSent ? (
           <p className="text-sm text-brand-accent">

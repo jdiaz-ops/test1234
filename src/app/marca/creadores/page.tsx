@@ -1,7 +1,10 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listEnrollmentsForBrand } from "@/server/services/enrollment-management-service";
-import { listBrandSampleCatalog } from "@/server/services/sample-service";
+import {
+  listBrandSampleCatalog,
+  listOpenSamplesByCreator,
+} from "@/server/services/sample-service";
 import { EnrollmentsPanel } from "@/components/portal/enrollments-panel";
 import { SAMPLES_ENABLED } from "@/lib/features";
 import { CreatorsTabs } from "@/components/portal/creators-tabs";
@@ -11,9 +14,10 @@ export default async function CreadoresVinculadosPage() {
   const profile = await prisma.brandProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },
   });
-  const [enrollments, products] = await Promise.all([
+  const [enrollments, products, openSampleRows] = await Promise.all([
     listEnrollmentsForBrand(profile.id),
     listBrandSampleCatalog(profile.id),
+    SAMPLES_ENABLED ? listOpenSamplesByCreator(profile.id) : [],
   ]);
   // Sin productos para muestras mientras la función está apagada (ver
   // src/lib/features.ts): el botón "Ofrecer muestra" no aparece.
@@ -49,6 +53,15 @@ export default async function CreadoresVinculadosPage() {
             defaultDiscountPercent: Number(e.offer.defaultDiscountPercent),
           },
         }))}
+        openSamples={Object.fromEntries(
+          openSampleRows.map((r) => [
+            r.creatorId,
+            {
+              status: r.status === "OFFERED" ? ("OFFERED" as const) : ("PENDING" as const),
+              productName: r.product.name,
+            },
+          ]),
+        )}
         sampleProducts={sampleProducts.map((p) => ({
           id: p.id,
           name: p.name,
