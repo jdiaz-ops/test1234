@@ -395,6 +395,54 @@ export function CheckoutForm({
   const shippingBlocked =
     needsShipping && (!region || shippingQuote.loading || shippingQuote.amount == null || Boolean(shippingQuote.error));
 
+  // El código de creador tiene que estar a la vista: de ahí sale la
+  // estrategia de Marcolini con los creadores. En el celular va arriba del
+  // formulario, no escondido en el resumen plegado. Ver conversación del
+  // 2026-10-02.
+  const codeBox = (
+    <div className="space-y-2">
+      <div>
+        <p className="text-sm font-semibold text-brand-ink">¿Tienes un código de creador?</p>
+        <p className="text-xs text-brand-ink-soft">Si un creador te compartió su código, escríbelo aquí y te aplicamos su descuento.</p>
+      </div>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <input
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value.toUpperCase());
+              setDiscountPercent(null);
+            }}
+            onKeyDown={(e) => {
+              // Dentro del formulario, Enter aplicaría el pago: aplica el código.
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleApplyCode();
+              }
+            }}
+            placeholder="Ej. LAURA30"
+            autoCapitalize="characters"
+            spellCheck={false}
+            aria-label="Código de creador o de descuento"
+            className="block w-full rounded-lg border border-brand-line bg-brand-surface px-3 py-3 text-sm text-brand-ink uppercase placeholder:normal-case placeholder:text-brand-ink-soft focus:border-brand-ink focus:outline-none focus:ring-1 focus:ring-brand-ink"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => handleApplyCode()}
+          disabled={checkingCode || !code.trim()}
+          className="rounded-lg bg-brand-button text-brand-button-text px-4 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
+        >
+          {checkingCode ? "..." : "Aplicar"}
+        </button>
+      </div>
+      {codeError && <p className="text-xs text-red-600">{codeError}</p>}
+      {discountPercent != null && (
+        <p className="text-xs text-brand-ink font-medium">Código aplicado: {discountPercent}% de descuento.</p>
+      )}
+    </div>
+  );
+
   const summary = (
     <div className="space-y-5">
       <ul className="space-y-3">
@@ -424,38 +472,9 @@ export function CheckoutForm({
         ))}
       </ul>
 
-      {/* El código de creador sigue a la vista: de ahí sale la estrategia
-          de Marcolini con los creadores. */}
-      <div className="space-y-1.5">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <input
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value.toUpperCase());
-                setDiscountPercent(null);
-              }}
-              placeholder="Código de descuento o de creador"
-              autoCapitalize="characters"
-              spellCheck={false}
-              aria-label="Código de descuento o de creador"
-              className="block w-full rounded-lg border border-brand-line bg-brand-surface px-3 py-3 text-sm text-brand-ink uppercase placeholder:normal-case placeholder:text-brand-ink-soft focus:border-brand-ink focus:outline-none focus:ring-1 focus:ring-brand-ink"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => handleApplyCode()}
-            disabled={checkingCode || !code.trim()}
-            className="rounded-lg border border-brand-line bg-brand-surface px-4 text-sm font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
-          >
-            {checkingCode ? "..." : "Aplicar"}
-          </button>
-        </div>
-        {codeError && <p className="text-xs text-red-600">{codeError}</p>}
-        {discountPercent != null && (
-          <p className="text-xs text-brand-ink font-medium">Código aplicado: {discountPercent}% de descuento.</p>
-        )}
-      </div>
+      {/* En computador el código va en el resumen; en el celular, arriba
+          del formulario (ver codeBox). */}
+      <div className="hidden lg:block">{codeBox}</div>
 
       <div className="space-y-2 text-sm">
         <div className="flex justify-between text-brand-ink">
@@ -532,6 +551,10 @@ export function CheckoutForm({
 
       <div className="bg-brand-surface lg:border-r lg:border-brand-line">
         <form onSubmit={handleSubmit} className="max-w-xl px-4 sm:px-8 py-8 space-y-8 lg:ml-auto lg:pr-12">
+          <div className="lg:hidden rounded-xl border border-brand-line bg-[color-mix(in_srgb,var(--brand-ink)_4%,var(--brand-bg))] p-4">
+            {codeBox}
+          </div>
+
           <Section title="Contacto">
             <Field label="Correo electrónico" type="email" inputMode="email" autoComplete="email" required value={email} onChange={setEmail} />
           </Section>
@@ -724,6 +747,33 @@ export function CheckoutForm({
                 de la tienda.
               </span>
             </label>
+
+            {/* En el celular el resumen va plegado arriba: el total, con el
+                descuento si hay, se repite justo antes de pagar. */}
+            <div className="lg:hidden space-y-1.5 text-sm border-t border-brand-line pt-4">
+              <div className="flex justify-between text-brand-ink">
+                <span>Subtotal</span>
+                <span className="tabular-nums">{formatCOP(subtotal)}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-brand-accent">
+                  <span>Descuento ({code})</span>
+                  <span className="tabular-nums">-{formatCOP(discountAmount)}</span>
+                </div>
+              )}
+              {needsShipping && (
+                <div className="flex justify-between text-brand-ink">
+                  <span>Envío</span>
+                  <span className="tabular-nums text-brand-ink-soft">
+                    {!region ? "Ingresa tu dirección" : shippingQuote.amount == null ? "—" : shippingCost === 0 ? "Gratis" : formatCOP(shippingCost)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between text-base font-semibold text-brand-ink pt-1">
+                <span>Total</span>
+                <span className="tabular-nums">{formatCOP(total)}</span>
+              </div>
+            </div>
 
             {submitError && <p className="text-sm text-red-600">{submitError}</p>}
 
