@@ -22,7 +22,6 @@ export async function PATCH(req: Request) {
 
   try {
     await saveStorefrontSlug(
-      profile.userId,
       profile.id,
       parsed.data.storefrontSlug,
     );

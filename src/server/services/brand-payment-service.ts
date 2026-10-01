@@ -1,39 +1,67 @@
 import { prisma } from "@/lib/prisma";
 
+export class BrandPaymentError extends Error {}
+
+const WOMPI_KEY_FIELDS = [
+  "wompiPublicKeyTest",
+  "wompiPrivateKeyTest",
+  "wompiEventsKeyTest",
+  "wompiIntegrityKeyTest",
+  "wompiPublicKeyProd",
+  "wompiPrivateKeyProd",
+  "wompiEventsKeyProd",
+  "wompiIntegrityKeyProd",
+] as const;
+
+type WompiKeyField = (typeof WOMPI_KEY_FIELDS)[number];
+
 /// Guarda las llaves de Wompi que la marca pegó desde su propio panel — se
-/// activa como pasarela (paymentProvider = WOMPI) apenas guarda algo, aunque
-/// todavía no haya cargado las 4 llaves completas; el checkout real (cuando
-/// exista) es el que exige que estén completas para el modo elegido antes de
-/// dejar cobrar — ver getWompiCredentialsStatus.
+/// activa como pasarela (paymentProvider = WOMPI) apenas guarda algo.
+///
+/// Solo toca las llaves que vienen: la página de Pagos ya no le manda al
+/// navegador las llaves secretas guardadas (las muestra enmascaradas), así
+/// que una llave que no se cambió llega como undefined y se conserva; ""
+/// la borra. Y no deja pasar a "cobro real" sin las 4 llaves de
+/// producción — antes se podía y la tienda quedaba sin poder cobrar. Ver
+/// conversación del 2026-10-01.
 export async function saveWompiCredentials(
   userId: string,
-  data: {
-    paymentMode: "TEST" | "PRODUCTION";
-    wompiPublicKeyTest?: string;
-    wompiPrivateKeyTest?: string;
-    wompiEventsKeyTest?: string;
-    wompiIntegrityKeyTest?: string;
-    wompiPublicKeyProd?: string;
-    wompiPrivateKeyProd?: string;
-    wompiEventsKeyProd?: string;
-    wompiIntegrityKeyProd?: string;
-  },
+  data: { paymentMode: "TEST" | "PRODUCTION" } & Partial<Record<WompiKeyField, string>>,
 ) {
+  const current = await prisma.brandProfile.findUniqueOrThrow({ where: { userId } });
+  const updates: Partial<Record<WompiKeyField, string | null>> = {};
+  for (const field of WOMPI_KEY_FIELDS) {
+    const value = data[field];
+    if (value !== undefined) updates[field] = value.trim() || null;
+  }
+
+  const merged = { ...current, ...updates, paymentMode: data.paymentMode };
+  if (data.paymentMode === "PRODUCTION" && !isWompiModeComplete(merged)) {
+    throw new BrandPaymentError(
+      "Para cobrar de verdad faltan llaves de producción. Complétalas o deja activo el modo de prueba.",
+    );
+  }
+
   return prisma.brandProfile.update({
     where: { userId },
-    data: {
-      paymentProvider: "WOMPI",
-      paymentMode: data.paymentMode,
-      wompiPublicKeyTest: data.wompiPublicKeyTest || null,
-      wompiPrivateKeyTest: data.wompiPrivateKeyTest || null,
-      wompiEventsKeyTest: data.wompiEventsKeyTest || null,
-      wompiIntegrityKeyTest: data.wompiIntegrityKeyTest || null,
-      wompiPublicKeyProd: data.wompiPublicKeyProd || null,
-      wompiPrivateKeyProd: data.wompiPrivateKeyProd || null,
-      wompiEventsKeyProd: data.wompiEventsKeyProd || null,
-      wompiIntegrityKeyProd: data.wompiIntegrityKeyProd || null,
-    },
+    data: { paymentProvider: "WOMPI", paymentMode: data.paymentMode, ...updates },
   });
+}
+
+/// Cómo se ve una llave secreta guardada en la página de Pagos: solo si
+/// existe y sus últimos 4 caracteres — nunca la llave completa.
+export function maskSecret(value: string | null) {
+  return value ? { saved: true, last4: value.slice(-4) } : { saved: false, last4: "" };
+}
+
+/// Estado de la pasarela para la página de Pagos.
+export function wompiStatus(profile: Parameters<typeof isWompiModeComplete>[0] & {
+  paymentProvider: "NONE" | "WOMPI";
+}): "NOT_CONNECTED" | "ACTIVE" | "TEST" | "INCOMPLETE" {
+  const anyKey = WOMPI_KEY_FIELDS.some((f) => Boolean(profile[f]));
+  if (profile.paymentProvider !== "WOMPI" || !anyKey) return "NOT_CONNECTED";
+  if (!isWompiModeComplete(profile)) return "INCOMPLETE";
+  return profile.paymentMode === "PRODUCTION" ? "ACTIVE" : "TEST";
 }
 
 /// Las 4 llaves que hacen falta para el modo activo (test o producción) —

@@ -588,7 +588,10 @@ model BrandProfile {
   /// {storefrontSlug}.marcolini.lat (y marcolini.lat/t/{storefrontSlug},
   /// que redirige ahí — ver src/proxy.ts). Null hasta que la marca lo
   /// configure en "Mi tienda → Configuración".
-  storefrontSlug String? @unique
+  storefrontSlug String?             @unique
+  /// Links viejos de la tienda que siguen llevando a esta marca después de
+  /// que Marcolini le cambió el link (ver BrandSlugRedirect).
+  slugRedirects  BrandSlugRedirect[]
 
   /// Dominio propio de la marca (ej. "tienda.marcauno.com"), gratis —
   /// alternativa al subdominio de arriba. Null hasta que la marca lo
@@ -2465,4 +2468,20 @@ model RateLimit {
   key         String   @id
   windowStart DateTime
   count       Int
+}
+
+/// Link anterior de una tienda ({slug}.marcolini.lat) que redirige al
+/// actual. El link de la tienda queda fijo apenas la marca lo guarda (lo
+/// comparten la marca, sus creadores y los publishers, y cambiarlo rompía
+/// todos esos links); solo Marcolini lo puede cambiar desde Admin →
+/// Marcas, y entonces el viejo queda acá. Ver conversación del 2026-10-01.
+model BrandSlugRedirect {
+  id      String       @id @default(cuid())
+  slug    String       @unique
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([brandId])
 }

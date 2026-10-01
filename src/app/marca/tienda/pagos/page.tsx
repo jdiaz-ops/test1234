@@ -2,6 +2,8 @@ import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { StoreSettingsTabs } from "@/components/portal/store-settings-tabs";
 import { StorePaymentForm } from "@/components/portal/store-payment-form";
+import { maskSecret, wompiStatus } from "@/server/services/brand-payment-service";
+import { portalUrl } from "@/lib/store-url";
 
 export default async function TiendaPagosPage() {
   const profile = await requireBrandProfile();
@@ -16,22 +18,25 @@ export default async function TiendaPagosPage() {
         Configuración
       </h1>
       <StoreSettingsTabs active="pagos" />
-      <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Conecta tu propia pasarela de pago — el dinero de cada venta llega
-        directo a tu cuenta, Marcolini nunca lo recibe.
-      </p>
       <StorePaymentForm
         initial={{
-          paymentProvider: profile.paymentProvider,
+          status: wompiStatus(profile),
           paymentMode: profile.paymentMode,
-          wompiPublicKeyTest: profile.wompiPublicKeyTest ?? "",
-          wompiPrivateKeyTest: profile.wompiPrivateKeyTest ?? "",
-          wompiEventsKeyTest: profile.wompiEventsKeyTest ?? "",
-          wompiIntegrityKeyTest: profile.wompiIntegrityKeyTest ?? "",
-          wompiPublicKeyProd: profile.wompiPublicKeyProd ?? "",
-          wompiPrivateKeyProd: profile.wompiPrivateKeyProd ?? "",
-          wompiEventsKeyProd: profile.wompiEventsKeyProd ?? "",
-          wompiIntegrityKeyProd: profile.wompiIntegrityKeyProd ?? "",
+          // Las llaves secretas nunca viajan completas al navegador: solo
+          // si están guardadas y sus últimos 4 caracteres.
+          prod: {
+            publicKey: profile.wompiPublicKeyProd ?? "",
+            privateKey: maskSecret(profile.wompiPrivateKeyProd),
+            eventsKey: maskSecret(profile.wompiEventsKeyProd),
+            integrityKey: maskSecret(profile.wompiIntegrityKeyProd),
+          },
+          test: {
+            publicKey: profile.wompiPublicKeyTest ?? "",
+            privateKey: maskSecret(profile.wompiPrivateKeyTest),
+            eventsKey: maskSecret(profile.wompiEventsKeyTest),
+            integrityKey: maskSecret(profile.wompiIntegrityKeyTest),
+          },
+          eventsUrl: `${portalUrl()}/api/webhooks/wompi`,
         }}
       />
     </div>

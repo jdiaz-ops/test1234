@@ -60,6 +60,11 @@ export default auth(async (req) => {
     // subdominio en vez de saltar de vuelta al dominio raíz.
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set("x-marcolini-subdomain", "1");
+    // La dirección tal cual la pidió el comprador — si es un link viejo de
+    // una tienda a la que Marcolini le cambió el link, el layout de la
+    // vitrina lo manda a la misma página en el link nuevo (ver
+    // BrandSlugRedirect).
+    requestHeaders.set("x-marcolini-path", `${alreadyPrefixed ? pathname.slice(`/t/${subdomainSlug}`.length) || "/" : pathname}${search}`);
     return withRefCookie(NextResponse.rewrite(rewritten, { request: { headers: requestHeaders } }), req);
   }
 

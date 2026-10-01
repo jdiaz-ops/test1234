@@ -68,10 +68,16 @@ export async function saveTaxConfig(
 /// CreatorProfile.storefrontSlug al registrarse), tampoco puede ser una
 /// palabra reservada — sería un subdominio real chocando con
 /// infraestructura de Marcolini.
+///
+/// La marca lo elige UNA vez: después queda fijo, porque lo comparten
+/// ella, sus creadores y los publishers y cambiarlo rompía todos esos
+/// links. Solo Marcolini lo cambia (Admin → Marcas, `byAdmin`), y el
+/// link anterior queda en BrandSlugRedirect llevando al nuevo. Ver
+/// conversación del 2026-10-01.
 export async function saveStorefrontSlug(
-  userId: string,
   brandId: string,
   slug: string,
+  options: { byAdmin?: boolean } = {},
 ) {
   if (RESERVED_SUBDOMAINS.has(slug)) {
     throw new BrandStoreConfigError(
@@ -79,17 +85,55 @@ export async function saveStorefrontSlug(
     );
   }
 
-  const existing = await prisma.brandProfile.findUnique({
-    where: { storefrontSlug: slug },
+  const brand = await prisma.brandProfile.findUniqueOrThrow({
+    where: { id: brandId },
+    select: { storefrontSlug: true },
   });
-  if (existing && existing.id !== brandId) {
+  if (brand.storefrontSlug === slug) return;
+  if (brand.storefrontSlug && !options.byAdmin) {
+    throw new BrandStoreConfigError(
+      "El link de tu tienda ya quedó fijo para no romper los links que ya compartiste. Si necesitas cambiarlo, escríbenos.",
+    );
+  }
+
+  const [existing, redirect] = await Promise.all([
+    prisma.brandProfile.findUnique({ where: { storefrontSlug: slug } }),
+    prisma.brandSlugRedirect.findUnique({ where: { slug } }),
+  ]);
+  // Un link viejo de otra marca tampoco se puede tomar: sigue llevando a
+  // esa tienda.
+  if ((existing && existing.id !== brandId) || (redirect && redirect.brandId !== brandId)) {
     throw new BrandStoreConfigError(
       "Ese link ya lo tiene otra marca — elige otro.",
     );
   }
 
-  return prisma.brandProfile.update({
-    where: { userId },
-    data: { storefrontSlug: slug },
+  const oldSlug = brand.storefrontSlug;
+  await prisma.$transaction([
+    // Si la marca vuelve a un link suyo anterior, deja de ser redirección.
+    prisma.brandSlugRedirect.deleteMany({ where: { slug } }),
+    ...(oldSlug
+      ? [
+          prisma.brandSlugRedirect.upsert({
+            where: { slug: oldSlug },
+            create: { slug: oldSlug, brandId },
+            update: { brandId },
+          }),
+        ]
+      : []),
+    prisma.brandProfile.update({
+      where: { id: brandId },
+      data: { storefrontSlug: slug },
+    }),
+  ]);
+}
+
+/// A qué link actual lleva un link viejo de tienda — null si nunca fue de
+/// ninguna marca. Ver BrandSlugRedirect.
+export async function resolveSlugRedirect(slug: string) {
+  const redirect = await prisma.brandSlugRedirect.findUnique({
+    where: { slug },
+    select: { brand: { select: { storefrontSlug: true } } },
   });
+  return redirect?.brand.storefrontSlug ?? null;
 }

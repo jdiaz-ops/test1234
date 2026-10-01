@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { wompiCredentialsSchema } from "@/lib/validation/brand";
-import { saveWompiCredentials } from "@/server/services/brand-payment-service";
+import {
+  saveWompiCredentials,
+  BrandPaymentError,
+} from "@/server/services/brand-payment-service";
 
 export async function PATCH(req: Request) {
   const profile = await requireBrandProfile();
@@ -17,6 +20,12 @@ export async function PATCH(req: Request) {
     );
   }
 
-  await saveWompiCredentials(profile.userId, parsed.data);
+  try {
+    await saveWompiCredentials(profile.userId, parsed.data);
+  } catch (err) {
+    if (err instanceof BrandPaymentError)
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    throw err;
+  }
   return NextResponse.json({ ok: true });
 }

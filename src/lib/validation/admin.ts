@@ -10,6 +10,15 @@ export const brandFeeOverrideSchema = z.object({
   feePercent: z.number().min(0).max(100).nullable(),
 });
 
+export const brandSlugSchema = z.object({
+  brandId: z.string().min(1),
+  slug: z
+    .string()
+    .min(2, "Mínimo 2 caracteres")
+    .max(60, "Máximo 60 caracteres")
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Solo minúsculas, números y guiones — sin espacios ni acentos"),
+});
+
 export const brandMarketplaceVisibilitySchema = z.object({
   brandId: z.string().min(1),
   override: z.enum(["AUTO", "FORCE_VISIBLE", "FORCE_HIDDEN"]),

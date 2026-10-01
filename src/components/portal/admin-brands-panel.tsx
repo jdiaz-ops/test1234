@@ -11,6 +11,7 @@ type Brand = {
   city: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED" | "PAUSED";
   storeType: string;
+  storefrontSlug: string | null;
   platformFeePercentOverride: number | null;
   marketplaceVisibilityOverride: "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN";
   _count: { offers: number };
@@ -177,6 +178,60 @@ function FeeEditor({ brand, onDone }: { brand: Brand; onDone: () => void }) {
   );
 }
 
+/// Cambiar el link de la tienda ({slug}.marcolini.lat). La marca lo elige
+/// una sola vez; desde acá Marcolini lo cambia cuando hace falta, y el
+/// link anterior sigue llevando al nuevo. Ver saveStorefrontSlug.
+function SlugEditor({ brand, onDone }: { brand: Brand; onDone: () => void }) {
+  const router = useRouter();
+  const [slug, setSlug] = useState(brand.storefrontSlug ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    if (
+      brand.storefrontSlug &&
+      !window.confirm(
+        `¿Cambiar ${brand.storefrontSlug} por ${slug}? Los links viejos van a seguir llevando a la tienda.`,
+      )
+    )
+      return;
+    setSaving(true);
+    setError(null);
+    const res = await fetch("/api/admin/marcas/link", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandId: brand.id, slug }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      setError(body?.error ?? "No se pudo cambiar.");
+      return;
+    }
+    router.refresh();
+    onDone();
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <input
+          value={slug}
+          onChange={(e) => setSlug(e.target.value.toLowerCase())}
+          className="input w-36 font-mono py-1 text-xs"
+        />
+        <button onClick={save} disabled={saving || !slug} className="text-xs text-brand-accent hover:underline">
+          {saving ? "..." : "Guardar"}
+        </button>
+        <button onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
+          Cancelar
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-600 max-w-56">{error}</p>}
+    </div>
+  );
+}
+
 export function AdminBrandsPanel({
   brands,
   isOwner,
@@ -186,6 +241,7 @@ export function AdminBrandsPanel({
 }) {
   const router = useRouter();
   const [editingFeeId, setEditingFeeId] = useState<string | null>(null);
+  const [editingSlugId, setEditingSlugId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [addingBrand, setAddingBrand] = useState(false);
   const [creatingTestBrands, setCreatingTestBrands] = useState(false);
@@ -315,11 +371,12 @@ export function AdminBrandsPanel({
           tabla se recortaba sin forma de deslizar hacia la derecha en
           mobile, donde no cabían todas las columnas. */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[820px]">
+        <table className="w-full text-sm min-w-[940px]">
           <thead>
             <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
               <th className="px-5 py-3 font-normal">Marca</th>
               <th className="px-5 py-3 font-normal">Tienda</th>
+              <th className="px-5 py-3 font-normal">Link</th>
               <th className="px-5 py-3 font-normal">Ofertas</th>
               <th className="px-5 py-3 font-normal">Tarifa</th>
               <th className="px-5 py-3 font-normal">Estado</th>
@@ -339,6 +396,19 @@ export function AdminBrandsPanel({
                   )}
                 </td>
                 <td className="px-5 py-3 text-brand-ink-soft">{b.storeType}</td>
+                <td className="px-5 py-3">
+                  {editingSlugId === b.id ? (
+                    <SlugEditor brand={b} onDone={() => setEditingSlugId(null)} />
+                  ) : (
+                    <button
+                      onClick={() => setEditingSlugId(b.id)}
+                      title="Cambiar el link de la tienda"
+                      className="font-mono text-xs text-brand-ink hover:text-brand-accent"
+                    >
+                      {b.storefrontSlug ?? "— sin link"}
+                    </button>
+                  )}
+                </td>
                 <td className="px-5 py-3 font-mono text-brand-ink-soft">
                   {b._count.offers}
                 </td>

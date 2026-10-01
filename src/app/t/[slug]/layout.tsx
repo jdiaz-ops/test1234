@@ -7,6 +7,10 @@ import { CartProvider } from "@/components/storefront/cart-context";
 import { CartDrawer } from "@/components/storefront/cart-drawer";
 import { StorefrontThemeProvider } from "@/components/storefront/storefront-theme-context";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
+import { resolveSlugRedirect } from "@/server/services/brand-store-config-service";
+import { ROOT_DOMAIN } from "@/lib/subdomain";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { getStoreBasePath } from "@/lib/store-base-path";
@@ -37,6 +41,13 @@ export default async function StorefrontLayout({
   // notFound(), pero el layout igual se renderiza por encima de ese
   // boundary, así que queda un fallback simple sin tema ni footer.
   if (!brand) {
+    // ¿Es un link viejo de una tienda a la que se le cambió el link? Lleva
+    // a la misma página en el link nuevo. Ver BrandSlugRedirect.
+    const newSlug = await resolveSlugRedirect(slug);
+    if (newSlug) {
+      const path = (await headers()).get("x-marcolini-path") ?? "/";
+      redirect(`https://${newSlug}.${ROOT_DOMAIN}${path.startsWith("/") ? path : "/"}`);
+    }
     return (
       <>
         {children}
