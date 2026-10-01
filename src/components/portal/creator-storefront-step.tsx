@@ -145,24 +145,34 @@ export function CreatorStorefrontStep({
   // foto y el username ya no se piden acá: viven en "Tu perfil".
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border-2 border-brand-accent bg-brand-accent-soft p-5">
-        <p className="text-sm font-medium text-brand-ink mb-1">
-          Tu link de vitrina — ponlo en tu bio de Instagram o TikTok, en tus historias, por WhatsApp o
-          correo
+      {/* Link en un recuadro blanco tipo campo, texto oscuro y botones
+          claros — antes era rosado sobre rosado y costaba leerlo
+          (2026-10-01). */}
+      <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 sm:p-6">
+        <p className="text-sm font-semibold text-brand-ink">Tu link de vitrina</p>
+        <p className="text-sm text-brand-ink-soft mt-0.5 mb-4">
+          Ponlo en tu bio de Instagram o TikTok, en tus historias, por WhatsApp o correo.
         </p>
-        <div className="flex items-center gap-3 mt-2 flex-wrap">
-          <span className="font-mono text-brand-accent text-lg break-all">{publicUrl}</span>
-          <CopyButton value={`https://${publicUrl}`} />
-          {/* publicUrl es siempre https:// (subdominio o /c/ en
-              marcolini.lat, ver creatorVitrinaUrl). */}
-          <a
-            href={`https://${publicUrl}`}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-brand-accent font-medium hover:underline shrink-0"
-          >
-            Ver
-          </a>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1 min-w-0 rounded-xl border border-brand-line bg-brand-bg px-4 py-3">
+            <span className="font-mono text-base sm:text-lg text-brand-ink font-medium break-all">{publicUrl}</span>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <CopyButton
+              value={`https://${publicUrl}`}
+              className="bg-brand-accent text-white rounded-full px-5 py-2.5 text-sm font-medium hover:opacity-90"
+            />
+            {/* publicUrl es siempre https:// (subdominio o /c/ en
+                marcolini.lat, ver creatorVitrinaUrl). */}
+            <a
+              href={`https://${publicUrl}`}
+              target="_blank"
+              rel="noreferrer"
+              className="border border-brand-line text-brand-ink rounded-full px-5 py-2.5 text-sm font-medium hover:bg-brand-accent-soft"
+            >
+              Ver vitrina
+            </a>
+          </div>
         </div>
       </div>
 
