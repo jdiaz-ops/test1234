@@ -26,12 +26,6 @@ export const metadata: Metadata = {
     "Únete gratis, elige las marcas que quieres recomendar y comparte tu código de descuento. Gana una comisión por cada venta, sin mínimo de seguidores.",
 };
 
-// Checklist de confianza debajo del CTA del hero — mismo patrón que
-// /para-marcas (ver `confianza` ahí): datos reales de la plataforma, no
-// mínimo de seguidores en ningún lado del código, pago el día 15 de cada
-// mes (payoutDayOfMonth=15 en PlatformConfig).
-const confianza = ["Sin mínimo de seguidores", "Pago mensual de comisiones"];
-
 // Datos de ejemplo para las vistas previas — mismo tratamiento que la
 // versión para marcas: colores, tipos y tiles ya reales en el portal de
 // creador (marketplace, códigos, vitrina pública, retos, transacciones).
@@ -202,18 +196,6 @@ export default function ParaCreadoresPage() {
                 Únete a la lista de espera
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
-              {/* Checklist de confianza — mismo patrón que /para-marcas. */}
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 mt-5">
-                {confianza.map((texto) => (
-                  <span
-                    key={texto}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-brand-ink"
-                  >
-                    <IconCheck className="w-5 h-5 text-brand-accent shrink-0" />
-                    {texto}
-                  </span>
-                ))}
-              </div>
             </div>
 
             <div className="py-8 px-6">
