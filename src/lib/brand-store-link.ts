@@ -1,3 +1,5 @@
+import { publicStoreUrl } from "@/lib/store-url";
+
 /// Un solo link por marca — no dos. Shopify soporta de fábrica un link que
 /// aplica el descuento solo, sin que el cliente tenga que escribir el
 /// código (`tienda.dominio/discount/CODIGO`), así que para esas marcas el
@@ -7,10 +9,25 @@
 /// no tienen tienda conectada, el link es el normal, sin código. Se usa
 /// tanto en "Mis códigos y links" como en el link/logo de la marca dentro
 /// de la vitrina pública del creador — misma lógica en los dos lugares.
+///
+/// Si la marca ya tiene su tienda dentro de Marcolini ({slug}.marcolini.lat),
+/// esa gana siempre — con ?ref= para que la venta quede a nombre del
+/// creador (ver src/proxy.ts). Antes se usaba la tienda Shopify conectada
+/// aunque la marca ya vendiera en Marcolini, y el botón "Ir a la tienda"
+/// de la vitrina llevaba a una tienda vieja o cerrada (2026-10-01).
 export function buildBrandStoreLink(
-  brand: { storeUrl: string | null; storeType: string; websiteUrl?: string | null },
+  brand: {
+    storeUrl: string | null;
+    storeType: string;
+    websiteUrl?: string | null;
+    storefrontSlug: string | null;
+    customDomain: string | null;
+    customDomainVerifiedAt: Date | null;
+  },
   discountCode: string
 ): string | null {
+  const nativeStore = publicStoreUrl(brand);
+  if (nativeStore) return `${nativeStore}/?ref=${encodeURIComponent(discountCode)}`;
   if (brand.storeType === "SHOPIFY" && brand.storeUrl) {
     try {
       const host = new URL(brand.storeUrl).host;
