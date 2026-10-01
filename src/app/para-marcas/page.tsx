@@ -9,6 +9,7 @@ import {
   IconCheck,
 } from "@/components/marketing/icons";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 // Metadata propia — mismo motivo que /para-creadores: sin esto hereda
 // el título/descripción genérico del layout raíz, que asume belleza
@@ -455,6 +456,9 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
+            {/* Muestras: solo si la función está encendida (ver src/lib/features.ts). */}
+            {SAMPLES_ENABLED && (
+              <>
             {/* 3 — gestión de muestras/regalos directamente desde la
                 plataforma (sample-service.ts): la marca regala producto a
                 creadores para que los prueben y los muestren en su
@@ -491,6 +495,9 @@ export default function ParaMarcasPage() {
                 </Link>
               </div>
             </div>
+
+              </>
+            )}
 
             {/* 4 — código de descuento único por creador */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">

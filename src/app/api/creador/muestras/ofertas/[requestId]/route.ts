@@ -6,6 +6,7 @@ import {
   declineSampleOffer,
   SampleError,
 } from "@/server/services/sample-service";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 /// Respuesta del creador a una oferta de muestra que le mandó una marca
 /// (push, ver sample-service.ts). `decision` viaja junto al body de envío
@@ -14,6 +15,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ requestId: string }> },
 ) {
+  if (!SAMPLES_ENABLED) return NextResponse.json({ error: "Las muestras no están disponibles todavía." }, { status: 404 });
   const profile = await requireCreatorProfile();
   if (!profile)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });

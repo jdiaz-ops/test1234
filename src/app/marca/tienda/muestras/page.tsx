@@ -1,12 +1,16 @@
 import { requireBrandProfile } from "@/lib/current-brand";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { StoreSamplesPanel } from "@/components/portal/store-samples-panel";
 import {
   listBrandSampleCatalog,
   listBrandSampleRequests,
 } from "@/server/services/sample-service";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 export default async function TiendaMuestrasPage() {
+  // Función apagada al lanzar (ver src/lib/features.ts).
+  if (!SAMPLES_ENABLED) notFound();
+
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 

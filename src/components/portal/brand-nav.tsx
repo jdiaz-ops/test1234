@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 // Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
 // ruta siguen intactos, solo se quitó del menú. Perfil, Facturación,
@@ -42,6 +43,8 @@ const storeItems = [
   { href: "/marca/tienda/pedidos", label: "Pedidos" },
   { href: "/marca/tienda/clientes", label: "Clientes" },
   { href: "/marca/tienda/resenas", label: "Reseñas" },
+  // Muestras: escondido mientras SAMPLES_ENABLED esté apagado (ver
+  // src/lib/features.ts). Se filtra abajo.
   { href: "/marca/tienda/muestras", label: "Muestras" },
   { href: "/marca/tienda/pagos", label: "Pagos" },
   { href: "/marca/tienda/envios", label: "Envíos" },
@@ -96,7 +99,9 @@ export function BrandNav({
       <p className="px-3 pt-4 pb-1 text-[11px] font-mono uppercase tracking-widest text-brand-ink-soft">
         Mi tienda
       </p>
-      {storeItems.map((item) => {
+      {storeItems
+        .filter((item) => SAMPLES_ENABLED || item.href !== "/marca/tienda/muestras")
+        .map((item) => {
         const active = pathname === item.href;
         return (
           <Link

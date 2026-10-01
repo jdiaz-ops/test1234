@@ -9,6 +9,7 @@ import { JoinOfferButton } from "@/components/portal/join-offer-button";
 import { LeaveOfferButton } from "@/components/portal/leave-offer-button";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 import { InvitationsPanel } from "@/components/portal/invitations-panel";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 export default async function MarketplacePage({
   searchParams,
@@ -34,7 +35,7 @@ export default async function MarketplacePage({
   // Filtro "solo con muestras" — aparte del query de Prisma porque es un
   // cruce con datos que ya vienen incluidos (brand.products), no hace
   // falta otra vuelta a la base de datos.
-  const soloMuestras = params.muestras === "1";
+  const soloMuestras = SAMPLES_ENABLED && params.muestras === "1";
   const offers = soloMuestras
     ? allOffers.filter((o) => o.brand.products.length > 0)
     : allOffers;
@@ -74,7 +75,7 @@ export default async function MarketplacePage({
           <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-brand-accent-soft text-brand-accent">
             Afiliado
           </span>
-          {offer.brand.products.length > 0 && (
+          {SAMPLES_ENABLED && offer.brand.products.length > 0 && (
             <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-purple-100 text-purple-700">
               + Muestras gratis
             </span>
@@ -163,15 +164,17 @@ export default async function MarketplacePage({
             </option>
           ))}
         </select>
-        <label className="flex items-center gap-2 text-sm text-brand-ink-soft px-1">
-          <input
-            type="checkbox"
-            name="muestras"
-            value="1"
-            defaultChecked={soloMuestras}
-          />
-          Solo con muestras gratis
-        </label>
+        {SAMPLES_ENABLED && (
+          <label className="flex items-center gap-2 text-sm text-brand-ink-soft px-1">
+            <input
+              type="checkbox"
+              name="muestras"
+              value="1"
+              defaultChecked={soloMuestras}
+            />
+            Solo con muestras gratis
+          </label>
+        )}
         <button
           type="submit"
           className="border border-brand-line rounded-md px-4 py-2 text-sm hover:bg-brand-accent-soft"

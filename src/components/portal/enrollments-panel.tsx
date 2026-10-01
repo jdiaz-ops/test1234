@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 type Enrollment = {
   id: string;
@@ -455,15 +456,19 @@ export function EnrollmentsPanel({
                   )}
                   {e.status === "ACTIVE" && (
                     <div className="flex gap-3">
-                      <button
-                        onClick={() => {
-                          setOfferingSampleId(offeringSampleId === e.id ? null : e.id);
-                          setRequestingContentId(null);
-                        }}
-                        className="text-xs text-brand-accent font-medium hover:underline"
-                      >
-                        Ofrecer muestra
-                      </button>
+                      {/* Escondido mientras las muestras estén apagadas
+                          (ver src/lib/features.ts). */}
+                      {SAMPLES_ENABLED && (
+                        <button
+                          onClick={() => {
+                            setOfferingSampleId(offeringSampleId === e.id ? null : e.id);
+                            setRequestingContentId(null);
+                          }}
+                          className="text-xs text-brand-accent font-medium hover:underline"
+                        >
+                          Ofrecer muestra
+                        </button>
+                      )}
                       {/* "Encargar contenido" oculto desde el 2026-09-14 — no
                           es funcionalidad para el MVP. El componente
                           RequestPaidContentForm y la ruta /api/marca/encargos

@@ -85,8 +85,8 @@ export function StoreOrdersPanel({
   if (initialOrders.length === 0) {
     return (
       <p className="text-sm text-brand-ink-soft">
-        Todavía no tienes pedidos — aparecerán acá apenas alguien compre en tu
-        tienda o apruebes una muestra.
+        Todavía no tienes pedidos. Aparecen acá apenas alguien compre en tu
+        tienda.
       </p>
     );
   }

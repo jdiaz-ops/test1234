@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { listOffersForBrand } from "@/server/services/offer-service";
 import { listBrandSampleCatalog } from "@/server/services/sample-service";
 import { CreatorDirectoryPanel } from "@/components/portal/creator-directory-panel";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 export default async function BuscarCreadoresPage() {
   const profile = await requireBrandProfile();
@@ -16,9 +17,11 @@ export default async function BuscarCreadoresPage() {
   ]);
 
   const activeOffers = offers.filter((o) => o.status === "ACTIVE");
-  const sampleProducts = products.filter(
-    (p) => p.sampleEnabled && p.sampleStock > 0,
-  );
+  // Sin productos para muestras mientras la función está apagada (ver
+  // src/lib/features.ts): el botón "Ofrecer muestra" no aparece.
+  const sampleProducts = SAMPLES_ENABLED
+    ? products.filter((p) => p.sampleEnabled && p.sampleStock > 0)
+    : [];
 
   return (
     <div>

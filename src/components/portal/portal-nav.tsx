@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 // Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
 // ruta siguen intactos, solo se quitó del menú.
@@ -56,10 +57,13 @@ export function PortalNav({
   // menú para siempre, aunque el creador ya hubiera terminado los 4
   // pasos (mismo criterio que ya usa BrandNav para el equivalente de
   // marca: el link desaparece solo con onboarding.complete).
-  const items =
+  // Muestras se esconde mientras SAMPLES_ENABLED esté apagado (ver
+  // src/lib/features.ts).
+  const items = (
     onboardingRemaining > 0
       ? flatItems
-      : flatItems.filter((item) => item.href !== "/creador/onboarding");
+      : flatItems.filter((item) => item.href !== "/creador/onboarding")
+  ).filter((item) => SAMPLES_ENABLED || item.href !== "/creador/muestras");
   const cuentaHasActiveChild = cuentaSubItems.some((i) =>
     isActive(pathname, i.href),
   );

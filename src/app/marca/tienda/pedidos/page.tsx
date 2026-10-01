@@ -19,8 +19,8 @@ export default async function TiendaPedidosPage() {
       </h1>
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <p className="text-sm text-brand-ink-soft max-w-lg">
-          Compras de tu vitrina y muestras aprobadas — el envío lo gestionas tú,
-          Marcolini solo lo registra acá.
+          Las compras de tu tienda. El envío lo gestionas tú y Marcolini lo
+          registra acá.
         </p>
         {/* Pedidos pagados y devueltos en .xlsx, para contabilidad. Ver
             store-export-service.ts. */}

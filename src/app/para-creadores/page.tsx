@@ -10,6 +10,7 @@ import {
   IconProduct,
 } from "@/components/marketing/icons";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 // Metadata propia — sin esto la página hereda el título/descripción
 // genérico del layout raíz ("Marcolini" / "Red de afiliación para la
@@ -471,6 +472,9 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
+            {/* Muestras: solo si la función está encendida (ver src/lib/features.ts). */}
+            {SAMPLES_ENABLED && (
+              <>
             {/* 2 — muestras gratis (sample-service.ts, lado creador): las
                 marcas te pueden ofrecer producto directamente, o tú lo
                 solicitas explorando el catálogo de muestras disponibles —
@@ -517,6 +521,9 @@ export default function ParaCreadoresPage() {
                 </Link>
               </div>
             </div>
+
+              </>
+            )}
 
             {/* 3 — código y link únicos. Antes era un nombre + una pill de
                 código — "muy pobre" para explicar el mecanismo. Ahora

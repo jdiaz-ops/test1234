@@ -8,8 +8,10 @@ import {
   createSampleRequest,
   SampleError,
 } from "@/server/services/sample-service";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 export async function GET() {
+  if (!SAMPLES_ENABLED) return NextResponse.json({ error: "Las muestras no están disponibles todavía." }, { status: 404 });
   const profile = await requireCreatorProfile();
   if (!profile)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -23,6 +25,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  if (!SAMPLES_ENABLED) return NextResponse.json({ error: "Las muestras no están disponibles todavía." }, { status: 404 });
   const profile = await requireCreatorProfile();
   if (!profile)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });

@@ -5,11 +5,13 @@ import {
   respondToSampleRequest,
   SampleError,
 } from "@/server/services/sample-service";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ requestId: string }> },
 ) {
+  if (!SAMPLES_ENABLED) return NextResponse.json({ error: "Las muestras no están disponibles todavía." }, { status: 404 });
   const profile = await requireBrandProfile();
   if (!profile)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });

@@ -1,13 +1,17 @@
 import { requireCreatorProfile } from "@/lib/current-creator";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CreatorSamplesPanel } from "@/components/portal/creator-samples-panel";
 import {
   listSampleEligibleProducts,
   listCreatorSampleRequests,
   listCreatorSampleOffers,
 } from "@/server/services/sample-service";
+import { SAMPLES_ENABLED } from "@/lib/features";
 
 export default async function CreadorMuestrasPage() {
+  // Función apagada al lanzar (ver src/lib/features.ts).
+  if (!SAMPLES_ENABLED) notFound();
+
   const profile = await requireCreatorProfile();
   if (!profile) redirect("/login");
 
