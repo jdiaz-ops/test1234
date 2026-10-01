@@ -2310,18 +2310,22 @@ model BrandCollection {
   brandId String
   brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
 
-  name        String
-  slug        String
+  name            String
+  slug            String
   /// Se muestra en la página de la colección en la vitrina — opcional,
   /// antes solo existía el nombre. Ver conversación del 2026-09-14
   /// pidiendo poder gestionar colecciones como en Shopify.
-  description String?
-  imageUrl    String?
-  position    Int                 @default(0)
+  description     String?
+  imageUrl        String?
+  /// Banner ancho arriba de la página de la colección (y uno opcional
+  /// para celular). Ver conversación del 2026-10-02.
+  bannerUrl       String?
+  bannerMobileUrl String?
+  position        Int                 @default(0)
   /// Cómo se ordenan los productos en la vitrina: a mano (arrastrando, ver
   /// ProductBrandCollection.position) o automático. Como "Ordenar" de una
   /// colección en Shopify. Ver conversación del 2026-10-01.
-  sortOrder   CollectionSortOrder @default(MANUAL)
+  sortOrder       CollectionSortOrder @default(MANUAL)
 
   products ProductBrandCollection[]
 

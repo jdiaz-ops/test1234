@@ -16,6 +16,75 @@ export type BrandCollectionRow = {
   productCount: number;
 };
 
+/// Subir una imagen (banner, miniatura) con vista previa, Cambiar y
+/// Quitar. Se comprime en el navegador y en el servidor como las fotos de
+/// producto.
+function ImageField({
+  label,
+  hint,
+  value,
+  onChange,
+  previewClass,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  onChange: (url: string) => void;
+  previewClass: string;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function upload(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", await prepareImageForUpload(file));
+      const res = await fetch("/api/marca/tienda/productos/imagen", { method: "POST", body: form });
+      const body = await res.json().catch(() => null);
+      if (res.ok && body?.url) onChange(body.url);
+      else setError(body?.error ?? "No se pudo subir la imagen.");
+    } catch {
+      setError("No se pudo subir la imagen — revisa tu conexión.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div>
+      <p className="block text-sm text-brand-ink mb-1">{label}</p>
+      <div className="flex flex-wrap items-center gap-3">
+        {value ? (
+          // eslint-disable-next-line @next/next/no-img-element -- imagen subida por la marca
+          <img src={value} alt="" className={`${previewClass} rounded-lg object-cover border border-brand-line`} />
+        ) : (
+          <div className={`${previewClass} rounded-lg bg-brand-bg border border-dashed border-brand-line`} />
+        )}
+        <label className="text-xs border border-brand-line rounded-full px-3 py-2 hover:bg-brand-accent-soft cursor-pointer">
+          {uploading ? "Subiendo..." : value ? "Cambiar" : "Subir imagen"}
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(e) => upload(e.target.files?.[0])}
+            disabled={uploading}
+            className="hidden"
+          />
+        </label>
+        {value && !uploading && (
+          <button type="button" onClick={() => onChange("")} className="text-xs text-brand-ink-soft hover:text-red-600">
+            Quitar
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-brand-ink-soft mt-1">{hint}</p>
+      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+    </div>
+  );
+}
+
 function CollectionForm({
   initial,
   onSaved,
@@ -26,6 +95,8 @@ function CollectionForm({
     name: string;
     description: string | null;
     imageUrl: string | null;
+    bannerUrl: string | null;
+    bannerMobileUrl: string | null;
     productIds: string[];
     sortOrder: CollectionSortOrder;
   };
@@ -35,28 +106,12 @@ function CollectionForm({
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [bannerUrl, setBannerUrl] = useState(initial?.bannerUrl ?? "");
+  const [bannerMobileUrl, setBannerMobileUrl] = useState(initial?.bannerMobileUrl ?? "");
   const [productIds, setProductIds] = useState<string[]>(initial?.productIds ?? []);
   const [sortOrder, setSortOrder] = useState<CollectionSortOrder>(initial?.sortOrder ?? "MANUAL");
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  async function handleImage(file: File | undefined) {
-    if (!file) return;
-    setUploading(true);
-    try {
-      const form = new FormData();
-      form.append("file", await prepareImageForUpload(file));
-      const res = await fetch("/api/marca/tienda/productos/imagen", {
-        method: "POST",
-        body: form,
-      });
-      const body = await res.json().catch(() => null);
-      if (res.ok && body?.url) setImageUrl(body.url);
-    } finally {
-      setUploading(false);
-    }
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,7 +127,7 @@ function CollectionForm({
         {
           method: initial ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, description, imageUrl, productIds, sortOrder }),
+          body: JSON.stringify({ name, description, imageUrl, bannerUrl, bannerMobileUrl, productIds, sortOrder }),
         },
       );
       if (!res.ok) {
@@ -103,39 +158,39 @@ function CollectionForm({
           className="input"
         />
       </div>
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">
-          Descripción (opcional)
-        </label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
-          className="input min-h-20"
+      <fieldset className="space-y-4 rounded-xl border border-brand-line p-4">
+        <legend className="px-1 text-sm font-medium text-brand-ink">Página de la colección</legend>
+        <ImageField
+          label="Banner"
+          hint="Va arriba, de borde a borde. Ancho: recomendado 2000 × 600 px."
+          value={bannerUrl}
+          onChange={setBannerUrl}
+          previewClass="w-full max-w-md aspect-[10/3]"
         />
-      </div>
-      <div>
-        <label className="block text-sm text-brand-ink mb-1">
-          Imagen de portada (opcional)
-        </label>
-        <div className="flex items-center gap-3">
-          {imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageUrl} alt="" className="w-16 h-16 rounded-lg object-cover border border-brand-line" />
-          ) : (
-            <div className="w-16 h-16 rounded-lg bg-brand-bg border border-dashed border-brand-line" />
-          )}
-          <label className="text-xs border border-brand-line rounded-full px-3 py-2 hover:bg-brand-accent-soft cursor-pointer">
-            {uploading ? "Subiendo..." : imageUrl ? "Cambiar" : "Subir imagen"}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(e) => handleImage(e.target.files?.[0])}
-              disabled={uploading}
-              className="hidden"
-            />
-          </label>
+        <ImageField
+          label="Banner para celular (opcional)"
+          hint="Recomendado 1080 × 1080 px. Si no subes uno, en el celular se ve el de arriba."
+          value={bannerMobileUrl}
+          onChange={setBannerMobileUrl}
+          previewClass="w-28 aspect-square"
+        />
+        <div>
+          <label className="block text-sm text-brand-ink mb-1">Texto debajo del banner (opcional)</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
+            className="input min-h-28"
+          />
+          <p className="text-xs text-brand-ink-soft mt-1">Aparece debajo del nombre de la colección. Respeta los saltos de línea.</p>
         </div>
-      </div>
+      </fieldset>
+      <ImageField
+        label="Miniatura (opcional)"
+        hint="La imagen de la colección en la cuadrícula de categorías de tu tienda."
+        value={imageUrl}
+        onChange={setImageUrl}
+        previewClass="w-16 aspect-square"
+      />
       <div>
         <label className="block text-sm text-brand-ink mb-1">Productos</label>
         <CollectionProductsEditor
@@ -226,6 +281,8 @@ export function StoreCollectionsPanel({
     name: string;
     description: string | null;
     imageUrl: string | null;
+    bannerUrl: string | null;
+    bannerMobileUrl: string | null;
     productIds: string[];
     sortOrder: CollectionSortOrder;
   } | null>(null);
@@ -249,6 +306,8 @@ export function StoreCollectionsPanel({
         name: body.collection.name,
         description: body.collection.description,
         imageUrl: body.collection.imageUrl,
+        bannerUrl: body.collection.bannerUrl ?? null,
+        bannerMobileUrl: body.collection.bannerMobileUrl ?? null,
         productIds: body.collection.products.map((p: { productId: string }) => p.productId),
         sortOrder: body.collection.sortOrder ?? "MANUAL",
       });

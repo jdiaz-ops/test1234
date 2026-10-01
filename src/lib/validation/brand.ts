@@ -647,6 +647,8 @@ export const createBrandCollectionSchema = z.object({
   name: z.string().min(2, "Ingresa el nombre de la colección").max(80),
   description: z.string().max(2000).optional().or(z.literal("")),
   imageUrl: z.string().optional().or(z.literal("")),
+  bannerUrl: z.string().max(1000).optional().or(z.literal("")),
+  bannerMobileUrl: z.string().max(1000).optional().or(z.literal("")),
   /// En el orden en que deben aparecer (orden manual).
   productIds: z.array(z.string().min(1)).default([]),
   sortOrder: z

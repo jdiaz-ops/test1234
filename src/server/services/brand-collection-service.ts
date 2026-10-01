@@ -178,6 +178,8 @@ type CollectionInput = {
   name: string;
   description?: string;
   imageUrl?: string;
+  bannerUrl?: string;
+  bannerMobileUrl?: string;
   productIds?: string[];
   sortOrder?: CollectionSortOrder;
 };
@@ -240,6 +242,8 @@ export async function createBrandCollection(brandId: string, data: CollectionInp
       slug,
       description: data.description?.trim() || null,
       imageUrl: data.imageUrl?.trim() || null,
+      bannerUrl: data.bannerUrl?.trim() || null,
+      bannerMobileUrl: data.bannerMobileUrl?.trim() || null,
       position: count,
       sortOrder: data.sortOrder ?? "MANUAL",
     },
@@ -276,6 +280,8 @@ export async function updateBrandCollection(
       slug,
       description: data.description?.trim() || null,
       imageUrl: data.imageUrl?.trim() || null,
+      bannerUrl: data.bannerUrl?.trim() || null,
+      bannerMobileUrl: data.bannerMobileUrl?.trim() || null,
       ...(data.sortOrder ? { sortOrder: data.sortOrder } : {}),
     },
   });
