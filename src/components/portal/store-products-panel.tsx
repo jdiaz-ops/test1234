@@ -123,6 +123,9 @@ export function StoreProductsPanel({
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
   const [filter, setFilter] = useState<Visibility | "all">("all");
+  // Filtro por colección: "all", "none" (sin colección) o el id. Ver
+  // conversación del 2026-10-02.
+  const [collectionFilter, setCollectionFilter] = useState<string>("all");
   const counts = products.reduce(
     (acc, p) => {
       acc[visibilityOf(p)]++;
@@ -232,6 +235,8 @@ export function StoreProductsPanel({
     .filter(
       (p) =>
         (filter === "all" || visibilityOf(p) === filter) &&
+        (collectionFilter === "all" ||
+          (collectionFilter === "none" ? p.collectionIds.length === 0 : p.collectionIds.includes(collectionFilter))) &&
         (!q || p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q)),
     )
     .sort(comparators[sort]);
@@ -484,6 +489,22 @@ export function StoreProductsPanel({
               );
             })}
           </select>
+          {collections.length > 0 && (
+            <select
+              value={collectionFilter}
+              onChange={(e) => setCollectionFilter(e.target.value)}
+              className="input text-sm py-2 sm:w-56"
+              aria-label="Filtrar por colección"
+            >
+              <option value="all">Todas las colecciones</option>
+              {collections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({products.filter((p) => p.collectionIds.includes(c.id)).length})
+                </option>
+              ))}
+              <option value="none">Sin colección ({products.filter((p) => p.collectionIds.length === 0).length})</option>
+            </select>
+          )}
           <div className="relative flex-1 min-w-0">
             <svg
               viewBox="0 0 24 24"
