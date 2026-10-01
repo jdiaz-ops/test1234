@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
+import { UtmCapture } from "@/components/marketing/utm-capture";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 import {
@@ -149,10 +150,11 @@ const faq = [
 export default function ParaCreadoresPage() {
   return (
     <div className="flex flex-col min-h-screen">
+      <UtmCapture />
       <SiteHeader
-        ctaHref="/registro/creador"
-        ctaLabel="Únete gratis"
-        mobileCtaLabel="Crear mi perfil"
+        ctaHref="/lista-de-espera"
+        ctaLabel="Únete a la lista de espera"
+        mobileCtaLabel="Lista de espera"
         loginLabel="Portal Creadores"
         showRoleLinks={false}
       />
@@ -194,10 +196,10 @@ export default function ParaCreadoresPage() {
                 por cada compra que realicen con ellos.
               </p>
               <Link
-                href="/registro/creador"
+                href="/lista-de-espera"
                 className="group inline-flex items-center justify-center gap-2 bg-brand-accent text-white rounded-full px-10 py-5 text-base font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)]"
               >
-                Crear mi perfil gratis
+                Únete a la lista de espera
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
               {/* Checklist de confianza — mismo patrón que /para-marcas. */}
@@ -463,10 +465,10 @@ export default function ParaCreadoresPage() {
                   compartir sus códigos y enlaces desde un solo lugar.
                 </p>
                 <Link
-                  href="/registro/creador"
+                  href="/lista-de-espera"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Explorar marcas
+                  Únete a la lista de espera
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -513,10 +515,10 @@ export default function ParaCreadoresPage() {
                   marca antes de empezar a vender.
                 </p>
                 <Link
-                  href="/registro/creador"
+                  href="/lista-de-espera"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Descubre muestras
+                  Únete a la lista de espera
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -599,10 +601,10 @@ export default function ParaCreadoresPage() {
                   tener que reclamar ni hacer seguimiento manual.
                 </p>
                 <Link
-                  href="/registro/creador"
+                  href="/lista-de-espera"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Quiero mis códigos
+                  Únete a la lista de espera
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -653,10 +655,10 @@ export default function ParaCreadoresPage() {
               </div>
               <div className="flex justify-center mb-10">
                 <Link
-                  href="/registro/creador"
+                  href="/lista-de-espera"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Crear mi vitrina
+                  Únete a la lista de espera
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -935,10 +937,10 @@ export default function ParaCreadoresPage() {
               Convierte tu contenido e influencia en dinero.
             </h2>
             <Link
-              href="/registro/creador"
+              href="/lista-de-espera"
               className="relative inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
             >
-              Crear mi perfil gratis
+              Únete a la lista de espera
               <IconArrowRight className="w-4 h-4" />
             </Link>
           </div>

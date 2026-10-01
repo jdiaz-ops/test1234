@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { UtmCapture } from "@/components/marketing/utm-capture";
 import { IconHeart, IconStore, IconArrowRight } from "@/components/marketing/icons";
 
 export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
+      <UtmCapture />
       <main className="flex-1 relative overflow-hidden flex items-center justify-center px-6 py-24">
         {/* Antes un único blob centrado arriba — plano. Dos blobs
             asimétricos (uno grande arriba-izquierda, uno más chico

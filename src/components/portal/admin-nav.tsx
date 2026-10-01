@@ -7,6 +7,7 @@ const items = [
   { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/marcas", label: "Marcas" },
   { href: "/admin/creadores", label: "Creadores" },
+  { href: "/admin/lista-de-espera", label: "Lista de espera" },
   { href: "/admin/transacciones", label: "Transacciones" },
   { href: "/admin/finanzas", label: "Finanzas" },
   { href: "/admin/cobros", label: "Cobros" },

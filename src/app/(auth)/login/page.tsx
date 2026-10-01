@@ -124,7 +124,7 @@ function LoginForm() {
       <p className="text-center text-sm text-brand-ink-soft mt-6">
         ¿No tienes cuenta?{" "}
         <Link
-          href="/registro/creador"
+          href="/lista-de-espera"
           className="text-brand-accent font-medium hover:underline"
         >
           Soy Creador
