@@ -4,6 +4,7 @@ import { AdminBrandsPanel } from "@/components/portal/admin-brands-panel";
 import { isOwner } from "@/lib/current-admin";
 import { prisma } from "@/lib/prisma";
 import { marketplaceMissing } from "@/lib/marketplace-readiness";
+import { DeleteTestProfilesButton } from "@/components/portal/delete-test-profiles-button";
 
 export default async function AdminMarcasPage() {
   const session = await auth();
@@ -25,6 +26,7 @@ export default async function AdminMarcasPage() {
       )}
       {pendingCount === 0 && <div className="mb-6" />}
 
+      {isOwner(session!.user.adminRole) && <DeleteTestProfilesButton />}
       <AdminBrandsPanel
         brands={brands.map(({ charges, ...b }) => ({
           ...b,
