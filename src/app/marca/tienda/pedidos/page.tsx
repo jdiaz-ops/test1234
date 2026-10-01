@@ -25,9 +25,6 @@ export default async function TiendaPedidosPage() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
-          <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
-            MI TIENDA
-          </p>
           <h1 className="font-display text-2xl font-semibold text-brand-ink">
             Pedidos
           </h1>

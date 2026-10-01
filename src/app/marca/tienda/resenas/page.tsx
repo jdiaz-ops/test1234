@@ -14,7 +14,6 @@ export default async function TiendaResenasPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">MI TIENDA</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Reseñas</h1>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         Opiniones de quienes compraron tus productos. Ninguna se publica hasta que la apruebes.

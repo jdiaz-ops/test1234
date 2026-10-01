@@ -24,9 +24,6 @@ export default async function TiendaProductosPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
-        MI TIENDA
-      </p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
         Productos
       </h1>

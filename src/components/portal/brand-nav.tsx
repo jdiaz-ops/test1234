@@ -23,6 +23,10 @@ const items: { href: string; label: string; exact?: boolean; activePrefix?: stri
   // creators-tabs.tsx) — antes eran dos entradas sueltas. Pedido de la
   // marca el 2026-10-01.
   { href: "/marca/creadores", label: "Creadores", activePrefix: "/marca/creadores" },
+  // Muestras va justo debajo de Creadores (pedido de la marca el
+  // 2026-10-01): es trato con creadores, no parte del día a día de la
+  // tienda. Escondida si SAMPLES_ENABLED está apagado (src/lib/features.ts).
+  ...(SAMPLES_ENABLED ? [{ href: "/marca/tienda/muestras", label: "Muestras" }] : []),
   // Escondida mientras CAMPAIGNS_ENABLED esté apagado (src/lib/features.ts).
   ...(CAMPAIGNS_ENABLED ? [{ href: "/marca/retos", label: "Campañas" }] : []),
 ];
@@ -45,10 +49,9 @@ const storeItems: { href: string; label: string; also?: string[] }[] = [
   { href: "/marca/tienda/clientes", label: "Clientes" },
   { href: "/marca/tienda/diseno", label: "Diseño" },
   { href: "/marca/tienda/paginas", label: "Páginas" },
-  // Escondidos mientras su interruptor esté apagado (ver
-  // src/lib/features.ts). Se filtran abajo.
+  // Escondida mientras su interruptor esté apagado (ver
+  // src/lib/features.ts). Se filtra abajo.
   { href: "/marca/tienda/resenas", label: "Reseñas" },
-  { href: "/marca/tienda/muestras", label: "Muestras" },
   // Configuración reúne también lo que antes era "Cuenta" (perfil,
   // programa de creadores, plan y facturación, seguridad) — ver
   // SettingsShell. Pedido de la marca el 2026-10-01.
@@ -112,7 +115,6 @@ export function BrandNav({
         Mi tienda
       </p>
       {storeItems
-        .filter((item) => SAMPLES_ENABLED || item.href !== "/marca/tienda/muestras")
         .filter((item) => REVIEWS_ENABLED || item.href !== "/marca/tienda/resenas")
         .map((item) => {
         // "Pedidos" queda marcado también dentro del detalle de un pedido.
