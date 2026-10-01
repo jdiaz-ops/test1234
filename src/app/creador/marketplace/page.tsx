@@ -10,6 +10,7 @@ import { LeaveOfferButton } from "@/components/portal/leave-offer-button";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 import { InvitationsPanel } from "@/components/portal/invitations-panel";
 import { SAMPLES_ENABLED } from "@/lib/features";
+import { publicStoreUrl } from "@/lib/store-url";
 
 export default async function MarketplacePage({
   searchParams,
@@ -57,13 +58,15 @@ export default async function MarketplacePage({
   function OfferCard({ offer }: { offer: (typeof offers)[number] }) {
     const enrollment = enrollmentByOffer.get(offer.id);
     return (
-      <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 flex flex-col">
+      <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 flex flex-col">
         <BrandMiniProfile
           companyName={offer.brand.companyName}
           logoUrl={offer.brand.logoUrl}
           description={offer.brand.description}
-          websiteUrl={offer.brand.websiteUrl}
-          websiteLinkable={false}
+          // La tienda de la marca dentro de Marcolini (donde de verdad
+          // compran con el código del creador); la web externa solo si
+          // todavía no tiene tienda.
+          websiteUrl={publicStoreUrl(offer.brand) ?? offer.brand.websiteUrl}
         />
 
         {/* Tipos de oportunidad — hoy toda oferta es afiliado (comisión),
@@ -71,31 +74,29 @@ export default async function MarketplacePage({
             es información nueva (ya existía en Mi tienda → Muestras de esa
             marca), solo se hace visible acá para que el creador sepa de una
             qué más puede sacar de esa marca, sin tener que ir a buscarlo. */}
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-brand-accent-soft text-brand-accent">
-            Afiliado
-          </span>
-          {SAMPLES_ENABLED && offer.brand.products.length > 0 && (
+        {/* "Afiliado" se quitó: hoy toda oferta lo es, no distinguía nada. */}
+        {SAMPLES_ENABLED && offer.brand.products.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-3">
             <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-purple-100 text-purple-700">
               + Muestras gratis
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-2 my-4">
-          <div className="rounded-xl bg-brand-bg px-2.5 py-2">
+          <div className="rounded-xl bg-brand-bg px-3 py-2.5">
             <p className="font-mono text-base font-medium text-brand-ink leading-tight">
               {Number(offer.defaultDiscountPercent)}%
             </p>
-            <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">
+            <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">
               Descuento para tu comunidad
             </p>
           </div>
-          <div className="rounded-xl bg-brand-accent-soft px-2.5 py-2">
+          <div className="rounded-xl bg-brand-accent-soft px-3 py-2.5">
             <p className="font-mono text-base font-medium text-brand-accent leading-tight">
               {Number(offer.defaultCommissionPercent)}%
             </p>
-            <p className="text-[11px] text-brand-ink-soft leading-snug mt-0.5">
+            <p className="text-xs text-brand-ink-soft leading-snug mt-0.5">
               Tu comisión por venta
             </p>
           </div>
@@ -220,7 +221,7 @@ export default async function MarketplacePage({
               <h2 className="font-display font-semibold text-brand-ink mb-4">
                 Tus marcas ({joinedOffers.length})
               </h2>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 {joinedOffers.map((offer) => (
                   <OfferCard key={offer.id} offer={offer} />
                 ))}
@@ -239,7 +240,7 @@ export default async function MarketplacePage({
                 Ya estás unido a todas las marcas disponibles con ese filtro.
               </p>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 {exploreOffers.map((offer) => (
                   <OfferCard key={offer.id} offer={offer} />
                 ))}

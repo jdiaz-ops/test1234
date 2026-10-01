@@ -72,6 +72,7 @@ export function BrandProfileForm({
   files,
   onSaved,
   hideWebsiteField = false,
+  storeUrl = null,
 }: {
   initial: Values;
   files: Files;
@@ -81,6 +82,9 @@ export function BrandProfileForm({
   // se llena sola al conectarla (ver fillBrandWebsiteUrlIfMissing).
   // Sigue editable después, desde Cuenta (ahí no se pasa esta prop).
   hideWebsiteField?: boolean;
+  // Link de su tienda en Marcolini: es el que ven los creadores en el
+  // marketplace (la web externa solo si todavía no tiene tienda).
+  storeUrl?: string | null;
 }) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
@@ -177,7 +181,7 @@ export function BrandProfileForm({
               companyName={form.companyName}
               logoUrl={files.logoUrl}
               description={form.description}
-              websiteUrl={form.websiteUrl}
+              websiteUrl={storeUrl ?? form.websiteUrl}
             />
           </div>
         </div>

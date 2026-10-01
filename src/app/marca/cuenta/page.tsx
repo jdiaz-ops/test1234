@@ -18,6 +18,7 @@ import { OffersPanel } from "@/components/portal/offers-panel";
 import { ProductsPanel } from "@/components/portal/products-panel";
 import { AccountTabs } from "@/components/portal/account-tabs";
 import { STORE_CONNECTION_ENABLED } from "@/lib/features";
+import { publicStoreUrl } from "@/lib/store-url";
 
 const storeStatusLabel: Record<string, string> = {
   NOT_CONNECTED: "No conectada todavía",
@@ -84,6 +85,7 @@ export default async function MarcaCuentaPage() {
 
   const perfilTab = (
     <BrandProfileForm
+      storeUrl={publicStoreUrl(profile)}
       initial={{
         companyName: profile.companyName,
         legalName: profile.legalName ?? "",

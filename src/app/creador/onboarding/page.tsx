@@ -4,6 +4,7 @@ import { getCreatorOnboardingStatus } from "@/server/services/creator-onboarding
 import { getCreatorProfileByUserId } from "@/server/services/creator-profile-service";
 import { listActiveOffers, getEnrollmentsForCreator } from "@/server/services/marketplace-service";
 import { CreatorOnboardingWizard } from "@/components/portal/creator-onboarding-wizard";
+import { publicStoreUrl } from "@/lib/store-url";
 
 export default async function CreatorOnboardingPage() {
   const session = await auth();
@@ -83,7 +84,7 @@ export default async function CreatorOnboardingPage() {
                 companyName: offer.brand.companyName,
                 logoUrl: offer.brand.logoUrl,
                 description: offer.brand.description,
-                websiteUrl: offer.brand.websiteUrl,
+                websiteUrl: publicStoreUrl(offer.brand) ?? offer.brand.websiteUrl,
               },
             })),
             filteredByInterests: interestVerticalIds.length > 0,
