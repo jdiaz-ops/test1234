@@ -52,7 +52,8 @@ export async function getCreatorOnboardingStatus(profile: CreatorProfile) {
       key: "vitrina",
       label: "Tu vitrina",
       description: "",
-      done: Boolean(profile.storefrontHeadline),
+      // Lista apenas la guarda una vez; el título es opcional.
+      done: Boolean(profile.storefrontSavedAt || profile.storefrontHeadline),
     },
   ];
 

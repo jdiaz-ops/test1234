@@ -232,12 +232,11 @@ export function CreatorStorefrontStep({
 
                 <div>
                   <div className="flex items-baseline justify-between mb-1">
-                    <label className="block text-sm text-brand-ink">Título de tu vitrina</label>
+                    <label className="block text-sm text-brand-ink">Título de tu vitrina (opcional)</label>
                     <span className="text-xs text-brand-ink-soft">{form.storefrontHeadline.length}/60</span>
                   </div>
                   <input
                     maxLength={60}
-                    required
                     value={form.storefrontHeadline}
                     onChange={(e) => setForm({ ...form, storefrontHeadline: e.target.value })}
                     placeholder="ej. Mis descuentos favoritos ✨"

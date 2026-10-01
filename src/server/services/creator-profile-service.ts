@@ -168,7 +168,7 @@ export async function updateStorefrontSettings(
 ) {
   return prisma.creatorProfile.update({
     where: { userId },
-    data,
+    data: { ...data, storefrontSavedAt: new Date() },
   });
 }
 

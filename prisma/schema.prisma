@@ -164,6 +164,9 @@ model CreatorProfile {
   /// primera vez). Desde ahí no lo puede cambiar: con él se arman sus
   /// códigos y su vitrina. Ver conversación del 2026-10-01.
   displayNameLockedAt DateTime?
+  /// Cuándo guardó su vitrina por primera vez — marca como listo el paso
+  /// "Tu vitrina" del onboarding (el título ya no es obligatorio).
+  storefrontSavedAt   DateTime?
   bio                 String?
   photoUrl            String?
   city                String?
