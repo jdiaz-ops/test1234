@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { listCollectionsForCreator } from "@/server/services/collection-service";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getCreatorOnboardingStatus } from "@/server/services/creator-onboarding-service";
@@ -13,12 +15,18 @@ export default async function CreatorOnboardingPage() {
 
   const interestVerticalIds = profile.interests.map((i) => i.verticalId);
 
-  const [{ steps, completedCount, total }, verticals, interestOffers, enrollments] = await Promise.all([
+  const [{ steps, completedCount, total, complete }, verticals, interestOffers, enrollments, collections] = await Promise.all([
     getCreatorOnboardingStatus(profile),
     prisma.vertical.findMany({ orderBy: { name: "asc" } }),
     listActiveOffers({ verticalIds: interestVerticalIds }),
     getEnrollmentsForCreator(profile.id),
+    listCollectionsForCreator(profile.id),
   ]);
+
+  // Con los 4 pasos listos, "Empieza aquí" se cierra y va al Dashboard —
+  // también justo después de guardar el último paso (el wizard refresca
+  // la página y cae acá). Ver conversación del 2026-10-01.
+  if (complete) redirect("/creador");
 
   // Si ninguna marca coincide con sus categorías, se muestran todas — antes
   // el paso "Únete a marcas" quedaba vacío (2026-10-01).
@@ -116,6 +124,24 @@ export default async function CreatorOnboardingPage() {
                 discountCode: e.discountCode,
               })),
             publicUrl,
+            // Antes no se pasaban: una colección recién creada
+            // "desaparecía" del paso Tu vitrina.
+            collections: collections.map((c) => ({
+              id: c.id,
+              name: c.name,
+              description: c.description,
+              visible: c.visible,
+              items: c.items.map((it) => ({
+                product: {
+                  id: it.product.id,
+                  name: it.product.name,
+                  imageUrl: it.product.imageUrl,
+                  price: Number(it.product.price),
+                  currency: it.product.currency,
+                  brand: { companyName: it.product.brand.companyName },
+                },
+              })),
+            })),
           }}
         />
       </div>

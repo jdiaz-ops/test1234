@@ -15,11 +15,27 @@ describe.skipIf(!hasDb)("username del creador", () => {
     const name = `Nail Fest ${suffix}`;
     const updated = await updateCreatorProfile(user.id, { displayName: name });
     expect(updated.displayNameLockedAt).not.toBeNull();
-    expect(updated.storefrontSlug).toBe(`nail-fest-${suffix}`);
+    expect(updated.storefrontSlug).toBe(`nailfest${suffix}`);
     expect(updated.baseCode).toBe(`NAILFEST${suffix.toUpperCase()}`);
 
     // Mismo nombre: se puede seguir guardando el resto del perfil.
     await expect(updateCreatorProfile(user.id, { displayName: name, bio: "Hola" })).resolves.toBeTruthy();
     await expect(updateCreatorProfile(user.id, { displayName: "Otro" })).rejects.toBeInstanceOf(CreatorProfileError);
+  });
+
+  it("al confirmar sin cambiar el nombre, su link pierde los guiones", async () => {
+    const suffix = randomUUID().slice(0, 6);
+    const user = await prisma.user.create({ data: { email: `g-${suffix}@prueba.test`, role: "CREATOR" } });
+    await prisma.creatorProfile.create({
+      data: {
+        userId: user.id,
+        displayName: `Nail Fest ${suffix}`,
+        baseCode: `NF${suffix}`,
+        storefrontSlug: `nail-fest-${suffix}`,
+      },
+    });
+    const updated = await updateCreatorProfile(user.id, { displayName: `Nail Fest ${suffix}` });
+    expect(updated.storefrontSlug).toBe(`nailfest${suffix}`);
+    expect(updated.baseCode).toBe(`NF${suffix}`);
   });
 });

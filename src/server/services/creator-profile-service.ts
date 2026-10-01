@@ -32,7 +32,12 @@ export async function updateCreatorProfile(
 ) {
   const current = await prisma.creatorProfile.findUniqueOrThrow({
     where: { userId },
-    select: { displayName: true, displayNameLockedAt: true, _count: { select: { enrollments: true } } },
+    select: {
+      displayName: true,
+      displayNameLockedAt: true,
+      storefrontSlug: true,
+      _count: { select: { enrollments: true } },
+    },
   });
   const displayName = data.displayName.trim();
   const changed = displayName !== current.displayName;
@@ -43,13 +48,18 @@ export async function updateCreatorProfile(
     );
   }
 
-  const identity =
-    !current.displayNameLockedAt && changed
-      ? {
-          storefrontSlug: await generateUniqueStorefrontSlug(displayName),
-          ...(current._count.enrollments === 0 ? { baseCode: await generateUniqueBaseCode(displayName) } : {}),
-        }
-      : {};
+  // Al confirmar, la vitrina queda con el username todo pegado
+  // (normalizeSlug) aunque el nombre no haya cambiado — los links del
+  // registro anterior llevaban guiones.
+  const slugOutdated = !current.displayNameLockedAt && current.storefrontSlug.includes("-");
+  const identity = !current.displayNameLockedAt
+    ? {
+        ...(changed || slugOutdated ? { storefrontSlug: await generateUniqueStorefrontSlug(displayName) } : {}),
+        ...(changed && current._count.enrollments === 0
+          ? { baseCode: await generateUniqueBaseCode(displayName) }
+          : {}),
+      }
+    : {};
 
   return prisma.creatorProfile.update({
     where: { userId },

@@ -384,14 +384,17 @@ function CollectionEditor({
 
 export function CollectionsManager({
   collections,
+  stepNumber,
+  startOpen = true,
 }: {
   collections: Collection[];
+  // Dentro de "Tu vitrina" es el paso 3 (ver CreatorStorefrontStep).
+  stepNumber?: number;
+  // Abrir de una el editor de "nueva colección".
+  startOpen?: boolean;
 }) {
   const router = useRouter();
-  // Arranca pre-abierto en "nueva colección" (antes había que hacer clic
-  // en "+ Nueva colección" para verlo) — un paso menos para armar la
-  // primera.
-  const [editing, setEditing] = useState<"new" | string | null>("new");
+  const [editing, setEditing] = useState<"new" | string | null>(startOpen ? "new" : null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function move(id: string, direction: -1 | 1) {
@@ -429,10 +432,15 @@ export function CollectionsManager({
       : null;
 
   return (
-    <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 sm:p-6 mb-8">
+    <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 sm:p-6">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="font-display font-semibold text-brand-ink">
-          Tus colecciones
+        <h2 className="font-display font-semibold text-brand-ink flex items-center gap-2">
+          {stepNumber != null && (
+            <span className="w-6 h-6 rounded-full bg-brand-accent text-white text-xs font-semibold flex items-center justify-center">
+              {stepNumber}
+            </span>
+          )}
+          {stepNumber != null ? "Colecciones (opcional)" : "Tus colecciones"}
         </h2>
       </div>
       <p className="text-sm text-brand-ink-soft mb-1">

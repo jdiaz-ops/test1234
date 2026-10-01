@@ -48,14 +48,6 @@ export function CreatorProfileStepForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cómo quedaría su código (mismo formato que generateUniqueBaseCode).
-  const codePreview = form.displayName
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .toUpperCase()
-    .slice(0, 20);
-
   function updateSocial(platform: string, handle: string) {
     setForm((f) => ({ ...f, socialLinks: setHandle(f.socialLinks, platform, handle) }));
   }
@@ -158,13 +150,7 @@ export function CreatorProfileStepForm({
           </p>
         ) : (
           <p className="text-xs text-amber-700 mt-1.5">
-            Elígelo bien: después de guardarlo no se puede cambiar. Con él se crean tus códigos de descuento
-            {codePreview ? (
-              <>
-                {" "}(ej. <span className="font-mono font-semibold">{codePreview}</span>)
-              </>
-            ) : null}{" "}
-            y el link de tu vitrina. En cada marca podrás ajustar el código antes de confirmarlo.
+            Elígelo bien: después de guardarlo no se puede cambiar. Con él se crean tus códigos de descuento.
           </p>
         )}
       </div>

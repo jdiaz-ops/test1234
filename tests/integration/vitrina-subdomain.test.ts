@@ -20,12 +20,12 @@ describe("links de producto desde la vitrina", () => {
 
 describe.skipIf(!hasDb)("vitrina en subdominio", () => {
   it("marcas y creadores no comparten nombre", async () => {
-    const name = `nombre-${randomUUID().slice(0, 6)}`;
+    const name = `nombre${randomUUID().slice(0, 6)}`;
     const brand = await createBrand();
     await prisma.brandProfile.update({ where: { id: brand.id }, data: { storefrontSlug: name } });
 
     // Un creador nuevo con ese nombre recibe otro.
-    expect(await generateUniqueStorefrontSlug(name)).toBe(`${name}-2`);
+    expect(await generateUniqueStorefrontSlug(name)).toBe(`${name}2`);
     // Y una marca no puede tomar el de un creador.
     const user = await prisma.user.create({ data: { email: `c-${randomUUID().slice(0, 8)}@prueba.test`, role: "CREATOR" } });
     const creatorSlug = `vitrina-${randomUUID().slice(0, 6)}`;

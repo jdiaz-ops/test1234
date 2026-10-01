@@ -67,7 +67,6 @@ export default async function StorefrontSettingsPage() {
           })),
         }))}
         publicUrl={publicUrl}
-        alreadyConfigured={Boolean(profile.storefrontHeadline)}
       />
     </div>
   );

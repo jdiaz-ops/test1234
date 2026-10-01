@@ -33,8 +33,10 @@ function normalizeSlug(input: string) {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
+    // Todo pegado, sin guiones: "Nail Fest" → nailfest.marcolini.lat
+    // (pedido de Juan, 2026-10-01). Los links ya creados con guion siguen
+    // igual.
+    .replace(/[^a-z0-9]+/g, "")
     .slice(0, 30);
 }
 
@@ -68,7 +70,7 @@ export async function generateUniqueStorefrontSlug(displayName: string): Promise
     (await slugTakenByBrand(candidate))
   ) {
     attempt += 1;
-    candidate = `${base}-${attempt}`;
+    candidate = `${base}${attempt}`;
   }
 
   return candidate;
