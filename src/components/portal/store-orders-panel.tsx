@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export type StoreOrderRow = {
@@ -20,10 +20,6 @@ export type StoreOrderRow = {
   /// "Hoy a las 3:54 p. m." — lo arma el servidor (ver relativeOrderDate)
   /// para que no difiera del navegador al hidratar.
   createdLabel: string;
-  paidAt: string | null;
-  preparedAt: string | null;
-  deliveredAt: string | null;
-  refundedAt: string | null;
   /// Unidades (suma de cantidades), como "6 artículos" en Shopify.
   unitCount: number;
   /// null = venta directa, sin código de creador. Viene de Transaction
@@ -38,9 +34,6 @@ function formatCOP(cents: number) {
     maximumFractionDigits: 0,
   }).format(cents / 100);
 }
-
-const TZ = "America/Bogota";
-const dayKey = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
 
 type Pill = { label: string; className: string; dot?: boolean };
 
@@ -97,59 +90,15 @@ const isToShip = (o: StoreOrderRow) =>
   o.status === "PAID" && o.shippingAddress != null && (o.fulfillmentStatus === "UNFULFILLED" || o.fulfillmentStatus === "PREPARED");
 
 type View = "all" | "toShip" | "incomplete";
-type Period = "today" | "7d" | "30d" | "all";
-
-const PERIODS: { key: Period; label: string }[] = [
-  { key: "today", label: "Hoy" },
-  { key: "7d", label: "7 días" },
-  { key: "30d", label: "30 días" },
-  { key: "all", label: "Todo" },
-];
-
-function periodStart(period: Period, now: Date) {
-  if (period === "all") return 0;
-  if (period === "today") return Date.parse(`${dayKey(now)}T00:00:00-05:00`);
-  return now.getTime() - (period === "7d" ? 7 : 30) * 86_400_000;
-}
-
-function hoursLabel(hours: number) {
-  if (hours < 1) return `${Math.max(1, Math.round(hours * 60))} min`;
-  if (hours < 48) return `${Math.round(hours)} h`;
-  return `${Math.round(hours / 24)} días`;
-}
-
-/// Pedidos al estilo de la lista de Shopify: indicadores del periodo
-/// arriba, vistas (Todos / Por enviar / Pagos incompletos), buscador y una
+/// Pedidos al estilo de la lista de Shopify: vistas (Todos / Por enviar / Pagos incompletos), buscador y una
 /// tabla con número, fecha, cliente, creador, total, estado del pago, de
 /// preparación y de entrega, artículos y forma de entrega. Cada fila abre
 /// el detalle. Los intentos sin pagar quedan aparte, en "Pagos
 /// incompletos". Ver conversación del 2026-10-01.
-export function StoreOrdersPanel({ initialOrders, nowIso }: { initialOrders: StoreOrderRow[]; nowIso: string }) {
+export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderRow[] }) {
   const router = useRouter();
   const [view, setView] = useState<View>("all");
-  const [period, setPeriod] = useState<Period>("30d");
   const [query, setQuery] = useState("");
-  // Misma hora de referencia en el servidor y en el navegador.
-  const now = useMemo(() => new Date(nowIso), [nowIso]);
-
-  const stats = useMemo(() => {
-    const from = periodStart(period, now);
-    const inPeriod = (iso: string | null) => iso != null && Date.parse(iso) >= from;
-    const sales = initialOrders.filter((o) => (o.status === "PAID" || o.status === "REFUNDED") && inPeriod(o.paidAt ?? o.createdAt));
-    const prepTimes = initialOrders
-      .filter((o) => o.paidAt && o.preparedAt && inPeriod(o.preparedAt))
-      .map((o) => (Date.parse(o.preparedAt!) - Date.parse(o.paidAt!)) / 3_600_000);
-    return {
-      orders: sales.length,
-      units: sales.reduce((n, o) => n + o.unitCount, 0),
-      revenueCents: sales.filter((o) => o.status === "PAID").reduce((n, o) => n + o.totalCents, 0),
-      refunds: initialOrders.filter((o) => inPeriod(o.refundedAt)).reduce((n, o) => n + o.totalCents, 0),
-      prepared: initialOrders.filter((o) => inPeriod(o.preparedAt)).length,
-      delivered: initialOrders.filter((o) => inPeriod(o.deliveredAt)).length,
-      avgPrepHours: prepTimes.length > 0 ? prepTimes.reduce((a, b) => a + b, 0) / prepTimes.length : null,
-    };
-  }, [initialOrders, period, now]);
-
   const counts = {
     all: initialOrders.filter((o) => !isIncomplete(o)).length,
     toShip: initialOrders.filter(isToShip).length,
@@ -166,16 +115,6 @@ export function StoreOrdersPanel({ initialOrders, nowIso }: { initialOrders: Sto
     );
   });
 
-  const kpis: { label: string; value: string }[] = [
-    { label: "Pedidos", value: String(stats.orders) },
-    { label: "Artículos pedidos", value: String(stats.units) },
-    { label: "Ventas", value: formatCOP(stats.revenueCents) },
-    { label: "Reembolsos", value: formatCOP(stats.refunds) },
-    { label: "Pedidos preparados", value: String(stats.prepared) },
-    { label: "Pedidos entregados", value: String(stats.delivered) },
-    { label: "Del pago a la preparación", value: stats.avgPrepHours == null ? "—" : hoursLabel(stats.avgPrepHours) },
-  ];
-
   const views: { key: View; label: string }[] = [
     { key: "all", label: "Todos" },
     { key: "toShip", label: "Por enviar" },
@@ -184,34 +123,6 @@ export function StoreOrdersPanel({ initialOrders, nowIso }: { initialOrders: Sto
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-brand-line bg-brand-surface overflow-x-auto">
-        <div className="flex min-w-max">
-          <div className="flex items-center px-3 border-r border-brand-line">
-            <label className="sr-only" htmlFor="orders-period">
-              Periodo
-            </label>
-            <select
-              id="orders-period"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value as Period)}
-              className="bg-transparent text-xs text-brand-ink rounded-md px-2 py-1.5 hover:bg-brand-bg focus:outline-none focus-visible:ring-1 focus-visible:ring-brand-ink"
-            >
-              {PERIODS.map((p) => (
-                <option key={p.key} value={p.key}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {kpis.map((k, i) => (
-            <div key={k.label} className={`px-4 py-3 min-w-[9.5rem] ${i > 0 ? "border-l border-brand-line" : ""}`}>
-              <p className="text-xs text-brand-ink-soft whitespace-nowrap">{k.label}</p>
-              <p className="text-base font-semibold text-brand-ink tabular-nums mt-0.5 whitespace-nowrap">{k.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <div className="rounded-xl border border-brand-line bg-brand-surface overflow-hidden">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-brand-line">
           <div className="flex gap-1">

@@ -19,17 +19,15 @@ export default async function TiendaPedidosPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
-        MI TIENDA
-      </p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
-        Pedidos
-      </h1>
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
-        <p className="text-sm text-brand-ink-soft max-w-lg">
-          Las compras de tu tienda. El envío lo gestionas tú y Marcolini lo
-          registra acá.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
+        <div>
+          <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
+            MI TIENDA
+          </p>
+          <h1 className="font-display text-2xl font-semibold text-brand-ink">
+            Pedidos
+          </h1>
+        </div>
         {/* Pedidos pagados y devueltos en .xlsx, para contabilidad. Ver
             store-export-service.ts. */}
         <a
@@ -40,7 +38,6 @@ export default async function TiendaPedidosPage() {
         </a>
       </div>
       <StoreOrdersPanel
-        nowIso={now.toISOString()}
         initialOrders={orders.map((o) => ({
           id: o.id,
           kind: o.kind,
@@ -56,10 +53,6 @@ export default async function TiendaPedidosPage() {
           totalCents: o.totalCents,
           createdAt: o.createdAt.toISOString(),
           createdLabel: relativeOrderDate(o.createdAt, now),
-          paidAt: o.paidAt?.toISOString() ?? null,
-          preparedAt: o.preparedAt?.toISOString() ?? null,
-          deliveredAt: o.deliveredAt?.toISOString() ?? null,
-          refundedAt: o.refundedAt?.toISOString() ?? null,
           unitCount: o.items.reduce((n, i) => n + i.quantity, 0),
           creator: o.transaction ? { name: o.transaction.creator.displayName } : null,
         }))}
