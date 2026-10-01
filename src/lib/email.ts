@@ -11,23 +11,44 @@ const resend = process.env.RESEND_API_KEY
 // <no-reply@marcolini.co>") y desde ahí sí llega a cualquier destinatario.
 const FROM = process.env.EMAIL_FROM || "Marcolini <onboarding@resend.dev>";
 
-async function send(to: string, subject: string, html: string) {
+export type EmailSendResult = { ok: true; id: string | null } | { ok: false; error: string };
+
+async function send(to: string, subject: string, html: string): Promise<EmailSendResult> {
   if (!resend) {
     // Sin API key configurada (típico en desarrollo local): en vez de fallar,
     // dejamos el correo visible en consola para poder probar el flujo.
     console.log(`\n📧  [email simulado] Para: ${to}\nAsunto: ${subject}\n${html}\n`);
-    return;
+    return { ok: false, error: "Falta RESEND_API_KEY en Vercel: los correos no se están enviando." };
   }
 
   try {
-    await resend.emails.send({ from: FROM, to, subject, html });
+    // Resend NO lanza error cuando rechaza un correo (dominio sin
+    // verificar, remitente de prueba, límite…): lo devuelve en `error`.
+    // Antes no se leía y esos rechazos pasaban en silencio (2026-10-01).
+    const { data, error } = await resend.emails.send({ from: FROM, to, subject, html });
+    if (error) {
+      console.error(`[email] Resend rechazó el correo a ${to} ("${subject}"): ${error.name} — ${error.message}`);
+      return { ok: false, error: `${error.message} (${error.name})` };
+    }
+    return { ok: true, id: data?.id ?? null };
   } catch (err) {
-    // Un correo que no sale (dominio sin verificar, límite de Resend en modo
-    // de prueba, lo que sea) nunca debe tumbar la acción que lo disparó —
+    // Un correo que no sale nunca debe tumbar la acción que lo disparó —
     // registrarse, restablecer contraseña, etc. Se deja registrado el error
     // para poder diagnosticarlo en los logs, pero el flujo sigue.
     console.error(`[email] no se pudo enviar a ${to} ("${subject}"):`, err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/// Correo de prueba para Admin → Diagnóstico de correo: devuelve tal cual
+/// lo que respondió Resend, más el remitente que se está usando.
+export async function sendTestEmail(to: string) {
+  const result = await send(
+    to,
+    "Prueba de correo — Marcolini",
+    `<p>Si estás leyendo esto, los correos de Marcolini están saliendo bien.</p>`,
+  );
+  return { ...result, from: FROM, usingTestSender: FROM.includes("resend.dev") };
 }
 
 export async function sendVerificationEmail(to: string, verifyUrl: string) {

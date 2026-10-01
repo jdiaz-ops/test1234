@@ -1,3 +1,4 @@
+import { portalUrl } from "@/lib/store-url";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import {
@@ -20,7 +21,10 @@ import { createReferralFromCode } from "@/server/services/referral-service";
 import { createNotification } from "@/server/services/notification-service";
 import { flagPotentialFraud } from "@/server/services/admin-fraud-service";
 
-const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
+// Links de los correos (confirmar, restablecer contraseña, invitación):
+// portalUrl() nunca devuelve localhost en producción — antes, si APP_URL no
+// estaba en Vercel, el link llevaba a http://localhost:3000 (2026-10-01).
+const APP_URL = portalUrl();
 
 export class AuthServiceError extends Error {}
 
