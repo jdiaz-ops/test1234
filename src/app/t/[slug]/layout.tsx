@@ -99,7 +99,6 @@ export default async function StorefrontLayout({
             <StoreFooter
               config={theme.footer}
               colors={theme.colors}
-              brandName={brand.companyName}
               phone={brand.phone}
               websiteUrl={brand.websiteUrl}
               instagramHandle={brand.instagramHandle}

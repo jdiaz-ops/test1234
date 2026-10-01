@@ -14,7 +14,6 @@ type MenuItem = { id: string; label: string; url: string };
 export function StoreFooter({
   config,
   colors,
-  brandName,
   phone,
   websiteUrl,
   instagramHandle,
@@ -24,7 +23,6 @@ export function StoreFooter({
 }: {
   config: ThemeConfig["footer"];
   colors: ThemeConfig["colors"];
-  brandName: string;
   phone: string | null;
   websiteUrl: string | null;
   instagramHandle: string | null;
@@ -157,9 +155,8 @@ export function StoreFooter({
         </div>
       )}
 
-      <p className="text-center text-xs opacity-60 pb-6">
-        {brandName} · vendido con Marcolini
-      </p>
+      {/* Sin "{marca} · vendido con Marcolini" al pie (2026-10-01). */}
+      <div className="pb-4" />
     </footer>
   );
 }
