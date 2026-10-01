@@ -9,7 +9,7 @@ import {
   IconCheck,
 } from "@/components/marketing/icons";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
-import { SAMPLES_ENABLED } from "@/lib/features";
+import { CAMPAIGNS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
 
 // Metadata propia — mismo motivo que /para-creadores: sin esto hereda
 // el título/descripción genérico del layout raíz, que asume belleza
@@ -542,7 +542,9 @@ export default function ParaMarcasPage() {
               </div>
             </div>
 
-            {/* 5 — motivar creadores con campañas */}
+            {/* 5 — motivar creadores con campañas: escondida mientras
+                CAMPAIGNS_ENABLED esté apagado (ver src/lib/features.ts). */}
+            {CAMPAIGNS_ENABLED && (
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <div className="flex items-center justify-between mb-4">
@@ -587,6 +589,7 @@ export default function ParaMarcasPage() {
                 </Link>
               </div>
             </div>
+            )}
 
             {/* 6 — medir el ROI */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">

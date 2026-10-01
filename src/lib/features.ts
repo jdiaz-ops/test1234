@@ -33,3 +33,12 @@ export const STORE_CONNECTION_ENABLED =
 /// encenderlo: NEXT_PUBLIC_FEATURE_CUSTOM_DOMAIN=true. Ver conversación
 /// del 2026-10-01.
 export const CUSTOM_DOMAIN_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CUSTOM_DOMAIN === "true";
+
+/// Campañas y misiones (retos: Misión, Flash Sale, Mix — challenge-service.ts).
+/// Escondidas: Marcolini se enfoca 100% en lo esencial (códigos, comisiones,
+/// pagos y tienda) y las funciones se irán sumando poco a poco. No aparecen
+/// en el menú ni en el dashboard de marca o creador, sus páginas dan 404 y
+/// la API no deja crearlas; tampoco se muestran en /para-creadores ni
+/// /para-marcas. Las campañas ya guardadas no se borran. Para encenderlo:
+/// NEXT_PUBLIC_FEATURE_CAMPAIGNS=true. Ver conversación del 2026-10-01.
+export const CAMPAIGNS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CAMPAIGNS === "true";

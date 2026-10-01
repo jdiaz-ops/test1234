@@ -1,9 +1,11 @@
+import { CAMPAIGNS_ENABLED } from "@/lib/features";
 import { NextResponse } from "next/server";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { challengeSchema } from "@/lib/validation/brand";
 import { createChallenge, endChallenge, ChallengeError } from "@/server/services/challenge-service";
 
 export async function POST(req: Request) {
+  if (!CAMPAIGNS_ENABLED) return NextResponse.json({ error: "Las campañas no están disponibles todavía." }, { status: 404 });
   const profile = await requireBrandProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -23,6 +25,7 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  if (!CAMPAIGNS_ENABLED) return NextResponse.json({ error: "Las campañas no están disponibles todavía." }, { status: 404 });
   const profile = await requireBrandProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 

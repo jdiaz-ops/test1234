@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { REVIEWS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
+import { CAMPAIGNS_ENABLED, REVIEWS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
 
 // Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
 // ruta siguen intactos, solo se quitó del menú. Perfil, Facturación,
@@ -22,7 +22,8 @@ const items: { href: string; label: string; exact?: boolean; activePrefix?: stri
   // creators-tabs.tsx) — antes eran dos entradas sueltas. Pedido de la
   // marca el 2026-10-01.
   { href: "/marca/creadores/buscar", label: "Creadores", activePrefix: "/marca/creadores" },
-  { href: "/marca/retos", label: "Campañas" },
+  // Escondida mientras CAMPAIGNS_ENABLED esté apagado (src/lib/features.ts).
+  ...(CAMPAIGNS_ENABLED ? [{ href: "/marca/retos", label: "Campañas" }] : []),
   { href: "/marca/cuenta", label: "Cuenta" },
 ];
 

@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCreatorDashboardSummary } from "@/server/services/creator-finance-service";
+import { CAMPAIGNS_ENABLED } from "@/lib/features";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -45,7 +46,7 @@ export default async function CreadorDashboardPage() {
     })
   ).map((e) => e.offerId);
   const activeCampaigns =
-    enrolledOfferIds.length === 0
+    !CAMPAIGNS_ENABLED || enrolledOfferIds.length === 0
       ? 0
       : await prisma.challenge.count({
           where: { offerId: { in: enrolledOfferIds }, status: "ACTIVE" },

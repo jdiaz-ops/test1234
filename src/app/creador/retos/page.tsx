@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { CAMPAIGNS_ENABLED } from "@/lib/features";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -27,6 +29,7 @@ function formatCOP(amount: number) {
 }
 
 export default async function CreadorRetosPage() {
+  if (!CAMPAIGNS_ENABLED) notFound();
   const session = await auth();
   const profile = await prisma.creatorProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },

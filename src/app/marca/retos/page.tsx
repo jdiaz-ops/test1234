@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { CAMPAIGNS_ENABLED } from "@/lib/features";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listChallengesForBrand, listSubmissionsForBrand, getChallengeResults } from "@/server/services/challenge-service";
@@ -5,6 +7,7 @@ import { ChallengesPanel } from "@/components/portal/challenges-panel";
 import { HIDDEN_CHALLENGE_TYPES, type ChallengeType } from "@/lib/challenge-types";
 
 export default async function RetosPage() {
+  if (!CAMPAIGNS_ENABLED) notFound();
   const session = await auth();
   const profile = await prisma.brandProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },

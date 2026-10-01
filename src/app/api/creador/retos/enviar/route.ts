@@ -1,9 +1,11 @@
+import { CAMPAIGNS_ENABLED } from "@/lib/features";
 import { NextResponse } from "next/server";
 import { requireCreatorProfile } from "@/lib/current-creator";
 import { submitContentChallengeSchema } from "@/lib/validation/creator";
 import { submitContentChallenge, ChallengeError } from "@/server/services/challenge-service";
 
 export async function POST(req: Request) {
+  if (!CAMPAIGNS_ENABLED) return NextResponse.json({ error: "Las campañas no están disponibles todavía." }, { status: 404 });
   const profile = await requireCreatorProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 

@@ -11,7 +11,7 @@ import {
   IconProduct,
 } from "@/components/marketing/icons";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
-import { SAMPLES_ENABLED } from "@/lib/features";
+import { CAMPAIGNS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
 
 // Metadata propia — sin esto la página hereda el título/descripción
 // genérico del layout raíz ("Marcolini" / "Red de afiliación para la
@@ -645,22 +645,13 @@ export default function ParaCreadoresPage() {
               {/* "TU LINK" + el link en sí viven acá, arriba del CTA — es
                   la promesa central del bloque ("un solo link"), no una
                   zona más adentro del mockup. */}
-              <div className="text-center mb-6">
+              <div className="text-center mb-10">
                 <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1.5 mb-2.5">
                   TU LINK
                 </span>
                 <p className="font-mono text-base text-brand-accent">
                   marcolini.lat/c/valentina
                 </p>
-              </div>
-              <div className="flex justify-center mb-10">
-                <Link
-                  href="/lista-de-espera"
-                  className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
-                >
-                  Únete a la lista de espera
-                  <IconArrowRight className="w-4 h-4" />
-                </Link>
               </div>
               {/* -mx-6 lg:mx-0 — recupera el padding de la <section> (px-6)
                   solo acá, para tener margen real a los costados del
@@ -818,8 +809,9 @@ export default function ParaCreadoresPage() {
               </div>
             </div>
 
-            {/* 5 — campañas y bonos (retos — feature real, ver
-                creator-challenges-panel.tsx / retos/page.tsx) */}
+            {/* 5 — campañas y bonos: escondida mientras CAMPAIGNS_ENABLED
+                esté apagado (ver src/lib/features.ts). */}
+            {CAMPAIGNS_ENABLED && (
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <div className="flex items-center justify-between mb-4">
@@ -859,6 +851,7 @@ export default function ParaCreadoresPage() {
                 </p>
               </div>
             </div>
+            )}
 
             {/* 6 — trazabilidad total: saldo + comisiones recientes, el
                 equivalente para creador de la tarjeta de ROI de

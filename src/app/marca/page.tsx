@@ -9,6 +9,7 @@ import {
 import { getOpenBrandCharge } from "@/server/services/payment-service";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { getRecentEndedChallengeForBrand } from "@/server/services/challenge-service";
+import { CAMPAIGNS_ENABLED } from "@/lib/features";
 import { ChargePaymentBox } from "@/components/portal/charge-payment-box";
 import {
   ChallengeResultsGrid,
@@ -147,7 +148,8 @@ export default async function MarcaDashboardPage() {
         </Link>
       )}
 
-      {activeCampaigns === 0 &&
+      {CAMPAIGNS_ENABLED &&
+        activeCampaigns === 0 &&
         (recentChallenge ? (
           <RecentCampaignRecapBox
             name={recentChallenge.challenge.name}
