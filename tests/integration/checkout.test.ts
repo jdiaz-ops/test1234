@@ -214,14 +214,23 @@ describe.skipIf(!hasDb)("checkout: la ruta que usa el navegador", () => {
     });
     expect(res.status).toBe(200);
     const body = await res.json();
+    // Datos para precargar la ventana de Wompi.
+    expect(body.customerData).toEqual({
+      email: buyerEmail,
+      fullName: "Ana María Pérez Gómez",
+      phoneNumber: "3134058607",
+      phoneNumberPrefix: "+57",
+      legalId: "1020304050",
+      legalIdType: "CC",
+    });
+    // Respaldo: el link de pago de Wompi solo con lo indispensable (con los
+    // datos del comprador el firewall de Wompi respondía 403).
     const url = new URL(body.checkoutUrl);
     expect(url.origin + url.pathname).toBe("https://checkout.wompi.co/p/");
     expect(url.searchParams.get("public-key")).toBe("pub_test_x");
     expect(url.searchParams.get("amount-in-cents")).toBe(String(body.wompi.amountInCents));
     expect(url.searchParams.get("signature:integrity")).toBe(body.wompi.signature);
-    expect(url.searchParams.get("customer-data:email")).toBe(buyerEmail);
-    expect(url.searchParams.get("customer-data:phone-number")).toBe("3134058607");
-    expect(url.searchParams.get("customer-data:legal-id")).toBe("1020304050");
+    expect([...url.searchParams.keys()].some((k) => k.startsWith("customer-data"))).toBe(false);
 
     const order = await prisma.storeOrder.findUniqueOrThrow({ where: { id: body.orderId } });
     expect(order).toMatchObject({

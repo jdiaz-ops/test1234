@@ -5,6 +5,7 @@ import {
   createStoreOrder,
   StoreOrderError,
   wompiCheckoutUrl,
+  wompiCustomerData,
 } from "@/server/services/store-order-service";
 
 /// Crea un pedido de "Mi tienda" y devuelve lo que necesita el botón de
@@ -57,7 +58,13 @@ export async function POST(
       shippingPostalCode: parsed.data.shippingPostalCode || undefined,
       acceptsMarketing: parsed.data.acceptsMarketing ?? false,
     });
-    return NextResponse.json({ ok: true, orderId: order.id, wompi, checkoutUrl: wompiCheckoutUrl(wompi, order) });
+    return NextResponse.json({
+      ok: true,
+      orderId: order.id,
+      wompi,
+      customerData: wompiCustomerData(order),
+      checkoutUrl: wompiCheckoutUrl(wompi),
+    });
   } catch (err) {
     if (err instanceof StoreOrderError) {
       return NextResponse.json({ error: err.message }, { status: 400 });

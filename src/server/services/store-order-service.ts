@@ -926,16 +926,44 @@ export async function applyWompiTransactionStatus(params: {
   return { order: updated };
 }
 
-/// Wompi Web Checkout: con "Pagar ahora" el comprador va directo a la
-/// página de pago de Wompi (como en Shopify, "Se te redirigirá a Wompi"),
-/// con sus datos ya llenos. Mismos parámetros que el widget — ver
-/// https://docs.wompi.co/docs/colombia/widget-checkout-web/
+/// Datos del comprador para precargar la ventana de pago de Wompi
+/// (WidgetCheckout, customerData). Solo lo que Wompi acepta: el celular en
+/// 10 dígitos y el documento si es CC, CE, NIT o pasaporte.
 const WOMPI_LEGAL_ID_TYPES: Record<string, string> = { CC: "CC", CE: "CE", NIT: "NIT", PASAPORTE: "PP" };
 
-export function wompiCheckoutUrl(
-  wompi: { publicKey: string; currency: string; amountInCents: number; reference: string; signature: string; redirectUrl: string },
-  order: { buyerEmail: string; buyerName: string; buyerPhone: string; billingIdType: string | null; billingIdNumber: string | null },
-) {
+export function wompiCustomerData(order: {
+  buyerEmail: string;
+  buyerName: string;
+  buyerPhone: string;
+  billingIdType: string | null;
+  billingIdNumber: string | null;
+}) {
+  const data: Record<string, string> = { email: order.buyerEmail, fullName: order.buyerName };
+  const phone = order.buyerPhone.replace(/\D/g, "").replace(/^57(?=3\d{9}$)/, "");
+  if (/^3\d{9}$/.test(phone)) {
+    data.phoneNumber = phone;
+    data.phoneNumberPrefix = "+57";
+  }
+  const legalType = order.billingIdType ? WOMPI_LEGAL_ID_TYPES[order.billingIdType] : undefined;
+  if (legalType && order.billingIdNumber) {
+    data.legalId = order.billingIdNumber.replace(/-\d$/, "").replace(/[^0-9A-Za-z]/g, "");
+    data.legalIdType = legalType;
+  }
+  return data;
+}
+
+/// Respaldo si la ventana de Wompi no carga: la página de pago de Wompi
+/// (Web Checkout) solo con lo indispensable. Antes llevaba también los
+/// datos del comprador y el firewall de Wompi (CloudFront) respondía 403.
+/// Ver conversación del 2026-10-01.
+export function wompiCheckoutUrl(wompi: {
+  publicKey: string;
+  currency: string;
+  amountInCents: number;
+  reference: string;
+  signature: string;
+  redirectUrl: string;
+}) {
   const params = new URLSearchParams({
     "public-key": wompi.publicKey,
     currency: wompi.currency,
@@ -943,18 +971,6 @@ export function wompiCheckoutUrl(
     reference: wompi.reference,
     "signature:integrity": wompi.signature,
     "redirect-url": wompi.redirectUrl,
-    "customer-data:email": order.buyerEmail,
-    "customer-data:full-name": order.buyerName,
   });
-  const phone = order.buyerPhone.replace(/\D/g, "").replace(/^57(?=3\d{9}$)/, "");
-  if (/^\d{7,10}$/.test(phone)) {
-    params.set("customer-data:phone-number", phone);
-    params.set("customer-data:phone-number-prefix", "+57");
-  }
-  const legalType = order.billingIdType ? WOMPI_LEGAL_ID_TYPES[order.billingIdType] : undefined;
-  if (legalType && order.billingIdNumber) {
-    params.set("customer-data:legal-id", order.billingIdNumber.replace(/-\d$/, "").replace(/[^0-9A-Za-z]/g, ""));
-    params.set("customer-data:legal-id-type", legalType);
-  }
   return `https://checkout.wompi.co/p/?${params.toString()}`;
 }

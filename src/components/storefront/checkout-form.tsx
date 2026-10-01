@@ -5,6 +5,14 @@ import { useCart } from "@/components/storefront/cart-context";
 import { cartLineKey } from "@/lib/storefront-cart";
 import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
 import { taxIncluded, orderTotal } from "@/lib/order-math";
+import { openWompiWidget, type WompiParams } from "@/components/storefront/wompi-widget";
+
+type PendingPayment = {
+  payload: string;
+  wompi: WompiParams;
+  customerData: Record<string, string>;
+  checkoutUrl: string;
+};
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -134,9 +142,9 @@ function Section({ title, children, aside }: { title: string; children: React.Re
 /// Checkout de una sola página, como el de Shopify: contacto, entrega (con
 /// cédula o NIT), métodos de envío, pago con Wompi y dirección de
 /// facturación a la izquierda; el resumen del pedido a la derecha. "Pagar
-/// ahora" crea el pedido y lleva directo a la página de pago de Wompi —
-/// antes había un paso intermedio con un segundo botón. Ver conversación
-/// del 2026-10-01.
+/// ahora" crea el pedido y abre enseguida la ventana de pago de Wompi con
+/// los datos ya llenos (ver wompi-widget.ts) — antes había un paso
+/// intermedio con un segundo botón. Ver conversación del 2026-10-01.
 export function CheckoutForm({
   requireBillingId = false,
   brandSlug,
@@ -211,7 +219,8 @@ export function CheckoutForm({
   }, []);
 
   const [submitting, setSubmitting] = useState(false);
-  const [redirecting, setRedirecting] = useState(false);
+  const [openingWompi, setOpeningWompi] = useState(false);
+  const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const discountAmount = discountPercent ? Math.round((subtotal * discountPercent) / 100) : 0;
@@ -304,11 +313,7 @@ export function CheckoutForm({
     const fullAddress = [address.trim(), address2.trim()].filter(Boolean).join(", ");
     const hasId = idNumber.trim().length > 0;
 
-    try {
-      const res = await fetch(`/api/tienda/${brandSlug}/ordenes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+    const payload = JSON.stringify({
           items: items.map((i) => ({
             productId: i.productId,
             ...(i.variantId ? { variantId: i.variantId } : {}),
@@ -334,16 +339,31 @@ export function CheckoutForm({
           ...(needsShipping && !sameBilling
             ? { billingAddress, billingCity, billingRegion }
             : {}),
-        }),
+        });
+
+    // Si ya se creó el pedido con exactamente estos datos (el comprador
+    // cerró la ventana de Wompi y vuelve a tocar "Pagar ahora"), se reabre
+    // la misma ventana en vez de crear otro pedido.
+    if (pendingPayment && pendingPayment.payload === payload) {
+      setSubmitting(false);
+      await openPayment(pendingPayment);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/tienda/${brandSlug}/ordenes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
       });
       const body = await res.json();
       if (!res.ok) {
         setSubmitError(body?.error ?? "No se pudo crear el pedido.");
         return;
       }
-      // Directo a la página de pago de Wompi, con los datos ya llenos.
-      setRedirecting(true);
-      window.location.assign(body.checkoutUrl);
+      const pending = { payload, wompi: body.wompi, customerData: body.customerData ?? {}, checkoutUrl: body.checkoutUrl };
+      setPendingPayment(pending);
+      await openPayment(pending);
     } catch {
       setSubmitError("No se pudo crear el pedido — revisa tu conexión.");
     } finally {
@@ -351,7 +371,16 @@ export function CheckoutForm({
     }
   }
 
-  if (items.length === 0 && !redirecting) {
+  /// Abre la ventana de pago de Wompi encima del checkout; si no carga,
+  /// lleva a la página de pago de Wompi.
+  async function openPayment(pending: PendingPayment) {
+    setOpeningWompi(true);
+    const opened = await openWompiWidget(pending.wompi, pending.customerData);
+    setOpeningWompi(false);
+    if (!opened) window.location.assign(pending.checkoutUrl);
+  }
+
+  if (items.length === 0 && !pendingPayment) {
     return (
       <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-3">
         <p className="text-sm text-brand-ink-soft">Tu carrito está vacío.</p>
@@ -621,7 +650,7 @@ export function CheckoutForm({
                   </span>
                 </div>
                 <p className="border-t border-brand-line bg-brand-bg px-4 py-4 text-center text-sm text-brand-ink-soft">
-                  Se te redirigirá a Wompi para completar tu compra.
+                  Al tocar Pagar ahora se abre Wompi para completar tu compra.
                 </p>
               </div>
             ) : (
@@ -700,10 +729,10 @@ export function CheckoutForm({
 
             <button
               type="submit"
-              disabled={!paymentsReady || submitting || redirecting || shippingBlocked}
+              disabled={!paymentsReady || submitting || openingWompi || shippingBlocked}
               className="w-full rounded-lg bg-brand-button text-brand-button-text px-6 py-4 text-base font-semibold hover:opacity-90 disabled:opacity-50"
             >
-              {redirecting
+              {openingWompi
                 ? "Abriendo Wompi..."
                 : submitting
                   ? "Creando tu pedido..."
