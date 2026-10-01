@@ -7,6 +7,8 @@ import { getActiveWompiKeys } from "@/server/integrations/wompi-client";
 import { CheckoutForm } from "@/components/storefront/checkout-form";
 import { CartIcon } from "@/components/storefront/mobile-nav-icons";
 import { getStoreBasePath } from "@/lib/store-base-path";
+import { getStorefrontTheme } from "@/server/services/brand-theme-service";
+import { checkoutHeaderColor, contrastTextFor } from "@/lib/brand-theme";
 
 export default async function StorefrontCheckoutPage({
   params,
@@ -24,6 +26,9 @@ export default async function StorefrontCheckoutPage({
     (await prisma.dataicoConnection.findUnique({ where: { brandId: brand.id }, select: { enabled: true } }))?.enabled,
   );
   const basePath = await getStoreBasePath(slug);
+  const theme = await getStorefrontTheme(brand.id);
+  const headerBg = checkoutHeaderColor(theme);
+  const headerInk = contrastTextFor(headerBg);
 
   // Atribución por cookie de primera parte (ver src/proxy.ts) — si el
   // comprador llegó por el link de un creador y no escribe el código a
@@ -37,7 +42,9 @@ export default async function StorefrontCheckoutPage({
           marca, centrado, sobre una franja de color, y el carrito a la
           derecha para volver — sin menú ni buscador, que acá distraen de
           terminar la compra. Ver conversación del 2026-09-30. */}
-      <header className="bg-brand-accent-soft border-b border-brand-line">
+      {/* Color de la franja: Diseño → Encabezado (ver checkoutHeaderColor).
+          Antes era un gris fijo. */}
+      <header className="border-b border-brand-line" style={{ background: headerBg, color: headerInk }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 grid grid-cols-[1fr_auto_1fr] items-center">
           <div />
           <Link href={basePath || "/"} className="flex items-center justify-center">
@@ -49,7 +56,7 @@ export default async function StorefrontCheckoutPage({
                 className="h-14 w-auto max-w-[220px] object-contain"
               />
             ) : (
-              <span className="font-display text-lg font-semibold text-brand-ink">
+              <span className="font-display text-lg font-semibold">
                 {brand.companyName}
               </span>
             )}
@@ -57,7 +64,7 @@ export default async function StorefrontCheckoutPage({
           <Link
             href={`${basePath}/carrito`}
             aria-label="Volver al carrito"
-            className="justify-self-end w-10 h-10 flex items-center justify-center rounded-full text-brand-ink hover:bg-brand-surface"
+            className="justify-self-end w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/10"
           >
             <CartIcon className="w-6 h-6" />
           </Link>

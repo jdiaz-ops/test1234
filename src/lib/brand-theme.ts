@@ -132,6 +132,10 @@ const designTypeSchema = withDefaults({
 
 const headerSchema = withDefaults({
   bgColorRef: z.enum(["principal", "fondo", "texto"]).default("fondo"),
+  /// Color de la franja del logo en el checkout. null = el mismo del
+  /// encabezado de la tienda. Antes era un gris fijo que no se podía
+  /// cambiar. Ver conversación del 2026-10-02.
+  checkoutBgColor: hexColor().nullable().default(null),
   sticky: z.boolean().default(true),
   logoSize: z.enum(["small", "medium", "large"]).default("medium"),
   /// Si el menú de navegación (ver StorefrontMenuPanel) se muestra en el
@@ -473,4 +477,13 @@ export function themeToCssVars(theme: ThemeConfig): Record<string, string> {
 /// (ver la regla ahí), esto solo decide qué atributo poner.
 export function roundedDataAttr(theme: ThemeConfig): "true" | "false" {
   return theme.designType.roundedBorders ? "true" : "false";
+}
+
+/// Fondo de la franja del logo en el checkout: el color propio si la marca
+/// eligió uno, si no el mismo del encabezado de la tienda.
+export function checkoutHeaderColor(theme: ThemeConfig): string {
+  if (theme.header.checkoutBgColor) return theme.header.checkoutBgColor;
+  return theme.header.bgColorRef === "fondo"
+    ? theme.colors.fondo
+    : resolveColorRef(theme.colors, theme.header.bgColorRef);
 }

@@ -318,6 +318,26 @@ export function HeaderSection({ theme, patch }: { theme: ThemeConfig; patch: Pat
           <option value="texto">Color de textos</option>
         </select>
       </Field>
+      <Field label="Franja del logo en el checkout">
+        <select
+          value={h.checkoutBgColor ? "custom" : "same"}
+          onChange={(e) =>
+            patch({ header: { checkoutBgColor: e.target.value === "custom" ? h.checkoutBgColor ?? "#ffffff" : null } })
+          }
+          className="input text-sm"
+        >
+          <option value="same">Igual que el encabezado</option>
+          <option value="custom">Color propio</option>
+        </select>
+      </Field>
+      {h.checkoutBgColor && (
+        <ColorRow
+          label="Color de la franja del checkout"
+          hint="El fondo detrás del logo en la página de pago."
+          value={h.checkoutBgColor}
+          onChange={(v) => patch({ header: { checkoutBgColor: v } })}
+        />
+      )}
       <Checkbox
         label="Mostrar buscador"
         checked={h.showSearch}
