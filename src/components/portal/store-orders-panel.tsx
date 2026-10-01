@@ -25,6 +25,9 @@ export type StoreOrderRow = {
   /// null = venta directa, sin código de creador. Viene de Transaction
   /// (ya calculado por el Motor de Comisiones) — ver listBrandOrders.
   creator: { name: string } | null;
+  archived: boolean;
+  /// Se puede eliminar: nunca fue una venta real (ver canDeleteStoreOrder).
+  deletable: boolean;
 };
 
 function formatCOP(cents: number) {
@@ -89,26 +92,37 @@ const isIncomplete = (o: StoreOrderRow) => o.status === "PENDING" || o.status ==
 const isToShip = (o: StoreOrderRow) =>
   o.status === "PAID" && o.shippingAddress != null && (o.fulfillmentStatus === "UNFULFILLED" || o.fulfillmentStatus === "PREPARED");
 
-type View = "all" | "toShip" | "incomplete";
+type View = "all" | "toShip" | "incomplete" | "archived";
+
+function inView(o: StoreOrderRow, view: View) {
+  if (view === "archived") return o.archived;
+  if (o.archived) return false;
+  return view === "all" ? !isIncomplete(o) : view === "toShip" ? isToShip(o) : isIncomplete(o);
+}
 /// Pedidos al estilo de la lista de Shopify: vistas (Todos / Por enviar / Pagos incompletos), buscador y una
 /// tabla con número, fecha, cliente, creador, total, estado del pago, de
 /// preparación y de entrega, artículos y forma de entrega. Cada fila abre
 /// el detalle. Los intentos sin pagar quedan aparte, en "Pagos
-/// incompletos". Ver conversación del 2026-10-01.
+/// incompletos". Se pueden seleccionar varios para archivar o eliminar
+/// (eliminar solo lo que nunca fue una venta real). Ver conversaciones
+/// del 2026-10-01 y 2026-10-02.
 export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderRow[] }) {
   const router = useRouter();
   const [view, setView] = useState<View>("all");
   const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const counts = {
-    all: initialOrders.filter((o) => !isIncomplete(o)).length,
-    toShip: initialOrders.filter(isToShip).length,
-    incomplete: initialOrders.filter(isIncomplete).length,
+    all: initialOrders.filter((o) => inView(o, "all")).length,
+    toShip: initialOrders.filter((o) => inView(o, "toShip")).length,
+    incomplete: initialOrders.filter((o) => inView(o, "incomplete")).length,
+    archived: initialOrders.filter((o) => o.archived).length,
   };
 
   const q = query.trim().toLowerCase().replace(/^#/, "");
   const shown = initialOrders.filter((o) => {
-    const inView = view === "all" ? !isIncomplete(o) : view === "toShip" ? isToShip(o) : isIncomplete(o);
-    if (!inView) return false;
+    if (!inView(o, view)) return false;
     if (!q) return true;
     return [o.reference.slice(-8), o.buyerName, o.buyerEmail, o.discountCode ?? "", o.creator?.name ?? ""].some((v) =>
       v.toLowerCase().includes(q),
@@ -119,7 +133,54 @@ export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderR
     { key: "all", label: "Todos" },
     { key: "toShip", label: "Por enviar" },
     { key: "incomplete", label: "Pagos incompletos" },
+    { key: "archived", label: "Archivados" },
   ];
+
+  const selectedRows = shown.filter((o) => selected.has(o.id));
+  const deletableCount = selectedRows.filter((o) => o.deletable).length;
+  const allShownSelected = shown.length > 0 && shown.every((o) => selected.has(o.id));
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function runAction(action: "archive" | "unarchive" | "delete") {
+    const ids = action === "delete" ? selectedRows.filter((o) => o.deletable).map((o) => o.id) : selectedRows.map((o) => o.id);
+    if (ids.length === 0) return;
+    if (
+      action === "delete" &&
+      !window.confirm(
+        `¿Eliminar ${ids.length} ${ids.length === 1 ? "pedido" : "pedidos"}? No se puede deshacer.` +
+          (ids.length < selectedRows.length
+            ? ` Los otros ${selectedRows.length - ids.length} son ventas reales y no se eliminan: archívalos.`
+            : ""),
+      )
+    )
+      return;
+    setBusy(true);
+    setMessage(null);
+    const res = await fetch("/api/marca/tienda/pedidos/lote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, orderIds: ids }),
+    });
+    const body = await res.json().catch(() => null);
+    setBusy(false);
+    if (!res.ok) {
+      setMessage({ ok: false, text: body?.error ?? "No se pudo hacer el cambio." });
+      return;
+    }
+    const n = action === "delete" ? body.deleted : body.changed;
+    const verb = action === "delete" ? "eliminado" : action === "archive" ? "archivado" : "desarchivado";
+    setMessage({ ok: true, text: `${n} ${n === 1 ? `pedido ${verb}` : `pedidos ${verb}s`}.` });
+    setSelected(new Set());
+    router.refresh();
+  }
 
   return (
     <div className="space-y-4">
@@ -130,7 +191,10 @@ export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderR
               <button
                 key={v.key}
                 type="button"
-                onClick={() => setView(v.key)}
+                onClick={() => {
+                  setView(v.key);
+                  setSelected(new Set());
+                }}
                 className={`rounded-md px-2.5 py-1.5 text-xs font-medium whitespace-nowrap ${
                   view === v.key ? "bg-brand-bg text-brand-ink" : "text-brand-ink-soft hover:bg-brand-bg hover:text-brand-ink"
                 }`}
@@ -164,6 +228,41 @@ export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderR
           </div>
         </div>
 
+        {selectedRows.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b border-brand-line bg-brand-bg/60 text-sm">
+            <span className="text-brand-ink font-medium">
+              {selectedRows.length} {selectedRows.length === 1 ? "seleccionado" : "seleccionados"}
+            </span>
+            {view === "archived" ? (
+              <button type="button" disabled={busy} onClick={() => runAction("unarchive")} className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50">
+                Desarchivar
+              </button>
+            ) : (
+              <button type="button" disabled={busy} onClick={() => runAction("archive")} className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50">
+                Archivar
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={busy || deletableCount === 0}
+              onClick={() => runAction("delete")}
+              title={deletableCount === 0 ? "Solo se eliminan pagos incompletos y compras de prueba. Las ventas reales se archivan." : undefined}
+              className="rounded-md border border-red-200 bg-brand-surface px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-40"
+            >
+              Eliminar{deletableCount > 0 && deletableCount < selectedRows.length ? ` (${deletableCount})` : ""}
+            </button>
+            {deletableCount < selectedRows.length && (
+              <span className="text-xs text-brand-ink-soft">Las ventas reales no se eliminan: se archivan.</span>
+            )}
+            <button type="button" onClick={() => setSelected(new Set())} className="ml-auto text-xs text-brand-ink-soft hover:text-brand-ink">
+              Quitar selección
+            </button>
+          </div>
+        )}
+        {message && (
+          <p className={`px-4 py-2 text-xs border-b border-brand-line ${message.ok ? "text-emerald-700" : "text-red-600"}`}>{message.text}</p>
+        )}
+
         {view === "incomplete" && shown.length > 0 && (
           <p className="px-4 py-2 text-xs text-brand-ink-soft border-b border-brand-line bg-brand-bg/50">
             Personas que llegaron al pago y no lo terminaron. No son ventas: no descuentan inventario ni se facturan.
@@ -178,14 +277,25 @@ export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderR
                 ? "Todavía no tienes pedidos. Aparecen acá apenas alguien pague en tu tienda."
                 : view === "toShip"
                   ? "No hay pedidos por enviar."
-                  : "No hay pagos incompletos."}
+                  : view === "incomplete"
+                    ? "No hay pagos incompletos."
+                    : "No hay pedidos archivados."}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1200px] text-sm">
               <thead>
                 <tr className="text-left text-xs font-medium text-brand-ink-soft bg-brand-bg/50 border-b border-brand-line">
-                  <th className="px-4 py-2.5 font-medium whitespace-nowrap">Pedido</th>
+                  <th className="pl-4 pr-1 py-2.5 w-8">
+                    <input
+                      type="checkbox"
+                      aria-label="Seleccionar todos"
+                      checked={allShownSelected}
+                      onChange={() => setSelected(allShownSelected ? new Set() : new Set(shown.map((o) => o.id)))}
+                      className="w-4 h-4 accent-brand-ink"
+                    />
+                  </th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Pedido</th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Fecha</th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Cliente</th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Creador</th>
@@ -202,7 +312,16 @@ export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderR
                   const href = `/marca/tienda/pedidos/${o.id}`;
                   return (
                     <tr key={o.id} onClick={() => router.push(href)} className="cursor-pointer hover:bg-brand-bg/60 focus-within:bg-brand-bg/60">
-                      <td className="px-4 py-2.5 whitespace-nowrap">
+                      <td className="pl-4 pr-1 py-2.5" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Seleccionar pedido ${o.reference.slice(-8).toUpperCase()}`}
+                          checked={selected.has(o.id)}
+                          onChange={() => toggle(o.id)}
+                          className="w-4 h-4 accent-brand-ink"
+                        />
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <a
                           href={href}
                           onClick={(e) => {

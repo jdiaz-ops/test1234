@@ -2,7 +2,11 @@ import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { StoreOrdersPanel } from "@/components/portal/store-orders-panel";
 import { relativeOrderDate } from "@/lib/relative-date";
-import { listBrandOrders, reconcilePendingOrders } from "@/server/services/store-order-service";
+import {
+  canDeleteStoreOrder,
+  listBrandOrders,
+  reconcilePendingOrders,
+} from "@/server/services/store-order-service";
 
 export default async function TiendaPedidosPage() {
   const profile = await requireBrandProfile();
@@ -53,6 +57,8 @@ export default async function TiendaPedidosPage() {
           totalCents: o.totalCents,
           createdAt: o.createdAt.toISOString(),
           createdLabel: relativeOrderDate(o.createdAt, now),
+          archived: o.archivedAt != null,
+          deletable: canDeleteStoreOrder(o),
           unitCount: o.items.reduce((n, i) => n + i.quantity, 0),
           creator: o.transaction ? { name: o.transaction.creator.displayName } : null,
         }))}

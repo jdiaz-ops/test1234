@@ -1129,6 +1129,10 @@ model StoreOrder {
   shippingMethod     String?
   /// "Enviarme novedades y ofertas por correo" en el checkout.
   acceptsMarketing   Boolean         @default(false)
+  /// Archivado por la marca (como "Archivar" en Shopify): sale de la lista
+  /// de pedidos sin borrar nada — pago, inventario, comisión y factura
+  /// quedan igual. Null = visible. Ver archiveStoreOrders.
+  archivedAt         DateTime?
   einvoiceStatus     EInvoiceStatus?
   einvoiceNumber     String?
   einvoiceUuid       String?

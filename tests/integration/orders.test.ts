@@ -96,3 +96,30 @@ describe.skipIf(!hasDb)("devoluciones", () => {
     await expect(refundStoreOrder(other.id, { orderId: order.id, restock: true })).rejects.toThrow(/no encontrado/);
   });
 });
+
+describe.skipIf(!hasDb)("archivar y eliminar pedidos", () => {
+  it("archivar oculta sin tocar nada; eliminar solo borra lo que nunca fue una venta real", async () => {
+    const { archiveStoreOrders, deleteStoreOrders, countOpenOrders } = await import("@/server/services/store-order-service");
+    const brand = await createBrand();
+    const product = await createProduct(brand.id, { name: "Placa", price: 10000, stock: 10 });
+    const real = await createPendingOrder(brand.id, [{ productId: product.id, quantity: 1, unitPrice: 10000 }]);
+    await prisma.storeOrder.update({ where: { id: real.id }, data: { status: "PAID", paymentMode: "PRODUCTION", paidAt: new Date() } });
+    const testPaid = await createPendingOrder(brand.id, [{ productId: product.id, quantity: 2, unitPrice: 10000 }]);
+    await prisma.storeOrder.update({ where: { id: testPaid.id }, data: { status: "PAID", paidAt: new Date() } });
+    await prisma.product.update({ where: { id: product.id }, data: { stock: 8 } }); // el pago de prueba descontó 2
+    const abandoned = await createPendingOrder(brand.id, [{ productId: product.id, quantity: 1, unitPrice: 10000 }]);
+
+    expect(await countOpenOrders(brand.id)).toBe(2);
+    await archiveStoreOrders(brand.id, [real.id], true);
+    expect(await countOpenOrders(brand.id)).toBe(1);
+    expect((await prisma.storeOrder.findUniqueOrThrow({ where: { id: real.id } })).status).toBe("PAID");
+
+    const result = await deleteStoreOrders(brand.id, [real.id, testPaid.id, abandoned.id]);
+    expect(result).toEqual({ deleted: 2, skipped: 1 });
+    expect(await prisma.storeOrder.findUnique({ where: { id: real.id } })).not.toBeNull();
+    expect(await prisma.storeOrder.findUnique({ where: { id: testPaid.id } })).toBeNull();
+    expect(await prisma.storeOrder.findUnique({ where: { id: abandoned.id } })).toBeNull();
+    // La compra de prueba pagada devuelve su inventario.
+    expect((await prisma.product.findUniqueOrThrow({ where: { id: product.id } })).stock).toBe(10);
+  });
+});

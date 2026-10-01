@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireBrandProfile } from "@/lib/current-brand";
-import { getBrandOrderDetail } from "@/server/services/store-order-service";
+import { canDeleteStoreOrder, getBrandOrderDetail } from "@/server/services/store-order-service";
+import { OrderArchiveActions } from "@/components/portal/order-archive-actions";
 import { getDataicoConnection } from "@/server/services/dataico-service";
 import { OrderInvoicePanel } from "@/components/portal/order-invoice-panel";
 import {
@@ -116,6 +117,11 @@ export default async function TiendaPedidoDetallePage({
               {FULFILLMENT_LABEL[order.fulfillmentStatus]}
             </span>
           )}
+          <OrderArchiveActions
+            orderId={order.id}
+            archived={order.archivedAt != null}
+            deletable={canDeleteStoreOrder(order)}
+          />
         </div>
       </div>
       <p className="text-sm text-brand-ink-soft mb-6">

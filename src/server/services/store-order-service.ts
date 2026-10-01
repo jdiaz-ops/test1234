@@ -1032,8 +1032,60 @@ export async function countOpenOrders(brandId: string) {
       brandId,
       kind: "PURCHASE",
       status: "PAID",
+      archivedAt: null,
       shippingAddress: { not: null },
       fulfillmentStatus: { in: ["UNFULFILLED", "PREPARED"] },
     },
   });
+}
+
+/// Archivar / desarchivar pedidos (como en Shopify): salen de la lista sin
+/// borrar nada. Ver StoreOrder.archivedAt y conversación del 2026-10-02.
+export async function archiveStoreOrders(brandId: string, orderIds: string[], archived: boolean) {
+  const result = await prisma.storeOrder.updateMany({
+    where: { brandId, id: { in: orderIds } },
+    data: { archivedAt: archived ? new Date() : null },
+  });
+  return { changed: result.count, skipped: orderIds.length - result.count };
+}
+
+/// Un pedido se puede eliminar solo si nunca fue una venta real: un intento
+/// sin pagar (pendiente, rechazado o vencido) o una compra en modo de
+/// prueba de Wompi. Una venta real pagada (o devuelta) no se borra —
+/// tiene factura, comisión y contabilidad —, se archiva. Las muestras
+/// tampoco (las crea una solicitud de muestra).
+export function canDeleteStoreOrder(order: { kind: string; status: string; paymentMode: string }) {
+  if (order.kind !== "PURCHASE") return false;
+  return order.paymentMode === "TEST" || ["PENDING", "FAILED", "EXPIRED"].includes(order.status);
+}
+
+export async function deleteStoreOrders(brandId: string, orderIds: string[]) {
+  const orders = await prisma.storeOrder.findMany({
+    where: { brandId, id: { in: orderIds } },
+    include: { items: { select: { productId: true, variantId: true, quantity: true } } },
+  });
+  let deleted = 0;
+  for (const order of orders) {
+    if (!canDeleteStoreOrder(order)) continue;
+    await prisma.$transaction(async (tx) => {
+      const current = await tx.storeOrder.findUnique({ where: { id: order.id }, select: { status: true, restocked: true } });
+      if (!current) return;
+      // Una compra de prueba pagada descontó inventario: se devuelve,
+      // salvo que ya se haya repuesto con la devolución.
+      if (current.status === "PAID" || (current.status === "REFUNDED" && !current.restocked)) {
+        await applyStockMovements(tx, stockMovements(order.items), 1);
+      }
+      await tx.storeOrder.delete({ where: { id: order.id } });
+    });
+    // Si tenía comisión de creador (compra de prueba con código), se revierte.
+    if (order.discountCode && order.status === "PAID") {
+      try {
+        await recordRefundFromWebhook({ brandId, source: "MARCOLINI", externalOrderId: order.id, refundedAt: new Date() });
+      } catch (err) {
+        console.error(`[mi-tienda] No se pudo revertir la comisión del pedido eliminado ${order.id}:`, err);
+      }
+    }
+    deleted++;
+  }
+  return { deleted, skipped: orderIds.length - deleted };
 }
