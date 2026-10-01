@@ -21,8 +21,9 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "SALE_COMMISSION",
     label: "Venta con su código",
     audience: "CREATOR",
+    channelEmail: true,
     messageTemplate:
-      "¡Alguien compró con tu código en {marca}! Ganaste {monto} de comisión.",
+      "¡Vendiste con tu código en {marca}! Ganaste {monto} de comisión.",
     placeholders: "marca,monto",
   },
   {
@@ -44,32 +45,36 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "SAMPLE_APPROVED",
     label: "Muestra aprobada",
     audience: "CREATOR",
+    channelEmail: true,
     messageTemplate:
-      '{marca} aprobó tu solicitud de muestra: "{producto}" — te la envían pronto.',
+      '{marca} aprobó tu muestra de "{producto}" y pronto te la envía.',
     placeholders: "marca,producto",
   },
   {
     key: "SAMPLE_REJECTED",
     label: "Muestra rechazada",
     audience: "CREATOR",
+    channelEmail: true,
     messageTemplate:
-      '{marca} no pudo enviarte la muestra de "{producto}" esta vez.{razon}',
+      '{marca} no puede enviarte la muestra de "{producto}" esta vez.{razon}',
     placeholders: "marca,producto,razon",
   },
   {
     key: "SAMPLE_OFFERED",
     label: "Una marca te ofreció una muestra",
     audience: "CREATOR",
+    channelEmail: true,
     messageTemplate:
-      '{marca} te quiere regalar una muestra de "{producto}" — revísalo en Muestras.',
+      '{marca} te quiere regalar "{producto}". Acéptala en Solicitar muestras y déjale tu dirección de envío.',
     placeholders: "marca,producto",
   },
   {
     key: "ENROLLMENT_INVITED_CREATOR",
     label: "Una marca te invitó a unirte",
     audience: "CREATOR",
+    channelEmail: true,
     messageTemplate:
-      "{marca} te invitó directo a unirte a su programa — revísalo en Marketplace de marcas.",
+      "{marca} te invitó a su programa de creadores. Revisa la invitación en Marketplace de marcas.",
     placeholders: "marca",
   },
   {
@@ -149,7 +154,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
-      "Te faltan algunos pasos para completar tu perfil de creador — no es obligatorio, pero ayuda a que las marcas confíen más rápido.",
+      'Te faltan unos pasos para completar tu perfil. Termínalo en "Empieza aquí" y las marcas te aprobarán más rápido.',
     placeholders: "",
   },
   {
@@ -158,22 +163,25 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
-      'Todavía te falta terminar tu perfil de creador ({faltantes}) — cuando quieras, está en "Empieza aquí".',
+      'Aún te falta: {faltantes}. Lo terminas en un par de minutos desde "Empieza aquí".',
     placeholders: "faltantes",
   },
   {
     key: "PAYOUT_PENDING",
     label: "Pago en camino",
     audience: "CREATOR",
+    channelEmail: true,
     messageTemplate:
-      "Tienes {monto} en camino — lo transferimos manualmente en los próximos días.",
+      "Tienes {monto} en camino. Te lo transferimos en los próximos días.",
     placeholders: "monto",
   },
   {
     key: "PAYOUT_PAID",
     label: "Pago realizado",
     audience: "CREATOR",
-    messageTemplate: "Te pagamos {monto} — ya deberían verse en tu cuenta.",
+    channelEmail: true,
+    messageTemplate:
+      "Te transferimos {monto}. Ya debería verse en tu cuenta.",
     placeholders: "monto",
   },
   {
@@ -188,47 +196,54 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "ACCOUNT_SUSPENDED",
     label: "Cuenta suspendida",
     audience: "CREATOR",
+    channelEmail: true,
     messageTemplate:
-      "Tu cuenta fue suspendida. Contáctanos si crees que es un error.",
+      "Suspendimos tu cuenta. Si crees que es un error, escríbenos y lo revisamos.",
     placeholders: "",
   },
   {
     key: "ACCOUNT_REACTIVATED",
     label: "Cuenta reactivada",
     audience: "CREATOR",
-    messageTemplate: "Tu cuenta fue reactivada.",
+    channelEmail: true,
+    messageTemplate:
+      "¡Tu cuenta está activa de nuevo! Ya puedes usar Marcolini con normalidad.",
     placeholders: "",
   },
   {
     key: "ENROLLMENT_APPROVED_CREATOR",
     label: "Solicitud de unión aprobada",
     audience: "CREATOR",
+    channelEmail: true,
     messageTemplate:
-      "{marca} aprobó tu solicitud para unirte a su programa — ya puedes usar tu código.",
+      "¡Ya eres parte de {marca}! Tu código está listo en Mis Códigos y Links.",
     placeholders: "marca",
   },
   {
     key: "ENROLLMENT_REJECTED_CREATOR",
     label: "Solicitud de unión rechazada",
     audience: "CREATOR",
+    channelEmail: true,
     messageTemplate:
-      "{marca} no aprobó tu solicitud para unirte a su programa esta vez.",
+      "{marca} no aprobó tu solicitud esta vez. Hay más marcas esperándote en el Marketplace.",
     placeholders: "marca",
   },
   {
     key: "BRAND_PAUSED_CREATOR",
     label: "Marca temporalmente no disponible (Nivel 3)",
     audience: "CREATOR",
+    channelEmail: true,
     messageTemplate:
-      "{marca} está temporalmente no disponible — tu código no está generando ventas por ahora. Te avisamos apenas vuelva.",
+      "{marca} está en pausa por ahora y tu código no está generando ventas. Te avisamos apenas vuelva.",
     placeholders: "marca",
   },
   {
     key: "BRAND_RESUMED_CREATOR",
     label: "Marca disponible de nuevo",
     audience: "CREATOR",
+    channelEmail: true,
     messageTemplate:
-      "¡{marca} ya está disponible de nuevo! Tu código vuelve a funcionar normal.",
+      "¡{marca} volvió! Tu código funciona de nuevo; buen momento para compartirlo.",
     placeholders: "marca",
   },
 
@@ -244,16 +259,18 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "SAMPLE_REQUESTED",
     label: "Creador solicitó una muestra",
     audience: "BRAND",
+    channelEmail: true,
     messageTemplate:
-      '{creador} solicitó una muestra de "{producto}" — revísalo en Mi tienda → Muestras.',
+      '{creador} quiere probar "{producto}". Aprueba o rechaza la muestra en Muestras.',
     placeholders: "creador,producto",
   },
   {
     key: "SAMPLE_OFFER_ACCEPTED",
     label: "Creador aceptó tu oferta de muestra",
     audience: "BRAND",
+    channelEmail: true,
     messageTemplate:
-      '{creador} aceptó tu oferta de muestra de "{producto}" — ya puedes ver el pedido en Pedidos.',
+      '{creador} aceptó tu muestra de "{producto}". Ya está en Pedidos, lista para despachar.',
     placeholders: "creador,producto",
   },
   {
@@ -283,8 +300,9 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     key: "ENROLLMENT_INVITATION_DECLINED",
     label: "Creador rechazó tu invitación",
     audience: "BRAND",
+    channelEmail: true,
     messageTemplate:
-      "{creador} no aceptó tu invitación a unirse a tu programa.",
+      "{creador} no aceptó tu invitación esta vez.",
     placeholders: "creador",
   },
   {
@@ -300,7 +318,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:
-      "Nuevo corte: debes {monto} (comisiones, tarifa y premios de campañas). Fecha límite: {fecha}",
+      "Tu corte está listo: {monto} en comisiones y tarifas. Fecha límite: {fecha}.",
     placeholders: "monto,fecha",
   },
   {
@@ -308,15 +326,17 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     label: "Comprobante verificado",
     audience: "BRAND",
     channelEmail: true,
-    messageTemplate: "Verificamos tu pago — tu marca está activa de nuevo.",
+    messageTemplate:
+      "Verificamos tu pago. ¡Gracias! Todo está al día.",
     placeholders: "",
   },
   {
     key: "BRAND_PAYMENT_REJECTED",
     label: "Comprobante rechazado",
     audience: "BRAND",
+    channelEmail: true,
     messageTemplate:
-      "Tu comprobante no se pudo verificar: {razon}. Sube uno nuevo desde Cuenta → Pago.",
+      "No pudimos verificar tu comprobante: {razon}. Sube uno nuevo en Configuración → Plan y facturación.",
     placeholders: "razon",
   },
   {
@@ -325,7 +345,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:
-      "Te quedan {horas} para pagar tu corte de {monto} — vence {fecha}",
+      "Te quedan {horas} para pagar tu corte de {monto}. Vence {fecha}.",
     placeholders: "horas,monto,fecha",
   },
   {
@@ -334,7 +354,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:
-      "Tu cuenta quedó temporalmente inhabilitada por falta de pago verificado — sigues visible en el marketplace y los códigos de tus creadores siguen funcionando, pero no tienes acceso al panel. Sube tu comprobante en Cuenta → Pago para reactivarla. Si no se regulariza antes de {fecha}, tu servicio se desactiva por completo.",
+      "Tu acceso al panel está en pausa porque no hemos recibido tu pago. Tu tienda y los códigos de tus creadores siguen funcionando. Entra a Marcolini y sube tu comprobante antes del {fecha} para que el servicio no se desactive.",
     placeholders: "fecha",
   },
   {
@@ -343,7 +363,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:
-      "Última alerta: si no regularizas tu pago antes de {fecha}, tu servicio se desactiva por completo — desapareces del marketplace y los códigos de tus creadores dejan de funcionar. Sube tu comprobante en Cuenta → Pago.",
+      "Última alerta: si no pagas antes del {fecha}, tu servicio se desactiva. Saldrás del marketplace y los códigos de tus creadores dejarán de funcionar.",
     placeholders: "fecha",
   },
   {
@@ -352,30 +372,34 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:
-      "Tu servicio quedó desactivado por falta de pago: desapareciste del marketplace y los códigos de tus creadores ya no atribuyen ventas. Sigues debiendo {monto}. Sube tu comprobante en Cuenta → Pago — apenas lo verifiquemos, se reactiva todo automáticamente.",
+      "Tu servicio está desactivado por falta de pago: no apareces en el marketplace y los códigos de tus creadores no registran ventas. Debes {monto}. Sube tu comprobante y lo reactivamos apenas lo verifiquemos.",
     placeholders: "monto",
   },
   {
     key: "BRAND_APPROVED",
     label: "Marca aprobada",
     audience: "BRAND",
+    channelEmail: true,
     messageTemplate:
-      "¡Tu marca fue aprobada! Ya apareces activa en el marketplace.",
+      "¡Tu marca fue aprobada! Ya apareces en el marketplace y los creadores pueden unirse a tu programa.",
     placeholders: "",
   },
   {
     key: "BRAND_REJECTED",
     label: "Marca rechazada",
     audience: "BRAND",
-    messageTemplate: "Tu marca no fue aprobada esta vez.",
+    channelEmail: true,
+    messageTemplate:
+      "Tu marca no fue aprobada esta vez. Escríbenos si quieres saber por qué.",
     placeholders: "",
   },
   {
     key: "ENROLLMENT_REQUESTED_BRAND",
     label: "Solicitud de unión de un creador",
     audience: "BRAND",
+    channelEmail: true,
     messageTemplate:
-      '{creador} solicitó unirse a tu programa "{oferta}" — revísalo en Creadores.',
+      '{creador} quiere unirse a tu programa "{oferta}". Apruébalo en Creadores.',
     placeholders: "creador,oferta",
   },
 

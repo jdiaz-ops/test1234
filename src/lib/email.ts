@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { portalUrl } from "@/lib/store-url";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -199,8 +200,29 @@ export async function sendOnboardingReminderEmail(
 /// + Admin → Notificaciones → Configuración) que tienen el canal "Correo"
 /// activado pero no tienen una plantilla de correo con diseño propio — usa
 /// el mismo texto que ya se ve en la notificación dentro de la app.
+/// Asunto = primera frase del aviso ("¡Vendiste con tu código en X!"),
+/// recortada si es muy larga.
+export function notificationSubject(message: string): string {
+  const first = (message.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? message).trim();
+  return first.length > 90 ? `${first.slice(0, 87).trimEnd()}…` : first || "Tienes una novedad en Marcolini";
+}
+
+/// Correo de las notificaciones sin plantilla propia (las que tienen
+/// "Correo" prendido en Admin → Notificaciones). Antes salía con asunto
+/// "Marcolini" y el texto pelado; ahora el asunto es la primera frase del
+/// aviso y trae el logo y un botón para entrar (2026-10-01). El texto puede
+/// traer nombres que escribe la gente, por eso se escapa.
 export async function sendGenericNotificationEmail(to: string, message: string) {
-  await send(to, "Marcolini", `<p>${message}</p>`);
+  const site = portalUrl();
+  await send(
+    to,
+    notificationSubject(message),
+    emailLayout(
+      "Marcolini",
+      `${site}/marcolini-logo-lockup.png`,
+      `<p style="font-size:15px">${escapeHtml(message)}</p>${button(`${site}/login`, "Entrar a Marcolini")}`,
+    ),
+  );
 }
 
 /// Comunicado del admin a todas las marcas o a todos los creadores — el
