@@ -174,14 +174,22 @@ export async function updateStoreCustomer(
 /// applyWompiTransactionStatus. Devuelve true si el cliente es nuevo.
 export async function ensureStoreCustomerExists(
   brandId: string,
-  data: { email: string; name: string; phone: string },
+  data: { email: string; name: string; phone: string; emailSubscribed?: boolean },
 ) {
   const normalized = data.email.toLowerCase();
   // createMany + skipDuplicates para saber si es nuevo (true) sin carrera
   // entre dos pedidos simultáneos del mismo comprador.
   const result = await prisma.storeCustomer.createMany({
-    data: [{ brandId, email: normalized, name: data.name, phone: data.phone }],
+    data: [{ brandId, email: normalized, name: data.name, phone: data.phone, emailSubscribed: data.emailSubscribed ?? false }],
     skipDuplicates: true,
   });
+  // Si ya existía y esta vez pidió novedades, se suscribe (nunca se
+  // desuscribe por no marcar la casilla en otra compra).
+  if (result.count === 0 && data.emailSubscribed) {
+    await prisma.storeCustomer.update({
+      where: { brandId_email: { brandId, email: normalized } },
+      data: { emailSubscribed: true },
+    });
+  }
   return result.count > 0;
 }

@@ -53,6 +53,16 @@ export const createStoreOrderSchema = z.object({
     .optional()
     .or(z.literal("")),
   billingName: z.string().trim().max(200).optional().or(z.literal("")),
+  billingAddress: z.string().trim().max(300).optional().or(z.literal("")),
+  billingCity: z.string().trim().max(100).optional().or(z.literal("")),
+  billingRegion: z.string().trim().max(100).optional().or(z.literal("")),
+  /// Checkout de una página: nombre y apellidos por separado (buyerName
+  /// sigue llegando con el nombre completo).
+  buyerFirstName: z.string().trim().max(100).optional().or(z.literal("")),
+  buyerLastName: z.string().trim().max(100).optional().or(z.literal("")),
+  shippingPostalCode: z.string().trim().max(12).optional().or(z.literal("")),
+  /// "Enviarme novedades y ofertas por correo".
+  acceptsMarketing: z.boolean().optional(),
   /// Autorización de tratamiento de datos personales (Ley 1581): sin ella
   /// no se crea el pedido.
   dataConsent: z.literal(true, {

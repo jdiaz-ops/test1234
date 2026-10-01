@@ -227,7 +227,9 @@ export function buildOrderPayload(order: OrderForPayload) {
   const currency = order.currency;
   const rate = Number(order.brand.taxRatePercent) / 100;
   const id = order.number;
-  const { first, last } = splitName(order.buyerName);
+  const split = splitName(order.buyerName);
+  const first = order.buyerFirstName?.trim() || split.first;
+  const last = order.buyerLastName?.trim() || split.last;
   const address = order.shippingAddress
     ? {
         first_name: first,
@@ -239,11 +241,31 @@ export function buildOrderPayload(order: OrderForPayload) {
         province: order.shippingRegion,
         country: "Colombia",
         country_code: "CO",
-        zip: null,
+        zip: order.shippingPostalCode,
         phone: order.buyerPhone,
         company: order.billingName,
       }
     : null;
+  // Dirección de facturación distinta (si la dio en el checkout).
+  const billingAddress =
+    order.billingAddress && address
+      ? { ...address, address1: order.billingAddress, city: order.billingCity, province: order.billingRegion, zip: null }
+      : order.billingAddress
+        ? {
+            first_name: first,
+            last_name: last,
+            name: order.buyerName,
+            address1: order.billingAddress,
+            address2: null,
+            city: order.billingCity,
+            province: order.billingRegion,
+            country: "Colombia",
+            country_code: "CO",
+            zip: null,
+            phone: order.buyerPhone,
+            company: order.billingName,
+          }
+        : address;
 
   // El descuento del código se reparte entre las líneas en proporción a lo
   // que pesa cada una, como lo hace Shopify con discount_allocations.
@@ -357,8 +379,8 @@ export function buildOrderPayload(order: OrderForPayload) {
         ? [
             {
               id: id * 1000,
-              title: "Envío",
-              code: "Envío",
+              title: order.shippingMethod ?? "Envío",
+              code: order.shippingMethod ?? "Envío",
               source: "marcolini",
               price: money(order.shippingCents),
               price_set: moneySet(order.shippingCents, currency),
@@ -368,7 +390,8 @@ export function buildOrderPayload(order: OrderForPayload) {
           ]
         : [],
     shipping_address: address,
-    billing_address: address,
+    billing_address: billingAddress,
+    buyer_accepts_marketing: order.acceptsMarketing,
     customer: customerPayload({
       email: order.buyerEmail,
       name: order.buyerName,

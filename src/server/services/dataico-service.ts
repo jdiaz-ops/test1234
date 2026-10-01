@@ -246,8 +246,11 @@ function customerFor(order: InvoiceOrder) {
   }
   // El NIT va sin dígito de verificación ("900123456-7" → "900123456").
   const identification = type === "NIT" ? raw.replace(/-\d$/, "").replace(/\D/g, "") : raw.replace(/[\s.]/g, "");
-  const { first, last } = splitName(order.buyerName);
+  const split = splitName(order.buyerName);
+  const first = order.buyerFirstName?.trim() || split.first;
+  const last = order.buyerLastName?.trim() || split.last;
   const company = type === "NIT";
+  const addressLine = order.billingAddress ?? order.shippingAddress;
   return {
     party_identification: identification,
     party_identification_type: type,
@@ -257,7 +260,7 @@ function customerFor(order: InvoiceOrder) {
     ...(company ? { company_name: order.billingName?.trim() || order.buyerName } : { first_name: first, family_name: last }),
     email: order.buyerEmail,
     phone: order.buyerPhone,
-    ...(order.shippingAddress ? { address_line: order.shippingAddress } : {}),
+    ...(addressLine ? { address_line: addressLine } : {}),
     country_code: "CO",
   };
 }

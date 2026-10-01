@@ -45,5 +45,5 @@ export async function POST(
       { status: 400 },
     );
   }
-  return NextResponse.json({ ok: true, shippingCents: result.shippingCents });
+  return NextResponse.json({ ok: true, shippingCents: result.shippingCents, rateName: result.rateName });
 }

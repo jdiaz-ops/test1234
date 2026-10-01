@@ -185,6 +185,15 @@ export default async function TiendaPedidoDetallePage({
                 Cliente
               </p>
               <p className="text-brand-ink">{order.buyerName}</p>
+              {order.billingIdType && order.billingIdNumber && (
+                <p className="text-brand-ink-soft text-xs">
+                  {order.billingIdType} {order.billingIdNumber}
+                  {order.billingName && ` · ${order.billingName}`}
+                </p>
+              )}
+              {order.acceptsMarketing && (
+                <p className="text-brand-ink-soft text-xs">Acepta novedades por correo</p>
+              )}
             </div>
             <div>
               <p className="text-xs font-medium text-brand-ink-soft mb-1">
@@ -211,11 +220,26 @@ export default async function TiendaPedidoDetallePage({
                   <p className="text-brand-ink">
                     {order.shippingCity}
                     {order.shippingRegion && `, ${order.shippingRegion}`}
+                    {order.shippingPostalCode && ` · ${order.shippingPostalCode}`}
                   </p>
+                  {order.shippingMethod && (
+                    <p className="text-brand-ink-soft text-xs mt-1">{order.shippingMethod}</p>
+                  )}
                 </>
               )}
             </div>
           </div>
+
+          {order.billingAddress && (
+            <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 text-sm">
+              <p className="text-xs font-medium text-brand-ink-soft mb-1">Dirección de facturación</p>
+              <p className="text-brand-ink">{order.billingAddress}</p>
+              <p className="text-brand-ink">
+                {order.billingCity}
+                {order.billingRegion && `, ${order.billingRegion}`}
+              </p>
+            </div>
+          )}
 
           {(order.discountCode || creator) && (
             <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-1.5 text-sm">

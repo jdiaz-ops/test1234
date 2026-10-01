@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useCart } from "@/components/storefront/cart-context";
 import { cartLineKey } from "@/lib/storefront-cart";
 import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
 import { taxIncluded, orderTotal } from "@/lib/order-math";
-import {
-  WompiCheckoutButton,
-  type WompiWidgetParams,
-} from "@/components/storefront/wompi-checkout-button";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -18,8 +14,131 @@ function formatCOP(amount: number) {
   }).format(amount);
 }
 
+const ID_TYPES = [
+  { value: "CC", label: "CC", field: "Cédula" },
+  { value: "NIT", label: "NIT", field: "NIT" },
+  { value: "CE", label: "CE", field: "Cédula de extranjería" },
+  { value: "PASAPORTE", label: "Pasaporte", field: "Pasaporte" },
+  { value: "PPT", label: "PPT", field: "PPT" },
+] as const;
+
+const inputClass =
+  "peer block w-full rounded-lg border border-brand-line bg-brand-surface px-3 pt-5 pb-1.5 text-sm text-brand-ink placeholder-transparent focus:border-brand-ink focus:outline-none focus:ring-1 focus:ring-brand-ink";
+
+/// Campo con la etiqueta adentro, como en el checkout de Shopify: grande
+/// mientras está vacío, chiquita arriba cuando se escribe.
+function Field({
+  label,
+  value,
+  onChange,
+  required,
+  optional,
+  type = "text",
+  inputMode,
+  autoComplete,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+  optional?: boolean;
+  type?: string;
+  inputMode?: "text" | "numeric" | "tel" | "email";
+  autoComplete?: string;
+  className?: string;
+}) {
+  const id = useId();
+  return (
+    <div className={`relative ${className}`}>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
+        placeholder={label}
+        className={inputClass}
+      />
+      <label
+        htmlFor={id}
+        className="pointer-events-none absolute left-3 right-3 top-1.5 truncate text-[11px] text-brand-ink-soft transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-sm peer-focus:top-1.5 peer-focus:translate-y-0 peer-focus:text-[11px]"
+      >
+        {label}
+        {optional && " (opcional)"}
+      </label>
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  required,
+  children,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const id = useId();
+  return (
+    <div className={`relative ${className}`}>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        className="block w-full appearance-none rounded-lg border border-brand-line bg-brand-surface px-3 pt-5 pb-1.5 pr-8 text-sm text-brand-ink focus:border-brand-ink focus:outline-none focus:ring-1 focus:ring-brand-ink"
+      >
+        {children}
+      </select>
+      <label htmlFor={id} className="pointer-events-none absolute left-3 top-1.5 text-[11px] text-brand-ink-soft">
+        {label}
+      </label>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-brand-ink-soft"
+        aria-hidden="true"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </div>
+  );
+}
+
+function Section({ title, children, aside }: { title: string; children: React.ReactNode; aside?: React.ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-lg font-semibold text-brand-ink">{title}</h2>
+        {aside}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/// Checkout de una sola página, como el de Shopify: contacto, entrega (con
+/// cédula o NIT), métodos de envío, pago con Wompi y dirección de
+/// facturación a la izquierda; el resumen del pedido a la derecha. "Pagar
+/// ahora" crea el pedido y lleva directo a la página de pago de Wompi —
+/// antes había un paso intermedio con un segundo botón. Ver conversación
+/// del 2026-10-01.
 export function CheckoutForm({
-  askBilling = false,
+  requireBillingId = false,
   brandSlug,
   basePath = `/t/${brandSlug}`,
   taxRatePercent,
@@ -29,46 +148,46 @@ export function CheckoutForm({
   brandSlug: string;
   /// Prefijo de los links de la tienda ("" en el subdominio).
   basePath?: string;
-  /// BrandProfile.taxRatePercent — solo para mostrar cuánto IVA va incluido; un
-  /// estimado en el resumen; el monto real que se cobra lo calcula
-  /// createStoreOrder en el servidor. Ver conversación del 2026-09-14.
+  /// BrandProfile.taxRatePercent — solo para mostrar cuánto IVA va
+  /// incluido; el monto real lo calcula createStoreOrder en el servidor.
   taxRatePercent: number;
   paymentsReady: boolean;
-  /// Código de la cookie de atribución de primera parte (ver src/proxy.ts
-  /// y buildProductLink en lib/brand-store-link.ts) — si el comprador
-  /// llegó por el link de un creador y no escribe un código a mano, se
-  /// aplica solo al montar.
+  /// Código de la cookie de atribución de primera parte (ver src/proxy.ts)
+  /// — si el comprador llegó por el link de un creador se aplica solo.
   referredCode?: string | null;
-  /// La tienda factura electrónicamente (Dataico): se ofrece pedir la
-  /// factura a nombre propio. Sin marcarlo, va a consumidor final.
-  askBilling?: boolean;
+  /// La tienda factura electrónicamente (Dataico): la cédula o NIT es
+  /// obligatoria. Si no, el campo es opcional.
+  requireBillingId?: boolean;
 }) {
   const { items, subtotal, discountCode: cartDiscountCode } = useCart();
-  // Un carrito nunca mezcla tipos (ver cart-context.tsx) — con que mire el
-  // primer ítem alcanza para saber de qué tipo es todo el pedido.
+  // Un carrito nunca mezcla tipos (ver cart-context.tsx).
   const isServiceOrder = items[0]?.type === "SERVICE";
   const isDigitalOrder = items[0]?.type === "DIGITAL";
-  // Solo un pedido con productos físicos pide dirección/envío.
   const needsShipping = !isServiceOrder && !isDigitalOrder;
 
-  const [buyerName, setBuyerName] = useState("");
-  const [buyerEmail, setBuyerEmail] = useState("");
-  const [buyerPhone, setBuyerPhone] = useState("");
-  const [shippingAddress, setShippingAddress] = useState("");
-  const [shippingCity, setShippingCity] = useState("");
-  const [shippingRegion, setShippingRegion] = useState("");
-  const [shippingNotes, setShippingNotes] = useState("");
+  const [email, setEmail] = useState("");
+  const [acceptsMarketing, setAcceptsMarketing] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [idType, setIdType] = useState("CC");
+  const [idNumber, setIdNumber] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [address, setAddress] = useState("");
+  const [address2, setAddress2] = useState("");
+  const [city, setCity] = useState("");
+  const [region, setRegion] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [phone, setPhone] = useState("");
+  const [sameBilling, setSameBilling] = useState(true);
+  const [billingAddress, setBillingAddress] = useState("");
+  const [billingCity, setBillingCity] = useState("");
+  const [billingRegion, setBillingRegion] = useState("");
   // Autorización de datos personales (Ley 1581) — obligatoria para pagar.
-  // Ver conversación del 2026-10-01.
   const [dataConsent, setDataConsent] = useState(false);
-  const [wantsInvoice, setWantsInvoice] = useState(false);
-  const [billingIdType, setBillingIdType] = useState("CC");
-  const [billingIdNumber, setBillingIdNumber] = useState("");
-  const [billingName, setBillingName] = useState("");
   const [servicePreferredAt, setServicePreferredAt] = useState("");
-  // Date.now() es impuro — no se puede llamar en render ni en un useMemo
-  // (las reglas de pureza de React lo bloquean). Se lee una sola vez, tras
-  // montar, igual que se hace con localStorage en cart-context.tsx.
+  const [summaryOpen, setSummaryOpen] = useState(false);
+
+  // Date.now() es impuro — se lee una sola vez tras montar.
   const [minServiceDate, setMinServiceDate] = useState("");
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Date.now() es impuro, solo se puede leer tras montar
@@ -80,12 +199,8 @@ export function CheckoutForm({
   const [discountPercent, setDiscountPercent] = useState<number | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
 
-  // Precarga un código, en orden de prioridad: el que el comprador ya
-  // aplicó a mano en el carrito (ver theme.cart.allowCoupon en
-  // CartList) gana sobre el de la cookie de atribución (ver
-  // src/proxy.ts) — si escribió uno explícito, es una señal más fuerte
-  // que la pasiva. Nunca pisa uno que ya haya escrito a mano en este
-  // mismo formulario (por eso solo corre una vez, al montar).
+  // Precarga el código del carrito o de la cookie de atribución (el del
+  // carrito gana). Solo al montar.
   useEffect(() => {
     const initialCode = cartDiscountCode || referredCode;
     if (initialCode) {
@@ -97,37 +212,26 @@ export function CheckoutForm({
   }, []);
 
   const [submitting, setSubmitting] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [wompiParams, setWompiParams] = useState<WompiWidgetParams | null>(
-    null,
-  );
 
-  const discountAmount = discountPercent
-    ? Math.round((subtotal * discountPercent) / 100)
-    : 0;
+  const discountAmount = discountPercent ? Math.round((subtotal * discountPercent) / 100) : 0;
   const afterDiscount = subtotal - discountAmount;
 
-  // Ya no hay tarifa única de respaldo (ver createStoreOrder) — el costo
-  // real depende de la zona de envío que cubra el departamento elegido, así
-  // que se cotiza en vivo apenas el comprador lo elige. El peso del
-  // carrito no se manda (el carrito del navegador no lo guarda por ítem)
-  // así que una tarifa condicionada por peso puede dar un estimado
-  // distinto al cobro real — el que manda siempre es el que recalcula
-  // createStoreOrder al confirmar.
-  // `amount` en pesos, como todo el resto de este formulario (subtotal,
-  // IVA, total). La API cotiza en centavos — se convierte al recibir; antes
-  // se sumaban los centavos como si fueran pesos y el envío salía 100
-  // veces más caro ($8.000 → $800.000). Ver conversación del 2026-09-30.
+  // El envío depende de la zona que cubra el departamento: se cotiza en
+  // vivo apenas lo eligen (en pesos; la API responde centavos). El cobro
+  // real lo recalcula createStoreOrder al confirmar.
   const [shippingQuote, setShippingQuote] = useState<{
     amount: number | null;
+    name: string | null;
     error: string | null;
     loading: boolean;
-  }>({ amount: null, error: null, loading: false });
+  }>({ amount: null, name: null, error: null, loading: false });
 
   useEffect(() => {
-    if (!needsShipping || !shippingRegion) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetea la cotización cuando el comprador borra/cambia de tipo de pedido, no hay forma de derivarlo sin guardar estado
-      setShippingQuote({ amount: null, error: null, loading: false });
+    if (!needsShipping || !region) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetea la cotización cuando se borra el departamento
+      setShippingQuote({ amount: null, name: null, error: null, loading: false });
       return;
     }
     let cancelled = false;
@@ -135,41 +239,33 @@ export function CheckoutForm({
     fetch(`/api/tienda/${brandSlug}/envio`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        region: shippingRegion,
-        orderAmountCents: Math.round(afterDiscount * 100),
-        weightKg: 0,
-      }),
+      body: JSON.stringify({ region, orderAmountCents: Math.round(afterDiscount * 100), weightKg: 0 }),
     })
       .then((r) => r.json())
       .then((body) => {
         if (cancelled) return;
         if (body?.ok) {
-          setShippingQuote({ amount: body.shippingCents / 100, error: null, loading: false });
+          setShippingQuote({ amount: body.shippingCents / 100, name: body.rateName ?? null, error: null, loading: false });
         } else {
-          setShippingQuote({ amount: null, error: body?.error ?? "No se pudo cotizar el envío.", loading: false });
+          setShippingQuote({ amount: null, name: null, error: body?.error ?? "No se pudo cotizar el envío.", loading: false });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setShippingQuote({ amount: null, error: "No se pudo cotizar el envío — revisa tu conexión.", loading: false });
+          setShippingQuote({ amount: null, name: null, error: "No se pudo cotizar el envío — revisa tu conexión.", loading: false });
         }
       });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- afterDiscount cambia con cada tecla del código de descuento, no hace falta recotizar por eso solo
-  }, [brandSlug, needsShipping, shippingRegion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- afterDiscount cambia con cada tecla del código, no hace falta recotizar por eso
+  }, [brandSlug, needsShipping, region]);
 
   const shippingCost = shippingQuote.amount ?? 0;
-  // Los precios que la marca carga ya traen el IVA (precio al público, como
-  // en Colombia). El IVA se muestra solo como información — la parte del
-  // subtotal que corresponde al impuesto — y NO se suma al total. Antes se
-  // sumaba encima del precio y el comprador pagaba de más. Mismo cálculo
-  // en el servidor (ver store-order-service.ts). Ver conversación del
-  // 2026-09-30.
+  // Los precios ya traen el IVA: se muestra cuánto va incluido, no se suma.
   const taxAmount = taxIncluded(afterDiscount, taxRatePercent);
   const total = orderTotal({ subtotal, discount: discountAmount, shipping: shippingCost });
+  const itemCount = items.reduce((n, i) => n + i.quantity, 0);
 
   async function handleApplyCode(codeOverride?: string) {
     const toApply = codeOverride ?? code;
@@ -205,6 +301,10 @@ export function CheckoutForm({
     setSubmitting(true);
     setSubmitError(null);
 
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+    const fullAddress = [address.trim(), address2.trim()].filter(Boolean).join(", ");
+    const hasId = idNumber.trim().length > 0;
+
     try {
       const res = await fetch(`/api/tienda/${brandSlug}/ordenes`, {
         method: "POST",
@@ -215,25 +315,26 @@ export function CheckoutForm({
             ...(i.variantId ? { variantId: i.variantId } : {}),
             quantity: i.quantity,
           })),
-          buyerName,
-          buyerEmail,
-          buyerPhone,
-          shippingAddress: needsShipping ? shippingAddress : "",
-          shippingCity: needsShipping ? shippingCity : "",
-          shippingRegion: needsShipping ? shippingRegion : "",
-          shippingNotes,
-          // Colombia no tiene horario de verano — UTC-5 todo el año, así
-          // que un offset fijo alcanza para que el datetime-local (que no
-          // trae zona horaria) llegue al servidor como un instante sin
-          // ambigüedad, sin importar en qué zona corra el servidor.
-          servicePreferredAt:
-            isServiceOrder && servicePreferredAt
-              ? `${servicePreferredAt}:00-05:00`
-              : "",
+          buyerName: fullName,
+          buyerFirstName: firstName,
+          buyerLastName: lastName,
+          buyerEmail: email,
+          buyerPhone: phone,
+          shippingAddress: needsShipping ? fullAddress : "",
+          shippingCity: needsShipping ? city : "",
+          shippingRegion: needsShipping ? region : "",
+          shippingPostalCode: needsShipping ? postalCode : "",
+          // Colombia es UTC-5 todo el año: offset fijo para que el
+          // datetime-local llegue al servidor sin ambigüedad.
+          servicePreferredAt: isServiceOrder && servicePreferredAt ? `${servicePreferredAt}:00-05:00` : "",
           discountCode: discountPercent ? code : "",
           dataConsent,
-          ...(askBilling && wantsInvoice && billingIdNumber.trim()
-            ? { billingIdType, billingIdNumber, billingName: billingIdType === "NIT" ? billingName : "" }
+          acceptsMarketing,
+          ...(hasId
+            ? { billingIdType: idType, billingIdNumber: idNumber, billingName: idType === "NIT" ? companyName : "" }
+            : {}),
+          ...(needsShipping && !sameBilling
+            ? { billingAddress, billingCity, billingRegion }
             : {}),
         }),
       });
@@ -242,7 +343,9 @@ export function CheckoutForm({
         setSubmitError(body?.error ?? "No se pudo crear el pedido.");
         return;
       }
-      setWompiParams(body.wompi);
+      // Directo a la página de pago de Wompi, con los datos ya llenos.
+      setRedirecting(true);
+      window.location.assign(body.checkoutUrl);
     } catch {
       setSubmitError("No se pudo crear el pedido — revisa tu conexión.");
     } finally {
@@ -250,197 +353,339 @@ export function CheckoutForm({
     }
   }
 
-  if (items.length === 0 && !wompiParams) {
+  if (items.length === 0 && !redirecting) {
     return (
-      <p className="text-sm text-brand-ink-soft">
-        Tu carrito está vacío — vuelve a la tienda y agrega algún producto.
-      </p>
+      <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-3">
+        <p className="text-sm text-brand-ink-soft">Tu carrito está vacío.</p>
+        <a href={basePath || "/"} className="text-sm font-medium text-brand-accent hover:underline">
+          Volver a la tienda
+        </a>
+      </div>
     );
   }
 
-  return (
-    <div className="grid md:grid-cols-2 gap-8">
-      <div className="order-2 md:order-1">
-        {!wompiParams ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm text-brand-ink mb-1">
-                  Nombre completo
-                </label>
-                <input
-                  required
-                  value={buyerName}
-                  onChange={(e) => setBuyerName(e.target.value)}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-brand-ink mb-1">
-                  Teléfono
-                </label>
-                <input
-                  required
-                  value={buyerPhone}
-                  onChange={(e) => setBuyerPhone(e.target.value)}
-                  className="input"
-                />
-              </div>
-            </div>
+  const idTypeInfo = ID_TYPES.find((t) => t.value === idType) ?? ID_TYPES[0];
+  const shippingBlocked =
+    needsShipping && (!region || shippingQuote.loading || shippingQuote.amount == null || Boolean(shippingQuote.error));
 
-            <div>
-              <label className="block text-sm text-brand-ink mb-1">
-                Correo
-              </label>
+  const summary = (
+    <div className="space-y-5">
+      <ul className="space-y-3">
+        {items.map((item) => (
+          <li key={cartLineKey(item)} className="flex items-center gap-3">
+            <span className="relative shrink-0">
+              {item.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- foto del producto subida por la marca
+                <img
+                  src={item.imageUrl}
+                  alt=""
+                  className="w-16 h-16 rounded-lg object-cover border border-brand-line bg-brand-surface"
+                />
+              ) : (
+                <span className="block w-16 h-16 rounded-lg border border-brand-line bg-brand-surface" />
+              )}
+              <span className="absolute -top-2 -right-2 min-w-[22px] h-[22px] px-1 rounded-full bg-brand-ink text-brand-bg text-xs font-medium flex items-center justify-center">
+                {item.quantity}
+              </span>
+            </span>
+            <span className="flex-1 min-w-0 text-sm">
+              <span className="block text-brand-ink truncate">{item.name}</span>
+              {item.variantLabel && <span className="block text-xs text-brand-ink-soft">{item.variantLabel}</span>}
+            </span>
+            <span className="text-sm text-brand-ink tabular-nums">{formatCOP(item.price * item.quantity)}</span>
+          </li>
+        ))}
+      </ul>
+
+      {/* El código de creador sigue a la vista: de ahí sale la estrategia
+          de Marcolini con los creadores. */}
+      <div className="space-y-1.5">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value.toUpperCase());
+                setDiscountPercent(null);
+              }}
+              placeholder="Código de descuento o de creador"
+              autoCapitalize="characters"
+              spellCheck={false}
+              aria-label="Código de descuento o de creador"
+              className="block w-full rounded-lg border border-brand-line bg-brand-surface px-3 py-3 text-sm text-brand-ink uppercase placeholder:normal-case placeholder:text-brand-ink-soft focus:border-brand-ink focus:outline-none focus:ring-1 focus:ring-brand-ink"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => handleApplyCode()}
+            disabled={checkingCode || !code.trim()}
+            className="rounded-lg border border-brand-line bg-brand-surface px-4 text-sm font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
+          >
+            {checkingCode ? "..." : "Aplicar"}
+          </button>
+        </div>
+        {codeError && <p className="text-xs text-red-600">{codeError}</p>}
+        {discountPercent != null && (
+          <p className="text-xs text-brand-ink font-medium">Código aplicado: {discountPercent}% de descuento.</p>
+        )}
+      </div>
+
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between text-brand-ink">
+          <span>
+            Subtotal · {itemCount} {itemCount === 1 ? "artículo" : "artículos"}
+          </span>
+          <span className="tabular-nums">{formatCOP(subtotal)}</span>
+        </div>
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-brand-accent">
+            <span>Descuento ({code})</span>
+            <span className="tabular-nums">-{formatCOP(discountAmount)}</span>
+          </div>
+        )}
+        {needsShipping && (
+          <div className="flex justify-between text-brand-ink">
+            <span>Envío</span>
+            <span className="tabular-nums text-brand-ink-soft">
+              {!region
+                ? "Ingresa tu dirección"
+                : shippingQuote.loading
+                  ? "Calculando..."
+                  : shippingQuote.amount == null
+                    ? "—"
+                    : shippingCost === 0
+                      ? "Gratis"
+                      : formatCOP(shippingCost)}
+            </span>
+          </div>
+        )}
+        <div className="flex items-baseline justify-between pt-2">
+          <span className="text-lg font-semibold text-brand-ink">Total</span>
+          <span className="text-brand-ink">
+            <span className="text-xs text-brand-ink-soft mr-1.5">COP</span>
+            <span className="text-lg font-semibold tabular-nums">{formatCOP(total)}</span>
+          </span>
+        </div>
+        {taxAmount > 0 && (
+          <p className="text-xs text-brand-ink-soft -mt-1">Incluye {formatCOP(taxAmount)} de IVA</p>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:min-h-[calc(100vh-5rem)]">
+      {/* Resumen arriba, plegable, en el celular — como Shopify. */}
+      <div className="lg:hidden border-b border-brand-line bg-[color-mix(in_srgb,var(--brand-ink)_4%,var(--brand-bg))]">
+        <button
+          type="button"
+          onClick={() => setSummaryOpen((o) => !o)}
+          aria-expanded={summaryOpen}
+          className="w-full flex items-center justify-between px-4 py-4 text-sm"
+        >
+          <span className="flex items-center gap-1.5 text-brand-accent font-medium">
+            {summaryOpen ? "Ocultar resumen del pedido" : "Mostrar resumen del pedido"}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={`transition-transform ${summaryOpen ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </span>
+          <span className="font-semibold text-brand-ink tabular-nums">{formatCOP(total)}</span>
+        </button>
+        {summaryOpen && <div className="px-4 pb-5">{summary}</div>}
+      </div>
+
+      <div className="bg-brand-surface lg:border-r lg:border-brand-line">
+        <form onSubmit={handleSubmit} className="max-w-xl px-4 sm:px-8 py-8 space-y-8 lg:ml-auto lg:pr-12">
+          <Section title="Contacto">
+            <Field label="Correo electrónico" type="email" inputMode="email" autoComplete="email" required value={email} onChange={setEmail} />
+            <label className="flex items-center gap-2.5 text-sm text-brand-ink cursor-pointer">
               <input
-                required
-                type="email"
-                value={buyerEmail}
-                onChange={(e) => setBuyerEmail(e.target.value)}
-                className="input"
+                type="checkbox"
+                checked={acceptsMarketing}
+                onChange={(e) => setAcceptsMarketing(e.target.checked)}
+                className="w-4 h-4 shrink-0 accent-brand-ink"
+              />
+              Enviarme novedades y ofertas por correo electrónico
+            </label>
+          </Section>
+
+          <Section title={needsShipping ? "Entrega" : "Tus datos"}>
+            {needsShipping && (
+              <SelectField label="País / Región" value="CO" onChange={() => {}}>
+                <option value="CO">Colombia</option>
+              </SelectField>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nombre" autoComplete="given-name" required value={firstName} onChange={setFirstName} />
+              <Field label="Apellidos" autoComplete="family-name" required value={lastName} onChange={setLastName} />
+            </div>
+            <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3">
+              <SelectField label="Documento" value={idType} onChange={setIdType}>
+                {ID_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </SelectField>
+              <Field
+                label={idType === "CC" ? "Cédula o NIT" : idTypeInfo.field}
+                inputMode={idType === "PASAPORTE" ? "text" : "numeric"}
+                required={requireBillingId}
+                optional={!requireBillingId}
+                value={idNumber}
+                onChange={setIdNumber}
               />
             </div>
-
-            {askBilling && (
-              <div className="space-y-3">
-                <label className="flex items-center gap-2.5 text-sm text-brand-ink cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={wantsInvoice}
-                    onChange={(e) => setWantsInvoice(e.target.checked)}
-                    className="w-4 h-4 shrink-0"
-                  />
-                  Quiero la factura electrónica a mi nombre o de mi empresa
-                </label>
-                {wantsInvoice && (
-                  <div className="grid grid-cols-[minmax(0,11rem)_1fr] gap-3">
-                    <div>
-                      <label className="block text-sm text-brand-ink mb-1">Documento</label>
-                      <select value={billingIdType} onChange={(e) => setBillingIdType(e.target.value)} className="input">
-                        <option value="CC">Cédula</option>
-                        <option value="NIT">NIT (empresa)</option>
-                        <option value="CE">Cédula de extranjería</option>
-                        <option value="PASAPORTE">Pasaporte</option>
-                        <option value="PPT">PPT</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-brand-ink mb-1">Número</label>
-                      <input
-                        required
-                        inputMode={billingIdType === "PASAPORTE" ? "text" : "numeric"}
-                        value={billingIdNumber}
-                        onChange={(e) => setBillingIdNumber(e.target.value)}
-                        placeholder={billingIdType === "NIT" ? "900123456-7" : ""}
-                        className="input"
-                      />
-                    </div>
-                    {billingIdType === "NIT" && (
-                      <div className="col-span-2">
-                        <label className="block text-sm text-brand-ink mb-1">Razón social</label>
-                        <input
-                          required
-                          value={billingName}
-                          onChange={(e) => setBillingName(e.target.value)}
-                          className="input"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {isServiceOrder ? (
-              <div>
-                <label className="block text-sm text-brand-ink mb-1">
-                  Fecha y hora que prefieres
-                </label>
-                <input
-                  required
-                  type="datetime-local"
-                  min={minServiceDate}
-                  value={servicePreferredAt}
-                  onChange={(e) => setServicePreferredAt(e.target.value)}
-                  className="input"
-                />
-                <p className="text-xs text-brand-ink-soft mt-1">
-                  Es tu preferencia — la marca la confirma (o te propone otra)
-                  después de tu pago.
-                </p>
-              </div>
-            ) : needsShipping ? (
-              <div>
-                <label className="block text-sm text-brand-ink mb-1">
-                  Dirección de envío
-                </label>
-                <input
-                  required
-                  value={shippingAddress}
-                  onChange={(e) => setShippingAddress(e.target.value)}
-                  className="input"
-                />
-              </div>
-            ) : (
-              <p className="text-sm text-brand-ink-soft rounded-xl border border-brand-line p-3">
-                Es un producto digital — no se envía. Recibes el link de
-                descarga/acceso apenas se confirme tu pago.
-              </p>
+            {idType === "NIT" && (
+              <Field label="Razón social" autoComplete="organization" required={idNumber.trim().length > 0} value={companyName} onChange={setCompanyName} />
             )}
 
             {needsShipping && (
-              <div>
-                <label className="block text-sm text-brand-ink mb-1">
-                  Departamento
-                </label>
-                <select
-                  required
-                  value={shippingRegion}
-                  onChange={(e) => setShippingRegion(e.target.value)}
-                  className="input"
-                >
-                  <option value="" disabled>
-                    Selecciona tu departamento
-                  </option>
-                  {COLOMBIA_REGIONS.map((region) => (
-                    <option key={region} value={region}>
-                      {region}
-                    </option>
-                  ))}
-                </select>
+              <>
+                <Field label="Dirección" autoComplete="address-line1" required value={address} onChange={setAddress} />
+                <Field label="Casa, apartamento, etc." optional autoComplete="address-line2" value={address2} onChange={setAddress2} />
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <Field label="Ciudad" autoComplete="address-level2" required value={city} onChange={setCity} className="col-span-2 sm:col-span-1" />
+                  <SelectField label="Departamento" required value={region} onChange={setRegion}>
+                    <option value="">Elige uno</option>
+                    {COLOMBIA_REGIONS.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <Field label="Código postal" optional inputMode="numeric" autoComplete="postal-code" value={postalCode} onChange={setPostalCode} />
+                </div>
+              </>
+            )}
+            <Field label="Celular con WhatsApp" type="tel" inputMode="tel" autoComplete="tel" required value={phone} onChange={setPhone} />
+
+            {isServiceOrder && (
+              <div className="space-y-1">
+                <Field label="Fecha y hora que prefieres" type="datetime-local" required value={servicePreferredAt} onChange={setServicePreferredAt} />
+                <p className="text-xs text-brand-ink-soft">
+                  Es tu preferencia — la marca la confirma (o te propone otra) después de tu pago.
+                </p>
+                {minServiceDate && servicePreferredAt && servicePreferredAt < minServiceDate && (
+                  <p className="text-xs text-red-600">Elige una fecha a partir de una hora desde ahora.</p>
+                )}
               </div>
             )}
+            {isDigitalOrder && (
+              <p className="text-sm text-brand-ink-soft rounded-lg border border-brand-line p-3">
+                Es un producto digital — no se envía. Recibes el link de descarga o acceso apenas se confirme tu pago.
+              </p>
+            )}
+          </Section>
 
-            <div className="grid grid-cols-2 gap-3">
-              {needsShipping && (
-                <div>
-                  <label className="block text-sm text-brand-ink mb-1">
-                    Ciudad
-                  </label>
-                  <input
-                    required
-                    value={shippingCity}
-                    onChange={(e) => setShippingCity(e.target.value)}
-                    className="input"
-                  />
+          {needsShipping && (
+            <Section title="Métodos de envío">
+              {!region ? (
+                <p className="rounded-lg bg-brand-bg px-4 py-3.5 text-sm text-brand-ink-soft">
+                  Elige tu departamento para ver los métodos de envío disponibles.
+                </p>
+              ) : shippingQuote.loading ? (
+                <p className="rounded-lg bg-brand-bg px-4 py-3.5 text-sm text-brand-ink-soft">Calculando envío...</p>
+              ) : shippingQuote.error ? (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3.5 text-sm text-red-700">{shippingQuote.error}</p>
+              ) : (
+                <div className="flex items-center justify-between rounded-lg border border-brand-ink bg-brand-bg/60 px-4 py-3.5 text-sm">
+                  <span className="flex items-center gap-3 text-brand-ink">
+                    <span className="w-4 h-4 rounded-full border-[5px] border-brand-ink bg-brand-surface" aria-hidden="true" />
+                    {shippingQuote.name ?? "Envío a domicilio"}
+                  </span>
+                  <span className="font-medium text-brand-ink tabular-nums">
+                    {shippingCost === 0 ? "Gratis" : formatCOP(shippingCost)}
+                  </span>
                 </div>
               )}
-              <div className={needsShipping ? "" : "col-span-2"}>
-                <label className="block text-sm text-brand-ink mb-1">
-                  Notas (opcional)
-                </label>
-                <input
-                  value={shippingNotes}
-                  onChange={(e) => setShippingNotes(e.target.value)}
-                  className="input"
-                />
+            </Section>
+          )}
+
+          <Section title="Pago">
+            <p className="text-xs text-brand-ink-soft -mt-2">Todas las transacciones son seguras y están encriptadas.</p>
+            {paymentsReady ? (
+              <div className="rounded-lg border border-brand-ink overflow-hidden">
+                <div className="flex items-center justify-between gap-3 px-4 py-3.5 bg-brand-bg/60">
+                  <span className="flex items-center gap-3 text-sm font-medium text-brand-ink">
+                    <span className="w-4 h-4 rounded-full border-[5px] border-brand-ink bg-brand-surface" aria-hidden="true" />
+                    Wompi
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    {["Tarjetas", "PSE", "Nequi"].map((m) => (
+                      <span key={m} className="text-[10px] font-semibold rounded border border-brand-line bg-brand-surface px-1.5 py-0.5 text-brand-ink">
+                        {m}
+                      </span>
+                    ))}
+                    <span className="text-[10px] font-semibold rounded border border-brand-line bg-brand-surface px-1.5 py-0.5 text-brand-ink-soft">
+                      +3
+                    </span>
+                  </span>
+                </div>
+                <p className="border-t border-brand-line bg-brand-bg px-4 py-4 text-center text-sm text-brand-ink-soft">
+                  Se te redirigirá a Wompi para completar tu compra.
+                </p>
               </div>
-            </div>
-
-            {submitError && (
-              <p className="text-sm text-red-600">{submitError}</p>
+            ) : (
+              <p className="rounded-lg border border-brand-line px-4 py-3.5 text-sm text-brand-ink-soft">
+                Esta tienda todavía no activó los pagos en línea — vuelve más tarde.
+              </p>
             )}
+          </Section>
 
+          {needsShipping && (
+            <Section title="Dirección de facturación">
+              <div className="rounded-lg border border-brand-line overflow-hidden text-sm">
+                {[
+                  { same: true, label: "La misma dirección de envío" },
+                  { same: false, label: "Usar una dirección de facturación distinta" },
+                ].map((opt, i) => (
+                  <label
+                    key={opt.label}
+                    className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer ${i > 0 ? "border-t border-brand-line" : ""} ${
+                      sameBilling === opt.same ? "bg-brand-bg/60" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="billing"
+                      checked={sameBilling === opt.same}
+                      onChange={() => setSameBilling(opt.same)}
+                      className="w-4 h-4 accent-brand-ink"
+                    />
+                    <span className="text-brand-ink">{opt.label}</span>
+                  </label>
+                ))}
+                {!sameBilling && (
+                  <div className="border-t border-brand-line bg-brand-bg/40 p-4 space-y-3">
+                    <Field label="Dirección" required value={billingAddress} onChange={setBillingAddress} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Ciudad" required value={billingCity} onChange={setBillingCity} />
+                      <SelectField label="Departamento" required value={billingRegion} onChange={setBillingRegion}>
+                        <option value="">Elige uno</option>
+                        {COLOMBIA_REGIONS.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </SelectField>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
+
+          <div className="space-y-4">
             <label className="flex items-start gap-2.5 text-xs text-brand-ink leading-relaxed cursor-pointer">
               <input
                 type="checkbox"
@@ -449,161 +694,43 @@ export function CheckoutForm({
                   setDataConsent(e.target.checked);
                   if (e.target.checked) setSubmitError(null);
                 }}
-                className="mt-0.5 w-4 h-4 shrink-0"
+                className="mt-0.5 w-4 h-4 shrink-0 accent-brand-ink"
                 required
               />
               <span>
-                Autorizo el tratamiento de mis datos personales para gestionar mi pedido, el envío y la atención
-                de mi compra, según la{" "}
-                <a
-                  href={`${basePath}/politica-de-privacidad`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline font-medium"
-                >
+                Autorizo el tratamiento de mis datos personales para gestionar mi pedido, el envío y la atención de mi
+                compra, según la{" "}
+                <a href={`${basePath}/politica-de-privacidad`} target="_blank" rel="noopener noreferrer" className="underline font-medium">
                   política de privacidad
                 </a>{" "}
                 de la tienda.
               </span>
             </label>
 
-            {!paymentsReady ? (
-              <p className="text-sm text-brand-ink-soft rounded-xl border border-brand-line p-3">
-                Esta tienda todavía no activó los pagos en línea — vuelve más
-                tarde.
-              </p>
-            ) : needsShipping && shippingRegion && shippingQuote.error ? (
-              <p className="text-sm text-red-600 rounded-xl border border-red-200 p-3">
-                {shippingQuote.error}
-              </p>
-            ) : (
-              <button
-                type="submit"
-                disabled={
-                  submitting ||
-                  (needsShipping && (!shippingRegion || shippingQuote.loading || shippingQuote.amount == null))
-                }
-                className="w-full bg-brand-button text-brand-button-text rounded-full px-6 py-3 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
-              >
-                {submitting
-                  ? "Creando pedido..."
+            {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+
+            <button
+              type="submit"
+              disabled={!paymentsReady || submitting || redirecting || shippingBlocked}
+              className="w-full rounded-lg bg-brand-button text-brand-button-text px-6 py-4 text-base font-semibold hover:opacity-90 disabled:opacity-50"
+            >
+              {redirecting
+                ? "Abriendo Wompi..."
+                : submitting
+                  ? "Creando tu pedido..."
                   : needsShipping && shippingQuote.loading
                     ? "Calculando envío..."
-                    : "Continuar al pago"}
-              </button>
-            )}
-          </form>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-brand-ink">
-              Tu pedido quedó registrado. Completa el pago con Wompi para
-              confirmarlo — tus datos de tarjeta nunca pasan por Marcolini.
-            </p>
-            <WompiCheckoutButton params={wompiParams} />
-          </div>
-        )}
-      </div>
-
-      <div className="order-1 md:order-2 rounded-2xl border border-brand-line bg-brand-surface p-5 h-fit space-y-3">
-        <p className="text-sm font-medium text-brand-ink">Resumen del pedido</p>
-        <div className="space-y-2">
-          {items.map((item) => (
-            <div key={cartLineKey(item)} className="flex justify-between text-sm">
-              <span className="text-brand-ink-soft">
-                {item.name}
-                {item.variantLabel && ` (${item.variantLabel})`} × {item.quantity}
-              </span>
-              <span className="font-mono">
-                {formatCOP(item.price * item.quantity)}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Muy visible a propósito — de acá sale la estrategia de
-            Marcolini con los creadores, no puede quedar escondida como un
-            campo "opcional" más del formulario. Ver conversación del
-            2026-09-14. */}
-        {/* Sin emoji y sobre fondo blanco con borde fino — el bloque
-            gris de antes "se veía triste" con la paleta blanco y negro.
-            Ver conversación del 2026-09-30. */}
-        <div className="rounded-xl border border-brand-line bg-brand-surface p-4 space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          <div className="space-y-0.5">
-            <p className="font-display text-sm font-semibold text-brand-ink">
-              ¿Tienes un código de creador de contenido?
-            </p>
-            <p className="text-xs text-brand-ink-soft">
-              Si un creador te compartió su código, escríbelo acá y te aplicamos su descuento.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <input
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value.toUpperCase());
-                setDiscountPercent(null);
-              }}
-              className="input font-mono flex-1 uppercase"
-              placeholder="Ej. LAURA30"
-              autoCapitalize="characters"
-              spellCheck={false}
-            />
-            <button
-              type="button"
-              onClick={() => handleApplyCode()}
-              disabled={checkingCode || !code.trim()}
-              className="rounded-full bg-brand-button text-brand-button-text px-4 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
-            >
-              {checkingCode ? "..." : "Aplicar"}
+                    : "Pagar ahora"}
             </button>
           </div>
-          {codeError && <p className="text-xs text-red-600">{codeError}</p>}
-          {discountPercent != null && (
-            <p className="text-xs text-brand-ink font-medium">
-              Código aplicado: {discountPercent}% de descuento.
-            </p>
-          )}
-        </div>
-
-        <div className="border-t border-brand-line pt-3 space-y-1.5 text-sm">
-          <div className="flex justify-between text-brand-ink-soft">
-            <span>Subtotal</span>
-            <span className="font-mono">{formatCOP(subtotal)}</span>
-          </div>
-          {discountAmount > 0 && (
-            <div className="flex justify-between text-brand-accent">
-              <span>Descuento</span>
-              <span className="font-mono">-{formatCOP(discountAmount)}</span>
-            </div>
-          )}
-          {taxAmount > 0 && (
-            <div className="flex justify-between text-brand-ink-soft text-xs">
-              <span>Incluye IVA ({taxRatePercent}%)</span>
-              <span className="font-mono">{formatCOP(taxAmount)}</span>
-            </div>
-          )}
-          {needsShipping && (
-            <div className="flex justify-between text-brand-ink-soft">
-              <span>Envío</span>
-              <span className="font-mono">
-                {!shippingRegion
-                  ? "Elige tu departamento"
-                  : shippingQuote.loading
-                    ? "Calculando..."
-                    : shippingQuote.amount == null
-                      ? "—"
-                      : shippingCost === 0
-                        ? "Gratis"
-                        : formatCOP(shippingCost)}
-              </span>
-            </div>
-          )}
-          <div className="flex justify-between font-semibold text-brand-ink pt-1">
-            <span>Total</span>
-            <span className="font-mono">{formatCOP(total)}</span>
-          </div>
-        </div>
+        </form>
       </div>
+
+      {/* Gris suave sobre el fondo de la marca, como la columna del resumen en
+          Shopify. */}
+      <aside className="hidden lg:block bg-[color-mix(in_srgb,var(--brand-ink)_4%,var(--brand-bg))]">
+        <div className="max-w-md px-8 lg:pl-12 py-8 sticky top-0">{summary}</div>
+      </aside>
     </div>
   );
 }

@@ -18,8 +18,8 @@ export default async function StorefrontCheckoutPage({
   if (!brand) notFound();
 
   const paymentsReady = getActiveWompiKeys(brand) !== null;
-  // Con la facturación de Dataico activa, el comprador puede pedir la
-  // factura a su nombre (cédula o NIT). Ver dataico-service.ts.
+  // Con la facturación de Dataico activa, la cédula o NIT es obligatoria
+  // en el checkout (si no, opcional). Ver dataico-service.ts.
   const askBilling = Boolean(
     (await prisma.dataicoConnection.findUnique({ where: { brandId: brand.id }, select: { enabled: true } }))?.enabled,
   );
@@ -63,22 +63,14 @@ export default async function StorefrontCheckoutPage({
           </Link>
         </div>
       </header>
-      <div className="max-w-5xl mx-auto px-4 sm:px-8 py-10">
-        <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
-          CHECKOUT
-        </p>
-        <h1 className="font-display text-2xl font-semibold text-brand-ink mb-6">
-          Termina tu compra
-        </h1>
-        <CheckoutForm
-          askBilling={askBilling}
-          brandSlug={slug}
-          basePath={basePath}
-          taxRatePercent={Number(brand.taxRatePercent)}
-          paymentsReady={paymentsReady}
-          referredCode={referredCode}
-        />
-      </div>
+      <CheckoutForm
+        requireBillingId={askBilling}
+        brandSlug={slug}
+        basePath={basePath}
+        taxRatePercent={Number(brand.taxRatePercent)}
+        paymentsReady={paymentsReady}
+        referredCode={referredCode}
+      />
     </div>
   );
 }

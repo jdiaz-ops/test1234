@@ -1107,22 +1107,36 @@ enum StoreOrderKind {
 /// que con Shopify/WooCommerce, para que el Motor de Comisiones la procese
 /// normal — las muestras nunca generan Transaction/comisión, son gratis.
 model StoreOrder {
-  id               String          @id @default(cuid())
+  id                 String          @id @default(cuid())
   /// Factura electrónica emitida por la conexión directa con Dataico (ver
   /// dataico-service.ts). Datos que el comprador da en el checkout si
   /// quiere la factura a su nombre — sin ellos se factura a consumidor
   /// final.
-  billingIdType    String?
-  billingIdNumber  String?
-  billingName      String?
-  einvoiceStatus   EInvoiceStatus?
-  einvoiceNumber   String?
-  einvoiceUuid     String?
-  einvoiceCufe     String?
-  einvoicePdfUrl   String?
-  einvoiceError    String?
-  einvoiceAttempts Int             @default(0)
-  einvoiceIssuedAt DateTime?
+  billingIdType      String?
+  billingIdNumber    String?
+  billingName        String?
+  /// Dirección de facturación distinta a la de envío (checkout de una
+  /// página, como Shopify). Null = la misma de envío.
+  billingAddress     String?
+  billingCity        String?
+  billingRegion      String?
+  /// Nombre y apellidos por separado (el checkout los pide así; buyerName
+  /// sigue siendo el nombre completo). Dataico los necesita aparte.
+  buyerFirstName     String?
+  buyerLastName      String?
+  shippingPostalCode String?
+  /// Nombre de la tarifa de envío que aplicó (ej. "Envío a domicilio").
+  shippingMethod     String?
+  /// "Enviarme novedades y ofertas por correo" en el checkout.
+  acceptsMarketing   Boolean         @default(false)
+  einvoiceStatus     EInvoiceStatus?
+  einvoiceNumber     String?
+  einvoiceUuid       String?
+  einvoiceCufe       String?
+  einvoicePdfUrl     String?
+  einvoiceError      String?
+  einvoiceAttempts   Int             @default(0)
+  einvoiceIssuedAt   DateTime?
 
   /// Número correlativo — el `id` numérico que llevan los webhooks con
   /// formato de Shopify (ver webhook-service.ts), que algunos sistemas

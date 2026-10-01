@@ -192,6 +192,67 @@ describe.skipIf(!hasDb)("checkout: la ruta que usa el navegador", () => {
     expect(order).toMatchObject({ billingIdType: "CC", billingIdNumber: "1020304050" });
   });
 
+  it("devuelve el link directo a Wompi con los datos del comprador y guarda los campos nuevos", async () => {
+    const brand = await createSellingBrand();
+    const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });
+    const buyerEmail = email("onepage");
+    const res = await post(brand.storefrontSlug!, {
+      ...BUYER,
+      buyerName: "Ana María Pérez Gómez",
+      buyerFirstName: "Ana María",
+      buyerLastName: "Pérez Gómez",
+      buyerEmail,
+      buyerPhone: "313 405 8607",
+      shippingPostalCode: "050021",
+      acceptsMarketing: true,
+      billingIdType: "CC",
+      billingIdNumber: "1020304050",
+      billingAddress: "Carrera 7 # 8-9",
+      billingCity: "Bogotá",
+      billingRegion: "Bogotá D.C.",
+      items: [{ productId: placa.id, quantity: 1 }],
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const url = new URL(body.checkoutUrl);
+    expect(url.origin + url.pathname).toBe("https://checkout.wompi.co/p/");
+    expect(url.searchParams.get("public-key")).toBe("pub_test_x");
+    expect(url.searchParams.get("amount-in-cents")).toBe(String(body.wompi.amountInCents));
+    expect(url.searchParams.get("signature:integrity")).toBe(body.wompi.signature);
+    expect(url.searchParams.get("customer-data:email")).toBe(buyerEmail);
+    expect(url.searchParams.get("customer-data:phone-number")).toBe("3134058607");
+    expect(url.searchParams.get("customer-data:legal-id")).toBe("1020304050");
+
+    const order = await prisma.storeOrder.findUniqueOrThrow({ where: { id: body.orderId } });
+    expect(order).toMatchObject({
+      buyerFirstName: "Ana María",
+      buyerLastName: "Pérez Gómez",
+      shippingPostalCode: "050021",
+      acceptsMarketing: true,
+      billingAddress: "Carrera 7 # 8-9",
+      billingRegion: "Bogotá D.C.",
+    });
+    expect(order.shippingMethod).toBeTruthy();
+
+    // Al pagarse, quien pidió novedades queda suscrito en Clientes.
+    await applyWompiTransactionStatus({ reference: order.reference, wompiTransactionId: "tx-op", wompiStatus: "APPROVED" });
+    const customer = await prisma.storeCustomer.findUniqueOrThrow({
+      where: { brandId_email: { brandId: brand.id, email: buyerEmail } },
+    });
+    expect(customer.emailSubscribed).toBe(true);
+  });
+
+  it("con facturación de Dataico activa, la cédula o NIT es obligatoria", async () => {
+    const brand = await createSellingBrand();
+    await prisma.dataicoConnection.create({
+      data: { brandId: brand.id, accountId: "a", authToken: "t", prefix: "FE", nextNumber: 1, enabled: true },
+    });
+    const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });
+    const res = await post(brand.storefrontSlug!, { ...BUYER, buyerEmail: email("sinid"), items: [{ productId: placa.id, quantity: 1 }] });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/cédula o NIT/);
+  });
+
   it("sin la casilla responde el mensaje de autorización", async () => {
     const brand = await createSellingBrand();
     const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });

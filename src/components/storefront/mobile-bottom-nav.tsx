@@ -23,7 +23,10 @@ export function MobileBottomNav({
   const visible = config.items
     .map((item, i) => ({ ...item, index: i }))
     .filter((item) => item.enabled);
-  if (!config.enabled || visible.length === 0) return null;
+  // En el checkout no va (como en Shopify): tapaba los campos y distrae
+  // de terminar la compra. Ver conversación del 2026-10-01.
+  const inCheckout = pathname === `${basePath}/checkout` || pathname.endsWith("/checkout");
+  if (!config.enabled || visible.length === 0 || inCheckout) return null;
 
   return (
     <nav

@@ -205,7 +205,7 @@ export async function quoteShipping(
     weightKg: params.weightKg,
   });
   if (!rate) return { ok: false as const, reason: "NO_RATE_MATCH" as const };
-  return { ok: true as const, shippingCents: Math.round(Number(rate.price) * 100) };
+  return { ok: true as const, shippingCents: Math.round(Number(rate.price) * 100), rateName: rate.name };
 }
 
 /// Valida un código de creador sin crear nada — se usa para mostrar el
@@ -252,6 +252,13 @@ type CreateOrderInput = {
   billingIdType?: string;
   billingIdNumber?: string;
   billingName?: string;
+  billingAddress?: string;
+  billingCity?: string;
+  billingRegion?: string;
+  buyerFirstName?: string;
+  buyerLastName?: string;
+  shippingPostalCode?: string;
+  acceptsMarketing?: boolean;
 };
 
 const REDIRECT_BASE =
@@ -276,6 +283,17 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     throw new StoreOrderError(
       "Esta tienda todavía no activó los pagos — vuelve más tarde.",
     );
+  }
+
+  // Con facturación electrónica activa (Dataico), la cédula o NIT es
+  // obligatoria — el checkout la pide; esto cubre a quien llame la API
+  // directo.
+  const invoicing = await prisma.dataicoConnection.findUnique({
+    where: { brandId: brand.id },
+    select: { enabled: true },
+  });
+  if (invoicing?.enabled && !(input.billingIdType && input.billingIdNumber?.trim())) {
+    throw new StoreOrderError("Escribe tu cédula o NIT para la factura electrónica.");
   }
 
   const productIds = input.items.map((i) => i.productId);
@@ -419,6 +437,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   // conversación del 2026-09-14: "tienen que crear zonas de envío
   // obligatorio".
   let shippingCents = 0;
+  let shippingMethod: string | null = null;
   if (!isServiceOrder && !isDigitalOrder) {
     const zones = await listShippingZones(brand.id);
     if (zones.length === 0) {
@@ -442,6 +461,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
       );
     }
     shippingCents = Math.round(Number(rate.price) * 100);
+    shippingMethod = rate.name;
   }
 
   // Los precios ya traen el IVA (precio al público). taxCents es la parte
@@ -538,6 +558,18 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
               billingName: input.billingIdType === "NIT" ? input.billingName?.trim() || null : null,
             }
           : {}),
+        ...(input.billingAddress?.trim()
+          ? {
+              billingAddress: input.billingAddress.trim(),
+              billingCity: input.billingCity?.trim() || null,
+              billingRegion: input.billingRegion?.trim() || null,
+            }
+          : {}),
+        buyerFirstName: input.buyerFirstName?.trim() || null,
+        buyerLastName: input.buyerLastName?.trim() || null,
+        shippingPostalCode: isServiceOrder || isDigitalOrder ? null : input.shippingPostalCode?.trim() || null,
+        shippingMethod,
+        acceptsMarketing: input.acceptsMarketing ?? false,
         items: { create: itemsData },
       },
     });
@@ -829,6 +861,7 @@ export async function applyWompiTransactionStatus(params: {
         email: order.buyerEmail,
         name: order.buyerName,
         phone: order.buyerPhone,
+        emailSubscribed: order.acceptsMarketing,
       });
       if (created) await emitCustomerEvent(order.brandId, order.buyerEmail, "customers/create");
     } catch (err) {
@@ -891,4 +924,37 @@ export async function applyWompiTransactionStatus(params: {
     },
   });
   return { order: updated };
+}
+
+/// Wompi Web Checkout: con "Pagar ahora" el comprador va directo a la
+/// página de pago de Wompi (como en Shopify, "Se te redirigirá a Wompi"),
+/// con sus datos ya llenos. Mismos parámetros que el widget — ver
+/// https://docs.wompi.co/docs/colombia/widget-checkout-web/
+const WOMPI_LEGAL_ID_TYPES: Record<string, string> = { CC: "CC", CE: "CE", NIT: "NIT", PASAPORTE: "PP" };
+
+export function wompiCheckoutUrl(
+  wompi: { publicKey: string; currency: string; amountInCents: number; reference: string; signature: string; redirectUrl: string },
+  order: { buyerEmail: string; buyerName: string; buyerPhone: string; billingIdType: string | null; billingIdNumber: string | null },
+) {
+  const params = new URLSearchParams({
+    "public-key": wompi.publicKey,
+    currency: wompi.currency,
+    "amount-in-cents": String(wompi.amountInCents),
+    reference: wompi.reference,
+    "signature:integrity": wompi.signature,
+    "redirect-url": wompi.redirectUrl,
+    "customer-data:email": order.buyerEmail,
+    "customer-data:full-name": order.buyerName,
+  });
+  const phone = order.buyerPhone.replace(/\D/g, "").replace(/^57(?=3\d{9}$)/, "");
+  if (/^\d{7,10}$/.test(phone)) {
+    params.set("customer-data:phone-number", phone);
+    params.set("customer-data:phone-number-prefix", "+57");
+  }
+  const legalType = order.billingIdType ? WOMPI_LEGAL_ID_TYPES[order.billingIdType] : undefined;
+  if (legalType && order.billingIdNumber) {
+    params.set("customer-data:legal-id", order.billingIdNumber.replace(/-\d$/, "").replace(/[^0-9A-Za-z]/g, ""));
+    params.set("customer-data:legal-id-type", legalType);
+  }
+  return `https://checkout.wompi.co/p/?${params.toString()}`;
 }

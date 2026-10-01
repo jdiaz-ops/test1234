@@ -4,6 +4,7 @@ import { createStoreOrderSchema } from "@/lib/validation/storefront";
 import {
   createStoreOrder,
   StoreOrderError,
+  wompiCheckoutUrl,
 } from "@/server/services/store-order-service";
 
 /// Crea un pedido de "Mi tienda" y devuelve lo que necesita el botón de
@@ -48,8 +49,15 @@ export async function POST(
       billingIdType: parsed.data.billingIdType || undefined,
       billingIdNumber: parsed.data.billingIdNumber || undefined,
       billingName: parsed.data.billingName || undefined,
+      billingAddress: parsed.data.billingAddress || undefined,
+      billingCity: parsed.data.billingCity || undefined,
+      billingRegion: parsed.data.billingRegion || undefined,
+      buyerFirstName: parsed.data.buyerFirstName || undefined,
+      buyerLastName: parsed.data.buyerLastName || undefined,
+      shippingPostalCode: parsed.data.shippingPostalCode || undefined,
+      acceptsMarketing: parsed.data.acceptsMarketing ?? false,
     });
-    return NextResponse.json({ ok: true, orderId: order.id, wompi });
+    return NextResponse.json({ ok: true, orderId: order.id, wompi, checkoutUrl: wompiCheckoutUrl(wompi, order) });
   } catch (err) {
     if (err instanceof StoreOrderError) {
       return NextResponse.json({ error: err.message }, { status: 400 });
