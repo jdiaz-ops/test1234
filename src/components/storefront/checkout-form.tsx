@@ -166,7 +166,6 @@ export function CheckoutForm({
   const needsShipping = !isServiceOrder && !isDigitalOrder;
 
   const [email, setEmail] = useState("");
-  const [acceptsMarketing, setAcceptsMarketing] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [idType, setIdType] = useState("CC");
@@ -329,7 +328,6 @@ export function CheckoutForm({
           servicePreferredAt: isServiceOrder && servicePreferredAt ? `${servicePreferredAt}:00-05:00` : "",
           discountCode: discountPercent ? code : "",
           dataConsent,
-          acceptsMarketing,
           ...(hasId
             ? { billingIdType: idType, billingIdNumber: idNumber, billingName: idType === "NIT" ? companyName : "" }
             : {}),
@@ -507,15 +505,6 @@ export function CheckoutForm({
         <form onSubmit={handleSubmit} className="max-w-xl px-4 sm:px-8 py-8 space-y-8 lg:ml-auto lg:pr-12">
           <Section title="Contacto">
             <Field label="Correo electrónico" type="email" inputMode="email" autoComplete="email" required value={email} onChange={setEmail} />
-            <label className="flex items-center gap-2.5 text-sm text-brand-ink cursor-pointer">
-              <input
-                type="checkbox"
-                checked={acceptsMarketing}
-                onChange={(e) => setAcceptsMarketing(e.target.checked)}
-                className="w-4 h-4 shrink-0 accent-brand-ink"
-              />
-              Enviarme novedades y ofertas por correo electrónico
-            </label>
           </Section>
 
           <Section title={needsShipping ? "Entrega" : "Tus datos"}>
