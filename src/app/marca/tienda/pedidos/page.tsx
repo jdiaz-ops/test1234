@@ -1,12 +1,18 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { StoreOrdersPanel } from "@/components/portal/store-orders-panel";
-import { listBrandOrders } from "@/server/services/store-order-service";
+import { listBrandOrders, reconcilePendingOrders } from "@/server/services/store-order-service";
 
 export default async function TiendaPedidosPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 
+  // Antes de listar, pone al día con Wompi los pedidos que siguen
+  // pendientes (máximo unos segundos; si Wompi tarda, se lista igual).
+  await Promise.race([
+    reconcilePendingOrders(profile.id).catch(() => null),
+    new Promise((resolve) => setTimeout(resolve, 6000)),
+  ]);
   const orders = await listBrandOrders(profile.id);
 
   return (

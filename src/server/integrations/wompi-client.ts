@@ -164,3 +164,36 @@ export async function fetchWompiTransaction(
     | { id: string; status: string; reference: string; amount_in_cents: number }
     | undefined;
 }
+
+/// Busca en Wompi la transacción de un pedido por su referencia (con la
+/// llave privada). Sirve para pedidos que quedaron "Pendiente" porque el
+/// comprador no volvió a la tienda y el aviso de Wompi no llegó (ej. sin
+/// URL de eventos configurada). Devuelve la aprobada si hay una; si no, la
+/// más reciente; null si no hay ninguna.
+export async function findWompiTransactionByReference(
+  mode: "TEST" | "PRODUCTION",
+  privateKey: string,
+  reference: string,
+) {
+  const res = await fetch(`${apiBase(mode)}/transactions?reference=${encodeURIComponent(reference)}`, {
+    headers: { Authorization: `Bearer ${privateKey}` },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!res.ok) {
+    throw new WompiApiError(`Wompi respondió ${res.status} al buscar la transacción`);
+  }
+  const body = await res.json();
+  const list = (Array.isArray(body?.data) ? body.data : []) as {
+    id: string;
+    status: string;
+    reference: string;
+    created_at?: string;
+  }[];
+  const mine = list.filter((t) => t.reference === reference);
+  if (mine.length === 0) return null;
+  return (
+    mine.find((t) => t.status === "APPROVED") ??
+    [...mine].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))[0]
+  );
+}

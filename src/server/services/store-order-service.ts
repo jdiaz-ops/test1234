@@ -6,6 +6,7 @@ import { emitCustomerEvent, emitOrderEvent } from "@/server/services/webhook-ser
 import { issueInvoiceAfterPayment } from "@/server/services/dataico-service";
 import {
   getActiveWompiKeys,
+  findWompiTransactionByReference,
   buildIntegritySignature,
 } from "@/server/integrations/wompi-client";
 import {
@@ -984,4 +985,55 @@ export function wompiCheckoutUrl(wompi: {
     "redirect-url": wompi.redirectUrl,
   });
   return `https://checkout.wompi.co/p/?${params.toString()}`;
+}
+
+/// Pone al día los pedidos que siguen "Pendiente": le pregunta a Wompi por
+/// cada uno (por su referencia) y aplica lo que diga — así un pago
+/// aprobado queda Pagado aunque el comprador no haya vuelto a la tienda ni
+/// llegado el aviso de Wompi. Los que nunca se pagaron y llevan más de un
+/// día pasan a Vencido (dejan de verse como pedidos). Se llama al abrir
+/// Pedidos y en el cron diario. Ver conversación del 2026-10-01.
+export async function reconcilePendingOrders(brandId?: string) {
+  const since = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+  const pending = await prisma.storeOrder.findMany({
+    where: { status: "PENDING", kind: "PURCHASE", createdAt: { gte: since }, ...(brandId ? { brandId } : {}) },
+    include: { brand: true },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+  });
+  const dayAgo = Date.now() - 24 * 3600 * 1000;
+  let updated = 0;
+  await Promise.all(
+    pending.map(async (order) => {
+      const keys = getActiveWompiKeys({ ...order.brand, paymentMode: order.paymentMode });
+      if (!keys) return;
+      try {
+        const tx = await findWompiTransactionByReference(order.paymentMode, keys.privateKey, order.reference);
+        if (tx && tx.status !== "PENDING") {
+          await applyWompiTransactionStatus({ reference: order.reference, wompiTransactionId: tx.id, wompiStatus: tx.status });
+          updated++;
+        } else if (!tx && order.createdAt.getTime() < dayAgo) {
+          await prisma.storeOrder.updateMany({ where: { id: order.id, status: "PENDING" }, data: { status: "EXPIRED" } });
+          updated++;
+        }
+      } catch (err) {
+        console.error(`[mi-tienda] No se pudo consultar en Wompi el pedido ${order.id}:`, err);
+      }
+    }),
+  );
+  return { checked: pending.length, updated };
+}
+
+/// La burbuja de "Pedidos" en el menú: pedidos pagados con envío que
+/// todavía no salen (sin preparar o preparados).
+export async function countOpenOrders(brandId: string) {
+  return prisma.storeOrder.count({
+    where: {
+      brandId,
+      kind: "PURCHASE",
+      status: "PAID",
+      shippingAddress: { not: null },
+      fulfillmentStatus: { in: ["UNFULFILLED", "PREPARED"] },
+    },
+  });
 }

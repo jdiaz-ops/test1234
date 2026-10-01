@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { BrandNav } from "@/components/portal/brand-nav";
+import { countOpenOrders } from "@/server/services/store-order-service";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { ImpersonationBanner } from "@/components/portal/impersonation-banner";
 import { BillingLockScreen } from "@/components/portal/billing-lock-screen";
@@ -25,6 +26,8 @@ export default async function MarcaLayout({
     }),
     countUnreadNotifications(session.user.id),
   ]);
+  // Burbuja de "Pedidos": pagados que todavía no salen (ver countOpenOrders).
+  const openOrders = await countOpenOrders(profile.id);
 
   // Bloqueo total del panel — mientras haya un corte OVERDUE o DEACTIVATED
   // (Nivel 2 o 3), no se ve nada del portal salvo este aviso (ver
@@ -75,6 +78,7 @@ export default async function MarcaLayout({
         nav={
           <BrandNav
             unreadNotifications={unreadNotifications}
+            openOrders={openOrders}
             onboarding={onboarding.complete ? undefined : onboarding}
           />
         }

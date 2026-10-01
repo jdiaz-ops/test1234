@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
 export type StoreOrderRow = {
@@ -77,23 +80,83 @@ const FULFILLMENT_CLASS: Record<StoreOrderRow["fulfillmentStatus"], string> = {
 /// /marca/tienda/pedidos/[orderId] — antes se expandía inline, ver
 /// conversación del 2026-09-14 pidiendo una página de detalle real como la
 /// de Shopify.
+///
+/// Pestañas como en Shopify: "Pedidos" son las compras pagadas (o
+/// devueltas); "Por enviar", las pagadas que todavía no salen; y "Pagos
+/// incompletos", los intentos que nunca se pagaron (pendientes, fallidos
+/// o vencidos) — antes se mezclaban con los pedidos reales. Ver
+/// conversación del 2026-10-01.
+type Tab = "orders" | "toShip" | "incomplete";
+
+function isIncomplete(o: StoreOrderRow) {
+  return o.status === "PENDING" || o.status === "FAILED" || o.status === "EXPIRED";
+}
+
+function isToShip(o: StoreOrderRow) {
+  return (
+    o.status === "PAID" &&
+    o.shippingAddress != null &&
+    (o.fulfillmentStatus === "UNFULFILLED" || o.fulfillmentStatus === "PREPARED")
+  );
+}
+
 export function StoreOrdersPanel({
   initialOrders,
 }: {
   initialOrders: StoreOrderRow[];
 }) {
-  if (initialOrders.length === 0) {
-    return (
-      <p className="text-sm text-brand-ink-soft">
-        Todavía no tienes pedidos. Aparecen acá apenas alguien compre en tu
-        tienda.
-      </p>
-    );
-  }
+  const [tab, setTab] = useState<Tab>("orders");
+  const counts = {
+    orders: initialOrders.filter((o) => !isIncomplete(o)).length,
+    toShip: initialOrders.filter(isToShip).length,
+    incomplete: initialOrders.filter(isIncomplete).length,
+  };
+  const shown = initialOrders.filter((o) =>
+    tab === "orders" ? !isIncomplete(o) : tab === "toShip" ? isToShip(o) : isIncomplete(o),
+  );
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "orders", label: "Pedidos" },
+    { key: "toShip", label: "Por enviar" },
+    { key: "incomplete", label: "Pagos incompletos" },
+  ];
 
   return (
+    <div className="space-y-4">
+      <div className="flex gap-1 border-b border-brand-line overflow-x-auto">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={`px-4 py-2 text-sm whitespace-nowrap border-b-2 -mb-px ${
+              tab === t.key
+                ? "border-brand-accent text-brand-accent font-medium"
+                : "border-transparent text-brand-ink-soft hover:text-brand-ink"
+            }`}
+          >
+            {t.label}
+            <span className="ml-1.5 text-xs tabular-nums opacity-70">{counts[t.key]}</span>
+          </button>
+        ))}
+      </div>
+
+      {tab === "incomplete" && shown.length > 0 && (
+        <p className="text-xs text-brand-ink-soft">
+          Personas que llegaron al pago y no lo terminaron. No son ventas: no descuentan inventario ni se facturan.
+        </p>
+      )}
+
+      {shown.length === 0 ? (
+        <p className="text-sm text-brand-ink-soft">
+          {tab === "orders"
+            ? "Todavía no tienes pedidos. Aparecen acá apenas alguien pague en tu tienda."
+            : tab === "toShip"
+              ? "No hay pedidos por enviar."
+              : "No hay pagos incompletos."}
+        </p>
+      ) : (
     <div className="space-y-3">
-      {initialOrders.map((order) => {
+      {shown.map((order) => {
         const isService = order.servicePreferredAt != null;
         const isDigital = !isService && order.shippingAddress == null;
         return (
@@ -155,6 +218,8 @@ export function StoreOrdersPanel({
           </Link>
         );
       })}
+    </div>
+      )}
     </div>
   );
 }

@@ -57,9 +57,13 @@ const storeItems: { href: string; label: string; also?: string[] }[] = [
 
 export function BrandNav({
   unreadNotifications = 0,
+  openOrders = 0,
   onboarding,
 }: {
   unreadNotifications?: number;
+  /// Pedidos pagados que todavía no salen — burbuja en "Pedidos", como el
+  /// número de pedidos sin preparar de Shopify.
+  openOrders?: number;
   onboarding?: { completedCount: number; total: number };
 }) {
   const pathname = usePathname();
@@ -107,18 +111,31 @@ export function BrandNav({
         .filter((item) => SAMPLES_ENABLED || item.href !== "/marca/tienda/muestras")
         .filter((item) => REVIEWS_ENABLED || item.href !== "/marca/tienda/resenas")
         .map((item) => {
-        const active = pathname === item.href || (item.also ?? []).includes(pathname);
+        // "Pedidos" queda marcado también dentro del detalle de un pedido.
+        const active =
+          pathname === item.href ||
+          (item.also ?? []).includes(pathname) ||
+          (item.href === "/marca/tienda/pedidos" && pathname.startsWith("/marca/tienda/pedidos/"));
+        const badge = item.href === "/marca/tienda/pedidos" ? openOrders : 0;
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={`rounded-lg px-3 py-2 text-sm ${
+            className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
               active
                 ? "bg-brand-accent-soft text-brand-accent font-medium"
                 : "text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink"
             }`}
           >
             {item.label}
+            {badge > 0 && (
+              <span
+                className="bg-brand-accent text-white text-[10px] font-mono font-medium rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center"
+                title={`${badge} ${badge === 1 ? "pedido por enviar" : "pedidos por enviar"}`}
+              >
+                {badge > 99 ? "99+" : badge}
+              </span>
+            )}
           </Link>
         );
       })}
