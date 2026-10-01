@@ -126,6 +126,14 @@ export default async function PublicStorefrontPage({
   const codeByBrandId = new Map(
     profile.enrollments.map((e) => [e.offer.brandId, e.discountCode]),
   );
+  // Descuento de cada marca para este creador — para el recordatorio
+  // "con el código X · −N%" en las tarjetas de producto.
+  const discountByBrandId = new Map(
+    profile.enrollments.map((e) => [
+      e.offer.brandId,
+      Number(e.discountPercentOverride ?? e.offer.defaultDiscountPercent),
+    ]),
+  );
 
   return (
     <div
@@ -299,6 +307,7 @@ export default async function PublicStorefrontPage({
               <div className="grid grid-cols-2 gap-3">
                 {visibleItems.map((item) => {
                   const code = codeByBrandId.get(item.product.brandId);
+                  const discount = discountByBrandId.get(item.product.brandId) ?? 0;
                   const productLink = buildProductLink(item.product.brand, item.product, code ?? null);
                   return (
                     <a
@@ -338,6 +347,18 @@ export default async function PublicStorefrontPage({
                         >
                           {item.product.name}
                         </p>
+                        {/* Recordatorio pequeño del código y el descuento
+                            (propuesta D, sin precios — 2026-10-01). */}
+                        {code && discount > 0 && (
+                          <p
+                            className="text-[10px] mb-1.5"
+                            style={{ color: palette.accent }}
+                          >
+                            con el código{" "}
+                            <span className="font-mono font-bold">{code}</span>
+                            {" "}· −{discount}%
+                          </p>
+                        )}
                         <p
                           className="text-[10px] font-semibold text-center rounded-full py-1.5"
                           style={{
