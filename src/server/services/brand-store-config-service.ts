@@ -130,6 +130,10 @@ export async function saveStorefrontSlug(
       where: { id: brandId },
       data: { storefrontSlug: slug },
     }),
+    // Los productos de Mi tienda guardan su link (/t/{slug}/{producto});
+    // si no se actualiza, quedan apuntando al link anterior o al
+    // provisional "mi-tienda" (ver buildStorefrontProductUrl).
+    prisma.$executeRaw`UPDATE "Product" SET "url" = '/t/' || ${slug} || '/' || "slug" WHERE "brandId" = ${brandId} AND "manual" = true AND "slug" IS NOT NULL`,
   ]);
 }
 

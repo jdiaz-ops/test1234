@@ -8,10 +8,13 @@ import { ROOT_DOMAIN } from "@/lib/subdomain";
 import { createBrand, hasDb } from "./helpers";
 
 describe("links de producto desde la vitrina", () => {
-  it("un producto de Mi tienda va a la tienda de la marca con el código", () => {
-    expect(buildProductLink({ storeType: "OTHER" }, { url: "/t/hlacosedora/esmalte-rojo" }, "HEY12")).toBe(
-      `https://hlacosedora.${ROOT_DOMAIN}/esmalte-rojo?ref=HEY12`,
-    );
+  const brand = { storeType: "OTHER", storefrontSlug: "hlacosedora", customDomain: null, customDomainVerifiedAt: null };
+
+  it("un producto de Mi tienda va a la tienda actual de la marca con el código", () => {
+    // Guardado con el link provisional de antes de que la marca eligiera el suyo.
+    const product = { url: "/t/mi-tienda/esmalte-rojo", slug: "esmalte-rojo", manual: true };
+    expect(buildProductLink(brand, product, "HEY12")).toBe(`https://hlacosedora.${ROOT_DOMAIN}/esmalte-rojo?ref=HEY12`);
+    expect(buildProductLink(brand, product, null)).toBe(`https://hlacosedora.${ROOT_DOMAIN}/esmalte-rojo`);
   });
 });
 

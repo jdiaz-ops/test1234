@@ -1,5 +1,4 @@
 import { publicStoreUrl } from "@/lib/store-url";
-import { ROOT_DOMAIN } from "@/lib/subdomain";
 
 /// Un solo link por marca — no dos. Shopify soporta de fábrica un link que
 /// aplica el descuento solo, sin que el cliente tenga que escribir el
@@ -55,10 +54,29 @@ export function buildBrandStoreLink(
 /// para Shopify/WooCommerce reales: esos ya sea llevan el código puesto
 /// (Shopify) o no son first-party (no hay cookie de Marcolini posible ahí).
 export function buildProductLink(
-  brand: { storeType: string },
-  product: { url: string },
-  discountCode: string
+  brand: {
+    storeType: string;
+    storefrontSlug: string | null;
+    customDomain: string | null;
+    customDomainVerifiedAt: Date | null;
+  },
+  product: { url: string; slug: string | null; manual: boolean },
+  discountCode: string | null,
 ): string {
+  // Producto de Mi tienda: el link se arma con el link ACTUAL de la tienda,
+  // no con product.url — ese se guardó al crear el producto y puede tener
+  // un link viejo (ej. "/t/mi-tienda/…" si se creó antes de que la marca
+  // eligiera el suyo), que terminaba en una página 404 (2026-10-01).
+  // Absoluto: la vitrina vive en {creador}.marcolini.lat.
+  if (product.manual || product.url.startsWith("/t/")) {
+    const store = publicStoreUrl(brand);
+    const path = product.slug ?? product.url.split("/").filter(Boolean).slice(2).join("/");
+    if (store) {
+      return `${store}/${path}${discountCode ? `?ref=${encodeURIComponent(discountCode)}` : ""}`;
+    }
+    return product.url;
+  }
+  if (!discountCode) return product.url;
   if (brand.storeType === "SHOPIFY") {
     try {
       const target = new URL(product.url);
@@ -68,12 +86,6 @@ export function buildProductLink(
     } catch {
       return product.url;
     }
-  }
-  if (product.url.startsWith("/t/")) {
-    // Absoluto, a la tienda de la marca: la vitrina ahora vive en
-    // {creador}.marcolini.lat, donde un link relativo /t/... no existe.
-    const [, slug, ...rest] = product.url.split("/").filter(Boolean);
-    return `https://${slug}.${ROOT_DOMAIN}/${rest.join("/")}?ref=${encodeURIComponent(discountCode)}`;
   }
   return product.url;
 }

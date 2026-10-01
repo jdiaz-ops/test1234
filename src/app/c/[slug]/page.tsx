@@ -299,9 +299,7 @@ export default async function PublicStorefrontPage({
               <div className="grid grid-cols-2 gap-3">
                 {visibleItems.map((item) => {
                   const code = codeByBrandId.get(item.product.brandId);
-                  const productLink = code
-                    ? buildProductLink(item.product.brand, item.product, code)
-                    : item.product.url;
+                  const productLink = buildProductLink(item.product.brand, item.product, code ?? null);
                   return (
                     <a
                       key={item.product.id}

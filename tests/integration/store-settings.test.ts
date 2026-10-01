@@ -78,3 +78,24 @@ describe.skipIf(!hasDb)("llaves de Wompi", () => {
     expect(wompiStatus(profile)).toBe("ACTIVE");
   });
 });
+
+describe.skipIf(!hasDb)("links de productos al elegir el link de la tienda", () => {
+  it("los productos creados antes quedan con el link nuevo", async () => {
+    const brand = await createBrand();
+    await prisma.brandProfile.update({ where: { id: brand.id }, data: { storefrontSlug: null } });
+    const product = await prisma.product.create({
+      data: {
+        brandId: brand.id,
+        externalId: `manual-${randomUUID().slice(0, 8)}`,
+        manual: true,
+        name: "Esmalte",
+        price: 10000,
+        url: "/t/mi-tienda/esmalte",
+        slug: "esmalte",
+      },
+    });
+    const nuevo = slug();
+    await saveStorefrontSlug(brand.id, nuevo);
+    expect((await prisma.product.findUniqueOrThrow({ where: { id: product.id } })).url).toBe(`/t/${nuevo}/esmalte`);
+  });
+});
