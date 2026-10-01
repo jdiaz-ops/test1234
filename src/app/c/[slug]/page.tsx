@@ -315,7 +315,11 @@ export default async function PublicStorefrontPage({
                       href={productLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-2xl overflow-hidden block"
+                      // Todas las tarjetas de una fila iguales: nombre en
+                      // máximo 2 líneas (con espacio fijo para 2) y el botón
+                      // siempre abajo, aunque un nombre sea más largo
+                      // (2026-10-01).
+                      className="rounded-2xl overflow-hidden flex flex-col h-full"
                       style={{
                         background: palette.surface,
                         border: `1px solid ${palette.accentSoft}`,
@@ -334,16 +338,17 @@ export default async function PublicStorefrontPage({
                           style={{ background: palette.accentSoft }}
                         />
                       )}
-                      <div className="p-2.5">
+                      <div className="p-2.5 flex flex-col flex-1">
                         <p
-                          className="text-[10px] mb-0.5"
+                          className="text-[10px] mb-0.5 truncate"
                           style={{ color: palette.inkSoft }}
                         >
                           {item.product.brand.companyName}
                         </p>
                         <p
-                          className="text-xs font-medium leading-snug mb-1"
+                          className="text-xs font-medium leading-snug mb-1 line-clamp-2 min-h-[2.75em]"
                           style={{ color: palette.ink }}
+                          title={item.product.name}
                         >
                           {item.product.name}
                         </p>
@@ -351,7 +356,7 @@ export default async function PublicStorefrontPage({
                             (propuesta D, sin precios — 2026-10-01). */}
                         {code && discount > 0 && (
                           <p
-                            className="text-[10px] mb-1.5"
+                            className="text-[10px] mb-1.5 truncate"
                             style={{ color: palette.accent }}
                           >
                             con el código{" "}
@@ -360,7 +365,7 @@ export default async function PublicStorefrontPage({
                           </p>
                         )}
                         <p
-                          className="text-[10px] font-semibold text-center rounded-full py-1.5"
+                          className="text-[10px] font-semibold text-center rounded-full py-1.5 mt-auto"
                           style={{
                             background: palette.accentSoft,
                             color: palette.accent,
