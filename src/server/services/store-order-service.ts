@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   getActiveWompiKeys,
@@ -15,7 +16,13 @@ import {
   pickShippingRate,
 } from "@/server/services/shipping-zone-service";
 import { ensureStoreCustomerExists } from "@/server/services/store-customer-service";
-import { taxIncluded, orderTotal, stockMovements } from "@/lib/order-math";
+import {
+  taxIncluded,
+  orderTotal,
+  stockMovements,
+  availableStock,
+  RESERVATION_MINUTES,
+} from "@/lib/order-math";
 import { applyStockMovements } from "@/server/services/store-stock-service";
 import {
   sendOrderPaidEmails,
@@ -237,6 +244,8 @@ type CreateOrderInput = {
   /// Solo hace falta si el carrito es 100% de servicios.
   servicePreferredAt?: string | null;
   discountCode?: string | null;
+  /// Casilla de autorización de datos personales del checkout.
+  dataConsent?: boolean;
 };
 
 const REDIRECT_BASE =
@@ -246,6 +255,9 @@ const REDIRECT_BASE =
 export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   if (input.items.length === 0) {
     throw new StoreOrderError("El carrito está vacío.");
+  }
+  if (input.dataConsent !== true) {
+    throw new StoreOrderError("Para continuar, autoriza el tratamiento de tus datos personales.");
   }
 
   const brand = await prisma.brandProfile.findUnique({
@@ -443,6 +455,53 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   const reference = `mt_${randomUUID()}`;
 
   const order = await prisma.$transaction(async (tx) => {
+    // Apartar el inventario: un pedido sin pagar aparta sus unidades por
+    // RESERVATION_MINUTES. Se bloquean las filas de los productos (en orden
+    // de id, para que dos pedidos simultáneos no se traben entre sí) y se
+    // vuelve a contar lo disponible = inventario menos lo apartado por
+    // otros pedidos vigentes. Así dos personas no pueden pagar la misma
+    // última unidad. El inventario guardado no se toca hasta que se paga
+    // (ver applyWompiTransactionStatus), de modo que si la marca lo edita a
+    // mano mientras alguien paga, nada se cuenta dos veces. Ver
+    // conversación del 2026-10-01.
+    const lockedIds = Array.from(new Set(itemsData.map((i) => i.productId))).sort();
+    await tx.$queryRaw`SELECT "id" FROM "Product" WHERE "id" IN (${Prisma.join(lockedIds)}) ORDER BY "id" FOR UPDATE`;
+    const fresh = await tx.product.findMany({
+      where: { id: { in: lockedIds } },
+      select: { id: true, name: true, stock: true, type: true, variants: { select: { id: true, stock: true } } },
+    });
+    const reservedRows = await tx.storeOrderItem.groupBy({
+      by: ["productId", "variantId"],
+      where: {
+        productId: { in: lockedIds },
+        order: {
+          status: "PENDING",
+          createdAt: { gt: new Date(Date.now() - RESERVATION_MINUTES * 60_000) },
+        },
+      },
+      _sum: { quantity: true },
+    });
+    for (const move of stockMovements(itemsData)) {
+      const product = fresh.find((p) => p.id === move.productId);
+      if (!product) throw new StoreOrderError("Uno de los productos ya no está disponible.");
+      const stock = move.variantId
+        ? (product.variants.find((v) => v.id === move.variantId)?.stock ?? 0)
+        : product.stock;
+      const reserved =
+        reservedRows.find((r) => r.productId === move.productId && (r.variantId ?? null) === move.variantId)?._sum
+          .quantity ?? 0;
+      const available = availableStock(stock, reserved);
+      if (available != null && move.quantity > available) {
+        throw new StoreOrderError(
+          available === 0 && (stock ?? 0) > 0
+            ? `"${product.name}" se acaba de agotar: alguien más lo está pagando. Si no completa el pago, vuelve a estar disponible en unos minutos.`
+            : available === 0
+              ? `"${product.name}" se agotó.`
+              : `Solo ${available === 1 ? "queda 1 unidad" : `quedan ${available} unidades`} de "${product.name}". Ajusta la cantidad en tu carrito.`,
+        );
+      }
+    }
+
     const created = await tx.storeOrder.create({
       data: {
         brandId: brand.id,
@@ -465,6 +524,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
         taxCents,
         totalCents,
         paymentMode: keys.mode,
+        dataConsentAt: new Date(),
         items: { create: itemsData },
       },
     });

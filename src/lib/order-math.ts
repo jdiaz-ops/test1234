@@ -42,3 +42,16 @@ export function stockMovements(lines: StockLine[]): StockMovement[] {
 export function orderNumber(reference: string): string {
   return reference.slice(-8).toUpperCase();
 }
+
+/// Cuánto tiempo aparta un pedido sin pagar las unidades que lleva. Pasado
+/// ese tiempo, otro comprador puede tomarlas. Si el primero paga tarde, el
+/// pago se respeta igual (ya se cobró). Ver conversación del 2026-10-01: la
+/// última unidad se podía vender dos veces.
+export const RESERVATION_MINUTES = 60;
+
+/// Unidades que se pueden vender ahora: el inventario menos lo apartado por
+/// pedidos sin pagar todavía vigentes. null = sin control de inventario.
+export function availableStock(stock: number | null, reserved: number): number | null {
+  if (stock == null) return null;
+  return Math.max(0, stock - reserved);
+}

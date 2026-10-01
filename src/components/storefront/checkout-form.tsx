@@ -20,11 +20,14 @@ function formatCOP(amount: number) {
 
 export function CheckoutForm({
   brandSlug,
+  basePath = `/t/${brandSlug}`,
   taxRatePercent,
   paymentsReady,
   referredCode,
 }: {
   brandSlug: string;
+  /// Prefijo de los links de la tienda ("" en el subdominio).
+  basePath?: string;
   /// BrandProfile.taxRatePercent — solo para mostrar cuánto IVA va incluido; un
   /// estimado en el resumen; el monto real que se cobra lo calcula
   /// createStoreOrder en el servidor. Ver conversación del 2026-09-14.
@@ -51,6 +54,9 @@ export function CheckoutForm({
   const [shippingCity, setShippingCity] = useState("");
   const [shippingRegion, setShippingRegion] = useState("");
   const [shippingNotes, setShippingNotes] = useState("");
+  // Autorización de datos personales (Ley 1581) — obligatoria para pagar.
+  // Ver conversación del 2026-10-01.
+  const [dataConsent, setDataConsent] = useState(false);
   const [servicePreferredAt, setServicePreferredAt] = useState("");
   // Date.now() es impuro — no se puede llamar en render ni en un useMemo
   // (las reglas de pureza de React lo bloquean). Se lee una sola vez, tras
@@ -184,6 +190,10 @@ export function CheckoutForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!dataConsent) {
+      setSubmitError("Para continuar, autoriza el tratamiento de tus datos personales.");
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
 
@@ -213,6 +223,7 @@ export function CheckoutForm({
               ? `${servicePreferredAt}:00-05:00`
               : "",
           discountCode: discountPercent ? code : "",
+          dataConsent,
         }),
       });
       const body = await res.json();
@@ -368,6 +379,32 @@ export function CheckoutForm({
             {submitError && (
               <p className="text-sm text-red-600">{submitError}</p>
             )}
+
+            <label className="flex items-start gap-2.5 text-xs text-brand-ink leading-relaxed cursor-pointer">
+              <input
+                type="checkbox"
+                checked={dataConsent}
+                onChange={(e) => {
+                  setDataConsent(e.target.checked);
+                  if (e.target.checked) setSubmitError(null);
+                }}
+                className="mt-0.5 w-4 h-4 shrink-0"
+                required
+              />
+              <span>
+                Autorizo el tratamiento de mis datos personales para gestionar mi pedido, el envío y la atención
+                de mi compra, según la{" "}
+                <a
+                  href={`${basePath}/politica-de-privacidad`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline font-medium"
+                >
+                  política de privacidad
+                </a>{" "}
+                de la tienda.
+              </span>
+            </label>
 
             {!paymentsReady ? (
               <p className="text-sm text-brand-ink-soft rounded-xl border border-brand-line p-3">

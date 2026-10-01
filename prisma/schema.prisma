@@ -1193,6 +1193,12 @@ model StoreOrder {
   refundReason String?
   restocked    Boolean   @default(false)
 
+  /// Momento en que el comprador marcó la autorización de tratamiento de
+  /// datos personales en el checkout (Ley 1581 de 2012) — es la prueba de
+  /// la autorización. Null en pedidos de antes de la casilla. Ver
+  /// conversación del 2026-10-01.
+  dataConsentAt DateTime?
+
   @@index([brandId, status])
 }
 

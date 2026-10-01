@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { StoreImage } from "@/components/storefront/store-image";
 import type {
   BannerConfig,
   BannerSlide,
@@ -64,13 +65,12 @@ function BannerSlideImage({
   /// el marco de proporción fija y recorta lo que sobre.
   fit: boolean;
 }) {
-  const img = (
-    // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
-    <img
-      src={slide.imageUrl}
-      alt=""
-      className={fit ? "w-full h-auto block" : "w-full h-full object-cover"}
-    />
+  // Banner: ancho completo, primera foto de la página — se carga ya y en
+  // el tamaño de la pantalla (ver StoreImage).
+  const img = fit ? (
+    <StoreImage src={slide.imageUrl} alt="" natural sizes="100vw" priority />
+  ) : (
+    <StoreImage src={slide.imageUrl} alt="" className="object-cover" sizes="100vw" priority />
   );
   const href = resolveLink(slide.link, basePath);
   return href ? (
@@ -117,7 +117,7 @@ function BannerSection({ config: rawConfig, basePath }: { config: BannerConfig; 
               slide={s}
               basePath={basePath}
               fit={fit}
-              wrapperClassName={`w-full shrink-0 snap-center block ${fit ? "" : "h-full"}`}
+              wrapperClassName={`w-full shrink-0 snap-center block ${fit ? "" : "relative h-full"}`}
             />
           ))}
         </div>
@@ -222,22 +222,17 @@ function ImageCarouselSection({ config }: { config: ImageCarouselConfig }) {
   if (images.length === 0) return null;
   if (images.length === 1) {
     return (
-      <div className="w-full aspect-[21/9] sm:aspect-[3/1] overflow-hidden bg-brand-accent-soft">
-        {/* eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca */}
-        <img src={images[0]} alt="" className="w-full h-full object-cover" />
+      <div className="relative w-full aspect-[21/9] sm:aspect-[3/1] overflow-hidden bg-brand-accent-soft">
+        <StoreImage src={images[0]} alt="" className="object-cover" sizes="100vw" />
       </div>
     );
   }
   return (
     <div className="w-full overflow-x-auto snap-x snap-mandatory flex">
       {images.map((url, i) => (
-        // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
-        <img
-          key={i}
-          src={url}
-          alt=""
-          className="w-full shrink-0 snap-center aspect-[21/9] sm:aspect-[3/1] object-cover"
-        />
+        <div key={i} className="relative w-full shrink-0 snap-center aspect-[21/9] sm:aspect-[3/1]">
+          <StoreImage src={url} alt="" className="object-cover" sizes="100vw" />
+        </div>
       ))}
     </div>
   );
@@ -309,8 +304,7 @@ async function CategoryBannersSection({
             className="relative aspect-[4/3] rounded-xl overflow-hidden bg-brand-accent-soft block"
           >
             {item.imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
-              <img src={item.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              <StoreImage src={item.imageUrl} alt="" className="object-cover" sizes="(min-width: 640px) 33vw, 100vw" />
             )}
             <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
               <p className="font-display text-white text-lg font-semibold drop-shadow">
@@ -376,11 +370,11 @@ async function CategoryGridSection({
                   conversación del 2026-09-15. */}
               <div className="w-full aspect-square rounded-2xl overflow-hidden bg-brand-accent-soft relative flex items-center justify-center">
                 {imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
-                  <img
+                  <StoreImage
                     src={imageUrl}
                     alt=""
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    sizes="(min-width: 640px) 160px, 30vw"
                   />
                 ) : (
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-1/3 h-1/3 text-brand-ink-soft/50">
@@ -410,8 +404,9 @@ function PromoBannersSection({ config, basePath }: { config: PromoBannersConfig;
         {items.map((item, i) => {
           const href = resolveLink(item.link, basePath);
           const img = (
-            // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
-            <img src={item.imageUrl!} alt="" className="w-full aspect-[4/3] object-cover rounded-xl" />
+            <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden">
+              <StoreImage src={item.imageUrl!} alt="" className="object-cover" sizes="(min-width: 640px) 33vw, 100vw" />
+            </div>
           );
           return href ? (
             <Link key={i} href={href}>

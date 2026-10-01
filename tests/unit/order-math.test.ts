@@ -64,3 +64,13 @@ describe("movimientos de inventario", () => {
 it("número de pedido corto en mayúsculas", () => {
   expect(orderNumber("mt_1234abcd-5678-90ef-abcd-ef12345678ab")).toBe("345678AB");
 });
+
+describe("inventario disponible", () => {
+  it("resta lo apartado por pedidos sin pagar, sin bajar de cero", async () => {
+    const { availableStock } = await import("@/lib/order-math");
+    expect(availableStock(10, 3)).toBe(7);
+    expect(availableStock(1, 1)).toBe(0);
+    expect(availableStock(1, 4)).toBe(0);
+    expect(availableStock(null, 4)).toBeNull();
+  });
+});

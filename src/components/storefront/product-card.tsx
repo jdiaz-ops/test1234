@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { StoreImage } from "@/components/storefront/store-image";
 import { formatCOP } from "@/components/storefront/catalog-templates/types";
 
 export type CardProduct = {
@@ -122,8 +123,14 @@ export function ProductCard({
     <div className={`flex flex-col ${className}`}>
       <Link href={href} className="relative block bg-brand-accent-soft">
         {product.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca
-          <img src={product.imageUrl} alt={product.name} className="w-full aspect-square object-cover" />
+          <div className="relative w-full aspect-square">
+            <StoreImage
+              src={product.imageUrl}
+              alt={product.name}
+              className="object-cover"
+              sizes="(min-width: 1024px) 400px, (min-width: 640px) 25vw, 50vw"
+            />
+          </div>
         ) : (
           <div className="w-full aspect-square" />
         )}

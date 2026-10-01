@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ThemeConfig } from "@/lib/brand-theme";
 import { GOOGLE_FONT_OPTIONS, TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
+import { prepareImageForUpload } from "@/lib/prepare-image-upload";
 
 export type Patch = Record<string, unknown>;
 export type PatchFn = (patch: Patch) => void;
@@ -28,7 +29,7 @@ function ImageUploadButton({
     setUploading(true);
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", await prepareImageForUpload(file));
       const res = await fetch("/api/marca/tienda/productos/imagen", { method: "POST", body: form });
       const body = await res.json().catch(() => null);
       if (res.ok && body?.url) onChange(body.url);

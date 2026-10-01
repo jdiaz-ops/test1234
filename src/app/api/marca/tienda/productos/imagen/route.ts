@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { uploadFile, FileUploadError } from "@/lib/file-upload";
+import { optimizeImageUpload } from "@/lib/image-optimize";
 
 /// Sube la imagen de un producto de "Mi tienda" y devuelve la URL — separado
 /// de crear/editar el producto porque la marca puede subir la foto antes de
@@ -20,7 +21,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    const url = await uploadFile(file, `marcas/${profile.id}/productos`);
+    // Se guarda ya comprimida (WebP, máx. 2000 px) — ver image-optimize.ts.
+    const url = await uploadFile(await optimizeImageUpload(file), `marcas/${profile.id}/productos`);
     return NextResponse.json({ ok: true, url });
   } catch (err) {
     if (err instanceof FileUploadError)

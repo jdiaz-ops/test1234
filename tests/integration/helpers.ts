@@ -73,3 +73,38 @@ export async function createPendingOrder(
     },
   });
 }
+
+/// Marca lista para vender: llaves de prueba de Wompi y una zona de envío
+/// que cubre Antioquia, como exige el checkout.
+export async function createSellingBrand() {
+  const brand = await createBrand();
+  await prisma.brandProfile.update({
+    where: { id: brand.id },
+    data: {
+      paymentProvider: "WOMPI",
+      paymentMode: "TEST",
+      wompiPublicKeyTest: "pub_test_x",
+      wompiPrivateKeyTest: "prv_test_x",
+      wompiEventsKeyTest: "test_events_x",
+      wompiIntegrityKeyTest: "test_integrity_x",
+    },
+  });
+  await prisma.shippingZone.create({
+    data: {
+      brandId: brand.id,
+      name: "Antioquia",
+      regions: ["Antioquia"],
+      rates: { create: [{ name: "Estándar", price: 10000 }] },
+    },
+  });
+  return brand;
+}
+
+export const BUYER = {
+  buyerName: "Compradora de Prueba",
+  buyerPhone: "3000000000",
+  shippingAddress: "Calle 1 # 2-3",
+  shippingCity: "Medellín",
+  shippingRegion: "Antioquia",
+  dataConsent: true,
+};

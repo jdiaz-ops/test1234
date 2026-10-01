@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { prepareImageForUpload } from "@/lib/prepare-image-upload";
 
 export type BrandCollectionRow = {
   id: string;
@@ -126,7 +127,7 @@ function CollectionForm({
     setUploading(true);
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", await prepareImageForUpload(file));
       const res = await fetch("/api/marca/tienda/productos/imagen", {
         method: "POST",
         body: form,

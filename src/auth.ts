@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { consumeImpersonationToken } from "@/lib/impersonation";
 import { normalizeEmail } from "@/lib/normalize-email";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 /// Auth.js v5: un `throw new Error("lo que sea")` dentro de authorize() NO
 /// llega al cliente con ese mensaje — signIn(..., {redirect:false}) siempre
@@ -19,6 +20,20 @@ import { normalizeEmail } from "@/lib/normalize-email";
 class EmailNotVerifiedSignin extends CredentialsSignin {
   code = "EMAIL_NOT_VERIFIED";
 }
+
+/// Demasiados intentos de contraseña seguidos (ver el límite en authorize).
+class TooManyAttemptsSignin extends CredentialsSignin {
+  code = "TOO_MANY_ATTEMPTS";
+}
+
+/// Límite de intentos de inicio de sesión con contraseña, en ventanas de 15
+/// minutos: 10 por cuenta (frena a quien prueba contraseñas contra un
+/// correo) y 60 por IP (frena a quien prueba muchos correos desde el mismo
+/// lugar, holgado por las IPs compartidas de los operadores móviles). Ver
+/// src/lib/rate-limit.ts y conversación del 2026-10-01.
+const LOGIN_WINDOW_SECONDS = 15 * 60;
+const LOGIN_LIMIT_PER_EMAIL = 10;
+const LOGIN_LIMIT_PER_IP = 60;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // El adapter guarda usuarios/cuentas OAuth (Google) en la base de datos,
@@ -41,7 +56,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Contraseña", type: "password" },
         impersonateToken: { label: "impersonateToken", type: "text" },
       },
-      authorize: async (credentials) => {
+      authorize: async (credentials, request) => {
         // Camino de "entrar como" — un admin Propietario ya generó este
         // token de un solo uso desde /api/admin/entrar-como (ver ese
         // endpoint para el chequeo de permisos); aquí solo se consume, nunca
@@ -88,6 +103,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // mayúscula/minúscula de antes de este fix — así entran igual, sin
         // tener que corregir esos registros a mano.
         const email = normalizeEmail(rawEmail);
+
+        const [byEmail, byIp] = await Promise.all([
+          rateLimit(`login:correo:${email}`, LOGIN_LIMIT_PER_EMAIL, LOGIN_WINDOW_SECONDS),
+          rateLimit(`login:ip:${clientIp(request)}`, LOGIN_LIMIT_PER_IP, LOGIN_WINDOW_SECONDS),
+        ]);
+        if (!byEmail.ok || !byIp.ok) throw new TooManyAttemptsSignin();
+
         const user = await prisma.user.findFirst({
           where: { email: { equals: email, mode: "insensitive" } },
         });

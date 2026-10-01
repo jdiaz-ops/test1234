@@ -9,6 +9,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Image from "@tiptap/extension-image";
 import Youtube from "@tiptap/extension-youtube";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
+import { prepareImageForUpload } from "@/lib/prepare-image-upload";
 
 /// Editor de texto enriquecido para la Descripción de producto — mismo
 /// menú de opciones que ofrece Shopify (negrita/cursiva/subrayado, color,
@@ -273,7 +274,7 @@ function ImageButton({ editor }: { editor: Editor }) {
     setUploading(true);
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", await prepareImageForUpload(file));
       const res = await fetch("/api/marca/tienda/productos/imagen", {
         method: "POST",
         body: form,

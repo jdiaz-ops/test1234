@@ -71,11 +71,17 @@ export default async function StorefrontLayout({
             carrito, que viven al mismo nivel. Ver conversación del
             2026-09-14 (carrito en drawer, no navega a /carrito). */}
         <CartProvider brandSlug={slug}>
+          {/* Todo lo de la tienda vive dentro de este contenedor, que es el
+              que aplica los colores y letras de la marca (cssVars). Antes el
+              panel del carrito y el sello "Creado con Marcolini" quedaban
+              afuera: salían con los colores por defecto de Marcolini (rosado)
+              y, debajo del contenido, se veía una franja de ese fondo. Ver
+              conversación del 2026-10-01. */}
           <div
             data-storefront-root
             data-rounded={roundedDataAttr(theme)}
             style={cssVars as React.CSSProperties}
-            className={theme.mobileNav.enabled ? "pb-16 sm:pb-0" : undefined}
+            className={`min-h-screen bg-brand-bg ${theme.mobileNav.enabled ? "pb-16 sm:pb-0" : ""}`}
           >
             <AnnouncementBar config={theme.announcementBar} colors={theme.colors} />
             {children}
@@ -92,11 +98,11 @@ export default async function StorefrontLayout({
             />
             <PromoPopup config={theme.popup} brandSlug={slug} />
             <MobileBottomNav config={theme.mobileNav} basePath={basePath} />
+            <PoweredByBadge />
+            <CartDrawer brandSlug={slug} basePath={basePath} />
           </div>
-          <CartDrawer brandSlug={slug} basePath={basePath} />
         </CartProvider>
       </StorefrontThemeProvider>
-      <PoweredByBadge />
     </>
   );
 }

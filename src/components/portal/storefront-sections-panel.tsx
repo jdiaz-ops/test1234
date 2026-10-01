@@ -25,6 +25,7 @@ import {
   normalizeBannerConfig,
 } from "@/lib/storefront-sections";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
+import { prepareImageForUpload } from "@/lib/prepare-image-upload";
 
 export type StorefrontSectionRow = {
   id: string;
@@ -49,7 +50,7 @@ async function patchSection(id: string, body: unknown) {
 /// endpoint que usa el resto del portal.
 async function uploadImage(file: File): Promise<string | null> {
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", await prepareImageForUpload(file));
   const res = await fetch("/api/marca/tienda/productos/imagen", { method: "POST", body: form });
   const body = await res.json().catch(() => null);
   return res.ok && body?.url ? body.url : null;

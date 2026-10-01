@@ -66,6 +66,7 @@ export default async function StorefrontCheckoutPage({
         </h1>
         <CheckoutForm
           brandSlug={slug}
+          basePath={basePath}
           taxRatePercent={Number(brand.taxRatePercent)}
           paymentsReady={paymentsReady}
           referredCode={referredCode}

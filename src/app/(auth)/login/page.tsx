@@ -43,7 +43,9 @@ function LoginForm() {
       setError(
         result.code === "EMAIL_NOT_VERIFIED"
           ? "Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada."
-          : "Correo o contraseña incorrectos.",
+          : result.code === "TOO_MANY_ATTEMPTS"
+            ? "Demasiados intentos seguidos. Espera 15 minutos o usa \"¿Olvidaste tu contraseña?\"."
+            : "Correo o contraseña incorrectos.",
       );
       return;
     }

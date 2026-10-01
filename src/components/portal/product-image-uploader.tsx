@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { prepareImageForUpload } from "@/lib/prepare-image-upload";
 
 /// Galería del formulario de producto — subir varias fotos (antes solo
 /// dejaba una), reordenar (la primera es la portada) y quitar. Reusa el
@@ -23,7 +24,7 @@ export function ProductImageUploader({
       const uploaded: string[] = [];
       for (const file of Array.from(files)) {
         const form = new FormData();
-        form.append("file", file);
+        form.append("file", await prepareImageForUpload(file));
         const res = await fetch("/api/marca/tienda/productos/imagen", {
           method: "POST",
           body: form,

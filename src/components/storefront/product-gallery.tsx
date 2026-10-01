@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { StoreImage } from "@/components/storefront/store-image";
 
 /// Galería simple: foto grande + tira de miniaturas debajo (clic para
 /// cambiar la principal). Con una sola foto (o ninguna) se ve igual que
@@ -26,12 +27,16 @@ export function ProductGallery({
   return (
     <div className="min-w-0 flex flex-col sm:flex-row-reverse gap-3">
       <div className="flex-1 min-w-0">
-        {/* eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca */}
-        <img
-          src={images[active] ?? images[0]}
-          alt={alt}
-          className="w-full aspect-square object-contain bg-brand-surface"
-        />
+        <div className="relative w-full aspect-square bg-brand-surface">
+          <StoreImage
+            key={images[active] ?? images[0]}
+            src={images[active] ?? images[0]}
+            alt={alt}
+            className="object-contain"
+            sizes="(min-width: 640px) 45vw, 100vw"
+            priority={active === 0}
+          />
+        </div>
       </div>
       {images.length > 1 && (
         <div className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-x-visible sm:overflow-y-auto sm:max-h-[640px] pb-1 sm:pb-0 sm:pr-1 shrink-0">
@@ -44,8 +49,9 @@ export function ProductGallery({
                 idx === active ? "border-brand-ink" : "border-brand-line"
               }`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element -- foto subida por la marca */}
-              <img src={url} alt="" className="w-full h-full object-cover" />
+              <span className="relative block w-full h-full">
+                <StoreImage src={url} alt="" className="object-cover" sizes="56px" />
+              </span>
             </button>
           ))}
         </div>
