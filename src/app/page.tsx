@@ -30,10 +30,7 @@ export default function HomePage() {
               elegante entre el logo y las tarjetas, como acompañante, no
               como titular. */}
           {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
-          <img src="/marcolini-logo-lockup.png" alt="Marcolini" className="h-40 sm:h-52 w-auto mx-auto mb-5" />
-          <p className="font-display italic text-lg sm:text-xl text-brand-ink-soft tracking-wide mb-14">
-            Habilitamos relaciones de valor entre marcas y creadores de contenido.
-          </p>
+          <img src="/marcolini-logo-lockup.png" alt="Marcolini" className="h-40 sm:h-52 w-auto mx-auto mb-14" />
 
           <div className="grid sm:grid-cols-2 gap-6 mb-8">
             {/* Tarjeta creador */}
