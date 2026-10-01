@@ -14,6 +14,7 @@ type Brand = {
   storefrontSlug: string | null;
   platformFeePercentOverride: number | null;
   marketplaceVisibilityOverride: "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN";
+  marketplaceMissing: string[];
   _count: { offers: number };
   // El query que llena esto ya filtra status != PAID — el tipo incluye PAID
   // solo porque así lo infiere Prisma, nunca llega ese valor en la práctica.
@@ -454,6 +455,17 @@ export function AdminBrandsPanel({
                       <option value="FORCE_VISIBLE">Forzar visible</option>
                       <option value="FORCE_HIDDEN">Forzar oculta</option>
                     </select>
+                    {b.marketplaceVisibilityOverride === "AUTO" && (
+                      <p
+                        className={`text-[11px] mt-1 max-w-[12rem] leading-snug ${
+                          b.marketplaceMissing.length === 0 ? "text-green-700" : "text-amber-700"
+                        }`}
+                      >
+                        {b.marketplaceMissing.length === 0
+                          ? "Sale en el marketplace"
+                          : `No sale. Falta: ${b.marketplaceMissing.join(", ")}`}
+                      </p>
+                    )}
                   </td>
                 )}
                 <td className="px-5 py-3">

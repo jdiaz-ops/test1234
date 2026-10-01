@@ -2,10 +2,16 @@ import { auth } from "@/auth";
 import { listBrands } from "@/server/services/admin-brand-service";
 import { AdminBrandsPanel } from "@/components/portal/admin-brands-panel";
 import { isOwner } from "@/lib/current-admin";
+import { prisma } from "@/lib/prisma";
+import { marketplaceMissing } from "@/lib/marketplace-readiness";
 
 export default async function AdminMarcasPage() {
   const session = await auth();
-  const brands = await listBrands();
+  const [brands, activeOffers] = await Promise.all([
+    listBrands(),
+    prisma.offer.groupBy({ by: ["brandId"], where: { status: "ACTIVE" }, _count: { _all: true } }),
+  ]);
+  const activeOffersByBrand = new Map(activeOffers.map((o) => [o.brandId, o._count._all]));
   const pendingCount = brands.filter((b) => b.status === "PENDING").length;
 
   return (
@@ -26,6 +32,13 @@ export default async function AdminMarcasPage() {
             ? Number(b.platformFeePercentOverride)
             : null,
           marketplaceVisibilityOverride: b.marketplaceVisibilityOverride,
+          // Qué le falta para salir en el marketplace en modo Auto (ver
+          // marketplace-readiness.ts).
+          marketplaceMissing: marketplaceMissing(
+            b,
+            activeOffersByBrand.get(b.id) ?? 0,
+            charges.some((c) => c.status === "DEACTIVATED"),
+          ),
           // `charges` (crudo, con Decimal) queda afuera del spread a propósito
           // — un Server Component no puede mandarle un Decimal tal cual a un
           // Client Component (ver AdminBrandsPanel, "use client"); openCharge
