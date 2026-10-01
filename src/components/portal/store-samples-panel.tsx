@@ -26,6 +26,9 @@ export type SampleRequestRow = {
   shippingAddress: string | null;
   shippingCity: string | null;
   shippingNotes: string | null;
+  shippingEmail: string | null;
+  shippingDocument: string | null;
+  shippingRegion: string | null;
   rejectedReason: string | null;
   createdAt: string;
   creator: { displayName: string };
@@ -292,10 +295,16 @@ function RequestCard({
       {request.shippingName && (
         <div className="text-xs text-brand-ink-soft">
           <p>
-            {request.shippingName} · {request.shippingPhone}
+            {request.shippingName}
+            {request.shippingDocument && ` · CC ${request.shippingDocument}`}
+          </p>
+          <p>
+            {request.shippingPhone}
+            {request.shippingEmail && ` · ${request.shippingEmail}`}
           </p>
           <p>
             {request.shippingAddress}, {request.shippingCity}
+            {request.shippingRegion && `, ${request.shippingRegion}`}
           </p>
           {request.shippingNotes && <p>{request.shippingNotes}</p>}
         </div>

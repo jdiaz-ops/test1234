@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/server/services/notification-service";
 import { isBrandServiceDeactivated } from "@/server/services/payment-service";
+import type { ShippingAddress } from "@/lib/validation/creator";
 
 /// Muestras gratis (inspirado en TikTok Shop) — dos direcciones posibles:
 /// - CREATOR pide (pull): la marca habilita un producto de su catálogo
@@ -15,6 +16,27 @@ import { isBrandServiceDeactivated } from "@/server/services/payment-service";
 /// Pedidos igual que uno pagado.
 
 export class SampleError extends Error {}
+
+/// Campos de envío tal cual se guardan en SampleRequest.
+function shippingColumns(shipping: ShippingAddress) {
+  return {
+    shippingName: shipping.shippingName,
+    shippingDocument: shipping.shippingDocument,
+    shippingEmail: shipping.shippingEmail,
+    shippingPhone: shipping.shippingPhone,
+    shippingRegion: shipping.shippingRegion,
+    shippingCity: shipping.shippingCity,
+    shippingAddress: shipping.shippingAddress,
+    shippingNotes: shipping.shippingNotes || null,
+  };
+}
+
+/// La última dirección usada queda como la del creador — la próxima
+/// muestra sale con el formulario ya lleno (2026-10-01).
+async function rememberShipping(creatorId: string, shipping: ShippingAddress) {
+  const saved = { ...shippingColumns(shipping), shippingNotes: shipping.shippingNotes || "" };
+  await prisma.creatorProfile.update({ where: { id: creatorId }, data: { savedShipping: saved } });
+}
 
 // ---------------------------------------------------------------- MARCA
 
@@ -112,10 +134,16 @@ async function finalizeApprovedSample(requestId: string) {
         kind: "SAMPLE",
         reference: `sample_${randomUUID()}`,
         buyerName: request.shippingName,
-        buyerEmail: creator.user.email,
+        buyerEmail: request.shippingEmail || creator.user.email,
         buyerPhone: request.shippingPhone,
+        // Cédula: la transportadora la pide. Se guarda donde el pedido ya
+        // muestra el documento del cliente.
+        ...(request.shippingDocument
+          ? { billingIdType: "CC", billingIdNumber: request.shippingDocument }
+          : {}),
         shippingAddress: request.shippingAddress,
         shippingCity: request.shippingCity,
+        shippingRegion: request.shippingRegion,
         shippingNotes: request.shippingNotes,
         subtotalCents: 0,
         discountCents: 0,
@@ -293,13 +321,7 @@ export async function listCreatorSampleOffers(creatorId: string) {
 export async function acceptSampleOffer(
   creatorId: string,
   requestId: string,
-  shipping: {
-    shippingName: string;
-    shippingPhone: string;
-    shippingAddress: string;
-    shippingCity: string;
-    shippingNotes?: string | null;
-  },
+  shipping: ShippingAddress,
 ) {
   const request = await prisma.sampleRequest.findFirst({
     where: { id: requestId, creatorId, initiatedBy: "BRAND" },
@@ -312,14 +334,9 @@ export async function acceptSampleOffer(
 
   await prisma.sampleRequest.update({
     where: { id: request.id },
-    data: {
-      shippingName: shipping.shippingName,
-      shippingPhone: shipping.shippingPhone,
-      shippingAddress: shipping.shippingAddress,
-      shippingCity: shipping.shippingCity,
-      shippingNotes: shipping.shippingNotes || null,
-    },
+    data: shippingColumns(shipping),
   });
+  await rememberShipping(creatorId, shipping);
 
   const updated = await finalizeApprovedSample(request.id);
 
@@ -392,15 +409,10 @@ export async function listCreatorSampleRequests(creatorId: string) {
   });
 }
 
-type CreateSampleRequestInput = {
+type CreateSampleRequestInput = ShippingAddress & {
   productId: string;
   quantity: number;
   message?: string | null;
-  shippingName: string;
-  shippingPhone: string;
-  shippingAddress: string;
-  shippingCity: string;
-  shippingNotes?: string | null;
 };
 
 export async function createSampleRequest(
@@ -437,13 +449,10 @@ export async function createSampleRequest(
       productId: product.id,
       quantity: data.quantity,
       message: data.message || null,
-      shippingName: data.shippingName,
-      shippingPhone: data.shippingPhone,
-      shippingAddress: data.shippingAddress,
-      shippingCity: data.shippingCity,
-      shippingNotes: data.shippingNotes || null,
+      ...shippingColumns(data),
     },
   });
+  await rememberShipping(creatorId, data);
 
   const [creator, brand] = await Promise.all([
     prisma.creatorProfile.findUniqueOrThrow({ where: { id: creatorId } }),

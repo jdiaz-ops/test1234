@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
 
 export const updateProfileSchema = z.object({
   displayName: z.string().min(2, "Ingresa tu nombre"),
@@ -154,26 +155,36 @@ export const requestProductSchema = z.object({
 /// requestProductSchema (arriba, dentro de una relación ya vinculada por
 /// oferta), esto aplica a cualquier producto que una marca haya habilitado
 /// para muestras, sin necesitar estar unido a su programa todavía.
-export const requestSampleSchema = z.object({
+/// Datos de envío de una muestra — lo que pide una transportadora en
+/// Colombia (nombre, cédula, correo, teléfono, departamento, ciudad,
+/// dirección). Se guardan en CreatorProfile.savedShipping para que la
+/// próxima vez salgan ya llenos (2026-10-01).
+export const shippingAddressSchema = z.object({
+  shippingName: z.string().trim().min(2, "Ingresa tu nombre completo"),
+  shippingDocument: z
+    .string()
+    .trim()
+    .regex(/^[0-9A-Za-z.\- ]{5,20}$/, "Ingresa un número de cédula válido"),
+  shippingEmail: z.string().trim().email("Ingresa un correo válido"),
+  shippingPhone: z.string().trim().min(7, "Ingresa un teléfono válido"),
+  shippingRegion: z
+    .string()
+    .refine((v) => (COLOMBIA_REGIONS as readonly string[]).includes(v), "Elige tu departamento"),
+  shippingCity: z.string().trim().min(2, "Ingresa tu ciudad"),
+  shippingAddress: z.string().trim().min(5, "Ingresa tu dirección"),
+  shippingNotes: z.string().max(300).optional().or(z.literal("")),
+});
+export type ShippingAddress = z.infer<typeof shippingAddressSchema>;
+
+export const requestSampleSchema = shippingAddressSchema.extend({
   productId: z.string().min(1),
   quantity: z.coerce.number().int().min(1).max(5),
   message: z.string().max(300).optional().or(z.literal("")),
-  shippingName: z.string().min(2, "Ingresa tu nombre"),
-  shippingPhone: z.string().min(7, "Ingresa un teléfono válido"),
-  shippingAddress: z.string().min(5, "Ingresa tu dirección"),
-  shippingCity: z.string().min(2, "Ingresa tu ciudad"),
-  shippingNotes: z.string().max(300).optional().or(z.literal("")),
 });
 
 /// El creador acepta una oferta de muestra que le mandó la marca — pone
 /// sus datos de envío recién ahora (la marca no los tenía al ofrecerla).
-export const acceptSampleOfferSchema = z.object({
-  shippingName: z.string().min(2, "Ingresa tu nombre"),
-  shippingPhone: z.string().min(7, "Ingresa un teléfono válido"),
-  shippingAddress: z.string().min(5, "Ingresa tu dirección"),
-  shippingCity: z.string().min(2, "Ingresa tu ciudad"),
-  shippingNotes: z.string().max(300).optional().or(z.literal("")),
-});
+export const acceptSampleOfferSchema = shippingAddressSchema;
 
 /// Respuesta a una invitación directa de una marca a unirse a su programa
 /// (ver recruit-service.ts) — desiredCode solo hace falta si acepta.

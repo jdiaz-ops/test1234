@@ -184,6 +184,12 @@ model CreatorProfile {
   /// (envío de producto, campañas) sin tener que pedirlo por chat.
   phone      String?
 
+  /// Última dirección de envío que usó para una muestra (nombre, cédula,
+  /// correo, teléfono, departamento, ciudad, dirección, notas — ver
+  /// shippingAddressSchema en lib/validation/creator.ts). Sale ya llena la
+  /// próxima vez; si la cambia, queda la nueva (2026-10-01).
+  savedShipping Json?
+
   /// Confirmación de Términos y Condiciones — se pone al registrarse, igual
   /// que BrandProfile.termsAcceptedAt.
   termsAcceptedAt DateTime?
@@ -1374,11 +1380,15 @@ model SampleRequest {
   /// perfil de direcciones aparte. Quedan null mientras la oferta está en
   /// OFFERED (la marca todavía no sabe la dirección) — se llenan cuando el
   /// creador acepta, justo antes de aprobar y crear el pedido.
-  shippingName    String?
-  shippingPhone   String?
-  shippingAddress String?
-  shippingCity    String?
-  shippingNotes   String?
+  shippingName     String?
+  shippingPhone    String?
+  shippingAddress  String?
+  shippingCity     String?
+  shippingNotes    String?
+  /// Lo que pide una transportadora además de lo de arriba (2026-10-01).
+  shippingEmail    String?
+  shippingDocument String?
+  shippingRegion   String?
 
   status         SampleRequestStatus @default(PENDING)
   rejectedReason String?

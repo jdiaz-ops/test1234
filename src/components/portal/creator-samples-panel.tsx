@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import {
+  SampleShippingFields,
+  type SampleShipping,
+} from "@/components/portal/sample-shipping-fields";
 
 export type SampleEligibleProduct = {
   id: string;
@@ -61,25 +65,19 @@ const STATUS_CLASS: Record<CreatorSampleRequestRow["status"], string> = {
 
 function RequestForm({
   product,
-  defaultPhone,
-  defaultCity,
+  defaultShipping,
   onDone,
   onCancel,
 }: {
   product: SampleEligibleProduct;
-  defaultPhone: string;
-  defaultCity: string;
-  onDone: (quantity: number) => void;
+  defaultShipping: SampleShipping;
+  onDone: (quantity: number, shipping: SampleShipping) => void;
   onCancel: () => void;
 }) {
   const maxQty = Math.min(5, product.sampleStock);
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState("");
-  const [shippingName, setShippingName] = useState("");
-  const [shippingPhone, setShippingPhone] = useState(defaultPhone);
-  const [shippingAddress, setShippingAddress] = useState("");
-  const [shippingCity, setShippingCity] = useState(defaultCity);
-  const [shippingNotes, setShippingNotes] = useState("");
+  const [shipping, setShipping] = useState(defaultShipping);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,23 +89,14 @@ function RequestForm({
       const res = await fetch("/api/creador/muestras", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: product.id,
-          quantity,
-          message,
-          shippingName,
-          shippingPhone,
-          shippingAddress,
-          shippingCity,
-          shippingNotes,
-        }),
+        body: JSON.stringify({ productId: product.id, quantity, message, ...shipping }),
       });
       const body = await res.json();
       if (!res.ok) {
         setError(body?.error ?? "No se pudo enviar la solicitud.");
         return;
       }
-      onDone(quantity);
+      onDone(quantity, shipping);
     } catch {
       setError("No se pudo enviar — revisa tu conexión.");
     } finally {
@@ -120,72 +109,19 @@ function RequestForm({
       onSubmit={handleSubmit}
       className="mt-3 space-y-3 rounded-xl border border-brand-line bg-brand-bg p-4"
     >
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-brand-ink mb-1">Cantidad</label>
-          <input
-            type="number"
-            min={1}
-            max={maxQty}
-            required
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-            className="input text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-brand-ink mb-1">
-            Nombre completo
-          </label>
-          <input
-            required
-            value={shippingName}
-            onChange={(e) => setShippingName(e.target.value)}
-            className="input text-sm"
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-brand-ink mb-1">Teléfono</label>
-          <input
-            required
-            value={shippingPhone}
-            onChange={(e) => setShippingPhone(e.target.value)}
-            className="input text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-brand-ink mb-1">Ciudad</label>
-          <input
-            required
-            value={shippingCity}
-            onChange={(e) => setShippingCity(e.target.value)}
-            className="input text-sm"
-          />
-        </div>
-      </div>
-      <div>
-        <label className="block text-xs text-brand-ink mb-1">
-          Dirección de envío
-        </label>
+      <div className="w-28">
+        <label className="block text-xs text-brand-ink mb-1">Cantidad</label>
         <input
+          type="number"
+          min={1}
+          max={maxQty}
           required
-          value={shippingAddress}
-          onChange={(e) => setShippingAddress(e.target.value)}
+          value={quantity}
+          onChange={(e) => setQuantity(Number(e.target.value))}
           className="input text-sm"
         />
       </div>
-      <div>
-        <label className="block text-xs text-brand-ink mb-1">
-          Notas de envío (opcional)
-        </label>
-        <input
-          value={shippingNotes}
-          onChange={(e) => setShippingNotes(e.target.value)}
-          className="input text-sm"
-        />
-      </div>
+      <SampleShippingFields value={shipping} onChange={setShipping} />
       <div>
         <label className="block text-xs text-brand-ink mb-1">
           Mensaje para la marca (opcional)
@@ -222,22 +158,16 @@ function RequestForm({
 
 function AcceptOfferForm({
   offer,
-  defaultPhone,
-  defaultCity,
+  defaultShipping,
   onDone,
   onCancel,
 }: {
   offer: SampleOfferRow;
-  defaultPhone: string;
-  defaultCity: string;
-  onDone: () => void;
+  defaultShipping: SampleShipping;
+  onDone: (shipping: SampleShipping) => void;
   onCancel: () => void;
 }) {
-  const [shippingName, setShippingName] = useState("");
-  const [shippingPhone, setShippingPhone] = useState(defaultPhone);
-  const [shippingAddress, setShippingAddress] = useState("");
-  const [shippingCity, setShippingCity] = useState(defaultCity);
-  const [shippingNotes, setShippingNotes] = useState("");
+  const [shipping, setShipping] = useState(defaultShipping);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -249,21 +179,14 @@ function AcceptOfferForm({
       const res = await fetch(`/api/creador/muestras/ofertas/${offer.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          decision: "accept",
-          shippingName,
-          shippingPhone,
-          shippingAddress,
-          shippingCity,
-          shippingNotes,
-        }),
+        body: JSON.stringify({ decision: "accept", ...shipping }),
       });
       const body = await res.json();
       if (!res.ok) {
         setError(body?.error ?? "No se pudo aceptar.");
         return;
       }
-      onDone();
+      onDone(shipping);
     } catch {
       setError("No se pudo aceptar — revisa tu conexión.");
     } finally {
@@ -276,60 +199,7 @@ function AcceptOfferForm({
       onSubmit={handleSubmit}
       className="mt-3 space-y-3 rounded-xl border border-brand-line bg-brand-bg p-4"
     >
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-brand-ink mb-1">
-            Nombre completo
-          </label>
-          <input
-            required
-            value={shippingName}
-            onChange={(e) => setShippingName(e.target.value)}
-            className="input text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-brand-ink mb-1">Teléfono</label>
-          <input
-            required
-            value={shippingPhone}
-            onChange={(e) => setShippingPhone(e.target.value)}
-            className="input text-sm"
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-brand-ink mb-1">Ciudad</label>
-          <input
-            required
-            value={shippingCity}
-            onChange={(e) => setShippingCity(e.target.value)}
-            className="input text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-brand-ink mb-1">
-            Notas de envío (opcional)
-          </label>
-          <input
-            value={shippingNotes}
-            onChange={(e) => setShippingNotes(e.target.value)}
-            className="input text-sm"
-          />
-        </div>
-      </div>
-      <div>
-        <label className="block text-xs text-brand-ink mb-1">
-          Dirección de envío
-        </label>
-        <input
-          required
-          value={shippingAddress}
-          onChange={(e) => setShippingAddress(e.target.value)}
-          className="input text-sm"
-        />
-      </div>
+      <SampleShippingFields value={shipping} onChange={setShipping} />
 
       {error && <p className="text-xs text-red-600">{error}</p>}
 
@@ -355,14 +225,14 @@ function AcceptOfferForm({
 
 function OfferCard({
   offer,
-  defaultPhone,
-  defaultCity,
+  defaultShipping,
   onResolved,
+  onShippingSaved,
 }: {
   offer: SampleOfferRow;
-  defaultPhone: string;
-  defaultCity: string;
+  defaultShipping: SampleShipping;
   onResolved: (offerId: string) => void;
+  onShippingSaved: (shipping: SampleShipping) => void;
 }) {
   const [accepting, setAccepting] = useState(false);
   const [declining, setDeclining] = useState(false);
@@ -424,10 +294,12 @@ function OfferCard({
       {accepting ? (
         <AcceptOfferForm
           offer={offer}
-          defaultPhone={defaultPhone}
-          defaultCity={defaultCity}
+          defaultShipping={defaultShipping}
           onCancel={() => setAccepting(false)}
-          onDone={() => onResolved(offer.id)}
+          onDone={(shipping) => {
+            onShippingSaved(shipping);
+            onResolved(offer.id);
+          }}
         />
       ) : (
         <div className="flex gap-2 mt-3">
@@ -456,16 +328,18 @@ export function CreatorSamplesPanel({
   initialProducts,
   initialRequests,
   initialOffers,
-  defaultPhone,
-  defaultCity,
+  defaultShipping,
 }: {
   initialProducts: SampleEligibleProduct[];
   initialRequests: CreatorSampleRequestRow[];
   initialOffers: SampleOfferRow[];
-  defaultPhone: string;
-  defaultCity: string;
+  /// Su última dirección usada, o lo que ya se sabe de su perfil.
+  defaultShipping: SampleShipping;
 }) {
   const [offers, setOffers] = useState(initialOffers);
+  // La dirección usada en una solicitud queda para la siguiente, sin
+  // recargar la página.
+  const [shipping, setShipping] = useState(defaultShipping);
   const [requests, setRequests] = useState(initialRequests);
   const [openProductId, setOpenProductId] = useState<string | null>(null);
   const [justRequestedIds, setJustRequestedIds] = useState<Set<string>>(
@@ -492,8 +366,8 @@ export function CreatorSamplesPanel({
               <OfferCard
                 key={o.id}
                 offer={o}
-                defaultPhone={defaultPhone}
-                defaultCity={defaultCity}
+                defaultShipping={shipping}
+                onShippingSaved={setShipping}
                 onResolved={(offerId) =>
                   setOffers((prev) => prev.filter((x) => x.id !== offerId))
                 }
@@ -576,10 +450,10 @@ export function CreatorSamplesPanel({
                   ) : openProductId === p.id ? (
                     <RequestForm
                       product={p}
-                      defaultPhone={defaultPhone}
-                      defaultCity={defaultCity}
+                      defaultShipping={shipping}
                       onCancel={() => setOpenProductId(null)}
-                      onDone={(quantity) => {
+                      onDone={(quantity, used) => {
+                        setShipping(used);
                         setOpenProductId(null);
                         setJustRequestedIds((prev) => new Set([...prev, p.id]));
                         setRequests((prev) => [
