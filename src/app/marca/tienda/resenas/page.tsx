@@ -1,9 +1,12 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { REVIEWS_ENABLED } from "@/lib/features";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { listBrandReviews } from "@/server/services/product-review-service";
 import { StoreReviewsPanel } from "@/components/portal/store-reviews-panel";
 
 export default async function TiendaResenasPage() {
+  // Reseñas apagadas (ver src/lib/features.ts).
+  if (!REVIEWS_ENABLED) notFound();
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { limitOrReject } from "@/lib/rate-limit";
+import { REVIEWS_ENABLED } from "@/lib/features";
 import { submitReviewSchema } from "@/lib/validation/storefront";
 import {
   submitProductReview,
@@ -12,6 +13,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  // Reseñas apagadas (ver src/lib/features.ts).
+  if (!REVIEWS_ENABLED) return NextResponse.json({ error: "No disponible" }, { status: 404 });
+
   // 10 reseñas por hora por IP. Ver src/lib/rate-limit.ts.
   const limited = await limitOrReject(req, "resena", 10, 3600);
   if (limited) return limited;

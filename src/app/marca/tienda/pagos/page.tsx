@@ -1,5 +1,6 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
+import { StoreSettingsTabs } from "@/components/portal/store-settings-tabs";
 import { StorePaymentForm } from "@/components/portal/store-payment-form";
 
 export default async function TiendaPagosPage() {
@@ -11,9 +12,10 @@ export default async function TiendaPagosPage() {
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
         MI TIENDA
       </p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
-        Pagos
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-4">
+        Configuración
       </h1>
+      <StoreSettingsTabs active="pagos" />
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         Conecta tu propia pasarela de pago — el dinero de cada venta llega
         directo a tu cuenta, Marcolini nunca lo recibe.

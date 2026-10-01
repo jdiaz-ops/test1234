@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SAMPLES_ENABLED } from "@/lib/features";
+import { REVIEWS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
 
 // Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
 // ruta siguen intactos, solo se quitó del menú. Perfil, Facturación,
@@ -28,27 +28,29 @@ const items = [
 /// la conexión con Shopify/WooCommerce (esa sigue viviendo en Cuenta). Ver
 /// conversación del 2026-09-06.
 ///
-/// Es la ÚNICA navegación de Mi tienda: antes cada página repetía casi la
-/// misma lista en pastillas arriba del contenido (StoreSubNav), con
-/// Plantilla/Diseño/Páginas solo ahí y no acá — "bastante confuso". El
-/// orden sigue el flujo de armar la tienda: cargar productos, agruparlos,
-/// darle diseño y contenido, operar (pedidos/clientes/muestras) y
-/// configurar cobros, envíos y el link. Plantilla se mudó adentro de
-/// Diseño → Catálogo. Ver conversación del 2026-09-30.
-const storeItems = [
+/// Es la ÚNICA navegación de Mi tienda. Orden pedido por la marca el
+/// 2026-10-01, como el día a día de una tienda (estilo Shopify): primero
+/// Pedidos, después el catálogo, los clientes y el diseño. Pagos y Envíos
+/// ya no van sueltos: viven dentro de Configuración, con pestañas arriba
+/// (ver StoreSettingsTabs) — por eso `also` marca Configuración como activa
+/// también en esas dos rutas. Páginas va junto a Diseño (es contenido de
+/// la tienda). Reseñas se quitó (REVIEWS_ENABLED, src/lib/features.ts).
+const storeItems: { href: string; label: string; also?: string[] }[] = [
+  { href: "/marca/tienda/pedidos", label: "Pedidos" },
   { href: "/marca/tienda/productos", label: "Productos" },
   { href: "/marca/tienda/colecciones", label: "Colecciones" },
+  { href: "/marca/tienda/clientes", label: "Clientes" },
   { href: "/marca/tienda/diseno", label: "Diseño" },
   { href: "/marca/tienda/paginas", label: "Páginas" },
-  { href: "/marca/tienda/pedidos", label: "Pedidos" },
-  { href: "/marca/tienda/clientes", label: "Clientes" },
+  // Escondidos mientras su interruptor esté apagado (ver
+  // src/lib/features.ts). Se filtran abajo.
   { href: "/marca/tienda/resenas", label: "Reseñas" },
-  // Muestras: escondido mientras SAMPLES_ENABLED esté apagado (ver
-  // src/lib/features.ts). Se filtra abajo.
   { href: "/marca/tienda/muestras", label: "Muestras" },
-  { href: "/marca/tienda/pagos", label: "Pagos" },
-  { href: "/marca/tienda/envios", label: "Envíos" },
-  { href: "/marca/tienda/configuracion", label: "Configuración" },
+  {
+    href: "/marca/tienda/configuracion",
+    label: "Configuración",
+    also: ["/marca/tienda/pagos", "/marca/tienda/envios"],
+  },
 ];
 
 export function BrandNav({
@@ -101,8 +103,9 @@ export function BrandNav({
       </p>
       {storeItems
         .filter((item) => SAMPLES_ENABLED || item.href !== "/marca/tienda/muestras")
+        .filter((item) => REVIEWS_ENABLED || item.href !== "/marca/tienda/resenas")
         .map((item) => {
-        const active = pathname === item.href;
+        const active = pathname === item.href || (item.also ?? []).includes(pathname);
         return (
           <Link
             key={item.href}

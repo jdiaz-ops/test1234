@@ -9,3 +9,10 @@
 /// mientras se aprende cómo diseñarlas. Para encenderlo:
 /// NEXT_PUBLIC_FEATURE_SAMPLES=true. Ver conversación del 2026-10-01.
 export const SAMPLES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_SAMPLES === "true";
+
+/// Reseñas de productos (product-review-service.ts): los compradores
+/// opinan desde la ficha y la marca aprueba. Apagado: la marca pidió
+/// quitarlo — no se ve en la ficha, ni en el menú, y la API de envío
+/// responde 404. Las reseñas guardadas no se borran. Para encenderlo:
+/// NEXT_PUBLIC_FEATURE_REVIEWS=true. Ver conversación del 2026-10-01.
+export const REVIEWS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_REVIEWS === "true";

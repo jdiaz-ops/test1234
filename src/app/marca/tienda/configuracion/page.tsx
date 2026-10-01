@@ -1,5 +1,6 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
+import { StoreSettingsTabs } from "@/components/portal/store-settings-tabs";
 import { StoreConfigForm } from "@/components/portal/store-config-form";
 import { CustomDomainForm } from "@/components/portal/custom-domain-form";
 import { TaxConfigForm } from "@/components/portal/tax-config-form";
@@ -13,11 +14,12 @@ export default async function TiendaConfiguracionPage() {
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
         MI TIENDA
       </p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-4">
         Configuración
       </h1>
+      <StoreSettingsTabs active="general" />
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        El link público de tu tienda dentro de Marcolini.
+        El link de tu tienda, tu dominio propio y el IVA de tus precios.
       </p>
       {/* El link real es siempre este subdominio (o un dominio propio, ver
           CustomDomainForm) — StoreConfigForm ya lo muestra/edita en ese
