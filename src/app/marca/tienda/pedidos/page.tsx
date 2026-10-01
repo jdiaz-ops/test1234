@@ -1,6 +1,7 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { StoreOrdersPanel } from "@/components/portal/store-orders-panel";
+import { relativeOrderDate } from "@/lib/relative-date";
 import { listBrandOrders, reconcilePendingOrders } from "@/server/services/store-order-service";
 
 export default async function TiendaPedidosPage() {
@@ -14,6 +15,7 @@ export default async function TiendaPedidosPage() {
     new Promise((resolve) => setTimeout(resolve, 6000)),
   ]);
   const orders = await listBrandOrders(profile.id);
+  const now = new Date();
 
   return (
     <div>
@@ -38,6 +40,7 @@ export default async function TiendaPedidosPage() {
         </a>
       </div>
       <StoreOrdersPanel
+        nowIso={now.toISOString()}
         initialOrders={orders.map((o) => ({
           id: o.id,
           kind: o.kind,
@@ -46,30 +49,19 @@ export default async function TiendaPedidosPage() {
           reference: o.reference,
           buyerName: o.buyerName,
           buyerEmail: o.buyerEmail,
-          buyerPhone: o.buyerPhone,
           shippingAddress: o.shippingAddress,
-          shippingCity: o.shippingCity,
-          shippingRegion: o.shippingRegion,
-          shippingNotes: o.shippingNotes,
           servicePreferredAt: o.servicePreferredAt?.toISOString() ?? null,
+          shippingMethod: o.shippingMethod,
           discountCode: o.discountCode,
           totalCents: o.totalCents,
           createdAt: o.createdAt.toISOString(),
-          creator: o.transaction
-            ? {
-                name: o.transaction.creator.displayName,
-                commissionPercent: Number(
-                  o.transaction.enrollment.commissionPercentOverride ??
-                    o.transaction.enrollment.offer.defaultCommissionPercent,
-                ),
-                commissionAmountCents: o.transaction.commission
-                  ? Math.round(
-                      Number(o.transaction.commission.creatorCommissionAmount) * 100,
-                    )
-                  : null,
-              }
-            : null,
-          itemCount: o.items.length,
+          createdLabel: relativeOrderDate(o.createdAt, now),
+          paidAt: o.paidAt?.toISOString() ?? null,
+          preparedAt: o.preparedAt?.toISOString() ?? null,
+          deliveredAt: o.deliveredAt?.toISOString() ?? null,
+          refundedAt: o.refundedAt?.toISOString() ?? null,
+          unitCount: o.items.reduce((n, i) => n + i.quantity, 0),
+          creator: o.transaction ? { name: o.transaction.creator.displayName } : null,
         }))}
       />
     </div>
