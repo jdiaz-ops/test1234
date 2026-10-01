@@ -11,6 +11,10 @@ import { portalUrl } from "@/lib/store-url";
 // sin NEXT_PUBLIC_APP_URL configurada, quedaba "http://localhost:3000".
 const APP_ORIGIN = portalUrl();
 
+/// "Tu botón para cualquier tienda" (bookmarklet). Escondido por ahora a
+/// pedido de Juan (2026-10-01); para mostrarlo de nuevo, cambiar a true.
+const SHOW_BOOKMARKLET = false;
+
 export default async function CodigosPage() {
   const session = await auth();
   const profile = await prisma.creatorProfile.findUniqueOrThrow({
@@ -32,9 +36,11 @@ export default async function CodigosPage() {
         </div>
       ) : (
         <>
-        <div className="mb-6">
-          <BookmarkletButton creatorId={profile.id} appOrigin={APP_ORIGIN} />
-        </div>
+        {SHOW_BOOKMARKLET && (
+          <div className="mb-6">
+            <BookmarkletButton creatorId={profile.id} appOrigin={APP_ORIGIN} />
+          </div>
+        )}
         {/* Tarjetas en vez de tabla — así la explicación de a quién le
             corresponde cada número (descuento/comisión) puede ir pegada al
             número mismo, en vez de una nota aparte arriba que quedaba lejos
