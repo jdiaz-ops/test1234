@@ -71,17 +71,11 @@ export function BrandProfileForm({
   initial,
   files,
   onSaved,
-  hideWebsiteField = false,
   storeUrl = null,
 }: {
   initial: Values;
   files: Files;
   onSaved?: () => void;
-  // Onboarding: la marca todavía no conectó su tienda, así que no tiene
-  // sentido pedirle que escriba la web a mano y se arriesgue a un typo —
-  // se llena sola al conectarla (ver fillBrandWebsiteUrlIfMissing).
-  // Sigue editable después, desde Cuenta (ahí no se pasa esta prop).
-  hideWebsiteField?: boolean;
   // Link de su tienda en Marcolini: es el que ven los creadores en el
   // marketplace (la web externa solo si todavía no tiene tienda).
   storeUrl?: string | null;
@@ -146,15 +140,9 @@ export function BrandProfileForm({
           value={form.companyName}
           onChange={(v) => set("companyName", v)}
         />
-        {!hideWebsiteField && (
-          <Field
-            label="Página web"
-            value={form.websiteUrl}
-            onChange={(v) => set("websiteUrl", v)}
-            placeholder="https://"
-            type="url"
-          />
-        )}
+        {/* "Página web" se quitó (2026-10-01): a los creadores se les
+            muestra la tienda de la marca en Marcolini. El valor guardado
+            se conserva y se sigue enviando tal cual. */}
         <div>
           <label className="block text-sm text-brand-ink mb-1">
             Descripción

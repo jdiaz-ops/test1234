@@ -103,13 +103,6 @@ export function OnboardingWizard({
                       initial={profile.initial}
                       files={profile.files}
                       onSaved={() => goToNext("perfil")}
-                      // Acá todavía no hay tienda conectada — se llena
-                      // sola en el paso "Conectar tu tienda" (ver
-                      // fillBrandWebsiteUrlIfMissing en
-                      // brand-profile-service.ts), sin que la marca tenga
-                      // que escribirla y arriesgarse a un typo. Sigue
-                      // editable después, desde Cuenta.
-                      hideWebsiteField
                     />
                   )}
                   {step.key === "tienda" && !STORE_CONNECTION_ENABLED && (

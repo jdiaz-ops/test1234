@@ -12,7 +12,7 @@ export function PageTabs({
   active: string;
 }) {
   return (
-    <div className="flex gap-1 border-b border-brand-line mb-6 overflow-x-auto">
+    <div className="flex gap-1 border-b border-brand-line mb-6 overflow-x-auto overflow-y-hidden">
       {tabs.map((tab) => (
         <Link
           key={tab.href}

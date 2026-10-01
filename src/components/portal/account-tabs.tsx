@@ -21,7 +21,7 @@ export function AccountTabs({
           deslizar, rompiendo el layout en vez de dar scroll horizontal
           limpio. El scroll nativo táctil (mobile) ya se siente natural
           sin necesitar una barra de scroll visible. */}
-      <div className="flex gap-1 border-b border-brand-line mb-8 overflow-x-auto">
+      <div className="flex gap-1 border-b border-brand-line mb-8 overflow-x-auto overflow-y-hidden">
         {tabs.map((t) => (
           <button
             key={t.key}
