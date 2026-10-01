@@ -10,16 +10,17 @@ import { CAMPAIGNS_ENABLED, REFERRALS_ENABLED, SAMPLES_ENABLED } from "@/lib/fea
 //
 // Lista plana (sin encabezados de sección — quedaba confuso) — "Empieza
 // aquí" va primero, arriba de Dashboard. Orden pedido explícitamente por
-// Juan: Dashboard, Mi vitrina, Campañas, Marketplace de marcas, Mis
-// Códigos y Links, Invita y gana.
+// Juan: Dashboard, Marketplace de marcas, Mi vitrina, Campañas, Mis
+// Códigos y Links, Invita y gana (Marketplace antes de Mi vitrina desde el
+// 2026-10-01: primero se unen a marcas, después arman la vitrina).
 // "Cuenta" es el único ítem con subsecciones, y solo se expande cuando hace
 // falta — Transacciones vive ahí adentro, no en la lista principal.
 const flatItems = [
   { href: "/creador/onboarding", label: "Empieza aquí" },
   { href: "/creador", label: "Dashboard" },
-  { href: "/creador/storefront", label: "Mi vitrina" },
   { href: "/creador/retos", label: "Campañas" },
   { href: "/creador/marketplace", label: "Marketplace de marcas" },
+  { href: "/creador/storefront", label: "Mi vitrina" },
   // Nuevo — no estaba en el orden original que pidió Juan, se agregó justo
   // después de Marketplace por ser temáticamente parecido (descubrir algo
   // de una marca). Ver conversación sobre muestras estilo TikTok Shop.
