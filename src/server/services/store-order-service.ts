@@ -629,7 +629,7 @@ const brandOrderInclude = {
   items: true,
   transaction: {
     include: {
-      creator: { select: { displayName: true } },
+      creator: { select: { displayName: true, storefrontSlug: true } },
       commission: true,
       enrollment: {
         include: {

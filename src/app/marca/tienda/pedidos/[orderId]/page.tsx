@@ -5,6 +5,8 @@ import { canDeleteStoreOrder, getBrandOrderDetail } from "@/server/services/stor
 import { OrderArchiveActions } from "@/components/portal/order-archive-actions";
 import { getDataicoConnection } from "@/server/services/dataico-service";
 import { OrderInvoicePanel } from "@/components/portal/order-invoice-panel";
+import { prisma } from "@/lib/prisma";
+import { creatorVitrinaUrl } from "@/lib/creator-identity";
 import {
   OrderItemsList,
   OrderFulfillmentPanel,
@@ -78,9 +80,26 @@ export default async function TiendaPedidoDetallePage({
   // distingue de uno físico por eso (ver createStoreOrder, que deja ambos
   // en null solo para pedidos DIGITAL).
   const isDigital = !isService && order.shippingAddress == null;
+  // Venta aún sin registrar (ej. pedido pendiente): el creador sale del
+  // código usado en esta marca.
+  const codeOwner =
+    !order.transaction && order.discountCode
+      ? await prisma.creatorOfferEnrollment.findFirst({
+          where: {
+            discountCode: { equals: order.discountCode, mode: "insensitive" },
+            offer: { brandId: profile.id },
+          },
+          select: {
+            commissionPercentOverride: true,
+            offer: { select: { defaultCommissionPercent: true } },
+            creator: { select: { displayName: true, storefrontSlug: true } },
+          },
+        })
+      : null;
   const creator = order.transaction
     ? {
         name: order.transaction.creator.displayName,
+        vitrinaUrl: await creatorVitrinaUrl(order.transaction.creator.storefrontSlug),
         commissionPercent: Number(
           order.transaction.enrollment.commissionPercentOverride ??
             order.transaction.enrollment.offer.defaultCommissionPercent,
@@ -89,7 +108,14 @@ export default async function TiendaPedidoDetallePage({
           ? Math.round(Number(order.transaction.commission.creatorCommissionAmount) * 100)
           : null,
       }
-    : null;
+    : codeOwner
+      ? {
+          name: codeOwner.creator.displayName,
+          vitrinaUrl: await creatorVitrinaUrl(codeOwner.creator.storefrontSlug),
+          commissionPercent: Number(codeOwner.commissionPercentOverride ?? codeOwner.offer.defaultCommissionPercent),
+          commissionAmountCents: null,
+        }
+      : null;
 
   return (
     <div>
@@ -250,7 +276,7 @@ export default async function TiendaPedidoDetallePage({
           {(order.discountCode || creator) && (
             <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-1.5 text-sm">
               <p className="text-xs font-medium text-brand-ink-soft mb-1">
-                Atribución
+                {creator ? "Venta de creador" : "Atribución"}
               </p>
               {order.discountCode && (
                 <p className="text-brand-ink-soft">
@@ -263,9 +289,14 @@ export default async function TiendaPedidoDetallePage({
               {creator ? (
                 <p className="text-brand-ink-soft">
                   Creador:{" "}
-                  <span className="font-medium text-brand-ink">
+                  <a
+                    href={creator.vitrinaUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-brand-ink hover:text-brand-accent hover:underline"
+                  >
                     {creator.name}
-                  </span>{" "}
+                  </a>{" "}
                   — comisión {creator.commissionPercent}%
                   {creator.commissionAmountCents != null && (
                     <> ({formatCOP(creator.commissionAmountCents)})</>

@@ -17,7 +17,6 @@ const items = [
   ...(REFERRALS_ENABLED ? [{ href: "/admin/referidos", label: "Referidos" }] : []),
   { href: "/admin/facturas", label: "Facturas" },
   { href: "/admin/fraude", label: "Antifraude" },
-  { href: "/admin/diagnostico-correo", label: "Diagnóstico de correo" },
   { href: "/admin/configuracion", label: "Configuración" },
   { href: "/admin/equipo", label: "Equipo" },
   { href: "/admin/comunicados", label: "Comunicados" },

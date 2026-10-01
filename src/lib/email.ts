@@ -40,17 +40,6 @@ async function send(to: string, subject: string, html: string): Promise<EmailSen
   }
 }
 
-/// Correo de prueba para Admin → Diagnóstico de correo: devuelve tal cual
-/// lo que respondió Resend, más el remitente que se está usando.
-export async function sendTestEmail(to: string) {
-  const result = await send(
-    to,
-    "Prueba de correo — Marcolini",
-    `<p>Si estás leyendo esto, los correos de Marcolini están saliendo bien.</p>`,
-  );
-  return { ...result, from: FROM, usingTestSender: FROM.includes("resend.dev") };
-}
-
 export async function sendVerificationEmail(to: string, verifyUrl: string) {
   await send(
     to,
@@ -257,7 +246,14 @@ export type OrderEmailData = {
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string;
-  items: { name: string; variantLabel: string | null; quantity: number; unitPriceCents: number }[];
+  items: {
+    name: string;
+    variantLabel: string | null;
+    quantity: number;
+    unitPriceCents: number;
+    imageUrl?: string | null;
+    sku?: string | null;
+  }[];
   subtotalCents: number;
   discountCents: number;
   discountCode: string | null;
@@ -268,6 +264,12 @@ export type OrderEmailData = {
   shippingCity: string | null;
   shippingRegion: string | null;
   shippingNotes: string | null;
+  // Para el aviso a la marca (estilo Shopify, ver sendNewOrderBrandEmail).
+  orderedAt?: Date;
+  shippingMethod?: string | null;
+  buyerDocument?: string | null;
+  // Creador al que se le atribuye la venta (por su código), si hay.
+  creatorName?: string | null;
 };
 
 function emailLayout(brandName: string, logoUrl: string | null, inner: string) {
@@ -339,24 +341,111 @@ ${orderUrl ? button(orderUrl, "Ver mi pedido") : ""}`,
   );
 }
 
-/// A la marca: "tienes una venta".
+/// A la marca, apenas se paga un pedido — mismo formato que el aviso de
+/// Shopify ("[Marca] Pedido #N realizado por …"), que es el que las marcas
+/// ya conocen. Ver conversación del 2026-10-01.
 export async function sendNewOrderBrandEmail(to: string, data: OrderEmailData, portalOrderUrl: string) {
-  await send(
-    to,
-    `Nueva venta: pedido #${data.orderNumber} por ${formatCOPCents(data.totalCents)}`,
-    emailLayout(
-      data.brandName,
-      data.brandLogoUrl,
-      `<p><strong>¡Tienes una venta nueva!</strong></p>
-<p>${escapeHtml(data.buyerName)} pagó el pedido <strong>#${data.orderNumber}</strong>.<br>
-<span style="color:#555">${escapeHtml(data.buyerEmail)} · ${escapeHtml(data.buyerPhone)}</span></p>
-${data.discountCode ? `<p>Usó el código de creador <strong>${escapeHtml(data.discountCode)}</strong>.</p>` : ""}
-${itemsTable(data)}
-${addressBlock(data)}
-${button(portalOrderUrl, "Ver el pedido")}
-<p style="color:#666;font-size:12px">El inventario de estos productos ya se descontó.</p>`,
-    ),
-  );
+  const when = data.orderedAt
+    ? new Intl.DateTimeFormat("es-CO", {
+        timeZone: "America/Bogota",
+        day: "numeric",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+        .format(data.orderedAt)
+        .replace(",", " a las")
+    : null;
+  const muted = "color:#6b6b6b";
+  const td = "padding:6px 0;font-size:14px";
+
+  const items = data.items
+    .map((i) => {
+      const thumb = i.imageUrl
+        ? `<img src="${escapeHtml(i.imageUrl)}" alt="" width="52" height="52" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid #e5e5e5;display:block">`
+        : `<div style="width:52px;height:52px;border-radius:6px;background:#f2f2f2"></div>`;
+      const title = i.variantLabel ? `${escapeHtml(i.name)} - ${escapeHtml(i.variantLabel)}` : escapeHtml(i.name);
+      return `<tr>
+  <td style="padding:10px 12px 10px 0;width:52px;vertical-align:top">${thumb}</td>
+  <td style="padding:10px 0;font-size:13px;vertical-align:top">${title}<br>
+    <span style="${muted}">${formatCOPCents(i.unitPriceCents)} × ${i.quantity}</span>${
+        i.sku ? `<br><span style="${muted};font-size:12px">SKU: ${escapeHtml(i.sku)}</span>` : ""
+      }</td>
+  <td style="padding:10px 0;font-size:13px;text-align:right;vertical-align:top;white-space:nowrap">${formatCOPCents(
+    i.unitPriceCents * i.quantity,
+  )}</td>
+</tr>`;
+    })
+    .join("");
+
+  const line = (label: string, value: string, note?: string) =>
+    `<tr><td style="${td}">${label}${note ? `<br><span style="${muted};font-size:12px">${note}</span>` : ""}</td><td style="${td};text-align:right;vertical-align:top">${value}</td></tr>`;
+
+  const place = [data.shippingCity, data.shippingRegion].filter(Boolean).map((v) => escapeHtml(v!)).join(", ");
+  const phoneDigits = data.buyerPhone.replace(/[^\d+]/g, "");
+  const section = (title: string, body: string) =>
+    `<p style="margin:18px 0 0;font-size:14px"><strong>${title}</strong><br>${body}</p>`;
+
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;background:#ffffff;padding:24px 12px">
+<div style="max-width:420px;margin:0 auto;border:1px solid #e3e3e3;border-radius:8px;padding:20px">
+  <p style="margin:0 0 14px;font-size:14px">${escapeHtml(data.buyerName)} realizó el pedido <strong>#${
+    data.orderNumber
+  }</strong>${when ? ` el ${when}` : ""}${when?.endsWith(".") ? "" : "."}</p>
+  <a href="${escapeHtml(portalOrderUrl)}" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:bold;padding:10px 16px;border-radius:5px">Ver pedido</a>
+  ${
+    data.discountCode
+      ? `<div style="margin-top:16px;background:#f6f3fb;border-radius:6px;padding:10px 12px;font-size:13px"><strong>Venta de creador</strong><br>${
+          data.creatorName ? `${escapeHtml(data.creatorName)} · ` : ""
+        }código <strong style="font-family:monospace">${escapeHtml(data.discountCode)}</strong></div>`
+      : ""
+  }
+  <hr style="border:none;border-top:1px solid #e3e3e3;margin:20px 0">
+  <p style="margin:0 0 6px;font-size:15px"><strong>Resumen del pedido</strong></p>
+  <table role="presentation" style="width:100%;border-collapse:collapse">${items}</table>
+  <table role="presentation" style="width:100%;border-collapse:collapse;margin-top:8px">
+    ${line("Subtotal", formatCOPCents(data.subtotalCents))}
+    ${
+      data.discountCents > 0
+        ? line(
+            "Descuento",
+            `-${formatCOPCents(data.discountCents)}`,
+            data.discountCode ? `Código de creador ${escapeHtml(data.discountCode)}` : undefined,
+          )
+        : ""
+    }
+    ${line("Envío", data.shippingCents > 0 ? formatCOPCents(data.shippingCents) : "Gratis", data.shippingMethod ? escapeHtml(data.shippingMethod) : undefined)}
+    ${data.taxCents > 0 ? line("Impuesto", formatCOPCents(data.taxCents), "IVA incluido") : ""}
+    <tr><td style="padding:12px 0 0;font-size:15px;border-top:1px solid #e3e3e3"><strong>Total</strong></td><td style="padding:12px 0 0;font-size:15px;text-align:right;border-top:1px solid #e3e3e3"><strong>${formatCOPCents(
+      data.totalCents,
+    )} COP</strong></td></tr>
+  </table>
+  <hr style="border:none;border-top:1px solid #e3e3e3;margin:20px 0 4px">
+  ${section("Método de procesamiento de pagos", "Wompi")}
+  ${data.shippingAddress ? section("Forma de entrega", escapeHtml(data.shippingMethod || "Envío a domicilio")) : ""}
+  ${
+    data.shippingAddress
+      ? section(
+          "Dirección de envío",
+          [
+            escapeHtml(data.buyerName),
+            data.buyerDocument ? escapeHtml(data.buyerDocument) : null,
+            escapeHtml(data.shippingAddress),
+            data.shippingNotes ? escapeHtml(data.shippingNotes) : null,
+            place || null,
+            "Colombia",
+            phoneDigits ? `<a href="tel:${escapeHtml(phoneDigits)}" style="color:#1a1a1a">${escapeHtml(data.buyerPhone)}</a>` : null,
+          ]
+            .filter(Boolean)
+            .join("<br>"),
+        )
+      : ""
+  }
+  ${section("Cliente", `${escapeHtml(data.buyerEmail)}`)}
+</div>
+<p style="text-align:center;${muted};font-size:12px;margin-top:16px">Marcolini</p>
+</div>`;
+
+  await send(to, `[${data.brandName}] Pedido #${data.orderNumber} realizado por ${data.buyerName}`, html);
 }
 
 /// Al comprador, cuando la marca marca el pedido como enviado.
