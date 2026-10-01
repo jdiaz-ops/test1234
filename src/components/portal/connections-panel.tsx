@@ -273,8 +273,9 @@ function SigningSecret({ secret }: { secret: string }) {
 
 /// Configuración → Conexiones. Webhooks como los de Shopify (Configuración
 /// → Notificaciones → Webhooks allá): un evento + una URL, en JSON con el
-/// mismo formato, firmados con la clave de la tienda. Más la guía para
-/// conectar Dataico, que es para lo que la marca lo pidió. Ver
+/// mismo formato, firmados con la clave de la tienda. Dataico va arriba
+/// con su conexión directa (la guía para conectarlo por webhook se quitó
+/// el 2026-10-01: una sola forma, menos confusión). Ver
 /// webhook-service.ts y conversación del 2026-10-01.
 export function ConnectionsPanel({
   webhooks,
@@ -286,7 +287,6 @@ export function ConnectionsPanel({
   dataico: DataicoConnectionView | null;
 }) {
   const [creating, setCreating] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
   const hasDataicoWebhook = webhooks.some((w) => /^https:\/\/([^/]+\.)?dataico\.com\//i.test(w.url));
 
   return (
@@ -298,54 +298,6 @@ export function ConnectionsPanel({
       </p>
 
       <DataicoConnectionCard initial={dataico} hasDataicoWebhook={hasDataicoWebhook} />
-
-      <Card className="overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setGuideOpen((o) => !o)}
-          aria-expanded={guideOpen}
-          className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
-        >
-          <span>
-            <span className="block text-sm font-medium text-brand-ink">Otra forma: Dataico con webhook</span>
-            <span className="block text-xs text-brand-ink-soft mt-0.5">
-              La misma URL que usabas en Shopify. Usa esta o la conexión directa, no las dos.
-            </span>
-          </span>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className={`text-brand-ink-soft shrink-0 transition-transform ${guideOpen ? "rotate-180" : ""}`}
-            aria-hidden="true"
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
-        {guideOpen && (
-          <ol className="px-5 pb-5 space-y-2.5 text-sm text-brand-ink-soft list-decimal list-inside marker:text-brand-ink marker:font-medium">
-            <li>
-              En Dataico, entra a la configuración de tu empresa → <span className="text-brand-ink">Configuración Shopify</span>. Deja
-              marcado &ldquo;Enviar facturas automáticamente a la DIAN&rdquo; con <span className="font-mono text-xs text-brand-ink">financial_status</span> ={" "}
-              <span className="font-mono text-xs text-brand-ink">paid</span> y tu numeración.
-            </li>
-            <li>
-              Copia la <span className="text-brand-ink">Shopify url</span> que aparece ahí.
-            </li>
-            <li>
-              Aquí abajo toca <span className="text-brand-ink">Crear webhook</span>, elige{" "}
-              <span className="text-brand-ink">Actualización de pedido</span> y pega esa URL.
-            </li>
-            <li>
-              Toca <span className="text-brand-ink">Enviar prueba</span>: llega como pedido anulado, así que Dataico no lo factura. Después
-              revisa con una venta real pequeña que la factura aparezca en Dataico.
-            </li>
-          </ol>
-        )}
-      </Card>
 
       <Card>
         <div className="px-5 pt-4 pb-3">
