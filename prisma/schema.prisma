@@ -596,6 +596,8 @@ model BrandProfile {
   /// pedidos y clientes a otros sistemas, y la clave con que se firman.
   webhooks             BrandWebhook[]
   webhookSigningSecret String?
+  /// Conexión directa con Dataico (facturación electrónica por API).
+  dataicoConnection    DataicoConnection?
 
   /// Dominio propio de la marca (ej. "tienda.marcauno.com"), gratis —
   /// alternativa al subdominio de arriba. Null hasta que la marca lo
@@ -1105,11 +1107,27 @@ enum StoreOrderKind {
 /// que con Shopify/WooCommerce, para que el Motor de Comisiones la procese
 /// normal — las muestras nunca generan Transaction/comisión, son gratis.
 model StoreOrder {
-  id     String @id @default(cuid())
+  id               String          @id @default(cuid())
+  /// Factura electrónica emitida por la conexión directa con Dataico (ver
+  /// dataico-service.ts). Datos que el comprador da en el checkout si
+  /// quiere la factura a su nombre — sin ellos se factura a consumidor
+  /// final.
+  billingIdType    String?
+  billingIdNumber  String?
+  billingName      String?
+  einvoiceStatus   EInvoiceStatus?
+  einvoiceNumber   String?
+  einvoiceUuid     String?
+  einvoiceCufe     String?
+  einvoicePdfUrl   String?
+  einvoiceError    String?
+  einvoiceAttempts Int             @default(0)
+  einvoiceIssuedAt DateTime?
+
   /// Número correlativo — el `id` numérico que llevan los webhooks con
   /// formato de Shopify (ver webhook-service.ts), que algunos sistemas
   /// esperan como número.
-  number Int    @unique @default(autoincrement())
+  number Int @unique @default(autoincrement())
 
   brandId String
   brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
@@ -2543,4 +2561,40 @@ model WebhookDelivery {
 
   @@index([webhookId, createdAt])
   @@index([status, createdAt])
+}
+
+/// Conexión directa con la API de Dataico: cada venta pagada se factura
+/// sola ante la DIAN. La alternativa sin esto es el webhook con la
+/// "Shopify url" de Dataico (ver BrandWebhook) — se usa una u otra, nunca
+/// las dos. Ver dataico-service.ts y conversación del 2026-10-01.
+model DataicoConnection {
+  id      String       @id @default(cuid())
+  brandId String       @unique
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  enabled          Boolean    @default(false)
+  accountId        String
+  authToken        String
+  env              DataicoEnv @default(PRUEBAS)
+  /// Numeración de la DIAN con la que se factura (ej. prefijo "FE").
+  prefix           String?
+  resolutionNumber String?
+  /// Siguiente número a usar — se reserva uno por pedido.
+  nextNumber       Int?
+  /// Que Dataico le mande la factura por correo al comprador.
+  sendEmail        Boolean    @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum DataicoEnv {
+  PRUEBAS
+  PRODUCCION
+}
+
+enum EInvoiceStatus {
+  PENDING
+  ISSUED
+  FAILED
 }

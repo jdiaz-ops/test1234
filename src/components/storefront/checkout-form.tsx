@@ -19,6 +19,7 @@ function formatCOP(amount: number) {
 }
 
 export function CheckoutForm({
+  askBilling = false,
   brandSlug,
   basePath = `/t/${brandSlug}`,
   taxRatePercent,
@@ -38,6 +39,9 @@ export function CheckoutForm({
   /// llegó por el link de un creador y no escribe un código a mano, se
   /// aplica solo al montar.
   referredCode?: string | null;
+  /// La tienda factura electrónicamente (Dataico): se ofrece pedir la
+  /// factura a nombre propio. Sin marcarlo, va a consumidor final.
+  askBilling?: boolean;
 }) {
   const { items, subtotal, discountCode: cartDiscountCode } = useCart();
   // Un carrito nunca mezcla tipos (ver cart-context.tsx) — con que mire el
@@ -57,6 +61,10 @@ export function CheckoutForm({
   // Autorización de datos personales (Ley 1581) — obligatoria para pagar.
   // Ver conversación del 2026-10-01.
   const [dataConsent, setDataConsent] = useState(false);
+  const [wantsInvoice, setWantsInvoice] = useState(false);
+  const [billingIdType, setBillingIdType] = useState("CC");
+  const [billingIdNumber, setBillingIdNumber] = useState("");
+  const [billingName, setBillingName] = useState("");
   const [servicePreferredAt, setServicePreferredAt] = useState("");
   // Date.now() es impuro — no se puede llamar en render ni en un useMemo
   // (las reglas de pureza de React lo bloquean). Se lee una sola vez, tras
@@ -224,6 +232,9 @@ export function CheckoutForm({
               : "",
           discountCode: discountPercent ? code : "",
           dataConsent,
+          ...(askBilling && wantsInvoice && billingIdNumber.trim()
+            ? { billingIdType, billingIdNumber, billingName: billingIdType === "NIT" ? billingName : "" }
+            : {}),
         }),
       });
       const body = await res.json();
@@ -289,6 +300,56 @@ export function CheckoutForm({
                 className="input"
               />
             </div>
+
+            {askBilling && (
+              <div className="space-y-3">
+                <label className="flex items-center gap-2.5 text-sm text-brand-ink cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={wantsInvoice}
+                    onChange={(e) => setWantsInvoice(e.target.checked)}
+                    className="w-4 h-4 shrink-0"
+                  />
+                  Quiero la factura electrónica a mi nombre o de mi empresa
+                </label>
+                {wantsInvoice && (
+                  <div className="grid grid-cols-[minmax(0,11rem)_1fr] gap-3">
+                    <div>
+                      <label className="block text-sm text-brand-ink mb-1">Documento</label>
+                      <select value={billingIdType} onChange={(e) => setBillingIdType(e.target.value)} className="input">
+                        <option value="CC">Cédula</option>
+                        <option value="NIT">NIT (empresa)</option>
+                        <option value="CE">Cédula de extranjería</option>
+                        <option value="PASAPORTE">Pasaporte</option>
+                        <option value="PPT">PPT</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-brand-ink mb-1">Número</label>
+                      <input
+                        required
+                        inputMode={billingIdType === "PASAPORTE" ? "text" : "numeric"}
+                        value={billingIdNumber}
+                        onChange={(e) => setBillingIdNumber(e.target.value)}
+                        placeholder={billingIdType === "NIT" ? "900123456-7" : ""}
+                        className="input"
+                      />
+                    </div>
+                    {billingIdType === "NIT" && (
+                      <div className="col-span-2">
+                        <label className="block text-sm text-brand-ink mb-1">Razón social</label>
+                        <input
+                          required
+                          value={billingName}
+                          onChange={(e) => setBillingName(e.target.value)}
+                          className="input"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {isServiceOrder ? (
               <div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
+import { prisma } from "@/lib/prisma";
 import { getActiveWompiKeys } from "@/server/integrations/wompi-client";
 import { CheckoutForm } from "@/components/storefront/checkout-form";
 import { CartIcon } from "@/components/storefront/mobile-nav-icons";
@@ -17,6 +18,11 @@ export default async function StorefrontCheckoutPage({
   if (!brand) notFound();
 
   const paymentsReady = getActiveWompiKeys(brand) !== null;
+  // Con la facturación de Dataico activa, el comprador puede pedir la
+  // factura a su nombre (cédula o NIT). Ver dataico-service.ts.
+  const askBilling = Boolean(
+    (await prisma.dataicoConnection.findUnique({ where: { brandId: brand.id }, select: { enabled: true } }))?.enabled,
+  );
   const basePath = await getStoreBasePath(slug);
 
   // Atribución por cookie de primera parte (ver src/proxy.ts) — si el
@@ -65,6 +71,7 @@ export default async function StorefrontCheckoutPage({
           Termina tu compra
         </h1>
         <CheckoutForm
+          askBilling={askBilling}
           brandSlug={slug}
           basePath={basePath}
           taxRatePercent={Number(brand.taxRatePercent)}

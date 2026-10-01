@@ -42,6 +42,17 @@ export const createStoreOrderSchema = z.object({
   shippingNotes: z.string().max(300).optional().or(z.literal("")),
   servicePreferredAt: z.string().optional().or(z.literal("")),
   discountCode: z.string().max(40).optional().or(z.literal("")),
+  /// Factura electrónica a nombre del comprador (opcional; solo se pide
+  /// cuando la tienda tiene Dataico conectado). Sin esto, consumidor final.
+  billingIdType: z.enum(["CC", "NIT", "CE", "PASAPORTE", "PPT"]).optional().or(z.literal("")),
+  billingIdNumber: z
+    .string()
+    .trim()
+    .max(20, "El número de documento es muy largo")
+    .regex(/^[0-9A-Za-z.\- ]*$/, "Escribe el número de documento sin letras raras")
+    .optional()
+    .or(z.literal("")),
+  billingName: z.string().trim().max(200).optional().or(z.literal("")),
   /// Autorización de tratamiento de datos personales (Ley 1581): sin ella
   /// no se crea el pedido.
   dataConsent: z.literal(true, {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { WEBHOOK_TOPICS, webhookTopicLabel } from "@/lib/webhook-topics";
+import { DataicoConnectionCard, type DataicoConnectionView } from "@/components/portal/dataico-connection-card";
 
 type Delivery = {
   id: string;
@@ -275,9 +276,18 @@ function SigningSecret({ secret }: { secret: string }) {
 /// mismo formato, firmados con la clave de la tienda. Más la guía para
 /// conectar Dataico, que es para lo que la marca lo pidió. Ver
 /// webhook-service.ts y conversación del 2026-10-01.
-export function ConnectionsPanel({ webhooks, signingSecret }: { webhooks: Webhook[]; signingSecret: string }) {
+export function ConnectionsPanel({
+  webhooks,
+  signingSecret,
+  dataico,
+}: {
+  webhooks: Webhook[];
+  signingSecret: string;
+  dataico: DataicoConnectionView | null;
+}) {
   const [creating, setCreating] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(webhooks.length === 0);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const hasDataicoWebhook = webhooks.some((w) => /^https:\/\/([^/]+\.)?dataico\.com\//i.test(w.url));
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -287,6 +297,8 @@ export function ConnectionsPanel({ webhooks, signingSecret }: { webhooks: Webhoo
         que sirven las mismas URLs que ya tenías configuradas allá.
       </p>
 
+      <DataicoConnectionCard initial={dataico} hasDataicoWebhook={hasDataicoWebhook} />
+
       <Card className="overflow-hidden">
         <button
           type="button"
@@ -295,8 +307,10 @@ export function ConnectionsPanel({ webhooks, signingSecret }: { webhooks: Webhoo
           className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
         >
           <span>
-            <span className="block text-sm font-medium text-brand-ink">Facturación electrónica con Dataico</span>
-            <span className="block text-xs text-brand-ink-soft mt-0.5">Cada venta pagada se factura sola ante la DIAN.</span>
+            <span className="block text-sm font-medium text-brand-ink">Otra forma: Dataico con webhook</span>
+            <span className="block text-xs text-brand-ink-soft mt-0.5">
+              La misma URL que usabas en Shopify. Usa esta o la conexión directa, no las dos.
+            </span>
           </span>
           <svg
             width="16"

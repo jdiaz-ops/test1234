@@ -19,6 +19,7 @@ import {
 import { evaluateCreatorBadges } from "@/server/services/creator-badge-service";
 import { sendOnboardingReminders } from "@/server/services/creator-onboarding-service";
 import { retryFailedDeliveries } from "@/server/services/webhook-service";
+import { retryFailedInvoices } from "@/server/services/dataico-service";
 
 /// Punto de entrada para el cron diario real. Soporta dos formas de
 /// autenticarse, según quién lo llame:
@@ -72,6 +73,11 @@ async function runDailyJob() {
     console.error("[cron] Falló el reintento de webhooks:", err);
     return { retried: 0, succeeded: 0, pruned: 0 };
   });
+  // Facturas de Dataico que no salieron (ver retryFailedInvoices).
+  const invoiceRetries = await retryFailedInvoices().catch((err) => {
+    console.error("[cron] Falló el reintento de facturas:", err);
+    return { retried: 0, issued: 0 };
+  });
 
   const chargeResults = today === config.chargeDayOfMonth ? await runBrandCharges() : [];
   const payoutResults = today === config.payoutDayOfMonth ? await runCreatorPayouts() : [];
@@ -93,6 +99,8 @@ async function runDailyJob() {
     onboardingRemindersSent: onboardingReminders.sentCount,
     webhooksRetried: webhookRetries.retried,
     webhooksRecovered: webhookRetries.succeeded,
+    invoicesRetried: invoiceRetries.retried,
+    invoicesIssued: invoiceRetries.issued,
     brandCharges: chargeResults.length,
     creatorPayouts: payoutResults.length,
   };

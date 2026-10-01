@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { emitCustomerEvent, emitOrderEvent } from "@/server/services/webhook-service";
+import { issueInvoiceAfterPayment } from "@/server/services/dataico-service";
 import {
   getActiveWompiKeys,
   buildIntegritySignature,
@@ -247,6 +248,10 @@ type CreateOrderInput = {
   discountCode?: string | null;
   /// Casilla de autorización de datos personales del checkout.
   dataConsent?: boolean;
+  /// Factura electrónica a nombre del comprador (ver dataico-service.ts).
+  billingIdType?: string;
+  billingIdNumber?: string;
+  billingName?: string;
 };
 
 const REDIRECT_BASE =
@@ -526,6 +531,13 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
         totalCents,
         paymentMode: keys.mode,
         dataConsentAt: new Date(),
+        ...(input.billingIdType && input.billingIdNumber?.trim()
+          ? {
+              billingIdType: input.billingIdType,
+              billingIdNumber: input.billingIdNumber.trim(),
+              billingName: input.billingIdType === "NIT" ? input.billingName?.trim() || null : null,
+            }
+          : {}),
         items: { create: itemsData },
       },
     });
@@ -860,6 +872,11 @@ export async function applyWompiTransactionStatus(params: {
     // Conexiones (webhooks): pedido nuevo y pagado — con esto factura
     // Dataico (financial_status = "paid"). Nunca tumba el pago.
     await emitOrderEvent(order.id, ["orders/create", "orders/paid", "orders/updated"]);
+
+    // Factura electrónica por la conexión directa con Dataico, si la
+    // tienda la tiene activa. Corre después de responder; nunca tumba el
+    // pago.
+    await issueInvoiceAfterPayment(order.id);
 
     return { order: updated };
   }

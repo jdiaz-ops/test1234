@@ -241,7 +241,7 @@ export function buildOrderPayload(order: OrderForPayload) {
         country_code: "CO",
         zip: null,
         phone: order.buyerPhone,
-        company: null,
+        company: order.billingName,
       }
     : null;
 
@@ -392,7 +392,16 @@ export function buildOrderPayload(order: OrderForPayload) {
       ? [{ id: id * 1000 + 998, created_at: order.refundedAt.toISOString(), note: order.refundReason, restock: order.restocked }]
       : [],
     note: order.shippingNotes,
-    note_attributes: [],
+    // Datos de factura que dio el comprador (cédula/NIT), para el sistema
+    // de facturación que reciba el pedido.
+    note_attributes:
+      order.billingIdType && order.billingIdNumber
+        ? [
+            { name: "tipo_documento", value: order.billingIdType },
+            { name: "numero_documento", value: order.billingIdNumber },
+            ...(order.billingName ? [{ name: "razon_social", value: order.billingName }] : []),
+          ]
+        : [],
     tags: "",
     gateway: "wompi",
     payment_gateway_names: ["wompi"],

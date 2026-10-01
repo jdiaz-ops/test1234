@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { getBrandOrderDetail } from "@/server/services/store-order-service";
+import { getDataicoConnection } from "@/server/services/dataico-service";
+import { OrderInvoicePanel } from "@/components/portal/order-invoice-panel";
 import {
   OrderItemsList,
   OrderFulfillmentPanel,
@@ -64,7 +66,10 @@ export default async function TiendaPedidoDetallePage({
   if (!profile) redirect("/login");
 
   const { orderId } = await params;
-  const order = await getBrandOrderDetail(profile.id, orderId);
+  const [order, dataico] = await Promise.all([
+    getBrandOrderDetail(profile.id, orderId),
+    getDataicoConnection(profile.id),
+  ]);
   if (!order) notFound();
 
   const isService = order.servicePreferredAt != null;
@@ -290,6 +295,25 @@ export default async function TiendaPedidoDetallePage({
               </p>
             )}
           </div>
+
+          {dataico?.enabled && order.kind === "PURCHASE" && (order.status === "PAID" || order.einvoiceStatus) && (
+            <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-2">
+              <p className="text-xs font-medium text-brand-ink-soft">Factura electrónica</p>
+              <OrderInvoicePanel
+                orderId={order.id}
+                status={order.einvoiceStatus}
+                number={order.einvoiceNumber}
+                pdfUrl={order.einvoicePdfUrl}
+                cufe={order.einvoiceCufe}
+                error={order.einvoiceError}
+                billing={
+                  order.billingIdType && order.billingIdNumber
+                    ? `${order.billingName ?? order.buyerName} · ${order.billingIdType} ${order.billingIdNumber}`
+                    : "Consumidor final"
+                }
+              />
+            </div>
+          )}
 
           {(order.status === "PAID" || order.status === "REFUNDED") && (
             <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-2">
