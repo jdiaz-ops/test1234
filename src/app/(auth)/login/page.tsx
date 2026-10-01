@@ -6,7 +6,9 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const roleHome: Record<string, string> = {
-  CREATOR: "/creador",
+  // Pasa por /creador/inicio: "Empieza aquí" si no ha terminado el
+  // onboarding, si no el Dashboard.
+  CREATOR: "/creador/inicio",
   BRAND: "/marca",
   ADMIN: "/admin",
 };
@@ -114,7 +116,7 @@ function LoginForm() {
 
       <button
         onClick={() =>
-          signIn("google", { callbackUrl: explicitCallbackUrl ?? "/creador" })
+          signIn("google", { callbackUrl: explicitCallbackUrl ?? "/creador/inicio" })
         }
         className="w-full border border-brand-line rounded-md py-2 text-sm font-medium hover:bg-brand-accent-soft"
       >
