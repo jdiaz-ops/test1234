@@ -103,14 +103,9 @@ function RegistroCreadorForm() {
             className="input"
           />
         </Field>
-        <Field label="Código de invitación (opcional)">
-          <input
-            value={form.refCode}
-            onChange={(e) => setForm({ ...form, refCode: e.target.value })}
-            placeholder="ej. LAURA30"
-            className="input"
-          />
-        </Field>
+        {/* El campo "Código de invitación" se quitó (2026-10-01, Invita y
+            gana está escondido). Si llega ?ref= en el link, se sigue
+            mandando sin mostrarlo. */}
 
         <label className="flex items-start gap-2 text-sm text-brand-ink-soft">
           <input
