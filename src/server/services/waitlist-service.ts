@@ -2,7 +2,7 @@ import ExcelJS from "exceljs";
 import type { WaitlistKind } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeEmail } from "@/lib/normalize-email";
-import type { Attribution, CreatorWaitlistInput } from "@/lib/waitlist";
+import { socialsText, type Attribution, type CreatorWaitlistInput } from "@/lib/waitlist";
 
 /// Lista de espera de la página pública (modelo WaitlistEntry). Mientras
 /// Marcolini no abre el registro, sirve para medir la demanda que trae la
@@ -19,7 +19,7 @@ export async function joinCreatorWaitlist(
   const data = {
     name: input.name,
     whatsapp: input.whatsapp,
-    handle: input.handle.replace(/^@+/, ""),
+    socials: input.socials,
     audience: input.audience,
     category: input.category,
   };
@@ -84,7 +84,7 @@ export async function buildWaitlistWorkbook(kind: WaitlistKind): Promise<Buffer>
     { header: "Nombre", key: "name", width: 28 },
     { header: "Correo", key: "email", width: 32 },
     { header: "WhatsApp", key: "whatsapp", width: 18 },
-    { header: "Usuario", key: "handle", width: 24 },
+    { header: "Redes", key: "socials", width: 40 },
     { header: "Seguidores", key: "audience", width: 18 },
     { header: "Categoría", key: "category", width: 20 },
     { header: "Fuente", key: "utmSource", width: 16 },
@@ -93,7 +93,7 @@ export async function buildWaitlistWorkbook(kind: WaitlistKind): Promise<Buffer>
     { header: "Anuncio", key: "utmContent", width: 24 },
     { header: "Llegó desde", key: "referrer", width: 30 },
   ];
-  for (const e of entries) sheet.addRow(e);
+  for (const e of entries) sheet.addRow({ ...e, socials: socialsText(e.socials) });
 
   const header = sheet.getRow(1);
   header.font = { bold: true, color: { argb: "FFFFFFFF" } };

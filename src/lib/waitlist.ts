@@ -12,6 +12,35 @@ export const CREATOR_AUDIENCE_OPTIONS = [
   "Más de 100.000",
 ] as const;
 
+/// Redes extra que el creador puede agregar además de Instagram y TikTok
+/// (su fuerte puede estar en otra plataforma).
+export const EXTRA_SOCIAL_PLATFORMS = [
+  "YouTube",
+  "Facebook",
+  "X (Twitter)",
+  "Threads",
+  "Pinterest",
+  "Twitch",
+  "Kwai",
+  "Blog o web",
+  "Otra",
+] as const;
+
+export type SocialProfile = { platform: string; handle: string };
+
+/// "Instagram: @laura · YouTube: youtube.com/@laura" — para Admin y Excel.
+export function socialsText(value: unknown): string {
+  if (!Array.isArray(value)) return "";
+  return value
+    .filter((s): s is SocialProfile => typeof s?.platform === "string" && typeof s?.handle === "string")
+    .map((s) => {
+      // Un link o una web se muestran tal cual; un usuario, con @.
+      const isLink = s.handle.includes("/") || s.platform === "Blog o web";
+      return `${s.platform}: ${isLink ? s.handle : `@${s.handle}`}`;
+    })
+    .join(" · ");
+}
+
 export const CREATOR_CATEGORY_OPTIONS = [
   "Uñas",
   "Maquillaje",
@@ -63,7 +92,15 @@ export const creatorWaitlistSchema = z.object({
     .trim()
     .max(30)
     .refine((v) => v.replace(/\D/g, "").length >= 7, "Escribe tu número de WhatsApp"),
-  handle: z.string().trim().min(2, "Escribe tu usuario de Instagram o TikTok").max(120),
+  socials: z
+    .array(z.object({ platform: z.string().trim().min(1).max(40), handle: z.string().trim().max(160) }))
+    .max(12)
+    .transform((list) =>
+      list
+        .map((s) => ({ platform: s.platform, handle: s.handle.replace(/^@+/, "").trim() }))
+        .filter((s) => s.handle),
+    )
+    .refine((list) => list.length > 0, "Escribe al menos una red social"),
   audience: z.enum(CREATOR_AUDIENCE_OPTIONS, { message: "Elige cuántos seguidores tienes" }),
   category: z.enum(CREATOR_CATEGORY_OPTIONS, { message: "Elige de qué creas contenido" }),
 });

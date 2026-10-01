@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { creatorWaitlistSchema, parseAttributionCookie } from "@/lib/waitlist";
+import { creatorWaitlistSchema, parseAttributionCookie, socialsText } from "@/lib/waitlist";
 import { joinCreatorWaitlist } from "@/server/services/waitlist-service";
 import { hasDb } from "./helpers";
 
@@ -10,7 +10,11 @@ const input = (email: string) =>
     name: "Laura",
     email,
     whatsapp: "300 123 4567",
-    handle: "@laura.nails",
+    socials: [
+      { platform: "Instagram", handle: "@laura.nails" },
+      { platform: "TikTok", handle: "" },
+      { platform: "YouTube", handle: "youtube.com/@laura" },
+    ],
     audience: "1.000 a 10.000",
     category: "Uñas",
   });
@@ -19,6 +23,19 @@ describe("formulario de lista de espera", () => {
   it("pide WhatsApp y opciones válidas", () => {
     const bad = creatorWaitlistSchema.safeParse({ ...input("a@b.co"), whatsapp: "12", audience: "mil" });
     expect(bad.success).toBe(false);
+  });
+
+  it("pide al menos una red y descarta las vacías", () => {
+    expect(input("a@b.co").socials).toEqual([
+      { platform: "Instagram", handle: "laura.nails" },
+      { platform: "YouTube", handle: "youtube.com/@laura" },
+    ]);
+    expect(socialsText(input("a@b.co").socials)).toBe("Instagram: @laura.nails · YouTube: youtube.com/@laura");
+    const none = creatorWaitlistSchema.safeParse({
+      ...input("a@b.co"),
+      socials: [{ platform: "Instagram", handle: " @ " }],
+    });
+    expect(none.success).toBe(false);
   });
 
   it("lee la cookie del anuncio sin confiar en su contenido", () => {
@@ -40,6 +57,7 @@ describe.skipIf(!hasDb)("lista de espera", () => {
 
     const rows = await prisma.waitlistEntry.findMany({ where: { email: email.toLowerCase() } });
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ name: "Laura M", handle: "laura.nails", utmSource: "instagram", utmCampaign: "oct" });
+    expect(rows[0]).toMatchObject({ name: "Laura M", utmSource: "instagram", utmCampaign: "oct" });
+    expect(rows[0].socials).toEqual(input(email).socials);
   });
 });

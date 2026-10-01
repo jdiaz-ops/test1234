@@ -1,3 +1,4 @@
+import { socialsText } from "@/lib/waitlist";
 import { listWaitlist, sourceLabel, summarizeWaitlist } from "@/server/services/waitlist-service";
 
 /// Lista de espera de creadores: cuánta gente se inscribe y desde qué
@@ -68,7 +69,7 @@ export default async function AdminListaDeEsperaPage() {
                   <th className="px-4 py-2 font-medium">Fecha</th>
                   <th className="px-4 py-2 font-medium">Nombre</th>
                   <th className="px-4 py-2 font-medium">Contacto</th>
-                  <th className="px-4 py-2 font-medium">Usuario</th>
+                  <th className="px-4 py-2 font-medium">Redes</th>
                   <th className="px-4 py-2 font-medium">Seguidores</th>
                   <th className="px-4 py-2 font-medium">Categoría</th>
                   <th className="px-4 py-2 font-medium">Llegó por</th>
@@ -83,7 +84,13 @@ export default async function AdminListaDeEsperaPage() {
                       <div className="text-brand-ink">{e.email}</div>
                       <div className="text-brand-ink-soft">{e.whatsapp}</div>
                     </td>
-                    <td className="px-4 py-2 text-brand-ink">@{e.handle}</td>
+                    <td className="px-4 py-2 text-brand-ink">
+                      {socialsText(e.socials)
+                        .split(" · ")
+                        .map((line) => (
+                          <div key={line}>{line}</div>
+                        ))}
+                    </td>
                     <td className="px-4 py-2 whitespace-nowrap text-brand-ink-soft">{e.audience}</td>
                     <td className="px-4 py-2 text-brand-ink-soft">{e.category}</td>
                     <td className="px-4 py-2 text-brand-ink-soft">{sourceLabel(e)}</td>

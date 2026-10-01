@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CREATOR_AUDIENCE_OPTIONS, CREATOR_CATEGORY_OPTIONS } from "@/lib/waitlist";
+import {
+  CREATOR_AUDIENCE_OPTIONS,
+  CREATOR_CATEGORY_OPTIONS,
+  EXTRA_SOCIAL_PLATFORMS,
+  type SocialProfile,
+} from "@/lib/waitlist";
 
 /// Formulario de /lista-de-espera (creadores). Ver waitlist-service.ts.
 export function CreatorWaitlistForm() {
@@ -10,10 +15,13 @@ export function CreatorWaitlistForm() {
     name: "",
     email: "",
     whatsapp: "",
-    handle: "",
+    instagram: "",
+    tiktok: "",
     audience: "",
     category: "",
   });
+  // Redes extra (YouTube, Facebook…): su fuerte puede no ser IG o TikTok.
+  const [others, setOthers] = useState<SocialProfile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<null | { alreadyJoined: boolean }>(null);
@@ -24,12 +32,28 @@ export function CreatorWaitlistForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const socials = [
+      { platform: "Instagram", handle: form.instagram },
+      { platform: "TikTok", handle: form.tiktok },
+      ...others,
+    ].filter((s) => s.handle.trim());
+    if (socials.length === 0) {
+      setError("Escribe al menos una red social.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/lista-de-espera", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          whatsapp: form.whatsapp,
+          audience: form.audience,
+          category: form.category,
+          socials,
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -65,12 +89,9 @@ export function CreatorWaitlistForm() {
 
   return (
     <div>
-      <h1 className="font-display text-lg font-semibold text-brand-ink text-center mb-1">
+      <h1 className="font-display text-lg font-semibold text-brand-ink text-center mb-6">
         Únete a la lista de espera
       </h1>
-      <p className="text-sm text-brand-ink-soft text-center mb-6">
-        Te avisamos cuando abramos tu acceso.
-      </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Nombre">
@@ -98,17 +119,77 @@ export function CreatorWaitlistForm() {
             className="input"
           />
         </Field>
-        <Field label="Usuario de Instagram o TikTok">
-          <input
-            required
-            autoCapitalize="none"
-            placeholder="@tuusuario"
-            value={form.handle}
-            onChange={set("handle")}
-            className="input"
-          />
-        </Field>
-        <Field label="¿Cuántos seguidores tienes?">
+        <fieldset className="space-y-2">
+          <legend className="text-sm text-brand-ink mb-1">
+            Tus redes <span className="text-brand-ink-soft">(llena al menos una)</span>
+          </legend>
+          <SocialRow label="Instagram">
+            <input
+              aria-label="Instagram"
+              autoCapitalize="none"
+              placeholder="@tuusuario"
+              value={form.instagram}
+              onChange={set("instagram")}
+              className="input"
+            />
+          </SocialRow>
+          <SocialRow label="TikTok">
+            <input
+              aria-label="TikTok"
+              autoCapitalize="none"
+              placeholder="@tuusuario"
+              value={form.tiktok}
+              onChange={set("tiktok")}
+              className="input"
+            />
+          </SocialRow>
+          {others.map((s, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <select
+                aria-label="Red social"
+                value={s.platform}
+                onChange={(e) =>
+                  setOthers(others.map((o, j) => (j === i ? { ...o, platform: e.target.value } : o)))
+                }
+                className="input w-[6.5rem] shrink-0"
+              >
+                {EXTRA_SOCIAL_PLATFORMS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              <input
+                aria-label={`Usuario o link de ${s.platform}`}
+                autoCapitalize="none"
+                placeholder="Usuario o link"
+                value={s.handle}
+                onChange={(e) =>
+                  setOthers(others.map((o, j) => (j === i ? { ...o, handle: e.target.value } : o)))
+                }
+                className="input min-w-0 flex-1"
+              />
+              <button
+                type="button"
+                aria-label={`Quitar ${s.platform}`}
+                onClick={() => setOthers(others.filter((_, j) => j !== i))}
+                className="shrink-0 w-8 h-8 rounded-full text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {others.length < 8 && (
+            <button
+              type="button"
+              onClick={() => setOthers([...others, { platform: EXTRA_SOCIAL_PLATFORMS[0], handle: "" }])}
+              className="text-sm text-brand-accent font-medium hover:underline"
+            >
+              + Agregar otra red
+            </button>
+          )}
+        </fieldset>
+        <Field label="¿Cuántos seguidores tienes en tu red más fuerte?">
           <select required value={form.audience} onChange={set("audience")} className="input">
             <option value="" disabled>
               Elige una opción
@@ -149,13 +230,15 @@ export function CreatorWaitlistForm() {
           </Link>
         </p>
       </form>
+    </div>
+  );
+}
 
-      <p className="text-center text-sm text-brand-ink-soft mt-6">
-        ¿Ya tienes cuenta?{" "}
-        <Link href="/login" className="text-brand-ink font-medium hover:underline">
-          Inicia sesión
-        </Link>
-      </p>
+function SocialRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-[6.5rem] shrink-0 text-sm text-brand-ink-soft">{label}</span>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
