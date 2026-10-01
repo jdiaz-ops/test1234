@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { portalUrl, publicStoreUrl } from "@/lib/store-url";
 import { emitCustomerEvent, emitOrderEvent } from "@/server/services/webhook-service";
 import { issueInvoiceAfterPayment } from "@/server/services/dataico-service";
 import {
@@ -261,9 +262,19 @@ type CreateOrderInput = {
   acceptsMarketing?: boolean;
 };
 
-const REDIRECT_BASE =
-  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-  "http://localhost:3000";
+/// A dónde vuelve el comprador después de pagar en Wompi: la página del
+/// pedido en el link real de la tienda ({slug}.marcolini.lat o su dominio
+/// propio). Antes salía de NEXT_PUBLIC_APP_URL, que no está configurada en
+/// producción, y quedaba "http://localhost:3000/..." — el firewall de
+/// Wompi rechazaba el pago (403 en el link, ventana de pago cargando para
+/// siempre). Ver conversación del 2026-10-01.
+function paymentReturnUrl(
+  brand: { customDomain: string | null; customDomainVerifiedAt: Date | null; storefrontSlug: string | null },
+  orderId: string,
+) {
+  const store = publicStoreUrl(brand);
+  return store ? `${store}/pedido/${orderId}` : `${portalUrl()}/t/${brand.storefrontSlug}/pedido/${orderId}`;
+}
 
 export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   if (input.items.length === 0) {
@@ -591,7 +602,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
       amountInCents: totalCents,
       reference,
       signature,
-      redirectUrl: `${REDIRECT_BASE}/t/${slug}/pedido/${order.id}`,
+      redirectUrl: paymentReturnUrl(brand, order.id),
     },
   };
 }

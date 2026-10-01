@@ -214,6 +214,10 @@ describe.skipIf(!hasDb)("checkout: la ruta que usa el navegador", () => {
     });
     expect(res.status).toBe(200);
     const body = await res.json();
+    // Vuelve al link real de la tienda, nunca a localhost (el firewall de
+    // Wompi lo rechazaba).
+    expect(body.wompi.redirectUrl).toBe(`https://${brand.storefrontSlug}.marcolini.lat/pedido/${body.orderId}`);
+
     // Datos para precargar la ventana de Wompi.
     expect(body.customerData).toEqual({
       email: buyerEmail,

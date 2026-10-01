@@ -5,9 +5,11 @@ import { CopyButton } from "@/components/portal/copy-button";
 import { LeaveOfferButton } from "@/components/portal/leave-offer-button";
 import { buildBrandStoreLink } from "@/lib/brand-store-link";
 import { BookmarkletButton } from "@/components/portal/bookmarklet-button";
+import { portalUrl } from "@/lib/store-url";
 
-const APP_ORIGIN =
-  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+// Mismo origen del portal que usan los correos (ver portalUrl): antes,
+// sin NEXT_PUBLIC_APP_URL configurada, quedaba "http://localhost:3000".
+const APP_ORIGIN = portalUrl();
 
 export default async function CodigosPage() {
   const session = await auth();
