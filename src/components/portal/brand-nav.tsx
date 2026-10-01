@@ -111,9 +111,8 @@ export function BrandNav({
         );
       })}
 
-      <p className="px-3 pt-4 pb-1 text-[11px] font-mono uppercase tracking-widest text-brand-ink-soft">
-        Mi tienda
-      </p>
+      {/* Sin rótulo "Mi tienda": el menú va como una sola lista (pedido de
+          la marca el 2026-10-01). */}
       {storeItems
         .filter((item) => REVIEWS_ENABLED || item.href !== "/marca/tienda/resenas")
         .map((item) => {
