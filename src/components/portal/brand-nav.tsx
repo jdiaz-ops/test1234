@@ -21,7 +21,7 @@ const items: { href: string; label: string; exact?: boolean; activePrefix?: stri
   // Creadores agrupa Buscar y Vinculados con pestañas (ver
   // creators-tabs.tsx) — antes eran dos entradas sueltas. Pedido de la
   // marca el 2026-10-01.
-  { href: "/marca/creadores/buscar", label: "Creadores", activePrefix: "/marca/creadores" },
+  { href: "/marca/creadores", label: "Creadores", activePrefix: "/marca/creadores" },
   // Escondida mientras CAMPAIGNS_ENABLED esté apagado (src/lib/features.ts).
   ...(CAMPAIGNS_ENABLED ? [{ href: "/marca/retos", label: "Campañas" }] : []),
   { href: "/marca/cuenta", label: "Cuenta" },
