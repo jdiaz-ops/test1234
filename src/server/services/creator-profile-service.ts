@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { generateUniqueBaseCode, generateUniqueStorefrontSlug } from "@/lib/creator-identity";
 
 export async function getCreatorProfileByUserId(userId: string) {
   return prisma.creatorProfile.findUniqueOrThrow({
@@ -11,6 +12,13 @@ export async function getCreatorProfileByUserId(userId: string) {
   });
 }
 
+export class CreatorProfileError extends Error {}
+
+/// El username queda fijo la primera vez que el creador guarda su perfil
+/// (displayNameLockedAt). Si lo cambió antes de confirmarlo (venía del
+/// registro), su vitrina ({slug}.marcolini.lat) y su código base se rehacen
+/// con el nombre nuevo — el código solo si todavía no se unió a ninguna
+/// marca, porque ya puede estar compartido.
 export async function updateCreatorProfile(
   userId: string,
   data: {
@@ -22,9 +30,35 @@ export async function updateCreatorProfile(
     verticalId?: string | null;
   },
 ) {
+  const current = await prisma.creatorProfile.findUniqueOrThrow({
+    where: { userId },
+    select: { displayName: true, displayNameLockedAt: true, _count: { select: { enrollments: true } } },
+  });
+  const displayName = data.displayName.trim();
+  const changed = displayName !== current.displayName;
+
+  if (current.displayNameLockedAt && changed) {
+    throw new CreatorProfileError(
+      "Tu username ya quedó fijo y no se puede cambiar. Si necesitas cambiarlo, escríbenos.",
+    );
+  }
+
+  const identity =
+    !current.displayNameLockedAt && changed
+      ? {
+          storefrontSlug: await generateUniqueStorefrontSlug(displayName),
+          ...(current._count.enrollments === 0 ? { baseCode: await generateUniqueBaseCode(displayName) } : {}),
+        }
+      : {};
+
   return prisma.creatorProfile.update({
     where: { userId },
-    data,
+    data: {
+      ...data,
+      displayName,
+      ...identity,
+      ...(current.displayNameLockedAt ? {} : { displayNameLockedAt: new Date() }),
+    },
   });
 }
 

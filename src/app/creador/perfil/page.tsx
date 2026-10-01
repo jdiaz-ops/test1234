@@ -32,6 +32,7 @@ export default async function PerfilPage() {
         verticals={verticals.map((v) => ({ id: v.id, name: v.name }))}
         initialInterestIds={profile.interests.map((i) => i.verticalId)}
         submitLabel="Guardar cambios"
+        displayNameLocked={Boolean(profile.displayNameLockedAt)}
       />
 
       <DiscoverableToggle initialDiscoverable={profile.discoverable} />

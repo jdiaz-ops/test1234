@@ -87,8 +87,10 @@ export async function listActiveOffers(filters: {
         // marcas en las categorías que le interesan, para no mostrarle las
         // 200 de una (ver src/components/portal/creator-join-brands-step.tsx).
         // Aplica siempre, sin importar el override de visibilidad.
+        // Una marca sin categoría también sale (no hay cómo saber si le
+        // interesa o no).
         ...(filters.verticalIds && filters.verticalIds.length > 0
-          ? { verticalId: { in: filters.verticalIds } }
+          ? { AND: [{ OR: [{ verticalId: { in: filters.verticalIds } }, { verticalId: null }] }] }
           : {}),
       },
       ...(filters.categorySlug

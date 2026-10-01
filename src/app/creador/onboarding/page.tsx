@@ -13,12 +13,17 @@ export default async function CreatorOnboardingPage() {
 
   const interestVerticalIds = profile.interests.map((i) => i.verticalId);
 
-  const [{ steps, completedCount, total }, verticals, offers, enrollments] = await Promise.all([
+  const [{ steps, completedCount, total }, verticals, interestOffers, enrollments] = await Promise.all([
     getCreatorOnboardingStatus(profile),
     prisma.vertical.findMany({ orderBy: { name: "asc" } }),
     listActiveOffers({ verticalIds: interestVerticalIds }),
     getEnrollmentsForCreator(profile.id),
   ]);
+
+  // Si ninguna marca coincide con sus categorías, se muestran todas — antes
+  // el paso "Únete a marcas" quedaba vacío (2026-10-01).
+  const offers = interestOffers.length > 0 ? interestOffers : await listActiveOffers({});
+  const filteredByInterests = interestVerticalIds.length > 0 && interestOffers.length > 0;
 
   // Solo ACTIVE/PENDING_APPROVAL cuentan como "unido" — un creador que se
   // retiró (REMOVED) o que fue rechazado (REJECTED) debe poder volver a ver
@@ -55,6 +60,7 @@ export default async function CreatorOnboardingPage() {
             photoUrl: profile.photoUrl,
             verticals: verticals.map((v) => ({ id: v.id, name: v.name })),
             initialInterestIds: interestVerticalIds,
+            displayNameLocked: Boolean(profile.displayNameLockedAt),
           }}
           paymentStepProps={{
             displayName: profile.displayName,
@@ -88,7 +94,7 @@ export default async function CreatorOnboardingPage() {
                 websiteUrl: publicStoreUrl(offer.brand) ?? offer.brand.websiteUrl,
               },
             })),
-            filteredByInterests: interestVerticalIds.length > 0,
+            filteredByInterests,
           }}
           storefrontStepProps={{
             displayName: profile.displayName,

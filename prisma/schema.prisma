@@ -159,11 +159,15 @@ model CreatorProfile {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  displayName String
-  bio         String?
-  photoUrl    String?
-  city        String?
-  country     String  @default("Colombia")
+  displayName         String
+  /// Cuándo el creador confirmó su username (al guardar "Tu perfil" por
+  /// primera vez). Desde ahí no lo puede cambiar: con él se arman sus
+  /// códigos y su vitrina. Ver conversación del 2026-10-01.
+  displayNameLockedAt DateTime?
+  bio                 String?
+  photoUrl            String?
+  city                String?
+  country             String    @default("Colombia")
 
   /// Nombre y apellido completo — para pagos/identidad legal, nunca se
   /// muestra en la vitrina pública (ahí solo se ve displayName, que es como
