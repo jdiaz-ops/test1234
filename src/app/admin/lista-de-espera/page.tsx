@@ -80,7 +80,7 @@ export default async function AdminListaDeEsperaPage({ searchParams }: PageProps
                   {brands && <th className="px-4 py-2 font-medium">Marca</th>}
                   <th className="px-4 py-2 font-medium">Nombre</th>
                   <th className="px-4 py-2 font-medium">Contacto</th>
-                  <th className="px-4 py-2 font-medium">{brands ? "Instagram o web" : "Redes"}</th>
+                  <th className="px-4 py-2 font-medium">{brands ? "Redes y web" : "Redes"}</th>
                   <th className="px-4 py-2 font-medium">{brands ? "Dónde vende" : "Seguidores"}</th>
                   <th className="px-4 py-2 font-medium">Categoría</th>
                   <th className="px-4 py-2 font-medium">Llegó por</th>
@@ -97,11 +97,12 @@ export default async function AdminListaDeEsperaPage({ searchParams }: PageProps
                       <div className="text-brand-ink-soft">{e.whatsapp}</div>
                     </td>
                     <td className="px-4 py-2 text-brand-ink">
-                      {brands
-                        ? e.handle
-                        : socialsText(e.socials)
-                            .split(" · ")
-                            .map((line) => <div key={line}>{line}</div>)}
+                      {/* Inscritos de antes guardaban solo un texto (handle). */}
+                      {(socialsText(e.socials) || e.handle || "")
+                        .split(" · ")
+                        .map((line) => (
+                          <div key={line}>{line}</div>
+                        ))}
                     </td>
                     <td className="px-4 py-2 text-brand-ink-soft">{brands ? e.salesChannel : e.audience}</td>
                     <td className="px-4 py-2 text-brand-ink-soft">{e.category}</td>

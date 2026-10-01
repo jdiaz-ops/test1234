@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  CREATOR_AUDIENCE_OPTIONS,
-  CREATOR_CATEGORY_OPTIONS,
-  EXTRA_SOCIAL_PLATFORMS,
-  type SocialProfile,
-} from "@/lib/waitlist";
+import { CREATOR_AUDIENCE_OPTIONS, CREATOR_CATEGORY_OPTIONS, type SocialProfile } from "@/lib/waitlist";
+import { SocialProfilesField } from "./social-profiles-field";
+
+// Su fuerte puede no ser IG o TikTok: puede agregar otras redes.
+const FIXED_SOCIALS = [
+  { platform: "Instagram", placeholder: "@tuusuario" },
+  { platform: "TikTok", placeholder: "@tuusuario" },
+];
 
 /// Formulario de /lista-de-espera (creadores). Ver waitlist-service.ts.
 export function CreatorWaitlistForm() {
@@ -15,13 +17,12 @@ export function CreatorWaitlistForm() {
     name: "",
     email: "",
     whatsapp: "",
-    instagram: "",
-    tiktok: "",
     audience: "",
     category: "",
   });
-  // Redes extra (YouTube, Facebook…): su fuerte puede no ser IG o TikTok.
-  const [others, setOthers] = useState<SocialProfile[]>([]);
+  const [socialsInput, setSocialsInput] = useState<SocialProfile[]>(
+    FIXED_SOCIALS.map((f) => ({ platform: f.platform, handle: "" })),
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<null | { alreadyJoined: boolean }>(null);
@@ -32,11 +33,7 @@ export function CreatorWaitlistForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const socials = [
-      { platform: "Instagram", handle: form.instagram },
-      { platform: "TikTok", handle: form.tiktok },
-      ...others,
-    ].filter((s) => s.handle.trim());
+    const socials = socialsInput.filter((s) => s.handle.trim());
     if (socials.length === 0) {
       setError("Escribe al menos una red social.");
       return;
@@ -119,76 +116,7 @@ export function CreatorWaitlistForm() {
             className="input"
           />
         </Field>
-        <fieldset className="space-y-2">
-          <legend className="text-sm text-brand-ink mb-1">
-            Tus redes <span className="text-brand-ink-soft">(llena al menos una)</span>
-          </legend>
-          <SocialRow label="Instagram">
-            <input
-              aria-label="Instagram"
-              autoCapitalize="none"
-              placeholder="@tuusuario"
-              value={form.instagram}
-              onChange={set("instagram")}
-              className="input"
-            />
-          </SocialRow>
-          <SocialRow label="TikTok">
-            <input
-              aria-label="TikTok"
-              autoCapitalize="none"
-              placeholder="@tuusuario"
-              value={form.tiktok}
-              onChange={set("tiktok")}
-              className="input"
-            />
-          </SocialRow>
-          {others.map((s, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <select
-                aria-label="Red social"
-                value={s.platform}
-                onChange={(e) =>
-                  setOthers(others.map((o, j) => (j === i ? { ...o, platform: e.target.value } : o)))
-                }
-                className="input w-[6.5rem] shrink-0"
-              >
-                {EXTRA_SOCIAL_PLATFORMS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-              <input
-                aria-label={`Usuario o link de ${s.platform}`}
-                autoCapitalize="none"
-                placeholder="Usuario o link"
-                value={s.handle}
-                onChange={(e) =>
-                  setOthers(others.map((o, j) => (j === i ? { ...o, handle: e.target.value } : o)))
-                }
-                className="input min-w-0 flex-1"
-              />
-              <button
-                type="button"
-                aria-label={`Quitar ${s.platform}`}
-                onClick={() => setOthers(others.filter((_, j) => j !== i))}
-                className="shrink-0 w-8 h-8 rounded-full text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          {others.length < 8 && (
-            <button
-              type="button"
-              onClick={() => setOthers([...others, { platform: EXTRA_SOCIAL_PLATFORMS[0], handle: "" }])}
-              className="text-sm text-brand-accent font-medium hover:underline"
-            >
-              + Agregar otra red
-            </button>
-          )}
-        </fieldset>
+        <SocialProfilesField fixed={FIXED_SOCIALS} value={socialsInput} onChange={setSocialsInput} />
         <Field label="¿Cuántos seguidores tienes en tu red más fuerte?">
           <select required value={form.audience} onChange={set("audience")} className="input">
             <option value="" disabled>
@@ -230,15 +158,6 @@ export function CreatorWaitlistForm() {
           </Link>
         </p>
       </form>
-    </div>
-  );
-}
-
-function SocialRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="w-[6.5rem] shrink-0 text-sm text-brand-ink-soft">{label}</span>
-      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }

@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BRAND_CATEGORY_OPTIONS, BRAND_SALES_CHANNEL_OPTIONS } from "@/lib/waitlist";
+import { BRAND_CATEGORY_OPTIONS, BRAND_SALES_CHANNEL_OPTIONS, type SocialProfile } from "@/lib/waitlist";
+import { SocialProfilesField } from "./social-profiles-field";
+
+const FIXED_SOCIALS = [
+  { platform: "Instagram", placeholder: "@tumarca" },
+  { platform: "TikTok", placeholder: "@tumarca" },
+  { platform: "Web", placeholder: "tumarca.com" },
+];
 
 /// Formulario de /lista-de-espera/marcas. Ver waitlist-service.ts.
 export function BrandWaitlistForm() {
@@ -11,10 +18,12 @@ export function BrandWaitlistForm() {
     company: "",
     email: "",
     whatsapp: "",
-    handle: "",
     category: "",
     salesChannel: "",
   });
+  const [socialsInput, setSocialsInput] = useState<SocialProfile[]>(
+    FIXED_SOCIALS.map((f) => ({ platform: f.platform, handle: "" })),
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<null | { alreadyJoined: boolean }>(null);
@@ -25,12 +34,17 @@ export function BrandWaitlistForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const socials = socialsInput.filter((s) => s.handle.trim());
+    if (socials.length === 0) {
+      setError("Escribe al menos una red social o la web de tu marca.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/lista-de-espera/marcas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, socials }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -90,16 +104,7 @@ export function BrandWaitlistForm() {
             className="input"
           />
         </Field>
-        <Field label="Instagram o web de la marca">
-          <input
-            required
-            autoCapitalize="none"
-            placeholder="@tumarca o tumarca.com"
-            value={form.handle}
-            onChange={set("handle")}
-            className="input"
-          />
-        </Field>
+        <SocialProfilesField fixed={FIXED_SOCIALS} value={socialsInput} onChange={setSocialsInput} />
         <Field label="¿Qué vende tu marca?">
           <select required value={form.category} onChange={set("category")} className="input">
             <option value="" disabled>

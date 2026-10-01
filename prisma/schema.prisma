@@ -2633,10 +2633,12 @@ model WaitlistEntry {
   email        String
   name         String
   whatsapp     String
-  /// Instagram/web de la marca (solo marcas).
+  /// Ya no se usa: los primeros inscritos guardaban acá un solo usuario o
+  /// web. Ahora todo va en socials.
   handle       String?
-  /// Redes del creador: [{ platform: "Instagram", handle: "laura.nails" }, ...].
-  /// Instagram y TikTok vienen en el formulario y puede agregar otras.
+  /// Redes y web: [{ platform: "Instagram", handle: "laura.nails" }, ...].
+  /// El formulario trae líneas fijas (Instagram, TikTok y, para marcas,
+  /// Web) y se pueden agregar otras.
   socials      Json?
   /// Rango de seguidores, tal como lo eligió en el formulario.
   audience     String?

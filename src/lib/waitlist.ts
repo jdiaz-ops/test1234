@@ -35,7 +35,7 @@ export function socialsText(value: unknown): string {
     .filter((s): s is SocialProfile => typeof s?.platform === "string" && typeof s?.handle === "string")
     .map((s) => {
       // Un link o una web se muestran tal cual; un usuario, con @.
-      const isLink = s.handle.includes("/") || s.platform === "Blog o web";
+      const isLink = s.handle.includes("/") || s.platform === "Blog o web" || s.platform === "Web";
       return `${s.platform}: ${isLink ? s.handle : `@${s.handle}`}`;
     })
     .join(" · ");
@@ -102,6 +102,17 @@ export function parseAttributionCookie(raw: string | undefined): Attribution {
   }
 }
 
+/// Redes del formulario: descarta las vacías y pide al menos una.
+const socialsSchema = z
+  .array(z.object({ platform: z.string().trim().min(1).max(40), handle: z.string().trim().max(160) }))
+  .max(12)
+  .transform((list) =>
+    list
+      .map((s) => ({ platform: s.platform, handle: s.handle.replace(/^@+/, "").trim() }))
+      .filter((s) => s.handle),
+  )
+  .refine((list) => list.length > 0, "Escribe al menos una red social o tu web");
+
 export const creatorWaitlistSchema = z.object({
   name: z.string().trim().min(2, "Escribe tu nombre").max(120),
   email: z.string().trim().email("Correo inválido").max(200),
@@ -110,15 +121,7 @@ export const creatorWaitlistSchema = z.object({
     .trim()
     .max(30)
     .refine((v) => v.replace(/\D/g, "").length >= 7, "Escribe tu número de WhatsApp"),
-  socials: z
-    .array(z.object({ platform: z.string().trim().min(1).max(40), handle: z.string().trim().max(160) }))
-    .max(12)
-    .transform((list) =>
-      list
-        .map((s) => ({ platform: s.platform, handle: s.handle.replace(/^@+/, "").trim() }))
-        .filter((s) => s.handle),
-    )
-    .refine((list) => list.length > 0, "Escribe al menos una red social"),
+  socials: socialsSchema,
   audience: z.enum(CREATOR_AUDIENCE_OPTIONS, { message: "Elige cuántos seguidores tienes" }),
   category: z.enum(CREATOR_CATEGORY_OPTIONS, { message: "Elige de qué creas contenido" }),
 });
@@ -134,7 +137,7 @@ export const brandWaitlistSchema = z.object({
     .trim()
     .max(30)
     .refine((v) => v.replace(/\D/g, "").length >= 7, "Escribe tu número de WhatsApp"),
-  handle: z.string().trim().min(2, "Escribe el Instagram o la web de tu marca").max(160),
+  socials: socialsSchema,
   category: z.enum(BRAND_CATEGORY_OPTIONS, { message: "Elige qué vende tu marca" }),
   salesChannel: z.enum(BRAND_SALES_CHANNEL_OPTIONS, { message: "Elige dónde vendes hoy" }),
 });

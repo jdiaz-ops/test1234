@@ -71,14 +71,19 @@ describe.skipIf(!hasDb)("lista de espera de marcas", () => {
       company: "Mi Marca",
       email,
       whatsapp: "3001234567",
-      handle: "@mimarca",
+      socials: [
+        { platform: "Instagram", handle: "@mimarca" },
+        { platform: "TikTok", handle: "" },
+        { platform: "Web", handle: "mimarca.com" },
+      ],
       category: "Uñas",
       salesChannel: "Solo redes sociales y WhatsApp",
     });
     expect(await joinBrandWaitlist(brand, { utmSource: "facebook" })).toEqual({ alreadyJoined: false });
 
     const row = await prisma.waitlistEntry.findUniqueOrThrow({ where: { kind_email: { kind: "BRAND", email } } });
-    expect(row).toMatchObject({ company: "Mi Marca", handle: "mimarca", utmSource: "facebook" });
+    expect(row).toMatchObject({ company: "Mi Marca", utmSource: "facebook" });
+    expect(socialsText(row.socials)).toBe("Instagram: @mimarca · Web: mimarca.com");
     expect(await prisma.waitlistEntry.count({ where: { email } })).toBe(2);
   });
 });
