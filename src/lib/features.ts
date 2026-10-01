@@ -42,3 +42,11 @@ export const CUSTOM_DOMAIN_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CUSTOM_DOMA
 /// /para-marcas. Las campañas ya guardadas no se borran. Para encenderlo:
 /// NEXT_PUBLIC_FEATURE_CAMPAIGNS=true. Ver conversación del 2026-10-01.
 export const CAMPAIGNS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CAMPAIGNS === "true";
+
+/// Invita y gana (referidos entre creadores — referral-service.ts).
+/// Escondido mientras Marcolini se enfoca en lo esencial: sale del menú del
+/// creador y del Admin, y su página da 404. Los links de invitación que ya
+/// circulan (/registro/creador?ref=...) siguen sirviendo para registrarse.
+/// Para encenderlo: NEXT_PUBLIC_FEATURE_REFERRALS=true. Ver conversación
+/// del 2026-10-01.
+export const REFERRALS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_REFERRALS === "true";

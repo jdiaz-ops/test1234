@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { REFERRALS_ENABLED } from "@/lib/features";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getReferralSummaryForCreator } from "@/server/services/referral-service";
@@ -14,6 +16,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default async function ReferidosPage() {
+  if (!REFERRALS_ENABLED) notFound();
   const session = await auth();
   const profile = await prisma.creatorProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },

@@ -1,7 +1,10 @@
+import { notFound } from "next/navigation";
+import { REFERRALS_ENABLED } from "@/lib/features";
 import { listAllReferrals } from "@/server/services/referral-service";
 import { AdminReferralsQueue } from "@/components/portal/admin-referrals-queue";
 
 export default async function AdminReferidosPage() {
+  if (!REFERRALS_ENABLED) notFound();
   const referrals = await listAllReferrals();
 
   const qualifiedAmount = referrals

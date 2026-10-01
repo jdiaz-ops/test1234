@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CAMPAIGNS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
+import { CAMPAIGNS_ENABLED, REFERRALS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
 
 // Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
 // ruta siguen intactos, solo se quitó del menú.
@@ -65,7 +65,8 @@ export function PortalNav({
       : flatItems.filter((item) => item.href !== "/creador/onboarding")
   )
     .filter((item) => SAMPLES_ENABLED || item.href !== "/creador/muestras")
-    .filter((item) => CAMPAIGNS_ENABLED || item.href !== "/creador/retos");
+    .filter((item) => CAMPAIGNS_ENABLED || item.href !== "/creador/retos")
+    .filter((item) => REFERRALS_ENABLED || item.href !== "/creador/referidos");
   const cuentaHasActiveChild = cuentaSubItems.some((i) =>
     isActive(pathname, i.href),
   );

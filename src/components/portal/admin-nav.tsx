@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { REFERRALS_ENABLED } from "@/lib/features";
 
 const items = [
   { href: "/admin", label: "Dashboard", exact: true },
@@ -12,7 +13,8 @@ const items = [
   { href: "/admin/finanzas", label: "Finanzas" },
   { href: "/admin/cobros", label: "Cobros" },
   { href: "/admin/pagos-creadores", label: "Pagos" },
-  { href: "/admin/referidos", label: "Referidos" },
+  // Escondido mientras REFERRALS_ENABLED esté apagado (src/lib/features.ts).
+  ...(REFERRALS_ENABLED ? [{ href: "/admin/referidos", label: "Referidos" }] : []),
   { href: "/admin/facturas", label: "Facturas" },
   { href: "/admin/fraude", label: "Antifraude" },
   { href: "/admin/diagnostico-correo", label: "Diagnóstico de correo" },

@@ -591,7 +591,10 @@ export default function ParaMarcasPage() {
             </div>
             )}
 
-            {/* 6 — medir el ROI */}
+            {/* 6 — medir el ROI: la tarjeta muestra el resultado de una
+                campaña, así que se esconde con ellas (CAMPAIGNS_ENABLED,
+                ver src/lib/features.ts). */}
+            {CAMPAIGNS_ENABLED && (
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-3">Resultado de la campaña</p>
@@ -640,6 +643,7 @@ export default function ParaMarcasPage() {
                 </Link>
               </div>
             </div>
+            )}
 
             {/* 7 — trazabilidad total / reporte de transacciones */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">

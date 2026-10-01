@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { CAMPAIGNS_ENABLED } from "@/lib/features";
 import { approveEligibleCommissions } from "@/server/services/commission-service";
 import {
   runBrandCharges,
@@ -62,9 +63,12 @@ async function runDailyJob() {
   const overdue = await markOverdueCharges();
   const deactivationReminders = await sendDeactivationReminders();
   const deactivated = await deactivateOverdueBrands();
-  const challengeUrgency = await sendChallengeUrgencyReminders();
+  // Campañas escondidas (CAMPAIGNS_ENABLED): no se avisa a nadie de una
+  // campaña que no puede ver. Lo demás (bonos, descuentos temporales) sigue
+  // corriendo para que las que ya existían terminen bien.
+  const challengeUrgency = CAMPAIGNS_ENABLED ? await sendChallengeUrgencyReminders() : { sentCount: 0 };
   const discountBoosts = await syncDiscountBoosts();
-  const campaignsStarted = await notifyStartedCampaigns();
+  const campaignsStarted = CAMPAIGNS_ENABLED ? await notifyStartedCampaigns() : { notifiedCount: 0 };
   const badges = await evaluateCreatorBadges();
   const onboardingReminders = await sendOnboardingReminders();
   // Conexiones: reintenta los webhooks que no llegaron (ver
