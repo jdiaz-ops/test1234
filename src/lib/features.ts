@@ -4,11 +4,10 @@
 /// datos.
 
 /// Muestras gratis (sample-service.ts): la marca regala producto a
-/// creadores. Apagado al lanzar: Marcolini arranca solo con códigos,
-/// comisiones y pagos, y las muestras se coordinan a mano por fuera
-/// mientras se aprende cómo diseñarlas. Para encenderlo:
-/// NEXT_PUBLIC_FEATURE_SAMPLES=true. Ver conversación del 2026-10-01.
-export const SAMPLES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_SAMPLES === "true";
+/// creadores. Estuvo apagado al lanzar; Juan pidió volver a mostrarlo
+/// (2026-10-01), así que ahora viene encendido. Para apagarlo de nuevo:
+/// NEXT_PUBLIC_FEATURE_SAMPLES=false.
+export const SAMPLES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_SAMPLES !== "false";
 
 /// Reseñas de productos (product-review-service.ts): los compradores
 /// opinan desde la ficha y la marca aprueba. Apagado: la marca pidió

@@ -9,7 +9,7 @@ import {
 import { SAMPLES_ENABLED } from "@/lib/features";
 
 export default async function CreadorMuestrasPage() {
-  // Función apagada al lanzar (ver src/lib/features.ts).
+  // Se puede apagar con NEXT_PUBLIC_FEATURE_SAMPLES=false (ver src/lib/features.ts).
   if (!SAMPLES_ENABLED) notFound();
 
   const profile = await requireCreatorProfile();
@@ -27,7 +27,7 @@ export default async function CreadorMuestrasPage() {
         MUESTRAS
       </p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
-        Pide muestras gratis
+        Solicitar muestras
       </h1>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         Productos que las marcas de Marcolini regalan a creadores para que los

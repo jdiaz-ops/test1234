@@ -24,7 +24,7 @@ const flatItems = [
   // Nuevo — no estaba en el orden original que pidió Juan, se agregó justo
   // después de Marketplace por ser temáticamente parecido (descubrir algo
   // de una marca). Ver conversación sobre muestras estilo TikTok Shop.
-  { href: "/creador/muestras", label: "Muestras" },
+  { href: "/creador/muestras", label: "Solicitar muestras" },
   // Licencias y Encargos quedan OCULTOS del menú desde el 2026-09-14 (no
   // son funcionalidad para el MVP) — las rutas /creador/licencias y
   // /creador/encargos siguen intactas, solo no aparecen acá. Reactivar:
