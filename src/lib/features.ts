@@ -26,3 +26,10 @@ export const REVIEWS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_REVIEWS === "true
 /// 2026-10-01.
 export const STORE_CONNECTION_ENABLED =
   process.env.NEXT_PUBLIC_FEATURE_STORE_CONNECTION === "true";
+
+/// Dominio propio (Configuración → General → CustomDomainForm). Escondido
+/// por ahora: todas las tiendas van en {slug}.marcolini.lat. Un dominio ya
+/// verificado sigue funcionando; solo no se ofrece en el panel. Para
+/// encenderlo: NEXT_PUBLIC_FEATURE_CUSTOM_DOMAIN=true. Ver conversación
+/// del 2026-10-01.
+export const CUSTOM_DOMAIN_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CUSTOM_DOMAIN === "true";

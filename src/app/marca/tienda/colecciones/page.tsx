@@ -35,14 +35,7 @@ export default async function TiendaColeccionesPage() {
       </p>
       <StoreCollectionsPanel
         storeUrl={storeUrl}
-        initialCollections={collections.map((c) => ({
-          id: c.id,
-          name: c.name,
-          slug: c.slug,
-          description: c.description,
-          imageUrl: c.imageUrl,
-          productCount: c._count.products,
-        }))}
+        initialCollections={collections}
       />
     </div>
   );

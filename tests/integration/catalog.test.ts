@@ -3,7 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { applyWompiTransactionStatus } from "@/server/services/store-order-service";
 import { getProductReviews, moderateReview, submitProductReview } from "@/server/services/product-review-service";
 import { bulkProductAction } from "@/server/services/brand-store-product-service";
-import { createBrandCollection, setProductCollections } from "@/server/services/brand-collection-service";
+import {
+  createBrandCollection,
+  getPublicBrandCollection,
+  setProductCollections,
+  updateBrandCollection,
+} from "@/server/services/brand-collection-service";
 import { rateLimit } from "@/lib/rate-limit";
 import { createBrand, createPendingOrder, createProduct, hasDb } from "./helpers";
 
@@ -94,6 +99,44 @@ describe.skipIf(!hasDb)("colecciones y edición en grupo", () => {
     });
     expect(result.changed).toBe(0);
     expect(await prisma.productBrandCollection.count({ where: { collectionId: collection.id } })).toBe(1);
+  });
+});
+
+describe.skipIf(!hasDb)("orden de productos en una colección", () => {
+  it("respeta el orden manual, el automático y agrega al final", async () => {
+    const brand = await createBrand();
+    const caro = await createProduct(brand.id, { name: "Bravo", price: 30000, stock: 1 });
+    const barato = await createProduct(brand.id, { name: "Charlie", price: 10000, stock: 1 });
+    const medio = await createProduct(brand.id, { name: "alfa", price: 20000, stock: 1 });
+    const collection = await createBrandCollection(brand.id, {
+      name: "Placas",
+      productIds: [barato.id, caro.id, medio.id],
+    });
+    const names = async () =>
+      (await getPublicBrandCollection(brand.id, collection.slug))!.products.map((p) => p.product.name);
+
+    expect(await names()).toEqual(["Charlie", "Bravo", "alfa"]);
+
+    // La marca arrastra: alfa primero.
+    await updateBrandCollection(brand.id, collection.id, {
+      name: "Placas",
+      productIds: [medio.id, barato.id, caro.id],
+    });
+    expect(await names()).toEqual(["alfa", "Charlie", "Bravo"]);
+
+    // Desde la ficha del producto y en grupo: entran al final.
+    const nuevo = await createProduct(brand.id, { name: "Delta", price: 5000, stock: 1 });
+    await setProductCollections(brand.id, nuevo.id, [collection.id]);
+    const otro = await createProduct(brand.id, { name: "Eco", price: 5000, stock: 1 });
+    await bulkProductAction(brand.id, { productIds: [otro.id], action: "addCollection", collectionId: collection.id });
+    expect(await names()).toEqual(["alfa", "Charlie", "Bravo", "Delta", "Eco"]);
+
+    // Automático: A–Z sin importar mayúsculas, y por precio.
+    const ids = [medio.id, barato.id, caro.id, nuevo.id, otro.id];
+    await updateBrandCollection(brand.id, collection.id, { name: "Placas", productIds: ids, sortOrder: "ALPHA_ASC" });
+    expect(await names()).toEqual(["alfa", "Bravo", "Charlie", "Delta", "Eco"]);
+    await updateBrandCollection(brand.id, collection.id, { name: "Placas", productIds: ids, sortOrder: "PRICE_DESC" });
+    expect(await names()).toEqual(["Bravo", "alfa", "Charlie", "Delta", "Eco"]);
   });
 });
 

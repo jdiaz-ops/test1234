@@ -647,7 +647,11 @@ export const createBrandCollectionSchema = z.object({
   name: z.string().min(2, "Ingresa el nombre de la colección").max(80),
   description: z.string().max(2000).optional().or(z.literal("")),
   imageUrl: z.string().optional().or(z.literal("")),
+  /// En el orden en que deben aparecer (orden manual).
   productIds: z.array(z.string().min(1)).default([]),
+  sortOrder: z
+    .enum(["MANUAL", "ALPHA_ASC", "ALPHA_DESC", "PRICE_ASC", "PRICE_DESC", "NEWEST"])
+    .default("MANUAL"),
 });
 
 export const updateBrandCollectionSchema = createBrandCollectionSchema.extend({

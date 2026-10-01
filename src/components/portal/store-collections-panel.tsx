@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { prepareImageForUpload } from "@/lib/prepare-image-upload";
+import {
+  CollectionProductsEditor,
+  type CollectionSortOrder,
+} from "@/components/portal/collection-products-editor";
 
 export type BrandCollectionRow = {
   id: string;
@@ -11,93 +15,6 @@ export type BrandCollectionRow = {
   imageUrl: string | null;
   productCount: number;
 };
-
-type ProductOption = { id: string; name: string; imageUrl: string | null };
-
-/// Selector de productos para meter en una colección — busca entre los
-/// productos manuales de la marca y marca cuáles quedan incluidos. Mismo
-/// espíritu que el modal "Selecciona productos para incluir" de Shopify,
-/// simplificado a una lista con checkboxes (sin modal aparte).
-function ProductPicker({
-  selectedIds,
-  onChange,
-}: {
-  selectedIds: string[];
-  onChange: (ids: string[]) => void;
-}) {
-  const [products, setProducts] = useState<ProductOption[] | null>(null);
-  const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    fetch("/api/marca/tienda/productos")
-      .then((r) => r.json())
-      .then((body) =>
-        setProducts(
-          (body.products ?? []).map((p: { id: string; name: string; imageUrl: string | null }) => ({
-            id: p.id,
-            name: p.name,
-            imageUrl: p.imageUrl,
-          })),
-        ),
-      )
-      .catch(() => setProducts([]));
-  }, []);
-
-  function toggle(id: string) {
-    onChange(
-      selectedIds.includes(id)
-        ? selectedIds.filter((i) => i !== id)
-        : [...selectedIds, id],
-    );
-  }
-
-  const filtered = (products ?? []).filter((p) =>
-    p.name.toLowerCase().includes(query.toLowerCase()),
-  );
-
-  return (
-    <div className="rounded-xl border border-brand-line overflow-hidden">
-      <div className="p-2 border-b border-brand-line">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar productos"
-          className="input text-sm"
-        />
-      </div>
-      <div className="max-h-64 overflow-y-auto divide-y divide-brand-line">
-        {products === null ? (
-          <p className="text-xs text-brand-ink-soft p-3">Cargando...</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-xs text-brand-ink-soft p-3">Sin productos.</p>
-        ) : (
-          filtered.map((p) => (
-            <label
-              key={p.id}
-              className="flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer hover:bg-brand-bg"
-            >
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(p.id)}
-                onChange={() => toggle(p.id)}
-              />
-              {p.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.imageUrl} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
-              ) : (
-                <div className="w-8 h-8 rounded bg-brand-bg shrink-0" />
-              )}
-              <span className="text-brand-ink truncate">{p.name}</span>
-            </label>
-          ))
-        )}
-      </div>
-      <p className="text-[11px] text-brand-ink-soft px-3 py-1.5 bg-brand-bg">
-        {selectedIds.length} producto{selectedIds.length === 1 ? "" : "s"} en la colección
-      </p>
-    </div>
-  );
-}
 
 function CollectionForm({
   initial,
@@ -110,6 +27,7 @@ function CollectionForm({
     description: string | null;
     imageUrl: string | null;
     productIds: string[];
+    sortOrder: CollectionSortOrder;
   };
   onSaved: () => void;
   onCancel: () => void;
@@ -118,6 +36,7 @@ function CollectionForm({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [productIds, setProductIds] = useState<string[]>(initial?.productIds ?? []);
+  const [sortOrder, setSortOrder] = useState<CollectionSortOrder>(initial?.sortOrder ?? "MANUAL");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -153,7 +72,7 @@ function CollectionForm({
         {
           method: initial ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, description, imageUrl, productIds }),
+          body: JSON.stringify({ name, description, imageUrl, productIds, sortOrder }),
         },
       );
       if (!res.ok) {
@@ -219,7 +138,12 @@ function CollectionForm({
       </div>
       <div>
         <label className="block text-sm text-brand-ink mb-1">Productos</label>
-        <ProductPicker selectedIds={productIds} onChange={setProductIds} />
+        <CollectionProductsEditor
+          productIds={productIds}
+          onChange={setProductIds}
+          sortOrder={sortOrder}
+          onSortOrderChange={setSortOrder}
+        />
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -303,6 +227,7 @@ export function StoreCollectionsPanel({
     description: string | null;
     imageUrl: string | null;
     productIds: string[];
+    sortOrder: CollectionSortOrder;
   } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -325,6 +250,7 @@ export function StoreCollectionsPanel({
         description: body.collection.description,
         imageUrl: body.collection.imageUrl,
         productIds: body.collection.products.map((p: { productId: string }) => p.productId),
+        sortOrder: body.collection.sortOrder ?? "MANUAL",
       });
     }
   }

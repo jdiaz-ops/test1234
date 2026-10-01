@@ -4,6 +4,7 @@ import { StoreSettingsTabs } from "@/components/portal/store-settings-tabs";
 import { StoreConfigForm } from "@/components/portal/store-config-form";
 import { CustomDomainForm } from "@/components/portal/custom-domain-form";
 import { TaxConfigForm } from "@/components/portal/tax-config-form";
+import { CUSTOM_DOMAIN_ENABLED } from "@/lib/features";
 
 export default async function TiendaConfiguracionPage() {
   const profile = await requireBrandProfile();
@@ -19,7 +20,7 @@ export default async function TiendaConfiguracionPage() {
       </h1>
       <StoreSettingsTabs active="general" />
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        El link de tu tienda, tu dominio propio y el IVA de tus precios.
+        El link de tu tienda y el IVA de tus precios.
       </p>
       {/* El link real es siempre este subdominio (o un dominio propio, ver
           CustomDomainForm) — StoreConfigForm ya lo muestra/edita en ese
@@ -40,11 +41,13 @@ export default async function TiendaConfiguracionPage() {
       )}
       <StoreConfigForm initialSlug={profile.storefrontSlug ?? ""} />
 
-      <CustomDomainForm
-        initialDomain={profile.customDomain}
-        initialToken={profile.customDomainVerificationToken}
-        initialVerified={profile.customDomainVerifiedAt != null}
-      />
+      {CUSTOM_DOMAIN_ENABLED && (
+        <CustomDomainForm
+          initialDomain={profile.customDomain}
+          initialToken={profile.customDomainVerificationToken}
+          initialVerified={profile.customDomainVerifiedAt != null}
+        />
+      )}
 
       <TaxConfigForm
         initialMarket={profile.market}

@@ -20,7 +20,7 @@ import type {
 } from "@/lib/storefront-sections";
 import { normalizeBannerConfig } from "@/lib/storefront-sections";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
-import { getBrandCollection } from "@/server/services/brand-collection-service";
+import { getBrandCollection, sortCollectionProducts } from "@/server/services/brand-collection-service";
 import { listStorefrontProducts } from "@/server/services/store-order-service";
 import { CatalogTemplate } from "@/components/storefront/catalog-templates";
 import { ProductCard, toCardProduct, type CardProduct } from "@/components/storefront/product-card";
@@ -160,7 +160,7 @@ async function FeaturedCollectionSection({
   if (!config.collectionId) return null;
   const collection = await getBrandCollection(brandId, config.collectionId);
   if (!collection) return null;
-  const products = collection.products
+  const products = sortCollectionProducts(collection.products, collection.sortOrder)
     .map((p) => p.product)
     .filter((p) => p.status === "ACTIVE" && p.available)
     .slice(0, 12);
@@ -530,7 +530,7 @@ async function OnSaleProductsSection({
     if (!config.collectionId) return null;
     const collection = await getBrandCollection(brandId, config.collectionId);
     if (!collection) return null;
-    const products = collection.products
+    const products = sortCollectionProducts(collection.products, collection.sortOrder)
       .map((p) => p.product)
       .filter((p) => p.status === "ACTIVE" && p.available)
       .slice(0, 24)

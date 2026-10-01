@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { CollectionSortOrder, Prisma } from "@prisma/client";
 
 export class BrandCollectionError extends Error {}
 
@@ -22,11 +23,82 @@ const collectionInclude = {
 /// poder gestionarlas (antes solo se creaban al vuelo desde Crear
 /// producto, con solo un nombre).
 export async function listBrandCollections(brandId: string) {
-  return prisma.brandCollection.findMany({
+  const collections = await prisma.brandCollection.findMany({
     where: { brandId },
     orderBy: { position: "asc" },
     include: collectionInclude,
   });
+  return collections.map(toCollectionRow);
+}
+
+/// La fila que muestra la lista de Mi tienda → Colecciones. La usan la
+/// carga inicial de la página y la API: antes la API mandaba `_count` en
+/// vez de `productCount` y, al volver de editar una colección, la lista
+/// decía "productos" sin el número. Ver conversación del 2026-10-01.
+function toCollectionRow(c: {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  _count: { products: number };
+}) {
+  return {
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    description: c.description,
+    imageUrl: c.imageUrl,
+    productCount: c._count.products,
+  };
+}
+
+const collectionProductSelect = {
+  id: true,
+  name: true,
+  imageUrl: true,
+  price: true,
+  compareAtPrice: true,
+  slug: true,
+  stock: true,
+  type: true,
+  status: true,
+  available: true,
+  createdAt: true,
+} satisfies Prisma.ProductSelect;
+
+/// Orden manual guardado (position); en empate, el de entrada.
+const manualOrder = [
+  { position: "asc" as const },
+  { createdAt: "asc" as const },
+  { id: "asc" as const },
+];
+
+/// Aplica el "Ordenar" de la colección a sus filas, que vienen en orden
+/// manual. Para la vitrina (página de la colección, Colección destacada,
+/// Ofertas desde una colección); el editor siempre trabaja con el orden
+/// manual.
+export function sortCollectionProducts<
+  T extends { product: { name: string; price: unknown; createdAt: Date } },
+>(rows: T[], sortOrder: CollectionSortOrder): T[] {
+  const price = (r: T) => Number(r.product.price);
+  const byName = (a: T, b: T) =>
+    a.product.name.localeCompare(b.product.name, "es", { sensitivity: "base", numeric: true });
+  const sorted = [...rows];
+  switch (sortOrder) {
+    case "ALPHA_ASC":
+      return sorted.sort(byName);
+    case "ALPHA_DESC":
+      return sorted.sort((a, b) => byName(b, a));
+    case "PRICE_ASC":
+      return sorted.sort((a, b) => price(a) - price(b) || byName(a, b));
+    case "PRICE_DESC":
+      return sorted.sort((a, b) => price(b) - price(a) || byName(a, b));
+    case "NEWEST":
+      return sorted.sort((a, b) => b.product.createdAt.getTime() - a.product.createdAt.getTime());
+    default:
+      return sorted;
+  }
 }
 
 /// Para la página pública de la colección en la vitrina
@@ -38,34 +110,17 @@ export async function getPublicBrandCollection(brandId: string, slug: string) {
     where: { brandId_slug: { brandId, slug } },
     include: {
       products: {
-        // Orden fijo: el de entrada a la colección (importación o
-        // guardado). Sin orderBy Postgres devuelve las filas en el orden
-        // que le queda cómodo y cambia con cada edición.
-        orderBy: { createdAt: "asc" },
-        include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-              imageUrl: true,
-              price: true,
-              compareAtPrice: true,
-              slug: true,
-              stock: true,
-              type: true,
-              status: true,
-              available: true,
-            },
-          },
-        },
+        orderBy: manualOrder,
+        include: { product: { select: collectionProductSelect } },
       },
     },
   });
   if (!collection) return null;
   return {
     ...collection,
-    products: collection.products.filter(
-      (p) => p.product.status === "ACTIVE" && p.product.available,
+    products: sortCollectionProducts(
+      collection.products.filter((p) => p.product.status === "ACTIVE" && p.product.available),
+      collection.sortOrder,
     ),
   };
 }
@@ -89,28 +144,15 @@ export async function getPublicBrandCollections(brandId: string) {
   return collections;
 }
 
+/// Trae los productos en el orden manual (el del editor). La vitrina
+/// aplica encima el "Ordenar" de la colección con sortCollectionProducts.
 export async function getBrandCollection(brandId: string, collectionId: string) {
   return prisma.brandCollection.findFirst({
     where: { id: collectionId, brandId },
     include: {
       products: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-              imageUrl: true,
-              price: true,
-              compareAtPrice: true,
-              slug: true,
-              stock: true,
-              type: true,
-              status: true,
-              available: true,
-            },
-          },
-        },
+        orderBy: manualOrder,
+        include: { product: { select: collectionProductSelect } },
       },
     },
   });
@@ -137,8 +179,11 @@ type CollectionInput = {
   description?: string;
   imageUrl?: string;
   productIds?: string[];
+  sortOrder?: CollectionSortOrder;
 };
 
+/// Deja la colección con exactamente estos productos, en este orden
+/// (position = lugar en la lista).
 async function setCollectionProducts(collectionId: string, brandId: string, productIds: string[]) {
   // Filtra a solo productos que de verdad son de esta marca — evita que
   // alguien mande el id de un producto de otra marca.
@@ -147,20 +192,38 @@ async function setCollectionProducts(collectionId: string, brandId: string, prod
     select: { id: true },
   });
   const ownedIds = new Set(owned.map((p) => p.id));
+  const ordered = Array.from(new Set(productIds)).filter((id) => ownedIds.has(id));
 
   await prisma.$transaction([
     prisma.productBrandCollection.deleteMany({ where: { collectionId } }),
-    ...(ownedIds.size > 0
+    ...(ordered.length > 0
       ? [
           prisma.productBrandCollection.createMany({
-            data: Array.from(ownedIds).map((productId) => ({
+            data: ordered.map((productId, position) => ({
               productId,
               collectionId,
+              position,
             })),
           }),
         ]
       : []),
   ]);
+}
+
+/// Siguiente lugar libre (al final) en cada colección — para productos que
+/// se agregan desde la ficha del producto o la edición en grupo.
+export async function nextCollectionPositions(
+  collectionIds: string[],
+  db: Prisma.TransactionClient = prisma,
+) {
+  const maxes = await db.productBrandCollection.groupBy({
+    by: ["collectionId"],
+    where: { collectionId: { in: collectionIds } },
+    _max: { position: true },
+  });
+  const next = new Map(collectionIds.map((id) => [id, 0]));
+  for (const m of maxes) next.set(m.collectionId, (m._max.position ?? -1) + 1);
+  return next;
 }
 
 export async function createBrandCollection(brandId: string, data: CollectionInput) {
@@ -178,6 +241,7 @@ export async function createBrandCollection(brandId: string, data: CollectionInp
       description: data.description?.trim() || null,
       imageUrl: data.imageUrl?.trim() || null,
       position: count,
+      sortOrder: data.sortOrder ?? "MANUAL",
     },
   });
   if (data.productIds && data.productIds.length > 0) {
@@ -212,6 +276,7 @@ export async function updateBrandCollection(
       slug,
       description: data.description?.trim() || null,
       imageUrl: data.imageUrl?.trim() || null,
+      ...(data.sortOrder ? { sortOrder: data.sortOrder } : {}),
     },
   });
   await setCollectionProducts(collectionId, brandId, data.productIds ?? []);
@@ -275,6 +340,8 @@ export async function setProductCollections(
   const toAdd = Array.from(ownedIds).filter((id) => !currentIds.has(id));
   if (toRemove.length === 0 && toAdd.length === 0) return;
 
+  // Las colecciones nuevas lo reciben al final de su orden manual.
+  const next = await nextCollectionPositions(toAdd);
   await prisma.$transaction([
     ...(toRemove.length > 0
       ? [prisma.productBrandCollection.deleteMany({ where: { productId, collectionId: { in: toRemove } } })]
@@ -282,7 +349,11 @@ export async function setProductCollections(
     ...(toAdd.length > 0
       ? [
           prisma.productBrandCollection.createMany({
-            data: toAdd.map((collectionId) => ({ productId, collectionId })),
+            data: toAdd.map((collectionId) => ({
+              productId,
+              collectionId,
+              position: next.get(collectionId) ?? 0,
+            })),
           }),
         ]
       : []),

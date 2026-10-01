@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { setProductCollections } from "@/server/services/brand-collection-service";
+import { nextCollectionPositions, setProductCollections } from "@/server/services/brand-collection-service";
 import { sanitizeProductDescription } from "@/lib/sanitize-html";
 
 export class BrandStoreProductError extends Error {}
@@ -97,6 +97,7 @@ export function toManualProductSummary(
     weightUnit: product.weightUnit,
     stock: product.stock,
     status: product.status,
+    createdAt: product.createdAt.toISOString(),
     type: product.type,
     serviceModality: product.serviceModality,
     serviceDurationMinutes: product.serviceDurationMinutes,
@@ -452,8 +453,17 @@ export async function bulkProductAction(
   if (!collection) throw new BrandStoreProductError("Colección no encontrada.");
 
   if (data.action === "addCollection") {
+    // Los que entran van al final del orden manual de la colección, en el
+    // orden en que vienen; los que ya estaban no se mueven.
+    const already = await prisma.productBrandCollection.findMany({
+      where: { collectionId: collection.id, productId: { in: ids } },
+      select: { productId: true },
+    });
+    const alreadyIds = new Set(already.map((r) => r.productId));
+    const toAdd = ids.filter((id) => !alreadyIds.has(id));
+    const start = (await nextCollectionPositions([collection.id])).get(collection.id) ?? 0;
     const result = await prisma.productBrandCollection.createMany({
-      data: ids.map((productId) => ({ productId, collectionId: collection.id })),
+      data: toAdd.map((productId, i) => ({ productId, collectionId: collection.id, position: start + i })),
       skipDuplicates: true,
     });
     return { changed: result.count, skipped: ids.length - result.count };
