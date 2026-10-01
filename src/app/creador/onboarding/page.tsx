@@ -5,6 +5,7 @@ import { getCreatorProfileByUserId } from "@/server/services/creator-profile-ser
 import { listActiveOffers, getEnrollmentsForCreator } from "@/server/services/marketplace-service";
 import { CreatorOnboardingWizard } from "@/components/portal/creator-onboarding-wizard";
 import { publicStoreUrl } from "@/lib/store-url";
+import { creatorVitrinaUrl } from "@/lib/creator-identity";
 
 export default async function CreatorOnboardingPage() {
   const session = await auth();
@@ -25,8 +26,8 @@ export default async function CreatorOnboardingPage() {
   const enrollmentByOffer = new Map(
     enrollments.filter((e) => e.status === "ACTIVE" || e.status === "PENDING_APPROVAL").map((e) => [e.offerId, e])
   );
-  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-  const publicUrl = `${appUrl.replace(/^https?:\/\//, "")}/c/${profile.storefrontSlug}`;
+  // {slug}.marcolini.lat — ver creatorVitrinaUrl.
+  const publicUrl = (await creatorVitrinaUrl(profile.storefrontSlug)).replace(/^https?:\/\//, "");
 
   return (
     <div>

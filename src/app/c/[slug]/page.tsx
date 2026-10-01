@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getPalette, getFont } from "@/lib/creator-storefront-themes";
 import { buildBrandStoreLink, buildProductLink } from "@/lib/brand-store-link";
 import { CopyCodeChip } from "@/components/storefront/copy-code-chip";
+import { ROOT_DOMAIN } from "@/lib/subdomain";
 
 /// Envuelve en <a> solo si hay un link real a dónde ir — si la marca
 /// todavía no tiene tienda ni sitio web configurado, se muestra el mismo
@@ -367,7 +368,7 @@ export default async function PublicStorefrontPage({
           {/* A la landing de creadores, no directo al registro — que vea de
               qué se trata antes de pedirle que se registre. */}
           <a
-            href="/para-creadores"
+            href={`https://${ROOT_DOMAIN}/para-creadores`}
             className="inline-block rounded-full px-5 py-2 text-xs font-medium border"
             style={{ borderColor: palette.accent, color: palette.accent }}
           >

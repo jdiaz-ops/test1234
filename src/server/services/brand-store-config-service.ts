@@ -96,10 +96,15 @@ export async function saveStorefrontSlug(
     );
   }
 
-  const [existing, redirect] = await Promise.all([
+  const [existing, redirect, creator] = await Promise.all([
     prisma.brandProfile.findUnique({ where: { storefrontSlug: slug } }),
     prisma.brandSlugRedirect.findUnique({ where: { slug } }),
+    // Las vitrinas de los creadores también viven en {slug}.marcolini.lat.
+    prisma.creatorProfile.findUnique({ where: { storefrontSlug: slug }, select: { id: true } }),
   ]);
+  if (creator) {
+    throw new BrandStoreConfigError("Ese link ya lo tiene un creador — elige otro.");
+  }
   // Un link viejo de otra marca tampoco se puede tomar: sigue llevando a
   // esa tienda.
   if ((existing && existing.id !== brandId) || (redirect && redirect.brandId !== brandId)) {

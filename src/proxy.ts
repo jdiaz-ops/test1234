@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { NextResponse, type NextRequest } from "next/server";
 import { extractSubdomainSlug, isPlatformHost, ROOT_DOMAIN } from "@/lib/subdomain";
 import { prisma } from "@/lib/prisma";
+import { slugTakenByBrand } from "@/lib/creator-identity";
 
 const roleHome: Record<string, string> = {
   CREATOR: "/creador",
@@ -46,6 +47,25 @@ export default auth(async (req) => {
   // portal de marca/creador/admin (esos solo viven en el dominio raíz), así
   // que no debe pasar por el chequeo de sesión de abajo.
   const subdomainSlug = !isApiRoute ? extractSubdomainSlug(host) : null;
+
+  // ---- Vitrina de creador ({slug}.marcolini.lat) ----
+  // Marcas y creadores comparten los nombres de subdominio (nadie puede
+  // tomar uno ya usado, ver generateUniqueStorefrontSlug y
+  // saveStorefrontSlug); si quedó un choque de antes, gana la marca.
+  if (subdomainSlug) {
+    const creator = await prisma.creatorProfile.findUnique({
+      where: { storefrontSlug: subdomainSlug },
+      select: { id: true },
+    });
+    if (creator && !(await slugTakenByBrand(subdomainSlug))) {
+      const prefix = `/c/${subdomainSlug}`;
+      const alreadyPrefixed = pathname === prefix || pathname.startsWith(`${prefix}/`);
+      const rewritten = req.nextUrl.clone();
+      rewritten.pathname = alreadyPrefixed ? pathname : `${prefix}${pathname === "/" ? "" : pathname}`;
+      return NextResponse.rewrite(rewritten);
+    }
+  }
+
   if (subdomainSlug) {
     // Ya viene con el prefijo /t/{slug} (un link viejo absoluto que quedó
     // en el HTML, o alguien navegando a mano) — se reescribe tal cual, sin
@@ -105,6 +125,19 @@ export default auth(async (req) => {
   const inIframe = req.headers.get("sec-fetch-dest") === "iframe";
   if (legacyMatch && !inIframe) {
     const [, slug, rest] = legacyMatch;
+    const url = req.nextUrl.clone();
+    url.hostname = `${slug}.${ROOT_DOMAIN}`;
+    url.pathname = rest || "/";
+    url.search = search;
+    return NextResponse.redirect(url, 308);
+  }
+
+  // ---- Link viejo /c/{slug} en el dominio raíz → vitrina en subdominio ----
+  // Mismo trato que /t/{slug}: lo ya compartido sigue funcionando. Si una
+  // marca tiene ese mismo nombre, la vitrina se queda en /c/{slug}.
+  const vitrinaMatch = !isApiRoute ? pathname.match(/^\/c\/([a-z0-9-]+)(\/.*)?$/) : null;
+  if (vitrinaMatch && !inIframe && !(await slugTakenByBrand(vitrinaMatch[1]))) {
+    const [, slug, rest] = vitrinaMatch;
     const url = req.nextUrl.clone();
     url.hostname = `${slug}.${ROOT_DOMAIN}`;
     url.pathname = rest || "/";

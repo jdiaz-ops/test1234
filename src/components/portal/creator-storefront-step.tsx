@@ -184,11 +184,10 @@ export function CreatorStorefrontStep({
             {publicUrl}
           </span>
           <CopyButton value={`https://${publicUrl}`} />
-          {/* Ruta relativa, no "https://" + publicUrl — publicUrl trae el
-              host tal cual (incluido "localhost:3000" en desarrollo, donde
-              no hay HTTPS), así que armar el link así rompía en local. */}
+          {/* publicUrl es siempre https:// (subdominio o /c/ en
+              marcolini.lat, ver creatorVitrinaUrl). */}
           <a
-            href={`/c/${publicUrl.split("/").pop()}`}
+            href={`https://${publicUrl}`}
             target="_blank"
             rel="noreferrer"
             className="text-xs text-brand-accent font-medium hover:underline shrink-0"

@@ -1,4 +1,5 @@
 import { publicStoreUrl } from "@/lib/store-url";
+import { ROOT_DOMAIN } from "@/lib/subdomain";
 
 /// Un solo link por marca — no dos. Shopify soporta de fábrica un link que
 /// aplica el descuento solo, sin que el cliente tenga que escribir el
@@ -69,7 +70,10 @@ export function buildProductLink(
     }
   }
   if (product.url.startsWith("/t/")) {
-    return `${product.url}?ref=${encodeURIComponent(discountCode)}`;
+    // Absoluto, a la tienda de la marca: la vitrina ahora vive en
+    // {creador}.marcolini.lat, donde un link relativo /t/... no existe.
+    const [, slug, ...rest] = product.url.split("/").filter(Boolean);
+    return `https://${slug}.${ROOT_DOMAIN}/${rest.join("/")}?ref=${encodeURIComponent(discountCode)}`;
   }
   return product.url;
 }

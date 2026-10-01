@@ -631,7 +631,7 @@ export default function ParaCreadoresPage() {
                   TU LINK
                 </span>
                 <p className="font-mono text-base text-brand-accent">
-                  marcolini.lat/c/valentina
+                  valentina.marcolini.lat
                 </p>
               </div>
               {/* -mx-6 lg:mx-0 — recupera el padding de la <section> (px-6)
