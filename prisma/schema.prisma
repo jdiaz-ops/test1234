@@ -588,10 +588,14 @@ model BrandProfile {
   /// {storefrontSlug}.marcolini.lat (y marcolini.lat/t/{storefrontSlug},
   /// que redirige ahí — ver src/proxy.ts). Null hasta que la marca lo
   /// configure en "Mi tienda → Configuración".
-  storefrontSlug String?             @unique
+  storefrontSlug       String?             @unique
   /// Links viejos de la tienda que siguen llevando a esta marca después de
   /// que Marcolini le cambió el link (ver BrandSlugRedirect).
-  slugRedirects  BrandSlugRedirect[]
+  slugRedirects        BrandSlugRedirect[]
+  /// Conexiones (Configuración → Conexiones): webhooks que envían
+  /// pedidos y clientes a otros sistemas, y la clave con que se firman.
+  webhooks             BrandWebhook[]
+  webhookSigningSecret String?
 
   /// Dominio propio de la marca (ej. "tienda.marcauno.com"), gratis —
   /// alternativa al subdominio de arriba. Null hasta que la marca lo
@@ -1101,7 +1105,11 @@ enum StoreOrderKind {
 /// que con Shopify/WooCommerce, para que el Motor de Comisiones la procese
 /// normal — las muestras nunca generan Transaction/comisión, son gratis.
 model StoreOrder {
-  id String @id @default(cuid())
+  id     String @id @default(cuid())
+  /// Número correlativo — el `id` numérico que llevan los webhooks con
+  /// formato de Shopify (ver webhook-service.ts), que algunos sistemas
+  /// esperan como número.
+  number Int    @unique @default(autoincrement())
 
   brandId String
   brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
@@ -2484,4 +2492,55 @@ model BrandSlugRedirect {
   createdAt DateTime @default(now())
 
   @@index([brandId])
+}
+
+/// Webhook saliente de una tienda: cuando pasa `topic` (ej. "orders/updated")
+/// se manda el pedido o el cliente en JSON a `url`. Mismos nombres de
+/// evento y mismo formato de Shopify, para que sirvan las mismas URLs que
+/// la marca ya usaba allá (Dataico para facturación electrónica, Google
+/// Sheets, Zapier...). Ver src/server/services/webhook-service.ts y
+/// conversación del 2026-10-01.
+model BrandWebhook {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  topic String
+  url   String
+
+  deliveries WebhookDelivery[]
+
+  createdAt DateTime @default(now())
+
+  @@index([brandId, topic])
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+/// Cada envío de un webhook, con su resultado — para ver en la página qué
+/// llegó y qué no, y reintentar.
+model WebhookDelivery {
+  id        String       @id @default(cuid())
+  webhookId String
+  webhook   BrandWebhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  topic   String
+  payload Json
+  test    Boolean @default(false)
+
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  lastStatusCode Int?
+  lastError      String?
+  lastAttemptAt  DateTime?
+  deliveredAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([webhookId, createdAt])
+  @@index([status, createdAt])
 }

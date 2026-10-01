@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { emitCustomerEvent, emitOrderEvent } from "@/server/services/webhook-service";
 import {
   getActiveWompiKeys,
   buildIntegritySignature,
@@ -698,6 +699,7 @@ export async function updateOrderFulfillment(
   // La primera vez que sale, el comprador recibe la guía y el link de
   // rastreo. Ver conversación del 2026-09-30.
   if (becomesShipped) await sendOrderShippedEmailFor(order.id);
+  await emitOrderEvent(order.id, becomesShipped ? ["orders/updated", "orders/fulfilled"] : ["orders/updated"]);
   return result;
 }
 
@@ -744,6 +746,7 @@ export async function refundStoreOrder(
   }
 
   await sendOrderRefundedEmailFor(order.id, reason);
+  await emitOrderEvent(order.id, ["orders/updated"]);
   return updated;
 }
 
@@ -810,11 +813,12 @@ export async function applyWompiTransactionStatus(params: {
     // registro existe desde la primera compra, sin que la marca tenga
     // que hacer nada. Nunca debe tumbar el pago si algo sale mal acá.
     try {
-      await ensureStoreCustomerExists(order.brandId, {
+      const created = await ensureStoreCustomerExists(order.brandId, {
         email: order.buyerEmail,
         name: order.buyerName,
         phone: order.buyerPhone,
       });
+      if (created) await emitCustomerEvent(order.brandId, order.buyerEmail, "customers/create");
     } catch (err) {
       console.error(`[mi-tienda] No se pudo registrar el cliente para el pedido ${order.id}:`, err);
     }
@@ -852,6 +856,10 @@ export async function applyWompiTransactionStatus(params: {
     // Confirmación al comprador + "tienes una venta" a la marca. Nunca
     // tumba el pago (ver sendOrderPaidEmails).
     await sendOrderPaidEmails(order.id);
+
+    // Conexiones (webhooks): pedido nuevo y pagado — con esto factura
+    // Dataico (financial_status = "paid"). Nunca tumba el pago.
+    await emitOrderEvent(order.id, ["orders/create", "orders/paid", "orders/updated"]);
 
     return { order: updated };
   }

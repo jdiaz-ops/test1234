@@ -18,6 +18,7 @@ import {
 } from "@/server/services/challenge-service";
 import { evaluateCreatorBadges } from "@/server/services/creator-badge-service";
 import { sendOnboardingReminders } from "@/server/services/creator-onboarding-service";
+import { retryFailedDeliveries } from "@/server/services/webhook-service";
 
 /// Punto de entrada para el cron diario real. Soporta dos formas de
 /// autenticarse, según quién lo llame:
@@ -64,6 +65,13 @@ async function runDailyJob() {
   const campaignsStarted = await notifyStartedCampaigns();
   const badges = await evaluateCreatorBadges();
   const onboardingReminders = await sendOnboardingReminders();
+  // Conexiones: reintenta los webhooks que no llegaron (ver
+  // retryFailedDeliveries). Va acá y no en un cron propio para no sumar
+  // otro a vercel.json. Un fallo acá no frena el resto del cierre diario.
+  const webhookRetries = await retryFailedDeliveries().catch((err) => {
+    console.error("[cron] Falló el reintento de webhooks:", err);
+    return { retried: 0, succeeded: 0, pruned: 0 };
+  });
 
   const chargeResults = today === config.chargeDayOfMonth ? await runBrandCharges() : [];
   const payoutResults = today === config.payoutDayOfMonth ? await runCreatorPayouts() : [];
@@ -83,6 +91,8 @@ async function runDailyJob() {
     campaignsStartedNotified: campaignsStarted.notifiedCount,
     badgesAwarded: badges.awardedCount,
     onboardingRemindersSent: onboardingReminders.sentCount,
+    webhooksRetried: webhookRetries.retried,
+    webhooksRecovered: webhookRetries.succeeded,
     brandCharges: chargeResults.length,
     creatorPayouts: payoutResults.length,
   };

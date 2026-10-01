@@ -51,7 +51,7 @@ const storeItems: { href: string; label: string; also?: string[] }[] = [
   {
     href: "/marca/tienda/configuracion",
     label: "Configuración",
-    also: ["/marca/tienda/pagos", "/marca/tienda/envios"],
+    also: ["/marca/tienda/pagos", "/marca/tienda/envios", "/marca/tienda/conexiones"],
   },
 ];
 

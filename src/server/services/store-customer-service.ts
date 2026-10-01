@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { emitCustomerEvent } from "@/server/services/webhook-service";
 
 export class StoreCustomerError extends Error {}
 
@@ -145,7 +146,7 @@ export async function updateStoreCustomer(
   },
 ) {
   const normalized = data.email.toLowerCase();
-  return prisma.storeCustomer.upsert({
+  const customer = await prisma.storeCustomer.upsert({
     where: { brandId_email: { brandId, email: normalized } },
     create: {
       brandId,
@@ -164,19 +165,23 @@ export async function updateStoreCustomer(
       ...(data.storeCreditCents !== undefined ? { storeCreditCents: data.storeCreditCents } : {}),
     },
   });
+  await emitCustomerEvent(brandId, normalized, "customers/update");
+  return customer;
 }
 
 /// Se llama cuando un pedido pasa a PAID — así el registro existe desde
 /// la primera compra, aunque la marca nunca le toque notas/etiquetas. Ver
-/// applyWompiTransactionStatus.
+/// applyWompiTransactionStatus. Devuelve true si el cliente es nuevo.
 export async function ensureStoreCustomerExists(
   brandId: string,
   data: { email: string; name: string; phone: string },
 ) {
   const normalized = data.email.toLowerCase();
-  await prisma.storeCustomer.upsert({
-    where: { brandId_email: { brandId, email: normalized } },
-    create: { brandId, email: normalized, name: data.name, phone: data.phone },
-    update: {},
+  // createMany + skipDuplicates para saber si es nuevo (true) sin carrera
+  // entre dos pedidos simultáneos del mismo comprador.
+  const result = await prisma.storeCustomer.createMany({
+    data: [{ brandId, email: normalized, name: data.name, phone: data.phone }],
+    skipDuplicates: true,
   });
+  return result.count > 0;
 }
