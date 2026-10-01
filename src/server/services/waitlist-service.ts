@@ -1,31 +1,30 @@
 import ExcelJS from "exceljs";
-import type { WaitlistKind } from "@prisma/client";
+import type { Prisma, WaitlistKind } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeEmail } from "@/lib/normalize-email";
-import { socialsText, type Attribution, type CreatorWaitlistInput } from "@/lib/waitlist";
+import {
+  socialsText,
+  type Attribution,
+  type BrandWaitlistInput,
+  type CreatorWaitlistInput,
+} from "@/lib/waitlist";
 
 /// Lista de espera de la página pública (modelo WaitlistEntry). Mientras
 /// Marcolini no abre el registro, sirve para medir la demanda que trae la
 /// pauta. Ver conversación del 2026-10-01.
 
-/// Inscribe (o actualiza) a un creador. Si el correo ya estaba, se
+/// Inscribe (o actualiza) a alguien. Si el correo ya estaba, se
 /// actualizan sus datos pero se conserva el anuncio que lo trajo la
 /// primera vez — es el que cuenta para medir la pauta.
-export async function joinCreatorWaitlist(
-  input: CreatorWaitlistInput,
-  attribution: Attribution = {},
+async function joinWaitlist(
+  kind: WaitlistKind,
+  rawEmail: string,
+  data: Prisma.WaitlistEntryUpdateInput & { name: string; whatsapp: string },
+  attribution: Attribution,
 ): Promise<{ alreadyJoined: boolean }> {
-  const email = normalizeEmail(input.email);
-  const data = {
-    name: input.name,
-    whatsapp: input.whatsapp,
-    socials: input.socials,
-    audience: input.audience,
-    category: input.category,
-  };
-
+  const email = normalizeEmail(rawEmail);
   const existing = await prisma.waitlistEntry.findUnique({
-    where: { kind_email: { kind: "CREATOR", email } },
+    where: { kind_email: { kind, email } },
     select: { id: true },
   });
   if (existing) {
@@ -35,7 +34,7 @@ export async function joinCreatorWaitlist(
 
   try {
     await prisma.waitlistEntry.create({
-      data: { kind: "CREATOR", email, ...data, ...attribution },
+      data: { ...(data as Prisma.WaitlistEntryCreateInput), kind, email, ...attribution },
     });
     return { alreadyJoined: false };
   } catch (err) {
@@ -44,6 +43,37 @@ export async function joinCreatorWaitlist(
     if ((err as { code?: string }).code === "P2002") return { alreadyJoined: true };
     throw err;
   }
+}
+
+export function joinCreatorWaitlist(input: CreatorWaitlistInput, attribution: Attribution = {}) {
+  return joinWaitlist(
+    "CREATOR",
+    input.email,
+    {
+      name: input.name,
+      whatsapp: input.whatsapp,
+      socials: input.socials,
+      audience: input.audience,
+      category: input.category,
+    },
+    attribution,
+  );
+}
+
+export function joinBrandWaitlist(input: BrandWaitlistInput, attribution: Attribution = {}) {
+  return joinWaitlist(
+    "BRAND",
+    input.email,
+    {
+      name: input.name,
+      company: input.company,
+      whatsapp: input.whatsapp,
+      handle: input.handle.replace(/^@+/, ""),
+      category: input.category,
+      salesChannel: input.salesChannel,
+    },
+    attribution,
+  );
 }
 
 export function listWaitlist(kind: WaitlistKind) {
@@ -79,20 +109,37 @@ export async function buildWaitlistWorkbook(kind: WaitlistKind): Promise<Buffer>
   const wb = new ExcelJS.Workbook();
   wb.creator = "Marcolini";
   const sheet = wb.addWorksheet("Lista de espera");
-  sheet.columns = [
-    { header: "Fecha", key: "createdAt", width: 18, style: { numFmt: "dd/mm/yyyy hh:mm" } },
-    { header: "Nombre", key: "name", width: 28 },
-    { header: "Correo", key: "email", width: 32 },
-    { header: "WhatsApp", key: "whatsapp", width: 18 },
-    { header: "Redes", key: "socials", width: 40 },
-    { header: "Seguidores", key: "audience", width: 18 },
-    { header: "Categoría", key: "category", width: 20 },
+  const source = [
     { header: "Fuente", key: "utmSource", width: 16 },
     { header: "Medio", key: "utmMedium", width: 14 },
     { header: "Campaña", key: "utmCampaign", width: 24 },
     { header: "Anuncio", key: "utmContent", width: 24 },
     { header: "Llegó desde", key: "referrer", width: 30 },
   ];
+  const date = { header: "Fecha", key: "createdAt", width: 18, style: { numFmt: "dd/mm/yyyy hh:mm" } };
+  sheet.columns =
+    kind === "BRAND"
+      ? [
+          date,
+          { header: "Marca", key: "company", width: 28 },
+          { header: "Nombre", key: "name", width: 28 },
+          { header: "Correo", key: "email", width: 32 },
+          { header: "WhatsApp", key: "whatsapp", width: 18 },
+          { header: "Instagram o web", key: "handle", width: 30 },
+          { header: "Categoría", key: "category", width: 20 },
+          { header: "Dónde vende", key: "salesChannel", width: 36 },
+          ...source,
+        ]
+      : [
+          date,
+          { header: "Nombre", key: "name", width: 28 },
+          { header: "Correo", key: "email", width: 32 },
+          { header: "WhatsApp", key: "whatsapp", width: 18 },
+          { header: "Redes", key: "socials", width: 40 },
+          { header: "Seguidores", key: "audience", width: 18 },
+          { header: "Categoría", key: "category", width: 20 },
+          ...source,
+        ];
   for (const e of entries) sheet.addRow({ ...e, socials: socialsText(e.socials) });
 
   const header = sheet.getRow(1);

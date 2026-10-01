@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { creatorWaitlistSchema, parseAttributionCookie, socialsText } from "@/lib/waitlist";
-import { joinCreatorWaitlist } from "@/server/services/waitlist-service";
+import { brandWaitlistSchema, creatorWaitlistSchema, parseAttributionCookie, socialsText } from "@/lib/waitlist";
+import { joinBrandWaitlist, joinCreatorWaitlist } from "@/server/services/waitlist-service";
 import { hasDb } from "./helpers";
 
 const input = (email: string) =>
@@ -59,5 +59,26 @@ describe.skipIf(!hasDb)("lista de espera", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ name: "Laura M", utmSource: "instagram", utmCampaign: "oct" });
     expect(rows[0].socials).toEqual(input(email).socials);
+  });
+});
+
+describe.skipIf(!hasDb)("lista de espera de marcas", () => {
+  it("guarda la marca aparte del creador con el mismo correo", async () => {
+    const email = `ambos-${randomUUID().slice(0, 8)}@prueba.test`;
+    await joinCreatorWaitlist(input(email));
+    const brand = brandWaitlistSchema.parse({
+      name: "Ana",
+      company: "Mi Marca",
+      email,
+      whatsapp: "3001234567",
+      handle: "@mimarca",
+      category: "Uñas",
+      salesChannel: "Solo redes sociales y WhatsApp",
+    });
+    expect(await joinBrandWaitlist(brand, { utmSource: "facebook" })).toEqual({ alreadyJoined: false });
+
+    const row = await prisma.waitlistEntry.findUniqueOrThrow({ where: { kind_email: { kind: "BRAND", email } } });
+    expect(row).toMatchObject({ company: "Mi Marca", handle: "mimarca", utmSource: "facebook" });
+    expect(await prisma.waitlistEntry.count({ where: { email } })).toBe(2);
   });
 });

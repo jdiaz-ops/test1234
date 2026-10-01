@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
+import { UtmCapture } from "@/components/marketing/utm-capture";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { CostCalculator } from "@/components/portal/cost-calculator";
 import {
@@ -22,7 +23,12 @@ export const metadata: Metadata = {
     "Crece tu marca con una red de creadores que solo cobran comisión cuando venden. Crea tu propia tienda dentro de Marcolini, sin mensualidades.",
 };
 
-const confianza = ["Sin mensualidades", "Sin costos de instalación"];
+const confianza = ["Sin mensualidades"];
+
+/// Sección "Solo ganamos cuando tu marca vende" (simulador de costos + botón
+/// "Crea tu programa"). Escondida por ahora a pedido de Juan (2026-10-01);
+/// para mostrarla de nuevo, cambiar a true.
+const SHOW_PRICING_SIMULATOR = false;
 
 // Datos de ejemplo para las vistas previas de la sección "Así funciona en tu
 // panel" — la misma info y el mismo tratamiento visual (colores, tipos,
@@ -115,9 +121,11 @@ const faq = [
 export default function ParaMarcasPage() {
   return (
     <div className="flex flex-col min-h-screen">
+      <UtmCapture />
       <SiteHeader
-        ctaHref="/registro/marca"
-        ctaLabel="Crear Cuenta"
+        ctaHref="/lista-de-espera/marcas"
+        ctaLabel="Únete a la lista de espera"
+        mobileCtaLabel="Lista de espera"
         loginLabel="Portal Marca"
         showRoleLinks={false}
       />
@@ -151,10 +159,10 @@ export default function ParaMarcasPage() {
                 Solo pagas comisión cuando generan ventas
               </p>
               <Link
-                href="/registro/marca"
+                href="/lista-de-espera/marcas"
                 className="group inline-flex items-center justify-center gap-2 bg-brand-accent text-white rounded-full px-10 py-5 text-base font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)]"
               >
-                Crear Cuenta
+                Únete a la lista de espera
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
               {/* "Empieza gratis" y "Sin mensualidades" salieron del subhead
@@ -355,6 +363,9 @@ export default function ParaMarcasPage() {
                 mide el resultado, y al final —ya convencidos— el paso
                 técnico de conectar la tienda. */}
 
+            {/* Escondido por ahora (SHOW_PRICING_SIMULATOR, arriba). */}
+            {SHOW_PRICING_SIMULATOR && (
+              <>
             {/* 1 — cómo se reparte una venta: no una tarjeta de precio, sino
                 el mismo simulador de costos que ya existe de verdad en el
                 portal (Oferta y comisión / onboarding — ver
@@ -389,13 +400,15 @@ export default function ParaMarcasPage() {
                 que acaba de hacer en vez de repetir "Empieza gratis". */}
             <div className="flex justify-center -mt-6">
               <Link
-                href="/registro/marca"
+                href="/lista-de-espera/marcas"
                 className="group inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
               >
-                Crea tu programa
+                Únete a la lista de espera
                 <IconArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
+              </>
+            )}
 
             {/* 2 — red de creadores (marketplace pasivo, ver
                 previewRedCreadores) + buscador de creadores con invitación
@@ -447,10 +460,10 @@ export default function ParaMarcasPage() {
                   programa, con la comisión que quieras ofrecer.
                 </p>
                 <Link
-                  href="/registro/marca"
+                  href="/lista-de-espera/marcas"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Empieza a sumar creadores
+                  Únete a la lista de espera
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -487,10 +500,10 @@ export default function ParaMarcasPage() {
                   sin coordinar envíos por fuera de la plataforma.
                 </p>
                 <Link
-                  href="/registro/marca"
+                  href="/lista-de-espera/marcas"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Envía tu primera muestra
+                  Únete a la lista de espera
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -533,10 +546,10 @@ export default function ParaMarcasPage() {
                   manual.
                 </p>
                 <Link
-                  href="/registro/marca"
+                  href="/lista-de-espera/marcas"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Automatiza tus códigos
+                  Únete a la lista de espera
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -581,10 +594,10 @@ export default function ParaMarcasPage() {
                   objetivo y calcula automáticamente los bonos y comisiones de cada campaña.
                 </p>
                 <Link
-                  href="/registro/marca"
+                  href="/lista-de-espera/marcas"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Lanza tu primera campaña
+                  Únete a la lista de espera
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -635,10 +648,10 @@ export default function ParaMarcasPage() {
                   comisiones y el ROI de cada campaña.
                 </p>
                 <Link
-                  href="/registro/marca"
+                  href="/lista-de-espera/marcas"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Mide tu ROI
+                  Únete a la lista de espera
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -671,10 +684,10 @@ export default function ParaMarcasPage() {
                   creadores con total transparencia, sin conciliaciones manuales.
                 </p>
                 <Link
-                  href="/registro/marca"
+                  href="/lista-de-espera/marcas"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Controla tus pagos
+                  Únete a la lista de espera
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -711,15 +724,14 @@ export default function ParaMarcasPage() {
                   Crea tu tienda dentro de Marcolini
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed mb-6">
-                  Publica tu catálogo en tu propia tienda con subdominio gratis (o tu dominio
-                  propio), elige una plantilla y empieza a vender y a atribuir ventas a tus
-                  creadores desde el primer día.
+                  Publica tu catálogo en tu propia tienda y empieza a vender y a atribuir ventas
+                  a tus creadores desde el primer día.
                 </p>
                 <Link
-                  href="/registro/marca"
+                  href="/lista-de-espera/marcas"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Crea tu tienda
+                  Únete a la lista de espera
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -759,10 +771,10 @@ export default function ParaMarcasPage() {
               por resultados.
             </p>
             <Link
-              href="/registro/marca"
+              href="/lista-de-espera/marcas"
               className="relative inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
             >
-              Empieza gratis
+              Únete a la lista de espera
               <IconArrowRight className="w-4 h-4" />
             </Link>
           </div>

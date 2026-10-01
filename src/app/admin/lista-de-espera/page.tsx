@@ -1,10 +1,17 @@
+import { PageTabs } from "@/components/portal/page-tabs";
 import { socialsText } from "@/lib/waitlist";
 import { listWaitlist, sourceLabel, summarizeWaitlist } from "@/server/services/waitlist-service";
 
-/// Lista de espera de creadores: cuánta gente se inscribe y desde qué
-/// anuncio llega (utm_*). Ver waitlist-service.ts.
-export default async function AdminListaDeEsperaPage() {
-  const entries = await listWaitlist("CREATOR");
+const TABS = [
+  { href: "/admin/lista-de-espera", label: "Creadores" },
+  { href: "/admin/lista-de-espera?tipo=marcas", label: "Marcas" },
+] as const;
+
+/// Lista de espera de creadores y marcas: cuánta gente se inscribe y desde
+/// qué anuncio llega (utm_*). Ver waitlist-service.ts.
+export default async function AdminListaDeEsperaPage({ searchParams }: PageProps<"/admin/lista-de-espera">) {
+  const brands = (await searchParams).tipo === "marcas";
+  const entries = await listWaitlist(brands ? "BRAND" : "CREATOR");
 
   const { lastWeek, lastDay, sources } = summarizeWaitlist(entries);
 
@@ -20,16 +27,18 @@ export default async function AdminListaDeEsperaPage() {
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">LISTA DE ESPERA</p>
       <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
-        <h1 className="font-display text-2xl font-semibold text-brand-ink">Creadores en lista de espera</h1>
+        <h1 className="font-display text-2xl font-semibold text-brand-ink">Lista de espera</h1>
         {entries.length > 0 && (
           <a
-            href="/api/admin/lista-de-espera/exportar"
+            href={`/api/admin/lista-de-espera/exportar${brands ? "?tipo=marcas" : ""}`}
             className="text-sm border border-brand-line rounded-full px-4 py-1.5 hover:bg-brand-accent-soft"
           >
             Exportar a Excel
           </a>
         )}
       </div>
+
+      <PageTabs tabs={TABS} active={TABS[brands ? 1 : 0].href} />
 
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
@@ -46,8 +55,9 @@ export default async function AdminListaDeEsperaPage() {
 
       {entries.length === 0 ? (
         <p className="text-sm text-brand-ink-soft">
-          Todavía no hay inscritos. El formulario está en marcolini.lat/lista-de-espera y los botones
-          de /para-creadores llevan ahí.
+          Todavía no hay inscritos. El formulario está en marcolini.lat
+          {brands ? "/lista-de-espera/marcas" : "/lista-de-espera"} y los botones de
+          {brands ? " /para-marcas" : " /para-creadores"} llevan ahí.
         </p>
       ) : (
         <>
@@ -67,10 +77,11 @@ export default async function AdminListaDeEsperaPage() {
               <thead className="text-left text-xs text-brand-ink-soft border-b border-brand-line">
                 <tr>
                   <th className="px-4 py-2 font-medium">Fecha</th>
+                  {brands && <th className="px-4 py-2 font-medium">Marca</th>}
                   <th className="px-4 py-2 font-medium">Nombre</th>
                   <th className="px-4 py-2 font-medium">Contacto</th>
-                  <th className="px-4 py-2 font-medium">Redes</th>
-                  <th className="px-4 py-2 font-medium">Seguidores</th>
+                  <th className="px-4 py-2 font-medium">{brands ? "Instagram o web" : "Redes"}</th>
+                  <th className="px-4 py-2 font-medium">{brands ? "Dónde vende" : "Seguidores"}</th>
                   <th className="px-4 py-2 font-medium">Categoría</th>
                   <th className="px-4 py-2 font-medium">Llegó por</th>
                 </tr>
@@ -79,19 +90,20 @@ export default async function AdminListaDeEsperaPage() {
                 {entries.map((e) => (
                   <tr key={e.id} className="align-top">
                     <td className="px-4 py-2 whitespace-nowrap text-brand-ink-soft">{date.format(e.createdAt)}</td>
+                    {brands && <td className="px-4 py-2 text-brand-ink font-medium">{e.company}</td>}
                     <td className="px-4 py-2 text-brand-ink">{e.name}</td>
                     <td className="px-4 py-2">
                       <div className="text-brand-ink">{e.email}</div>
                       <div className="text-brand-ink-soft">{e.whatsapp}</div>
                     </td>
                     <td className="px-4 py-2 text-brand-ink">
-                      {socialsText(e.socials)
-                        .split(" · ")
-                        .map((line) => (
-                          <div key={line}>{line}</div>
-                        ))}
+                      {brands
+                        ? e.handle
+                        : socialsText(e.socials)
+                            .split(" · ")
+                            .map((line) => <div key={line}>{line}</div>)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-brand-ink-soft">{e.audience}</td>
+                    <td className="px-4 py-2 text-brand-ink-soft">{brands ? e.salesChannel : e.audience}</td>
                     <td className="px-4 py-2 text-brand-ink-soft">{e.category}</td>
                     <td className="px-4 py-2 text-brand-ink-soft">{sourceLabel(e)}</td>
                   </tr>

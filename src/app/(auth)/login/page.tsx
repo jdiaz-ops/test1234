@@ -131,7 +131,7 @@ function LoginForm() {
         </Link>{" "}
         ·{" "}
         <Link
-          href="/registro/marca"
+          href="/lista-de-espera/marcas"
           className="text-brand-accent font-medium hover:underline"
         >
           Soy Marca

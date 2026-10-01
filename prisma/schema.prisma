@@ -2623,26 +2623,28 @@ enum EInvoiceStatus {
 
 /// Lista de espera de la página pública. Mientras Marcolini no abre el
 /// registro, los botones de /para-creadores llevan a un formulario corto
-/// (/lista-de-espera) en vez de crear la cuenta: sirve para medir cuánta
-/// gente llega y desde qué anuncio (utm_*). El registro directo sigue
-/// funcionando por link (invitaciones y referidos). kind deja lista la
-/// misma tabla para marcas. Ver conversación del 2026-10-01.
+/// (/lista-de-espera) y los de /para-marcas a /lista-de-espera/marcas en
+/// vez de crear la cuenta: sirve para medir cuánta gente llega y desde qué
+/// anuncio (utm_*). El registro directo sigue funcionando por link
+/// (invitaciones y referidos). Ver conversación del 2026-10-01.
 model WaitlistEntry {
-  id       String       @id @default(cuid())
-  kind     WaitlistKind
-  email    String
-  name     String
-  whatsapp String
+  id           String       @id @default(cuid())
+  kind         WaitlistKind
+  email        String
+  name         String
+  whatsapp     String
   /// Instagram/web de la marca (solo marcas).
-  handle   String?
+  handle       String?
   /// Redes del creador: [{ platform: "Instagram", handle: "laura.nails" }, ...].
   /// Instagram y TikTok vienen en el formulario y puede agregar otras.
-  socials  Json?
+  socials      Json?
   /// Rango de seguidores, tal como lo eligió en el formulario.
-  audience String?
-  category String?
+  audience     String?
+  category     String?
   /// Nombre de la marca (solo marcas).
-  company  String?
+  company      String?
+  /// Dónde vende hoy la marca (tienda online, redes, tienda física…).
+  salesChannel String?
 
   /// De dónde llegó: parámetros utm_* del primer anuncio que lo trajo.
   utmSource   String?

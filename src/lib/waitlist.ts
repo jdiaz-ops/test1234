@@ -51,6 +51,24 @@ export const CREATOR_CATEGORY_OPTIONS = [
   "Otro",
 ] as const;
 
+export const BRAND_CATEGORY_OPTIONS = [
+  "Uñas",
+  "Maquillaje",
+  "Cuidado de la piel",
+  "Cabello",
+  "Moda",
+  "Accesorios",
+  "Otro",
+] as const;
+
+export const BRAND_SALES_CHANNEL_OPTIONS = [
+  "Tienda online propia (Shopify, WooCommerce…)",
+  "Solo redes sociales y WhatsApp",
+  "Marketplaces (Mercado Libre, Falabella…)",
+  "Tienda física",
+  "Todavía no vendo",
+] as const;
+
 /// Cookie con los utm_* del primer anuncio que trajo a la persona (la
 /// pauta apunta a /para-creadores, pero el formulario está en otra
 /// página). La escribe <UtmCapture />, la lee la API al inscribirse.
@@ -106,3 +124,19 @@ export const creatorWaitlistSchema = z.object({
 });
 
 export type CreatorWaitlistInput = z.infer<typeof creatorWaitlistSchema>;
+
+export const brandWaitlistSchema = z.object({
+  name: z.string().trim().min(2, "Escribe tu nombre").max(120),
+  company: z.string().trim().min(2, "Escribe el nombre de tu marca").max(120),
+  email: z.string().trim().email("Correo inválido").max(200),
+  whatsapp: z
+    .string()
+    .trim()
+    .max(30)
+    .refine((v) => v.replace(/\D/g, "").length >= 7, "Escribe tu número de WhatsApp"),
+  handle: z.string().trim().min(2, "Escribe el Instagram o la web de tu marca").max(160),
+  category: z.enum(BRAND_CATEGORY_OPTIONS, { message: "Elige qué vende tu marca" }),
+  salesChannel: z.enum(BRAND_SALES_CHANNEL_OPTIONS, { message: "Elige dónde vendes hoy" }),
+});
+
+export type BrandWaitlistInput = z.infer<typeof brandWaitlistSchema>;
