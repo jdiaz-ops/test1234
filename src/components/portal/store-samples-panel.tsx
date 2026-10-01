@@ -54,7 +54,9 @@ function ProductRow({
   product: SampleCatalogProduct;
   onSaved: (p: SampleCatalogProduct) => void;
 }) {
-  const [enabled, setEnabled] = useState(product.sampleEnabled);
+  // Solo se muestran los productos que ya están en muestras; "Quitar"
+  // los saca (sampleEnabled=false) y vuelven al buscador.
+  const enabled = product.sampleEnabled;
   const [stock, setStock] = useState(String(product.sampleStock));
   const [contentType, setContentType] = useState(
     product.sampleContentType ?? "",
@@ -126,30 +128,34 @@ function ProductRow({
         </div>
 
         <label className="flex items-center gap-2 text-xs text-brand-ink-soft shrink-0">
+          Unidades
           <input
-            type="checkbox"
-            checked={enabled}
+            type="number"
+            min="0"
+            step="1"
+            value={stock}
             disabled={saving}
-            onChange={(e) => {
-              setEnabled(e.target.checked);
-              save({ enabled: e.target.checked });
-            }}
+            onChange={(e) => setStock(e.target.value)}
+            onBlur={() => save({ stock })}
+            className="input w-20 text-sm"
           />
-          Habilitada
         </label>
 
-        <input
-          type="number"
-          min="0"
-          step="1"
-          value={stock}
-          disabled={saving || !enabled}
-          onChange={(e) => setStock(e.target.value)}
-          onBlur={() => save({ stock })}
-          placeholder="Cant."
-          className="input w-20 text-sm shrink-0"
-        />
+        <button
+          type="button"
+          onClick={() => save({ enabled: false })}
+          disabled={saving}
+          className="text-xs text-brand-ink-soft hover:text-red-700 hover:underline shrink-0 disabled:opacity-50"
+        >
+          Quitar
+        </button>
       </div>
+
+      {(stock === "" || Number(stock) <= 0) && (
+        <p className="text-xs text-amber-700 mt-2">
+          Pon cuántas unidades regalas — con 0 los creadores no lo ven.
+        </p>
+      )}
 
       {enabled && (
         <div className="mt-3 pt-3 border-t border-brand-line grid sm:grid-cols-2 gap-3">
@@ -356,6 +362,114 @@ function RequestCard({
   );
 }
 
+function normalize(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/// Buscador para sumar productos a muestras — antes se listaba todo el
+/// catálogo con una casilla por producto, y con catálogos grandes era
+/// difícil de leer (pedido de la marca el 2026-10-01).
+function AddProductSearch({
+  products,
+  onAdded,
+}: {
+  products: SampleCatalogProduct[];
+  onAdded: (p: SampleCatalogProduct) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const q = normalize(query.trim());
+  const matches = q
+    ? products.filter((p) => normalize(p.name).includes(q)).slice(0, 8)
+    : [];
+
+  async function add(product: SampleCatalogProduct) {
+    setAddingId(product.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/marca/tienda/muestras", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          sampleEnabled: true,
+          sampleStock: product.sampleStock,
+          sampleContentType: product.sampleContentType ?? "",
+          sampleInstructions: product.sampleInstructions ?? "",
+          sampleDeadlineDays: product.sampleDeadlineDays,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setError(body?.error ?? "No se pudo agregar.");
+        return;
+      }
+      onAdded(body.product);
+      setQuery("");
+    } catch {
+      setError("No se pudo agregar — revisa tu conexión.");
+    } finally {
+      setAddingId(null);
+    }
+  }
+
+  return (
+    <div className="mb-4">
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Busca un producto para agregarlo a muestras…"
+        className="input text-sm"
+      />
+      {q && (
+        <div className="mt-2 rounded-xl border border-brand-line bg-brand-surface divide-y divide-brand-line">
+          {matches.length === 0 ? (
+            <p className="px-3 py-2.5 text-sm text-brand-ink-soft">
+              Ningún producto coincide con &ldquo;{query.trim()}&rdquo;.
+            </p>
+          ) : (
+            matches.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 px-3 py-2">
+                {p.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- foto del producto
+                  <img
+                    src={p.imageUrl}
+                    alt={p.name}
+                    className="w-9 h-9 rounded-lg object-cover border border-brand-line shrink-0"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-lg bg-brand-accent-soft shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-brand-ink truncate">{p.name}</p>
+                  <p className="text-xs text-brand-ink-soft font-mono">
+                    {formatCOP(p.price)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => add(p)}
+                  disabled={addingId !== null}
+                  className="bg-brand-accent text-white rounded-full px-3 py-1 text-xs font-semibold hover:opacity-90 disabled:opacity-50 shrink-0"
+                >
+                  {addingId === p.id ? "Agregando…" : "+ Agregar"}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+      {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+    </div>
+  );
+}
+
 export function StoreSamplesPanel({
   initialProducts,
   initialRequests,
@@ -367,6 +481,10 @@ export function StoreSamplesPanel({
   const [requests, setRequests] = useState(initialRequests);
 
   const pending = requests.filter((r) => r.status === "PENDING");
+  const inSamples = products.filter((p) => p.sampleEnabled);
+  const available = products.filter((p) => !p.sampleEnabled);
+  const replaceProduct = (updated: SampleCatalogProduct) =>
+    setProducts((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
   const resolved = requests.filter((r) => r.status !== "PENDING");
 
   return (
@@ -401,30 +519,31 @@ export function StoreSamplesPanel({
 
       <div>
         <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
-          Tu catálogo
+          Productos para muestras
         </h2>
         <p className="text-sm text-brand-ink-soft mb-4">
-          Habilita un producto para muestras y dile cuántas unidades tienes para
-          regalar — solo lo ven los creadores, nunca la vitrina pública.
+          Agrega los productos que quieres regalar y cuántas unidades tienes —
+          solo los ven los creadores, nunca tu tienda pública.
         </p>
         {products.length === 0 ? (
           <p className="text-sm text-brand-ink-soft">
             Todavía no tienes productos en tu catálogo.
           </p>
         ) : (
-          <div className="space-y-2">
-            {products.map((p) => (
-              <ProductRow
-                key={p.id}
-                product={p}
-                onSaved={(updated) =>
-                  setProducts((prev) =>
-                    prev.map((x) => (x.id === updated.id ? updated : x)),
-                  )
-                }
-              />
-            ))}
-          </div>
+          <>
+            <AddProductSearch products={available} onAdded={replaceProduct} />
+            {inSamples.length === 0 ? (
+              <p className="text-sm text-brand-ink-soft">
+                Todavía no has agregado productos. Búscalos arriba.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {inSamples.map((p) => (
+                  <ProductRow key={p.id} product={p} onSaved={replaceProduct} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

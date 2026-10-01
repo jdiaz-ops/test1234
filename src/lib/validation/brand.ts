@@ -548,12 +548,13 @@ export const sampleSettingsSchema = z.object({
   /// pedirla, en su tarjeta de producto.
   sampleContentType: z.string().max(80).optional().or(z.literal("")),
   sampleInstructions: z.string().max(500).optional().or(z.literal("")),
-  sampleDeadlineDays: z
-    .preprocess(
-      (val) => (val === "" || val == null ? undefined : val),
-      z.coerce.number().int().min(1, "Mínimo 1 día").max(90, "Máximo 90 días"),
-    )
-    .optional(),
+  /// Vacío o null = sin plazo. El .optional() va DENTRO del preprocess:
+  /// afuera no alcanzaba a ver el undefined y llegaba NaN ("expected
+  /// number, received NaN") — guardar sin plazo fallaba siempre.
+  sampleDeadlineDays: z.preprocess(
+    (val) => (val === "" || val == null ? undefined : val),
+    z.coerce.number().int().min(1, "Mínimo 1 día").max(90, "Máximo 90 días").optional(),
+  ),
 });
 
 export const respondSampleRequestSchema = z.object({
