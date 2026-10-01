@@ -57,6 +57,21 @@ export default auth(async (req) => {
       where: { storefrontSlug: subdomainSlug },
       select: { id: true },
     });
+    // Link viejo con guiones (nail-fest.marcolini.lat): las vitrinas
+    // quedaron sin guiones (migración 20261002230000) → al nuevo.
+    if (!creator && subdomainSlug.includes("-")) {
+      const compact = subdomainSlug.replace(/-/g, "");
+      const moved = await prisma.creatorProfile.findUnique({
+        where: { storefrontSlug: compact },
+        select: { id: true },
+      });
+      const brandHere = await slugTakenByBrand(subdomainSlug);
+      if (moved && !brandHere) {
+        const url = req.nextUrl.clone();
+        url.hostname = `${compact}.${ROOT_DOMAIN}`;
+        return NextResponse.redirect(url, 308);
+      }
+    }
     if (creator && !(await slugTakenByBrand(subdomainSlug))) {
       const prefix = `/c/${subdomainSlug}`;
       const alreadyPrefixed = pathname === prefix || pathname.startsWith(`${prefix}/`);
