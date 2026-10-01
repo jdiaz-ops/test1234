@@ -15,10 +15,11 @@ export async function GET(req: Request) {
   const search = params.get("q") ?? undefined;
   const brandId = params.get("marca") ?? undefined;
   const category = params.get("categoria") ?? undefined;
+  const brandCollectionId = params.get("coleccion") ?? undefined;
 
   const [products, filterOptions] = await Promise.all([
-    listProductsForCreator(profile.id, { search, brandId, category }),
-    listProductFiltersForCreator(profile.id),
+    listProductsForCreator(profile.id, { search, brandId, category, brandCollectionId }),
+    listProductFiltersForCreator(profile.id, brandId),
   ]);
 
   return NextResponse.json({ products, filterOptions });

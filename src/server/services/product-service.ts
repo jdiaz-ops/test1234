@@ -114,7 +114,7 @@ export async function setProductFeatured(brandId: string, productId: string, fea
 /// marcas WooCommerce por ahora (ver product-sync-service.ts).
 export async function listProductsForCreator(
   creatorId: string,
-  filters?: { search?: string; brandId?: string; category?: string }
+  filters?: { search?: string; brandId?: string; category?: string; brandCollectionId?: string }
 ) {
   const brandIds = await activeBrandIdsForCreator(creatorId);
   if (brandIds.length === 0) return [];
@@ -126,6 +126,11 @@ export async function listProductsForCreator(
     where: {
       brandId: filters?.brandId ? filters.brandId : { in: brandIds },
       available: true,
+      // Colección de la marca (Mi tienda → Colecciones): solo junto con su
+      // marca, así nunca se sale de las marcas del creador.
+      ...(filters?.brandId && filters.brandCollectionId
+        ? { brandCollections: { some: { collectionId: filters.brandCollectionId } } }
+        : {}),
       ...(filters?.category ? { category: filters.category } : {}),
       ...(filters?.search
         ? {
@@ -143,12 +148,14 @@ export async function listProductsForCreator(
 }
 
 /// Marcas y categorías disponibles para los filtros del buscador — solo de
-/// las marcas a las que el creador ya está unido.
-export async function listProductFiltersForCreator(creatorId: string) {
+/// las marcas a las que el creador ya está unido. Con una marca elegida,
+/// también sus colecciones (las que tienen algún producto disponible), para
+/// ubicar productos en catálogos grandes.
+export async function listProductFiltersForCreator(creatorId: string, brandId?: string) {
   const brandIds = await activeBrandIdsForCreator(creatorId);
-  if (brandIds.length === 0) return { brands: [], categories: [] };
+  if (brandIds.length === 0) return { brands: [], categories: [], collections: [] };
 
-  const [brands, categories] = await Promise.all([
+  const [brands, categories, collections] = await Promise.all([
     prisma.brandProfile.findMany({
       where: { id: { in: brandIds } },
       select: { id: true, companyName: true },
@@ -160,11 +167,19 @@ export async function listProductFiltersForCreator(creatorId: string) {
       distinct: ["category"],
       orderBy: { category: "asc" },
     }),
+    brandId && brandIds.includes(brandId)
+      ? prisma.brandCollection.findMany({
+          where: { brandId, products: { some: { product: { available: true } } } },
+          select: { id: true, name: true },
+          orderBy: [{ position: "asc" }, { name: "asc" }],
+        })
+      : Promise.resolve([]),
   ]);
 
   return {
     brands,
     categories: categories.map((c) => c.category!).filter(Boolean),
+    collections,
   };
 }
 

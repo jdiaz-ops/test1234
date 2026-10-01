@@ -65,23 +65,28 @@ function CollectionEditor({
   const [search, setSearch] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [collectionFilter, setCollectionFilter] = useState("");
   const [results, setResults] = useState<Product[]>([]);
   const [filterOptions, setFilterOptions] = useState<{
     brands: { id: string; companyName: string }[];
     categories: string[];
+    // Colecciones de la marca elegida (vacío sin marca elegida).
+    collections: { id: string; name: string }[];
   }>({
     brands: [],
     categories: [],
+    collections: [],
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchProducts = useCallback(
-    async (q: string, brandId: string, category: string) => {
+    async (q: string, brandId: string, category: string, collectionId: string) => {
       const params = new URLSearchParams();
       if (q) params.set("q", q);
       if (brandId) params.set("marca", brandId);
       if (category) params.set("categoria", category);
+      if (brandId && collectionId) params.set("coleccion", collectionId);
       const res = await fetch(`/api/creador/productos?${params.toString()}`);
       if (!res.ok) return;
       const body = await res.json();
@@ -93,11 +98,11 @@ function CollectionEditor({
 
   useEffect(() => {
     const t = setTimeout(
-      () => fetchProducts(search, brandFilter, categoryFilter),
+      () => fetchProducts(search, brandFilter, categoryFilter, collectionFilter),
       250,
     );
     return () => clearTimeout(t);
-  }, [search, brandFilter, categoryFilter, fetchProducts]);
+  }, [search, brandFilter, categoryFilter, collectionFilter, fetchProducts]);
 
   function toggleProduct(product: Product) {
     setSelected((cur) =>
@@ -244,45 +249,65 @@ function CollectionEditor({
           <label className="block text-sm text-brand-ink mb-1">
             Agregar productos
           </label>
+          {/* Primero la marca (de las que el creador tiene aprobadas) y,
+              si esa marca organiza su tienda en colecciones, la colección:
+              así es fácil ubicar productos en catálogos grandes. */}
+          <div className="flex flex-wrap gap-2 mb-2">
+            {filterOptions.brands.length > 0 && (
+              <select
+                aria-label="Marca"
+                value={brandFilter}
+                onChange={(e) => {
+                  setBrandFilter(e.target.value);
+                  setCollectionFilter("");
+                }}
+                className="input py-1.5 text-sm flex-1 min-w-[10rem]"
+              >
+                <option value="">Todas tus marcas</option>
+                {filterOptions.brands.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.companyName}
+                  </option>
+                ))}
+              </select>
+            )}
+            {brandFilter && filterOptions.collections.length > 0 && (
+              <select
+                aria-label="Colección de la marca"
+                value={collectionFilter}
+                onChange={(e) => setCollectionFilter(e.target.value)}
+                className="input py-1.5 text-sm flex-1 min-w-[10rem]"
+              >
+                <option value="">Todas las colecciones</option>
+                {filterOptions.collections.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {filterOptions.categories.length > 0 && (
+              <select
+                aria-label="Categoría"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="input py-1.5 text-sm flex-1 min-w-[10rem]"
+              >
+                <option value="">Todas las categorías</option>
+                {filterOptions.categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar producto en tus marcas..."
-            className="input mb-2"
+            className="input mb-3"
           />
-          {(filterOptions.brands.length > 1 ||
-            filterOptions.categories.length > 0) && (
-            <div className="flex gap-2 mb-3">
-              {filterOptions.brands.length > 1 && (
-                <select
-                  value={brandFilter}
-                  onChange={(e) => setBrandFilter(e.target.value)}
-                  className="input py-1.5 text-xs flex-1"
-                >
-                  <option value="">Todas las marcas</option>
-                  {filterOptions.brands.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.companyName}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {filterOptions.categories.length > 0 && (
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="input py-1.5 text-xs flex-1"
-                >
-                  <option value="">Todas las categorías</option>
-                  {filterOptions.categories.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
 
           <div className="grid grid-cols-2 @sm:grid-cols-3 @lg:grid-cols-4 gap-2 max-h-72 overflow-y-auto">
             {results.map((p) => {
