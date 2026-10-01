@@ -153,7 +153,7 @@ export default function ParaMarcasPage() {
               {/* Vuelve al tamaño de dos rondas atrás — el +20% de la ronda
                   anterior lo hizo demasiado grande otra vez. */}
               <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
-                Crece tu marca conectando con nuestra red de creadores de contenido
+                Tu próxima venta puede venir de un creador de contenido
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg lg:mx-auto">
                 Solo pagas comisión cuando generan ventas

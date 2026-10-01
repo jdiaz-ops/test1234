@@ -74,7 +74,7 @@ export default function HomePage() {
                 SOY MARCA
               </span>
               <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
-                Crece tu marca conectando con nuestra red de creadores de contenido
+                Tu próxima venta puede venir de un creador de contenido
               </p>
               <p className="text-base text-brand-ink/75 leading-relaxed mb-6">
                 Solo pagas comisión cuando generan ventas.
