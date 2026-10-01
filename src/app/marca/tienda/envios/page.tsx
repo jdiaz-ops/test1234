@@ -1,6 +1,6 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { StoreSettingsTabs } from "@/components/portal/store-settings-tabs";
+import { SettingsShell } from "@/components/portal/settings-shell";
 import { StoreShippingForm } from "@/components/portal/store-shipping-form";
 import { StoreShippingZonesPanel } from "@/components/portal/store-shipping-zones-panel";
 import { DistributionCenterForm } from "@/components/portal/distribution-center-form";
@@ -13,14 +13,7 @@ export default async function TiendaEnviosPage() {
   const zones = await listShippingZones(profile.id);
 
   return (
-    <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
-        MI TIENDA
-      </p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-4">
-        Configuración
-      </h1>
-      <StoreSettingsTabs active="envios" />
+    <SettingsShell active="envios">
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         Cómo se calcula el envío en tu checkout — tú te encargas del despacho
         del pedido, no Marcolini.
@@ -69,6 +62,6 @@ export default async function TiendaEnviosPage() {
           initial={{ shippingNotes: profile.shippingNotes ?? "" }}
         />
       </div>
-    </div>
+    </SettingsShell>
   );
 }

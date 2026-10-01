@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CAMPAIGNS_ENABLED, REVIEWS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
+import { SETTINGS_PATHS } from "@/components/portal/settings-shell";
 
 // Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
 // ruta siguen intactos, solo se quitó del menú. Perfil, Facturación,
@@ -24,7 +25,6 @@ const items: { href: string; label: string; exact?: boolean; activePrefix?: stri
   { href: "/marca/creadores", label: "Creadores", activePrefix: "/marca/creadores" },
   // Escondida mientras CAMPAIGNS_ENABLED esté apagado (src/lib/features.ts).
   ...(CAMPAIGNS_ENABLED ? [{ href: "/marca/retos", label: "Campañas" }] : []),
-  { href: "/marca/cuenta", label: "Cuenta" },
 ];
 
 /// "Mi tienda" — catálogo, pagos y envíos propios de Marcolini, aparte de
@@ -35,7 +35,7 @@ const items: { href: string; label: string; exact?: boolean; activePrefix?: stri
 /// 2026-10-01, como el día a día de una tienda (estilo Shopify): primero
 /// Pedidos, después el catálogo, los clientes y el diseño. Pagos y Envíos
 /// ya no van sueltos: viven dentro de Configuración, con pestañas arriba
-/// (ver StoreSettingsTabs) — por eso `also` marca Configuración como activa
+/// (ver SettingsShell) — por eso `also` marca Configuración como activa
 /// también en esas dos rutas. Páginas va junto a Diseño (es contenido de
 /// la tienda). Reseñas se quitó (REVIEWS_ENABLED, src/lib/features.ts).
 const storeItems: { href: string; label: string; also?: string[] }[] = [
@@ -49,10 +49,13 @@ const storeItems: { href: string; label: string; also?: string[] }[] = [
   // src/lib/features.ts). Se filtran abajo.
   { href: "/marca/tienda/resenas", label: "Reseñas" },
   { href: "/marca/tienda/muestras", label: "Muestras" },
+  // Configuración reúne también lo que antes era "Cuenta" (perfil,
+  // programa de creadores, plan y facturación, seguridad) — ver
+  // SettingsShell. Pedido de la marca el 2026-10-01.
   {
     href: "/marca/tienda/configuracion",
     label: "Configuración",
-    also: ["/marca/tienda/pagos", "/marca/tienda/envios", "/marca/tienda/conexiones"],
+    also: SETTINGS_PATHS,
   },
 ];
 

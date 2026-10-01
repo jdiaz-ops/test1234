@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireBrandProfile } from "@/lib/current-brand";
-import { StoreSettingsTabs } from "@/components/portal/store-settings-tabs";
+import { SettingsShell } from "@/components/portal/settings-shell";
 import { ConnectionsPanel } from "@/components/portal/connections-panel";
 import { getWebhookSigningSecret, listBrandWebhooks } from "@/server/services/webhook-service";
 import { getDataicoConnection } from "@/server/services/dataico-service";
@@ -16,10 +16,7 @@ export default async function TiendaConexionesPage() {
   ]);
 
   return (
-    <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">MI TIENDA</p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-4">Configuración</h1>
-      <StoreSettingsTabs active="conexiones" />
+    <SettingsShell active="conexiones">
       <ConnectionsPanel
         dataico={
           dataico
@@ -54,6 +51,6 @@ export default async function TiendaConexionesPage() {
           })),
         }))}
       />
-    </div>
+    </SettingsShell>
   );
 }

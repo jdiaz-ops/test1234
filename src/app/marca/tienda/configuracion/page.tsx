@@ -1,6 +1,8 @@
 import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
-import { StoreSettingsTabs } from "@/components/portal/store-settings-tabs";
+import { SettingsShell } from "@/components/portal/settings-shell";
+import { BrandProfileForm } from "@/components/portal/brand-profile-form";
+import { publicStoreUrl } from "@/lib/store-url";
 import { StoreConfigForm } from "@/components/portal/store-config-form";
 import { CustomDomainForm } from "@/components/portal/custom-domain-form";
 import { TaxConfigForm } from "@/components/portal/tax-config-form";
@@ -11,14 +13,31 @@ export default async function TiendaConfiguracionPage() {
   if (!profile) redirect("/login");
 
   return (
-    <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
-        MI TIENDA
-      </p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-4">
-        Configuración
-      </h1>
-      <StoreSettingsTabs active="general" />
+    <SettingsShell active="general">
+      {/* Perfil del negocio (antes en Cuenta) y, debajo, la tienda. */}
+      <h3 className="font-display font-semibold text-brand-ink mb-3">Perfil del negocio</h3>
+      <BrandProfileForm
+        storeUrl={publicStoreUrl(profile)}
+        initial={{
+          companyName: profile.companyName,
+          legalName: profile.legalName ?? "",
+          taxId: profile.taxId ?? "",
+          description: profile.description ?? "",
+          city: profile.city ?? "",
+          websiteUrl: profile.websiteUrl ?? "",
+          phone: profile.phone ?? "",
+          fiscalAddress: profile.fiscalAddress ?? "",
+          instagramHandle: profile.instagramHandle ?? "",
+          tiktokHandle: profile.tiktokHandle ?? "",
+        }}
+        files={{
+          logoUrl: profile.logoUrl,
+          rutDocumentUrl: profile.rutDocumentUrl,
+          camaraComercioUrl: profile.camaraComercioUrl,
+        }}
+      />
+
+      <h3 className="font-display font-semibold text-brand-ink mt-12 mb-1">Tu tienda</h3>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         El link de tu tienda y el IVA de tus precios.
       </p>
@@ -53,6 +72,6 @@ export default async function TiendaConfiguracionPage() {
         initialMarket={profile.market}
         initialTaxRatePercent={Number(profile.taxRatePercent)}
       />
-    </div>
+    </SettingsShell>
   );
 }

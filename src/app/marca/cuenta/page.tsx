@@ -9,7 +9,6 @@ import {
 import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { listOffersForBrand } from "@/server/services/offer-service";
 import { listProductsForBrand } from "@/server/services/product-service";
-import { BrandProfileForm } from "@/components/portal/brand-profile-form";
 import { ChargePaymentBox } from "@/components/portal/charge-payment-box";
 import { BrandInvoicesList } from "@/components/portal/brand-invoices-list";
 import { StoreConnectionForm } from "@/components/portal/store-connection-form";
@@ -17,8 +16,9 @@ import { ChangePasswordForm } from "@/components/portal/change-password-form";
 import { OffersPanel } from "@/components/portal/offers-panel";
 import { ProductsPanel } from "@/components/portal/products-panel";
 import { AccountTabs } from "@/components/portal/account-tabs";
+import { SettingsShell } from "@/components/portal/settings-shell";
+import { redirect } from "next/navigation";
 import { STORE_CONNECTION_ENABLED } from "@/lib/features";
-import { publicStoreUrl } from "@/lib/store-url";
 
 const storeStatusLabel: Record<string, string> = {
   NOT_CONNECTED: "No conectada todavía",
@@ -55,7 +55,14 @@ const transactionSourceLabel: Record<string, string> = {
   MANUAL: "Manual",
 };
 
-export default async function MarcaCuentaPage() {
+/// Lo que antes era "Cuenta" ahora son secciones de Configuración (ver
+/// SettingsShell): ?tab=oferta → Programa de creadores; pago,
+/// transacciones y facturacion → Plan y facturación (con sus pestañas);
+/// seguridad → Seguridad. Perfil del negocio pasó a General.
+export default async function MarcaCuentaPage({ searchParams }: PageProps<"/marca/cuenta">) {
+  const tab = (await searchParams).tab;
+  const requested = typeof tab === "string" ? tab : "";
+  if (requested === "" || requested === "perfil") redirect("/marca/tienda/configuracion");
   const session = await auth();
   const profile = await getBrandProfileByUserId(session!.user.id);
   const [
@@ -82,29 +89,6 @@ export default async function MarcaCuentaPage() {
     getBrandTransactions(profile.id),
   ]);
   const openCharge = charges.find((c) => c.status !== "PAID") ?? null;
-
-  const perfilTab = (
-    <BrandProfileForm
-      storeUrl={publicStoreUrl(profile)}
-      initial={{
-        companyName: profile.companyName,
-        legalName: profile.legalName ?? "",
-        taxId: profile.taxId ?? "",
-        description: profile.description ?? "",
-        city: profile.city ?? "",
-        websiteUrl: profile.websiteUrl ?? "",
-        phone: profile.phone ?? "",
-        fiscalAddress: profile.fiscalAddress ?? "",
-        instagramHandle: profile.instagramHandle ?? "",
-        tiktokHandle: profile.tiktokHandle ?? "",
-      }}
-      files={{
-        logoUrl: profile.logoUrl,
-        rutDocumentUrl: profile.rutDocumentUrl,
-        camaraComercioUrl: profile.camaraComercioUrl,
-      }}
-    />
-  );
 
   const ofertaTab = (
     <div>
@@ -366,43 +350,38 @@ export default async function MarcaCuentaPage() {
     </div>
   );
 
-  return (
-    <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
-        CUENTA
-      </p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">
-        {profile.companyName}
-      </h1>
+  if (requested === "oferta") {
+    return <SettingsShell active="programa">{ofertaTab}</SettingsShell>;
+  }
+  if (requested === "seguridad") {
+    return <SettingsShell active="seguridad">{seguridadTab}</SettingsShell>;
+  }
+  if (STORE_CONNECTION_ENABLED && (requested === "tienda" || requested === "productos")) {
+    return (
+      <SettingsShell active="conexiones">
+        <Suspense fallback={null}>
+          <AccountTabs
+            tabs={[
+              { key: "tienda", label: "Conexión de tienda", content: tiendaTab },
+              { key: "productos", label: "Productos", content: productosTab },
+            ]}
+          />
+        </Suspense>
+      </SettingsShell>
+    );
+  }
 
+  return (
+    <SettingsShell active="facturacion">
       <Suspense fallback={null}>
         <AccountTabs
           tabs={[
-            { key: "perfil", label: "Perfil del negocio", content: perfilTab },
-            { key: "oferta", label: "Oferta y comisión", content: ofertaTab },
-            { key: "pago", label: "Pago", content: pagoTab },
-            {
-              key: "transacciones",
-              label: "Transacciones",
-              content: transaccionesTab,
-            },
-            {
-              key: "facturacion",
-              label: "Facturación",
-              content: facturacionTab,
-            },
-            // Escondidas mientras la conexión con Shopify/WooCommerce
-            // esté apagada (ver src/lib/features.ts).
-            ...(STORE_CONNECTION_ENABLED
-              ? [
-                  { key: "tienda", label: "Conexión de tienda", content: tiendaTab },
-                  { key: "productos", label: "Productos", content: productosTab },
-                ]
-              : []),
-            { key: "seguridad", label: "Seguridad", content: seguridadTab },
+            { key: "pago", label: "Cómo te cobramos", content: pagoTab },
+            { key: "facturacion", label: "Facturas", content: facturacionTab },
+            { key: "transacciones", label: "Transacciones", content: transaccionesTab },
           ]}
         />
       </Suspense>
-    </div>
+    </SettingsShell>
   );
 }
