@@ -8,19 +8,21 @@ import { REVIEWS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
 // ruta siguen intactos, solo se quitó del menú. Perfil, Facturación,
 // Conexión de tienda, Oferta y comisión, Productos y Transacciones se
 // consolidaron dentro de Cuenta. Notificaciones vive aparte, en el menú
-// lateral, con su burbuja de pendientes. Buscar creadores va justo debajo
-// de Dashboard (orden pedido el 2026-09-14): es la acción que más
-// queremos que las marcas usen.
+// lateral, con su burbuja de pendientes. Creadores va justo debajo de
+// Dashboard (orden pedido el 2026-09-14) y abre en Buscar: es la acción
+// que más queremos que las marcas usen.
 //
 // Licencias de contenido y Encargos de contenido quedan OCULTOS del menú
 // desde el 2026-09-14 (no son funcionalidad para el MVP) — las rutas
 // /marca/licencias y /marca/encargos siguen intactas, solo no aparecen
 // acá. Reactivar: volver a agregar sus entradas a este arreglo.
-const items = [
+const items: { href: string; label: string; exact?: boolean; activePrefix?: string }[] = [
   { href: "/marca", label: "Dashboard", exact: true },
-  { href: "/marca/creadores/buscar", label: "Buscar creadores" },
+  // Creadores agrupa Buscar y Vinculados con pestañas (ver
+  // creators-tabs.tsx) — antes eran dos entradas sueltas. Pedido de la
+  // marca el 2026-10-01.
+  { href: "/marca/creadores/buscar", label: "Creadores", activePrefix: "/marca/creadores" },
   { href: "/marca/retos", label: "Campañas" },
-  { href: "/marca/creadores", label: "Creadores vinculados", exact: true },
   { href: "/marca/cuenta", label: "Cuenta" },
 ];
 
@@ -82,7 +84,7 @@ export function BrandNav({
       {items.map((item) => {
         const active = item.exact
           ? pathname === item.href
-          : pathname.startsWith(item.href);
+          : pathname.startsWith(item.activePrefix ?? item.href);
         return (
           <Link
             key={item.href}

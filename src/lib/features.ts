@@ -16,3 +16,13 @@ export const SAMPLES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_SAMPLES === "true
 /// responde 404. Las reseñas guardadas no se borran. Para encenderlo:
 /// NEXT_PUBLIC_FEATURE_REVIEWS=true. Ver conversación del 2026-10-01.
 export const REVIEWS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_REVIEWS === "true";
+
+/// Conexión con Shopify/WooCommerce (Cuenta → Conexión de tienda y Cuenta
+/// → Productos sincronizados). Apagado: la app de Shopify todavía no está
+/// aprobada, así que no funciona en producción y confundía al lado de Mi
+/// tienda. Las pestañas no aparecen en Cuenta; las conexiones y productos
+/// ya guardados no se tocan. Para encenderlo:
+/// NEXT_PUBLIC_FEATURE_STORE_CONNECTION=true. Ver conversación del
+/// 2026-10-01.
+export const STORE_CONNECTION_ENABLED =
+  process.env.NEXT_PUBLIC_FEATURE_STORE_CONNECTION === "true";

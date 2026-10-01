@@ -4,6 +4,7 @@ import { listEnrollmentsForBrand } from "@/server/services/enrollment-management
 import { listBrandSampleCatalog } from "@/server/services/sample-service";
 import { EnrollmentsPanel } from "@/components/portal/enrollments-panel";
 import { SAMPLES_ENABLED } from "@/lib/features";
+import { CreatorsTabs } from "@/components/portal/creators-tabs";
 
 export default async function CreadoresVinculadosPage() {
   const session = await auth();
@@ -22,12 +23,14 @@ export default async function CreadoresVinculadosPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
-        CREADORES VINCULADOS
-      </p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">
-        Creadores en tu programa
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-4">
+        Creadores
       </h1>
+      <CreatorsTabs active="vinculados" />
+      <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
+        Los creadores que ya están en tu programa, con su código, sus ventas y
+        su comisión.
+      </p>
 
       <EnrollmentsPanel
         enrollments={enrollments.map((e) => ({

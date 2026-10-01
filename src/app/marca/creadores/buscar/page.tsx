@@ -5,6 +5,7 @@ import { listOffersForBrand } from "@/server/services/offer-service";
 import { listBrandSampleCatalog } from "@/server/services/sample-service";
 import { CreatorDirectoryPanel } from "@/components/portal/creator-directory-panel";
 import { SAMPLES_ENABLED } from "@/lib/features";
+import { CreatorsTabs } from "@/components/portal/creators-tabs";
 
 export default async function BuscarCreadoresPage() {
   const profile = await requireBrandProfile();
@@ -25,12 +26,10 @@ export default async function BuscarCreadoresPage() {
 
   return (
     <div>
-      <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
-        BUSCAR CREADORES
-      </p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
-        Recluta creadores
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-4">
+        Creadores
       </h1>
+      <CreatorsTabs active="buscar" />
       <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
         Encuentra creadores activados en Marcolini e invítalos directo a tu
         programa, con la comisión que quieras ofrecerles — o regálales una

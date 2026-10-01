@@ -17,6 +17,7 @@ import { ChangePasswordForm } from "@/components/portal/change-password-form";
 import { OffersPanel } from "@/components/portal/offers-panel";
 import { ProductsPanel } from "@/components/portal/products-panel";
 import { AccountTabs } from "@/components/portal/account-tabs";
+import { STORE_CONNECTION_ENABLED } from "@/lib/features";
 
 const storeStatusLabel: Record<string, string> = {
   NOT_CONNECTED: "No conectada todavía",
@@ -388,8 +389,14 @@ export default async function MarcaCuentaPage() {
               label: "Facturación",
               content: facturacionTab,
             },
-            { key: "tienda", label: "Conexión de tienda", content: tiendaTab },
-            { key: "productos", label: "Productos", content: productosTab },
+            // Escondidas mientras la conexión con Shopify/WooCommerce
+            // esté apagada (ver src/lib/features.ts).
+            ...(STORE_CONNECTION_ENABLED
+              ? [
+                  { key: "tienda", label: "Conexión de tienda", content: tiendaTab },
+                  { key: "productos", label: "Productos", content: productosTab },
+                ]
+              : []),
             { key: "seguridad", label: "Seguridad", content: seguridadTab },
           ]}
         />
