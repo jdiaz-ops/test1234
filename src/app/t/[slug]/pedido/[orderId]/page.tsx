@@ -8,6 +8,7 @@ import {
 } from "@/server/integrations/wompi-client";
 import { applyWompiTransactionStatus } from "@/server/services/store-order-service";
 import { ClearCartIfPaid } from "@/components/storefront/clear-cart-if-paid";
+import { TrackPurchase } from "@/components/storefront/pixel-events";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { trackingUrlFor } from "@/lib/carriers";
 
@@ -92,6 +93,18 @@ export default async function StorefrontOrderStatusPage({
   return (
     <div className="min-h-screen bg-brand-bg flex items-center justify-center px-6 py-16">
       {order.status === "PAID" && <ClearCartIfPaid brandSlug={slug} />}
+      {order.status === "PAID" && order.kind === "PURCHASE" && (
+        <TrackPurchase
+          orderId={order.id}
+          value={order.totalCents / 100}
+          items={order.items.map((i) => ({
+            id: i.productId ?? i.id,
+            name: i.name,
+            price: i.unitPriceCents / 100,
+            quantity: i.quantity,
+          }))}
+        />
+      )}
       <div className="max-w-md w-full rounded-2xl border border-brand-line bg-brand-surface p-8 text-center">
         <p className="font-mono text-xs text-brand-accent tracking-widest mb-3">
           PEDIDO {order.reference.slice(-8).toUpperCase()}

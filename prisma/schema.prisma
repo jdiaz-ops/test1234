@@ -539,6 +539,13 @@ model BrandProfile {
   legalRepId        String? // cédula del representante legal
   instagramHandle   String?
   tiktokHandle      String?
+
+  /// Píxeles de anuncios de la marca (Configuración → Píxeles de
+  /// anuncios). Con solo pegar el ID, su tienda carga el pixel de Meta /
+  /// TikTok y les avisa de visitas, productos vistos, carrito, checkout y
+  /// compras (ver components/storefront/ad-pixels.tsx). 2026-10-03.
+  metaPixelId   String?
+  tiktokPixelId String?
   rutDocumentUrl    String? // PDF/imagen del RUT
   camaraComercioUrl String? // PDF/imagen de Cámara de Comercio
 

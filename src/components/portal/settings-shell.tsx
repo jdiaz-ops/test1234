@@ -10,6 +10,7 @@ export const SETTINGS_SECTIONS = {
   pagos: { href: "/marca/tienda/pagos", label: "Pagos de la tienda" },
   envios: { href: "/marca/tienda/envios", label: "Envíos" },
   conexiones: { href: "/marca/tienda/conexiones", label: "Conexiones" },
+  pixeles: { href: "/marca/tienda/pixeles", label: "Píxeles de anuncios" },
   facturacion: { href: "/marca/cuenta?tab=pago", label: "Plan y facturación" },
   seguridad: { href: "/marca/cuenta?tab=seguridad", label: "Seguridad" },
 } as const;
@@ -22,6 +23,7 @@ export const SETTINGS_PATHS = [
   "/marca/tienda/pagos",
   "/marca/tienda/envios",
   "/marca/tienda/conexiones",
+  "/marca/tienda/pixeles",
   "/marca/cuenta",
 ];
 

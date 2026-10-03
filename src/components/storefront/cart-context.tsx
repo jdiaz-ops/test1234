@@ -1,5 +1,6 @@
 "use client";
 
+import { trackAddToCart } from "@/lib/ad-pixels";
 import {
   createContext,
   useCallback,
@@ -132,6 +133,8 @@ export function CartProvider({
         }
         return [...prev, { ...item, quantity }];
       });
+      // Pixel de Meta/TikTok de la marca, si tiene (ver lib/ad-pixels.ts).
+      trackAddToCart({ id: item.productId, name: item.name, price: item.price, quantity });
       return { ok: true };
     },
     [items],

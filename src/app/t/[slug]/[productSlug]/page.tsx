@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TrackViewContent } from "@/components/storefront/pixel-events";
 import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import {
@@ -92,6 +93,7 @@ export default async function StorefrontProductPage({
 
   return (
     <div className="min-h-screen bg-brand-bg">
+        <TrackViewContent id={product.id} name={product.name} price={Number(product.price)} />
         <StoreHeader
           brandSlug={slug}
           brandName={brand.companyName}

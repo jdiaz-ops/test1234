@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TrackInitiateCheckout } from "@/components/storefront/pixel-events";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
@@ -70,6 +71,7 @@ export default async function StorefrontCheckoutPage({
           </Link>
         </div>
       </header>
+      <TrackInitiateCheckout />
       <CheckoutForm
         requireBillingId={askBilling}
         brandSlug={slug}

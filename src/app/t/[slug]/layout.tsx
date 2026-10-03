@@ -1,4 +1,5 @@
 import { PoweredByBadge } from "@/components/storefront/powered-by-badge";
+import { AdPixels } from "@/components/storefront/ad-pixels";
 import { AnnouncementBar } from "@/components/storefront/announcement-bar";
 import { StoreFooter } from "@/components/storefront/store-footer";
 import { PromoPopup } from "@/components/storefront/promo-popup";
@@ -75,6 +76,9 @@ export default async function StorefrontLayout({
     <>
       {fontsUrl && <link rel="stylesheet" href={fontsUrl} />}
       {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
+      {/* Píxeles de Meta/TikTok de la marca, si los configuró (Configuración
+          → Píxeles de anuncios). */}
+      <AdPixels metaPixelId={brand.metaPixelId} tiktokPixelId={brand.tiktokPixelId} />
       <StorefrontThemeProvider theme={theme}>
         {/* Un solo CartProvider para toda la vitrina — antes cada página
             armaba el suyo, duplicado; acá arriba lo pueden usar tanto el
