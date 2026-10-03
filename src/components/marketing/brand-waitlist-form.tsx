@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { BRAND_CATEGORY_OPTIONS, BRAND_SALES_CHANNEL_OPTIONS, type SocialProfile } from "@/lib/waitlist";
 import { SocialProfilesField } from "./social-profiles-field";
+import { YesNoField, type YesNo } from "./yes-no-field";
 
 const FIXED_SOCIALS = [
   { platform: "Instagram", placeholder: "@tumarca" },
@@ -24,6 +25,10 @@ export function BrandWaitlistForm() {
   const [socialsInput, setSocialsInput] = useState<SocialProfile[]>(
     FIXED_SOCIALS.map((f) => ({ platform: f.platform, handle: "" })),
   );
+  // Marcolini arranca solo con uñas (2026-10-03): "¿Vendes productos de
+  // uñas?" Sí/No; solo si dice que no, elige otra categoría. Se guarda la
+  // misma categoría de siempre ("Uñas" si dice sí).
+  const [sellsNails, setSellsNails] = useState<YesNo>("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<null | { alreadyJoined: boolean }>(null);
@@ -39,12 +44,17 @@ export function BrandWaitlistForm() {
       setError("Escribe al menos una red social o la web de tu marca.");
       return;
     }
+    if (!sellsNails) {
+      setError("Cuéntanos si vendes productos de uñas.");
+      return;
+    }
+    const category = sellsNails === "si" ? "Uñas" : form.category;
     setLoading(true);
     try {
       const res = await fetch("/api/lista-de-espera/marcas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, socials }),
+        body: JSON.stringify({ ...form, category, socials }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -105,18 +115,26 @@ export function BrandWaitlistForm() {
           />
         </Field>
         <SocialProfilesField fixed={FIXED_SOCIALS} value={socialsInput} onChange={setSocialsInput} />
-        <Field label="¿Qué vende tu marca?">
-          <select required value={form.category} onChange={set("category")} className="input">
-            <option value="" disabled>
-              Elige una opción
-            </option>
-            {BRAND_CATEGORY_OPTIONS.map((o) => (
-              <option key={o} value={o}>
-                {o}
+        <YesNoField
+          label="¿Vendes productos de uñas?"
+          name="sellsNails"
+          value={sellsNails}
+          onChange={setSellsNails}
+        />
+        {sellsNails === "no" && (
+          <Field label="¿Qué vende tu marca?">
+            <select required value={form.category} onChange={set("category")} className="input">
+              <option value="" disabled>
+                Elige una opción
               </option>
-            ))}
-          </select>
-        </Field>
+              {BRAND_CATEGORY_OPTIONS.filter((o) => o !== "Uñas").map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         <Field label="¿Dónde vendes hoy?">
           <select required value={form.salesChannel} onChange={set("salesChannel")} className="input">
             <option value="" disabled>

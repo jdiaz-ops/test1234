@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { CREATOR_AUDIENCE_OPTIONS, CREATOR_CATEGORY_OPTIONS, type SocialProfile } from "@/lib/waitlist";
 import { SocialProfilesField } from "./social-profiles-field";
+import { YesNoField, type YesNo } from "./yes-no-field";
 
 // Su fuerte puede no ser IG o TikTok: puede agregar otras redes.
 const FIXED_SOCIALS = [
@@ -26,7 +27,7 @@ export function CreatorWaitlistForm() {
   // Marcolini arranca solo con uñas (2026-10-03): primero "¿Creas
   // contenido de uñas?" Sí/No; solo si dice que no, elige otra categoría.
   // Lo que se guarda es la misma categoría de siempre ("Uñas" si dice sí).
-  const [doesNails, setDoesNails] = useState<"" | "si" | "no">("");
+  const [doesNails, setDoesNails] = useState<YesNo>("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<null | { alreadyJoined: boolean }>(null);
@@ -138,36 +139,12 @@ export function CreatorWaitlistForm() {
             ))}
           </select>
         </Field>
-        <fieldset>
-          <legend className="block text-sm text-brand-ink mb-1">¿Creas contenido de uñas?</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {(
-              [
-                ["si", "Sí"],
-                ["no", "No"],
-              ] as const
-            ).map(([value, label]) => (
-              <label
-                key={value}
-                className={`flex items-center justify-center rounded-md border py-2 text-sm cursor-pointer transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-accent ${
-                  doesNails === value
-                    ? "border-brand-accent bg-brand-accent text-white font-medium"
-                    : "border-brand-line bg-brand-surface text-brand-ink hover:border-brand-accent"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="doesNails"
-                  value={value}
-                  checked={doesNails === value}
-                  onChange={() => setDoesNails(value)}
-                  className="sr-only"
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <YesNoField
+          label="¿Creas contenido de uñas?"
+          name="doesNails"
+          value={doesNails}
+          onChange={setDoesNails}
+        />
         {doesNails === "no" && (
           <Field label="¿De qué creas contenido?">
             <select required value={form.category} onChange={set("category")} className="input">
