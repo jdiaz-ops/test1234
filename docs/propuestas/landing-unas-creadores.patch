@@ -1,24 +1,20 @@
 diff --git a/src/app/page.tsx b/src/app/page.tsx
-index be6c5b7..04377ec 100644
+index be6c5b7..c9a5dd9 100644
 --- a/src/app/page.tsx
 +++ b/src/app/page.tsx
-@@ -45,11 +45,11 @@ export default function HomePage() {
-                 SOY CREADOR
-               </span>
-               <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
--                Convierte tu contenido e influencia en dinero
-+                Gana comisión recomendando los productos con los que trabajas
+@@ -48,8 +48,8 @@ export default function HomePage() {
+                 Convierte tu contenido e influencia en dinero
                </p>
                <p className="text-base text-brand-ink/75 leading-relaxed mb-6">
 -                Obtén códigos de descuento para tu comunidad y gana una comisión por cada compra
 -                que realicen con ellos.
-+                Obtén códigos de descuento de marcas de uñas para tu comunidad y gana comisión por cada compra
-+                que hagan con ellos.
++                Recomienda los productos de uñas con los que trabajas y gana comisión por cada compra
++                que tu comunidad haga con tu código.
                </p>
                <p className="text-sm text-brand-accent font-semibold inline-flex items-center gap-1.5">
                  Quiero saber más
 diff --git a/src/app/para-creadores/page.tsx b/src/app/para-creadores/page.tsx
-index cfeb434..04b2fa2 100644
+index cfeb434..8c831d5 100644
 --- a/src/app/para-creadores/page.tsx
 +++ b/src/app/para-creadores/page.tsx
 @@ -21,9 +21,9 @@ import { CAMPAIGNS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
@@ -26,10 +22,10 @@ index cfeb434..04b2fa2 100644
  // comisión por venta) que ya está redactado en el resto de la página.
  export const metadata: Metadata = {
 -  title: "Gana comisión recomendando marcas con tu propio código — Marcolini",
-+  title: "Gana comisión recomendando los productos de uñas con los que trabajas — Marcolini",
++  title: "Convierte tu contenido de uñas e influencia en dinero — Marcolini",
    description:
 -    "Únete gratis, elige las marcas que quieres recomendar y comparte tu código de descuento. Gana una comisión por cada venta, sin mínimo de seguidores.",
-+    "Para nail artists y educadoras: únete gratis, elige las marcas de uñas que usas y comparte tu código de descuento con tu comunidad. Gana comisión por cada venta.",
++    "Para creadoras de contenido de uñas e instructoras: únete gratis, elige las marcas de uñas con las que trabajas y comparte tu código de descuento con tu comunidad. Gana comisión por cada venta.",
  };
  
  // Datos de ejemplo para las vistas previas — mismo tratamiento que la
@@ -120,7 +116,7 @@ index cfeb434..04b2fa2 100644
      pregunta: "¿Necesito un mínimo de seguidores?",
      respuesta:
 -      "No. No hay un mínimo de audiencia — cualquier creador de contenido puede unirse.",
-+      "No. No hay un mínimo de audiencia — cualquier nail artist, manicurista o educadora que comparta su trabajo puede unirse.",
++      "No. No hay un mínimo de audiencia — cualquier creadora de contenido de uñas o instructora que comparta su trabajo puede unirse.",
    },
    {
      pregunta: "¿Puedo unirme a varias marcas a la vez?",
@@ -129,22 +125,18 @@ index cfeb434..04b2fa2 100644
                <div className="flex justify-center lg:justify-start mb-6">
                  <span className="inline-flex items-center bg-brand-surface border border-brand-line rounded-full px-5 py-2.5 font-mono text-xs font-medium text-brand-accent tracking-widest">
 -                  PARA CREADORES
-+                  PARA NAIL ARTISTS
++                  PARA CREADORAS DE CONTENIDO DE UÑAS &amp; INSTRUCTORAS
                  </span>
                </div>
                {/* En mobile el título ahora va más grande (text-3xl, antes
-@@ -183,11 +183,11 @@ export default function ParaCreadoresPage() {
-                   text-lg) para que la jerarquía título > subtítulo se note
-                   — antes quedaban casi al mismo tamaño visual. */}
-               <h1 className="font-display text-3xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
--                Convierte tu contenido e influencia en dinero
-+                Gana comisión recomendando los productos con los que trabajas
+@@ -186,8 +186,8 @@ export default function ParaCreadoresPage() {
+                 Convierte tu contenido e influencia en dinero
                </h1>
                <p className="text-brand-accent text-base sm:text-xl font-semibold mb-8 text-balance max-w-lg mx-auto lg:mx-0">
 -                Obtén códigos de descuento para tu comunidad y gana una comisión
 -                por cada compra que realicen con ellos.
-+                Obtén códigos de descuento de marcas de uñas para tu comunidad
-+                y gana comisión por cada compra que hagan con ellos.
++                Recomienda los productos de uñas con los que trabajas y gana
++                comisión por cada compra que tu comunidad haga con tu código.
                </p>
                <Link
                  href="/lista-de-espera"
@@ -154,7 +146,7 @@ index cfeb434..04b2fa2 100644
            <p className="font-display text-xl sm:text-2xl font-bold text-brand-ink text-center max-w-2xl mx-auto mb-12 text-balance">
 -            Ya recomiendas marcas todos los días. Con Marcolini, conviertes esas
 -            recomendaciones en ingresos.
-+            Las manicuristas que te siguen ya compran lo que tú usas. Con
++            Las manicuristas que te siguen quieren comprar lo que tú usas. Con
 +            Marcolini, cada recomendación se convierte en ingresos.
            </p>
  
@@ -218,12 +210,3 @@ index cfeb434..04b2fa2 100644
                  </p>
                  <p className="text-xs text-brand-ink-soft mb-4">
                    Meta $500.000 · Bono $50.000
-@@ -908,7 +908,7 @@ export default function ParaCreadoresPage() {
-               }}
-             />
-             <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-9 text-balance">
--              Convierte tu contenido e influencia en dinero.
-+              Gana comisión recomendando los productos con los que trabajas.
-             </h2>
-             <Link
-               href="/lista-de-espera"
