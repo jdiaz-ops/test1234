@@ -3,7 +3,6 @@
 Borradores que todavía no están en vivo. Se guardan acá para no perderlos
 sin publicarlos (la rama se despliega sola en marcolini.lat).
 
-- `landing-unas-creadores.patch` (2026-10-03, versión 3): wording de uñas (B2B) para
-  /para-creadores y el bloque de creadoras del inicio. Pendiente de
-  aprobación de Juan. Para aplicarlo:
-  `git apply docs/propuestas/landing-unas-creadores.patch`
+Ninguna pendiente por ahora. La landing de uñas para creadoras (versión 3)
+se publicó el 2026-10-03; la versión general anterior está en
+docs/landings-guardadas.md.

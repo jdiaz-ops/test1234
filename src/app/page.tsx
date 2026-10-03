@@ -42,14 +42,14 @@ export default function HomePage() {
                 <IconHeart className="w-5 h-5" />
               </div>
               <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1 mb-3">
-                SOY CREADOR
+                SOY CREADORA DE CONTENIDO DE UÑAS O INSTRUCTORA
               </span>
               <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
                 Convierte tu contenido e influencia en dinero
               </p>
               <p className="text-base text-brand-ink/75 leading-relaxed mb-6">
-                Obtén códigos de descuento para tu comunidad y gana una comisión por cada compra
-                que realicen con ellos.
+                Recomienda los productos de uñas con los que trabajas y gana comisión por cada compra
+                que tu comunidad haga con tu código.
               </p>
               <p className="text-sm text-brand-accent font-semibold inline-flex items-center gap-1.5">
                 Quiero saber más
