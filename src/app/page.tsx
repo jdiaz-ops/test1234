@@ -38,7 +38,7 @@ export default function HomePage() {
             contenido e instructoras.
           </h1>
           <p className="text-base text-brand-ink-soft text-balance max-w-xl mx-auto mb-12">
-            Ellas convierten su contenido e influencia en comisiones. Las marcas solo pagan cuando venden.
+            Las marcas solo pagan cuando venden.
           </p>
 
           {/* Las dos tarjetas comparten filas (subgrid): ícono, etiqueta,
