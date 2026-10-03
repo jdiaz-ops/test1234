@@ -306,7 +306,7 @@ export default function ParaMarcasPage() {
             y solo capacidades que ya existen hoy. */}
         <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
           <p className="font-display text-xl sm:text-2xl font-bold text-brand-ink text-center max-w-2xl mx-auto mb-12 text-balance">
-            Un Reel o un vendedor cuestan lo mismo, vendan o no.
+            Un Reel, una historia o un post cuestan lo mismo, vendan o no.
             <br />
             Con Marcolini, solo pagas cuando vende.
           </p>
@@ -328,8 +328,8 @@ export default function ParaMarcasPage() {
                   <span className="font-mono text-sm font-semibold text-brand-ink">$800.000</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-brand-ink-soft">Sueldo de un vendedor</span>
-                  <span className="text-sm font-semibold text-brand-ink">Cada mes</span>
+                  <span className="text-sm text-brand-ink-soft">Por una historia o post</span>
+                  <span className="font-mono text-sm font-semibold text-brand-ink">$300.000</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm text-brand-ink-soft">Ventas generadas</span>
@@ -351,12 +351,16 @@ export default function ParaMarcasPage() {
               </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-brand-ink-soft">Costo fijo</span>
+                  <span className="text-sm text-brand-ink-soft">Pagas por publicar</span>
                   <span className="font-mono text-sm font-semibold text-brand-ink">$0</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm text-brand-ink-soft">Comisión</span>
                   <span className="text-sm font-semibold text-brand-ink">Solo si vende</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-brand-ink-soft">Ventas generadas</span>
+                  <span className="text-sm font-semibold text-brand-ink">Medidas una a una</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm text-brand-ink-soft">Riesgo</span>
@@ -526,7 +530,7 @@ export default function ParaMarcasPage() {
             {/* 4 — código de descuento único por creador */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Creadores de tu marca</p>
+                <p className="text-xs text-brand-ink-soft mb-4">Creadoras de tu marca</p>
                 <div className="space-y-3">
                   {previewCreadores.map((c) => (
                     <div key={c.code} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
