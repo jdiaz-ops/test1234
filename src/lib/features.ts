@@ -4,10 +4,13 @@
 /// datos.
 
 /// Muestras gratis (sample-service.ts): la marca regala producto a
-/// creadores. Estuvo apagado al lanzar; Juan pidió volver a mostrarlo
-/// (2026-10-01), así que ahora viene encendido. Para apagarlo de nuevo:
-/// NEXT_PUBLIC_FEATURE_SAMPLES=false.
-export const SAMPLES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_SAMPLES !== "false";
+/// creadores. Escondido otra vez para arrancar (pedido de Juan,
+/// 2026-10-03): no sale en el menú de marca ni de creador, ni en el
+/// marketplace, ni en las landings; sus páginas dan 404 y la API no
+/// responde. Todo lo construido sigue intacto (dirección guardada,
+/// buscador de productos, etc.). Para encenderlo:
+/// NEXT_PUBLIC_FEATURE_SAMPLES=true.
+export const SAMPLES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_SAMPLES === "true";
 
 /// Reseñas de productos (product-review-service.ts): los compradores
 /// opinan desde la ficha y la marca aprueba. Apagado: la marca pidió

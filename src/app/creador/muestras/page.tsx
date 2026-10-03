@@ -36,7 +36,7 @@ function defaultShippingFor(
 }
 
 export default async function CreadorMuestrasPage() {
-  // Se puede apagar con NEXT_PUBLIC_FEATURE_SAMPLES=false (ver src/lib/features.ts).
+  // Función apagada (ver src/lib/features.ts).
   if (!SAMPLES_ENABLED) notFound();
 
   const profile = await requireCreatorProfile();
