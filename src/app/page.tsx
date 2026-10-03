@@ -41,7 +41,7 @@ export default function HomePage() {
               <div className="w-12 h-12 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
                 <IconHeart className="w-5 h-5" />
               </div>
-              <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1 mb-3">
+              <span className="inline-block max-w-full font-mono text-[11px] leading-snug font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded-lg px-3 py-1.5 mb-3 text-balance">
                 SOY CREADORA DE CONTENIDO DE UÑAS O INSTRUCTORA
               </span>
               <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
@@ -67,7 +67,7 @@ export default function HomePage() {
               <div className="w-12 h-12 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
                 <IconStore className="w-5 h-5" />
               </div>
-              <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1 mb-3">
+              <span className="inline-block max-w-full font-mono text-[11px] leading-snug font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded-lg px-3 py-1.5 mb-3 text-balance">
                 SOY MARCA
               </span>
               <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">

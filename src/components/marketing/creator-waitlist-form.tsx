@@ -23,6 +23,10 @@ export function CreatorWaitlistForm() {
   const [socialsInput, setSocialsInput] = useState<SocialProfile[]>(
     FIXED_SOCIALS.map((f) => ({ platform: f.platform, handle: "" })),
   );
+  // Marcolini arranca solo con uñas (2026-10-03): primero "¿Creas
+  // contenido de uñas?" Sí/No; solo si dice que no, elige otra categoría.
+  // Lo que se guarda es la misma categoría de siempre ("Uñas" si dice sí).
+  const [doesNails, setDoesNails] = useState<"" | "si" | "no">("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<null | { alreadyJoined: boolean }>(null);
@@ -38,6 +42,11 @@ export function CreatorWaitlistForm() {
       setError("Escribe al menos una red social.");
       return;
     }
+    if (!doesNails) {
+      setError("Cuéntanos si creas contenido de uñas.");
+      return;
+    }
+    const category = doesNails === "si" ? "Uñas" : form.category;
     setLoading(true);
     try {
       const res = await fetch("/api/lista-de-espera", {
@@ -48,7 +57,7 @@ export function CreatorWaitlistForm() {
           email: form.email,
           whatsapp: form.whatsapp,
           audience: form.audience,
-          category: form.category,
+          category,
           socials,
         }),
       });
@@ -129,18 +138,50 @@ export function CreatorWaitlistForm() {
             ))}
           </select>
         </Field>
-        <Field label="¿De qué creas contenido?">
-          <select required value={form.category} onChange={set("category")} className="input">
-            <option value="" disabled>
-              Elige una opción
-            </option>
-            {CREATOR_CATEGORY_OPTIONS.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
+        <fieldset>
+          <legend className="block text-sm text-brand-ink mb-1">¿Creas contenido de uñas?</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ["si", "Sí"],
+                ["no", "No"],
+              ] as const
+            ).map(([value, label]) => (
+              <label
+                key={value}
+                className={`flex items-center justify-center rounded-md border py-2 text-sm cursor-pointer transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-accent ${
+                  doesNails === value
+                    ? "border-brand-accent bg-brand-accent text-white font-medium"
+                    : "border-brand-line bg-brand-surface text-brand-ink hover:border-brand-accent"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="doesNails"
+                  value={value}
+                  checked={doesNails === value}
+                  onChange={() => setDoesNails(value)}
+                  className="sr-only"
+                />
+                {label}
+              </label>
             ))}
-          </select>
-        </Field>
+          </div>
+        </fieldset>
+        {doesNails === "no" && (
+          <Field label="¿De qué creas contenido?">
+            <select required value={form.category} onChange={set("category")} className="input">
+              <option value="" disabled>
+                Elige una opción
+              </option>
+              {CREATOR_CATEGORY_OPTIONS.filter((o) => o !== "Uñas").map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
