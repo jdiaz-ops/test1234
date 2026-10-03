@@ -30,7 +30,15 @@ export default function HomePage() {
               elegante entre el logo y las tarjetas, como acompañante, no
               como titular. */}
           {/* eslint-disable-next-line @next/next/no-img-element -- logo estático en public/ */}
-          <img src="/marcolini-logo-lockup.png" alt="Marcolini" className="h-40 sm:h-52 w-auto mx-auto mb-14" />
+          <img src="/marcolini-logo-lockup.png" alt="Marcolini" className="h-40 sm:h-52 w-auto mx-auto mb-8" />
+
+          {/* Tagline (aprobado el 2026-10-03). */}
+          <h1 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-balance max-w-2xl mx-auto mb-3">
+            Somos la plataforma que conecta marcas de uñas con creadoras de contenido e instructoras.
+          </h1>
+          <p className="text-base text-brand-ink-soft text-balance max-w-xl mx-auto mb-12">
+            Ellas convierten su contenido e influencia en comisiones. Las marcas solo pagan cuando venden.
+          </p>
 
           {/* Las dos tarjetas comparten filas (subgrid): ícono, etiqueta,
               título, texto y "Quiero saber más" quedan a la misma altura en

@@ -24,9 +24,16 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
+/// Tagline aprobado por Juan el 2026-10-03 (Marcolini se enfoca primero en
+/// uñas). Es lo que muestran Google y WhatsApp/Instagram al compartir el
+/// link; el mismo texto va debajo del logo en la portada.
+const TAGLINE =
+  "Somos la plataforma que conecta marcas de uñas con creadoras de contenido e instructoras. Ellas convierten su contenido e influencia en comisiones. Las marcas solo pagan cuando venden.";
+
 export const metadata: Metadata = {
   title: "Marcolini",
-  description: "Red de afiliación para la industria de belleza",
+  description: TAGLINE,
+  openGraph: { title: "Marcolini", description: TAGLINE, siteName: "Marcolini", locale: "es_CO", type: "website" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
