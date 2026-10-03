@@ -157,6 +157,9 @@ export default function ParaMarcasPage() {
                   PARA MARCAS DE UÑAS
                 </span>
               </div>
+              <p className="font-display text-lg sm:text-xl font-semibold text-brand-accent mb-3 text-balance">
+                Gana visibilidad. Aumenta tus ventas.
+              </p>
               <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
                 Conectamos tu marca de uñas con una red seleccionada de creadoras de contenido e
                 instructoras.
