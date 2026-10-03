@@ -1,8 +1,15 @@
 diff --git a/src/app/page.tsx b/src/app/page.tsx
-index be6c5b7..c9a5dd9 100644
+index be6c5b7..fb57de5 100644
 --- a/src/app/page.tsx
 +++ b/src/app/page.tsx
-@@ -48,8 +48,8 @@ export default function HomePage() {
+@@ -42,14 +42,14 @@ export default function HomePage() {
+                 <IconHeart className="w-5 h-5" />
+               </div>
+               <span className="inline-block font-mono text-xs font-semibold tracking-widest text-brand-accent bg-brand-accent-soft rounded-full px-3 py-1 mb-3">
+-                SOY CREADOR
++                SOY CREADORA DE CONTENIDO DE UÑAS O INSTRUCTORA
+               </span>
+               <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
                  Convierte tu contenido e influencia en dinero
                </p>
                <p className="text-base text-brand-ink/75 leading-relaxed mb-6">
