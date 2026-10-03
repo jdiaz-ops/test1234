@@ -23,7 +23,7 @@ import { CAMPAIGNS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
 export const metadata: Metadata = {
   title: "Convierte tu contenido de uñas e influencia en dinero — Marcolini",
   description:
-    "Para creadoras de contenido de uñas e instructoras: únete gratis, elige las marcas de uñas con las que trabajas y comparte tu código de descuento con tu comunidad. Gana comisión por cada venta.",
+    "Aplicaciones abiertas para creadoras de contenido de uñas e instructoras: aplica gratis a una red seleccionada, elige las marcas de uñas con las que trabajas y gana comisión por cada venta.",
 };
 
 // Datos de ejemplo para las vistas previas — mismo tratamiento que la
@@ -110,7 +110,7 @@ const previewTransacciones = [
 // de vinculación automática o con aprobación (joinMode).
 const faq = [
   {
-    pregunta: "¿Cuánto cuesta unirme a Marcolini?",
+    pregunta: "¿Cuánto cuesta aplicar a Marcolini?",
     respuesta:
       "Nada. Es 100% gratis — nunca pagas por pertenecer a la red ni por unirte a una marca.",
   },
@@ -122,7 +122,12 @@ const faq = [
   {
     pregunta: "¿Necesito un mínimo de seguidores?",
     respuesta:
-      "No. No hay un mínimo de audiencia — cualquier creadora de contenido de uñas o instructora que comparta su trabajo puede unirse.",
+      "No pedimos mínimo de seguidores. Miramos tu contenido y la confianza de tu comunidad.",
+  },
+  {
+    pregunta: "¿Enviar mi solicitud me garantiza entrar a la red?",
+    respuesta:
+      "No. Revisamos cada solicitud una por una y te escribimos si quedas seleccionada.",
   },
   {
     pregunta: "¿Puedo unirme a varias marcas a la vez?",
@@ -147,8 +152,8 @@ export default function ParaCreadoresPage() {
       <UtmCapture />
       <SiteHeader
         ctaHref="/lista-de-espera"
-        ctaLabel="Únete a la lista de espera"
-        mobileCtaLabel="Lista de espera"
+        ctaLabel="Aplica ahora"
+        mobileCtaLabel="Aplica"
         loginLabel="Portal Creadores"
         showRoleLinks={false}
       />
@@ -193,16 +198,26 @@ export default function ParaCreadoresPage() {
                 href="/lista-de-espera"
                 className="group inline-flex items-center justify-center gap-2 bg-brand-accent text-white rounded-full px-10 py-5 text-base font-medium hover:opacity-90 transition shadow-[0_10px_30px_-10px_var(--brand-accent)]"
               >
-                Únete a la lista de espera
+                Aplica ahora
                 <IconArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
+              {/* Aplicaciones abiertas, pero cada perfil se revisa: la red es
+                  seleccionada (2026-10-03). */}
+              <p className="mt-5 flex items-center justify-center lg:justify-start gap-2 text-sm text-brand-ink-soft">
+                <span aria-hidden className="w-2 h-2 rounded-full bg-brand-accent shrink-0" />
+                <span>
+                  <strong className="font-semibold text-brand-ink">Aplicaciones abiertas.</strong>{" "}
+                  Revisamos cada perfil uno por uno.
+                </span>
+              </p>
             </div>
 
             <div className="py-8 px-6">
               <div className="relative max-w-sm mx-auto">
                 <div className="rounded-2xl bg-brand-surface border border-brand-line p-5 sm:p-6 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)]">
+                  {/* Cifras de ejemplo: todavía no hay ventas reales (2026-10-03). */}
                   <p className="text-xs text-brand-ink-soft mb-2.5">
-                    Tu resumen
+                    Tu resumen<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span>
                   </p>
                   <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-2.5">
                     <p className="text-xs text-brand-ink-soft mb-0.5">
@@ -257,7 +272,7 @@ export default function ParaCreadoresPage() {
                   </div>
                   <div>
                     <p className="text-xs font-medium text-brand-ink leading-tight">
-                      3 creadores
+                      3 creadoras<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span>
                     </p>
                     <p className="text-[11px] text-brand-accent font-medium leading-tight">
                       generando comisión
@@ -270,7 +285,7 @@ export default function ParaCreadoresPage() {
                     creador. */}
                 <div className="hidden sm:block absolute bottom-0 right-0 translate-x-2/3 translate-y-1/2 z-10 rounded-xl bg-brand-surface border border-brand-line shadow-lg px-3.5 py-3">
                   <p className="text-[11px] text-brand-ink-soft mb-1.5">
-                    Ventas del mes
+                    Ventas del mes<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span>
                   </p>
                   <div className="flex items-end gap-1 h-8 mb-1">
                     {[4, 6, 5, 8, 9, 11, 13].map((h, i) => (
@@ -449,7 +464,7 @@ export default function ParaCreadoresPage() {
                   href="/lista-de-espera"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Únete a la lista de espera
+                  Aplica ahora
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -499,7 +514,7 @@ export default function ParaCreadoresPage() {
                   href="/lista-de-espera"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Únete a la lista de espera
+                  Aplica ahora
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -585,7 +600,7 @@ export default function ParaCreadoresPage() {
                   href="/lista-de-espera"
                   className="inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-6 py-3 text-sm font-medium hover:opacity-90 transition"
                 >
-                  Únete a la lista de espera
+                  Aplica ahora
                   <IconArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -843,7 +858,7 @@ export default function ParaCreadoresPage() {
                 que ya muestra /creador y /creador/transacciones. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-2.5">Tu saldo</p>
+                <p className="text-xs text-brand-ink-soft mb-2.5">Tu saldo<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-4">
                   <p className="font-display text-2xl font-bold text-brand-ink">
                     $1.248.000
@@ -914,9 +929,12 @@ export default function ParaCreadoresPage() {
               href="/lista-de-espera"
               className="relative inline-flex items-center gap-2 bg-brand-accent text-white rounded-full px-8 py-3.5 text-sm font-medium hover:opacity-90 transition"
             >
-              Únete a la lista de espera
+              Aplica ahora
               <IconArrowRight className="w-4 h-4" />
             </Link>
+            <p className="relative mt-5 text-sm text-white/70">
+              Aplicaciones abiertas. Revisamos cada perfil uno por uno.
+            </p>
           </div>
         </section>
       </main>

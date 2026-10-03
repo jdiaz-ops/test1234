@@ -34,7 +34,8 @@ export default function HomePage() {
 
           {/* Tagline (aprobado el 2026-10-03). */}
           <h1 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-balance max-w-2xl mx-auto mb-3">
-            Somos la plataforma que conecta marcas de uñas con creadoras de contenido e instructoras.
+            Somos la plataforma que conecta marcas de uñas con una red seleccionada de creadoras de
+            contenido e instructoras.
           </h1>
           <p className="text-base text-brand-ink-soft text-balance max-w-xl mx-auto mb-12">
             Ellas convierten su contenido e influencia en comisiones. Las marcas solo pagan cuando venden.
@@ -45,8 +46,9 @@ export default function HomePage() {
               ambas aunque una tenga más texto (2026-10-03). */}
           <div className="grid sm:grid-cols-2 gap-6 mb-8">
             {/* Tarjeta creador */}
+            {/* Lleva directo al formulario de aplicación (2026-10-03). */}
             <Link
-              href="/para-creadores"
+              href="/lista-de-espera"
               className="group grid grid-rows-subgrid row-span-5 gap-y-0 rounded-3xl border border-brand-line bg-brand-surface p-8 text-left hover:border-brand-accent hover:shadow-[0_30px_70px_-32px_var(--brand-accent)] hover:-translate-y-1 transition-all"
             >
               <div className="w-12 h-12 rounded-xl bg-brand-accent-soft text-brand-accent flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
@@ -63,7 +65,7 @@ export default function HomePage() {
                 que tu comunidad haga con tu código.
               </p>
               <p className="self-end justify-self-start text-sm text-brand-accent font-semibold inline-flex items-center gap-1.5">
-                Quiero saber más
+                Aplica ahora
                 <IconArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
               </p>
             </Link>
@@ -82,11 +84,12 @@ export default function HomePage() {
                 SOY MARCA DE UÑAS
               </span>
               <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
-                Tu próxima venta puede venir de una creadora de contenido de uñas
+                Conectamos tu marca de uñas con una red seleccionada de creadoras de contenido e
+                instructoras.
               </p>
               <p className="text-base text-brand-ink/75 leading-relaxed mb-6">
-                Instructoras y creadoras recomiendan tus productos a miles de manicuristas. Solo pagas
-                comisión cuando generan ventas.
+                Ellas recomiendan tus productos a miles de manicuristas. Tú solo pagas comisión cuando
+                generan ventas.
               </p>
               <p className="self-end justify-self-start text-sm text-brand-accent font-semibold inline-flex items-center gap-1.5">
                 Quiero saber más

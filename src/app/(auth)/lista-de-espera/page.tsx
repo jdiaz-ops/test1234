@@ -3,8 +3,9 @@ import { UtmCapture } from "@/components/marketing/utm-capture";
 import { CreatorWaitlistForm } from "@/components/marketing/creator-waitlist-form";
 
 export const metadata: Metadata = {
-  title: "Lista de espera para creadores — Marcolini",
-  description: "Déjanos tus datos y te avisamos cuando abramos tu acceso a Marcolini.",
+  title: "Aplica a la red de creadoras — Marcolini",
+  description:
+    "Aplicaciones abiertas para creadoras de contenido de uñas e instructoras. Déjanos tus datos y revisaremos tu solicitud para la red seleccionada de Marcolini.",
 };
 
 export default function ListaDeEsperaPage() {

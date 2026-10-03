@@ -51,7 +51,7 @@ export async function generateMetadata({
     : `${profile.displayName} en Marcolini`;
   const description =
     profile.bio ||
-    `Descuentos y códigos de ${profile.displayName} en marcas de belleza — con Marcolini.`;
+    `Descuentos y códigos de ${profile.displayName} en marcas de uñas — con Marcolini.`;
 
   return {
     title,

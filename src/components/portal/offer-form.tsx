@@ -184,10 +184,10 @@ export function OfferForm({
           className="input"
         >
           <option value="OPEN">
-            Abierta — cualquier creador se une automáticamente
+            Automática — las creadoras de la red se unen sin revisión
           </option>
           <option value="APPROVAL">
-            Con aprobación — tú revisas cada creador antes de aceptarlo
+            Con aprobación — tú revisas cada creadora antes de aceptarla
           </option>
         </select>
         <p className="text-xs text-brand-ink-soft mt-1">

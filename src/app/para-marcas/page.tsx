@@ -18,9 +18,9 @@ import { CAMPAIGNS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
 // categoría, se apoya en el mecanismo (comisión solo si vende, red de
 // creadores) ya redactado en el resto de la página.
 export const metadata: Metadata = {
-  title: "Tu próxima venta puede venir de una creadora de contenido de uñas — Marcolini",
+  title: "Marcas de uñas y una red seleccionada de creadoras — Marcolini",
   description:
-    "Para marcas de uñas: creadoras de contenido de uñas e instructoras recomiendan tus productos a miles de manicuristas. Solo pagas comisión por cada venta, sin mensualidades.",
+    "Conectamos tu marca de uñas con una red seleccionada de creadoras de contenido e instructoras. Solo pagas comisión cuando generan ventas.",
 };
 
 const confianza = ["Sin mensualidades"];
@@ -158,11 +158,12 @@ export default function ParaMarcasPage() {
                 </span>
               </div>
               <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
-                Tu próxima venta puede venir de una creadora de contenido de uñas
+                Conectamos tu marca de uñas con una red seleccionada de creadoras de contenido e
+                instructoras.
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg lg:mx-auto">
-                Instructoras y creadoras recomiendan tus productos a miles de manicuristas. Solo
-                pagas comisión cuando generan ventas.
+                Ellas recomiendan tus productos a miles de manicuristas. Tú solo pagas comisión
+                cuando generan ventas.
               </p>
               <Link
                 href="/lista-de-espera/marcas"
@@ -215,7 +216,8 @@ export default function ParaMarcasPage() {
                     de la campaña" (ROI, bono), pero las campañas están
                     escondidas (CAMPAIGNS_ENABLED). Cifras de ejemplo: 54
                     pedidos, $4.200.000 en ventas, 8% de comisión. */}
-                <p className="text-xs text-brand-ink-soft mb-2.5">Ventas con tus creadoras · este mes</p>
+                {/* Cifras de ejemplo: todavía no hay ventas reales (2026-10-03). */}
+                <p className="text-xs text-brand-ink-soft mb-2.5">Ventas con tus creadoras · este mes<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-2.5">
                   <p className="font-display text-2xl font-bold text-brand-accent">$4.200.000</p>
                   <p className="text-sm text-brand-ink font-medium mt-1">
@@ -266,7 +268,7 @@ export default function ParaMarcasPage() {
                   ))}
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-brand-ink leading-tight">3 creadoras</p>
+                  <p className="text-xs font-medium text-brand-ink leading-tight">3 creadoras<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                   <p className="text-[11px] text-brand-accent font-medium leading-tight">recomendando tu marca</p>
                 </div>
               </div>
@@ -281,7 +283,7 @@ export default function ParaMarcasPage() {
                   que quede montada en la esquina (mitad afuera) en vez de
                   tapar "Comisión total generada". */}
               <div className="hidden sm:block absolute bottom-0 right-0 translate-x-2/3 translate-y-1/2 z-10 rounded-xl bg-brand-surface border border-brand-line shadow-lg px-3.5 py-3">
-                <p className="text-[11px] text-brand-ink-soft mb-1.5">Ventas del mes</p>
+                <p className="text-[11px] text-brand-ink-soft mb-1.5">Ventas del mes<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="flex items-end gap-1 h-8 mb-1">
                   {[5, 7, 6, 9, 8, 11, 14].map((h, i) => (
                     <div
@@ -530,7 +532,7 @@ export default function ParaMarcasPage() {
             {/* 4 — código de descuento único por creador */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Creadoras de tu marca</p>
+                <p className="text-xs text-brand-ink-soft mb-4">Creadoras de tu marca<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="space-y-3">
                   {previewCreadores.map((c) => (
                     <div key={c.code} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
@@ -676,7 +678,7 @@ export default function ParaMarcasPage() {
             {/* 7 — trazabilidad total / reporte de transacciones */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Transacciones</p>
+                <p className="text-xs text-brand-ink-soft mb-4">Transacciones<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="space-y-2">
                   {previewTransacciones.map((t) => (
                     <div key={t.creador} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-2.5">

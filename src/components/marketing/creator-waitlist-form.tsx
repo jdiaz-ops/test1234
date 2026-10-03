@@ -79,13 +79,18 @@ export function CreatorWaitlistForm() {
     return (
       <div className="text-center">
         <h1 className="font-display text-lg font-semibold text-brand-ink mb-2">
-          {done.alreadyJoined ? "Ya estabas en la lista" : "¡Estás en la lista!"}
+          {done.alreadyJoined ? "Tu solicitud ya estaba registrada" : "¡Recibimos tu solicitud!"}
         </h1>
+        {/* La solicitud no da acceso: cada perfil se revisa (red
+            seleccionada, 2026-10-03). */}
         <p className="text-sm text-brand-ink-soft mb-6">
-          {done.alreadyJoined
-            ? "Actualizamos tus datos. "
-            : ""}
-          Te escribiremos a <strong>{form.email}</strong> o por WhatsApp cuando abramos tu acceso.
+          {done.alreadyJoined ? (
+            <>Actualizamos tus datos y la seguimos revisando. </>
+          ) : (
+            <>Vamos a revisar tu perfil. </>
+          )}
+          Te escribiremos a <strong>{form.email}</strong> o por WhatsApp para contarte si quedaste
+          seleccionada.
         </p>
         <Link href="/para-creadores" className="text-sm text-brand-accent font-medium hover:underline">
           Volver a Marcolini
@@ -96,9 +101,13 @@ export function CreatorWaitlistForm() {
 
   return (
     <div>
-      <h1 className="font-display text-lg font-semibold text-brand-ink text-center mb-6">
-        Únete a la lista de espera
+      <h1 className="font-display text-lg font-semibold text-brand-ink text-center mb-2">
+        Aplica a la red de Marcolini
       </h1>
+      <p className="text-sm text-brand-ink-soft text-center text-balance mb-6">
+        Aplicaciones abiertas. Revisamos cada perfil uno por uno: enviar el formulario no
+        garantiza el acceso a la red.
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Nombre">
@@ -167,7 +176,7 @@ export function CreatorWaitlistForm() {
           disabled={loading}
           className="w-full bg-brand-accent text-white rounded-md py-2 text-sm font-medium disabled:opacity-50"
         >
-          {loading ? "Enviando..." : "Unirme a la lista"}
+          {loading ? "Enviando..." : "Enviar mi solicitud"}
         </button>
         <p className="text-xs text-brand-ink-soft text-center">
           Usamos tus datos solo para contactarte sobre Marcolini.{" "}
