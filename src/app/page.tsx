@@ -33,13 +33,10 @@ export default function HomePage() {
           <img src="/marcolini-logo-lockup.png" alt="Marcolini" className="h-40 sm:h-52 w-auto mx-auto mb-8" />
 
           {/* Tagline (aprobado el 2026-10-03). */}
-          <h1 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-balance max-w-2xl mx-auto mb-3">
+          <h1 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-balance max-w-2xl mx-auto mb-12">
             Somos la plataforma que conecta marcas de uñas con una red seleccionada de creadoras de
             contenido e instructoras.
           </h1>
-          <p className="text-base text-brand-ink-soft text-balance max-w-xl mx-auto mb-12">
-            Las marcas solo pagan cuando venden.
-          </p>
 
           {/* Las dos tarjetas comparten filas (subgrid): ícono, etiqueta,
               título, texto y "Quiero saber más" quedan a la misma altura en
@@ -82,7 +79,12 @@ export default function HomePage() {
               <span className="justify-self-start self-start max-w-full font-mono text-[11px] leading-snug font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded-lg px-3 py-1.5 mb-3 text-balance">
                 SOY MARCA DE UÑAS
               </span>
+              {/* La frase va dentro del bloque del título para no sumar una
+                  fila: las dos tarjetas comparten filas (subgrid). */}
               <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
+                <span className="block text-lg text-brand-accent mb-2">
+                  Gana visibilidad. Aumenta tus ventas.
+                </span>
                 Conectamos tu marca de uñas con una red seleccionada de creadoras de contenido e
                 instructoras.
               </p>
