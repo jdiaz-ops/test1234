@@ -68,13 +68,14 @@ export default function HomePage() {
                 <IconStore className="w-5 h-5" />
               </div>
               <span className="inline-block max-w-full font-mono text-[11px] leading-snug font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded-lg px-3 py-1.5 mb-3 text-balance">
-                SOY MARCA
+                SOY MARCA DE UÑAS
               </span>
               <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
-                Tu próxima venta puede venir de un creador de contenido
+                Tu próxima venta puede venir de una creadora de contenido de uñas
               </p>
               <p className="text-base text-brand-ink/75 leading-relaxed mb-6">
-                Solo pagas comisión cuando generan ventas.
+                Instructoras y creadoras recomiendan tus productos a miles de manicuristas. Solo pagas
+                comisión cuando generan ventas.
               </p>
               <p className="text-sm text-brand-accent font-semibold inline-flex items-center gap-1.5">
                 Quiero saber más
