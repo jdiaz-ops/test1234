@@ -1,8 +1,8 @@
 diff --git a/src/app/page.tsx b/src/app/page.tsx
-index c1a5bad..8e40cc6 100644
+index c1a5bad..da02201 100644
 --- a/src/app/page.tsx
 +++ b/src/app/page.tsx
-@@ -68,13 +68,14 @@ export default function HomePage() {
+@@ -68,10 +68,10 @@ export default function HomePage() {
                  <IconStore className="w-5 h-5" />
                </div>
                <span className="inline-block max-w-full font-mono text-[11px] leading-snug font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded-lg px-3 py-1.5 mb-3 text-balance">
@@ -11,17 +11,12 @@ index c1a5bad..8e40cc6 100644
                </span>
                <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
 -                Tu próxima venta puede venir de un creador de contenido
-+                Una fuerza de ventas que solo cobra cuando vende
++                Tu próxima venta puede venir de una creadora de contenido de uñas o instructora que recomienda tus productos a miles de manicuristas
                </p>
                <p className="text-base text-brand-ink/75 leading-relaxed mb-6">
--                Solo pagas comisión cuando generan ventas.
-+                Creadoras de uñas e instructoras recomiendan tus productos a miles de manicuristas.
-+                Solo pagas comisión por cada venta.
-               </p>
-               <p className="text-sm text-brand-accent font-semibold inline-flex items-center gap-1.5">
-                 Quiero saber más
+                 Solo pagas comisión cuando generan ventas.
 diff --git a/src/app/para-marcas/page.tsx b/src/app/para-marcas/page.tsx
-index 82aa1ea..76b45ef 100644
+index 82aa1ea..2b69e74 100644
 --- a/src/app/para-marcas/page.tsx
 +++ b/src/app/para-marcas/page.tsx
 @@ -18,9 +18,9 @@ import { CAMPAIGNS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
@@ -29,7 +24,7 @@ index 82aa1ea..76b45ef 100644
  // creadores) ya redactado en el resto de la página.
  export const metadata: Metadata = {
 -  title: "Conecta tu marca con creadores de contenido — Marcolini",
-+  title: "Una fuerza de ventas que solo cobra cuando vende — Marcolini",
++  title: "Tu próxima venta puede venir de una creadora de contenido de uñas — Marcolini",
    description:
 -    "Crece tu marca con una red de creadores que solo cobran comisión cuando venden. Crea tu propia tienda dentro de Marcolini, sin mensualidades.",
 +    "Para marcas de uñas: creadoras de contenido de uñas e instructoras recomiendan tus productos a miles de manicuristas. Solo pagas comisión por cada venta, sin mensualidades.",
@@ -97,8 +92,12 @@ index 82aa1ea..76b45ef 100644
    },
    {
      pregunta: "¿Hay permanencia mínima o contrato?",
-@@ -152,11 +152,17 @@ export default function ParaMarcasPage() {
-             <div className="lg:text-center">
+@@ -149,11 +149,17 @@ export default function ParaMarcasPage() {
+             {/* Vuelve al alineado original (izquierda) por defecto — el
+                 centrado es SOLO para la versión web (lg+), vía lg:text-center,
+                 no en mobile. */}
+-            <div className="lg:text-center">
++            <div className="lg:text-center lg:pr-12">
                {/* Vuelve al tamaño de dos rondas atrás — el +20% de la ronda
                    anterior lo hizo demasiado grande otra vez. */}
 +              <div className="flex lg:justify-center mb-6">
@@ -108,15 +107,11 @@ index 82aa1ea..76b45ef 100644
 +              </div>
                <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
 -                Tu próxima venta puede venir de un creador de contenido
-+                Una fuerza de ventas que solo cobra cuando vende
++                Tu próxima venta puede venir de una creadora de contenido de uñas o instructora
++                que recomienda tus productos a miles de manicuristas
                </h1>
                <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg lg:mx-auto">
--                Solo pagas comisión cuando generan ventas
-+                Creadoras de contenido de uñas e instructoras recomiendan tus productos a miles de
-+                manicuristas. Tú solo pagas comisión por cada venta.
-               </p>
-               <Link
-                 href="/lista-de-espera/marcas"
+                 Solo pagas comisión cuando generan ventas
 @@ -259,7 +265,7 @@ export default function ParaMarcasPage() {
                    ))}
                  </div>
@@ -131,27 +126,22 @@ index 82aa1ea..76b45ef 100644
          <section className="max-w-5xl mx-auto px-6 py-16 border-t border-brand-line">
            <p className="font-display text-xl sm:text-2xl font-bold text-brand-ink text-center max-w-2xl mx-auto mb-12 text-balance">
 -            Un Reel cuesta lo mismo, venda o no.
-+            Un vendedor cuesta lo mismo, venda o no.
++            Un Reel o un vendedor cuestan lo mismo, vendan o no.
              <br />
              Con Marcolini, solo pagas cuando vende.
            </p>
-@@ -313,12 +319,12 @@ export default function ParaMarcasPage() {
-                 <span className="w-6 h-6 rounded-full border border-brand-line text-brand-ink-soft flex items-center justify-center text-xs shrink-0">
-                   ✕
-                 </span>
--                <span className="font-medium text-brand-ink-soft">Marketing tradicional</span>
-+                <span className="font-medium text-brand-ink-soft">Fuerza de ventas tradicional</span>
-               </div>
-               <div className="space-y-3">
-                 <div className="flex items-center justify-between gap-3">
--                  <span className="text-sm text-brand-ink-soft">Pagas por un Reel</span>
--                  <span className="font-mono text-sm font-semibold text-brand-ink">$800.000</span>
-+                  <span className="text-sm text-brand-ink-soft">Sueldo fijo</span>
-+                  <span className="text-sm font-semibold text-brand-ink">Cada mes</span>
+@@ -320,6 +326,10 @@ export default function ParaMarcasPage() {
+                   <span className="text-sm text-brand-ink-soft">Pagas por un Reel</span>
+                   <span className="font-mono text-sm font-semibold text-brand-ink">$800.000</span>
                  </div>
++                <div className="flex items-center justify-between gap-3">
++                  <span className="text-sm text-brand-ink-soft">Sueldo de un vendedor</span>
++                  <span className="text-sm font-semibold text-brand-ink">Cada mes</span>
++                </div>
                  <div className="flex items-center justify-between gap-3">
                    <span className="text-sm text-brand-ink-soft">Ventas generadas</span>
-@@ -340,7 +346,7 @@ export default function ParaMarcasPage() {
+                   <span className="font-mono text-sm font-semibold text-brand-ink">?</span>
+@@ -340,7 +350,7 @@ export default function ParaMarcasPage() {
                </div>
                <div className="space-y-3">
                  <div className="flex items-center justify-between gap-3">
@@ -160,7 +150,7 @@ index 82aa1ea..76b45ef 100644
                    <span className="font-mono text-sm font-semibold text-brand-ink">$0</span>
                  </div>
                  <div className="flex items-center justify-between gap-3">
-@@ -452,12 +458,12 @@ export default function ParaMarcasPage() {
+@@ -452,12 +462,12 @@ export default function ParaMarcasPage() {
                </div>
                <div className="lg:order-1">
                  <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
@@ -177,7 +167,7 @@ index 82aa1ea..76b45ef 100644
                  </p>
                  <Link
                    href="/lista-de-espera/marcas"
-@@ -537,12 +543,12 @@ export default function ParaMarcasPage() {
+@@ -537,12 +547,12 @@ export default function ParaMarcasPage() {
                </div>
                <div>
                  <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
@@ -193,7 +183,7 @@ index 82aa1ea..76b45ef 100644
                    manual.
                  </p>
                  <Link
-@@ -679,9 +685,9 @@ export default function ParaMarcasPage() {
+@@ -679,9 +689,9 @@ export default function ParaMarcasPage() {
                    Control total de ventas, comisiones y pagos
                  </h3>
                  <p className="text-brand-ink-soft leading-relaxed mb-6">
@@ -205,7 +195,7 @@ index 82aa1ea..76b45ef 100644
                  </p>
                  <Link
                    href="/lista-de-espera/marcas"
-@@ -724,8 +730,8 @@ export default function ParaMarcasPage() {
+@@ -724,8 +734,8 @@ export default function ParaMarcasPage() {
                    Crea tu tienda dentro de Marcolini
                  </h3>
                  <p className="text-brand-ink-soft leading-relaxed mb-6">
@@ -216,12 +206,12 @@ index 82aa1ea..76b45ef 100644
                  </p>
                  <Link
                    href="/lista-de-espera/marcas"
-@@ -764,11 +770,11 @@ export default function ParaMarcasPage() {
+@@ -764,11 +774,11 @@ export default function ParaMarcasPage() {
                style={{ background: "radial-gradient(closest-side, var(--brand-accent), transparent)" }}
              />
              <h2 className="relative font-display text-2xl sm:text-3xl font-semibold mb-4 text-balance">
 -              Tu próxima venta puede venir de un creador.
-+              Una fuerza de ventas que solo cobra cuando vende.
++              Tu próxima venta puede venir de una creadora de uñas.
              </h2>
              <p className="relative text-white/70 max-w-lg mx-auto mb-9 text-balance">
 -              Lanza tu programa hoy. Conecta tu tienda en minutos y empieza a vender pagando solo
