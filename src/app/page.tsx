@@ -35,7 +35,7 @@ export default function HomePage() {
           {/* Tagline (aprobado el 2026-10-03). */}
           <h1 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink text-balance max-w-2xl mx-auto mb-12">
             Somos la plataforma que conecta marcas de uñas con una red seleccionada de creadoras de
-            contenido e instructoras.
+            contenido.
           </h1>
 
           {/* Las dos tarjetas comparten filas (subgrid): ícono, etiqueta,
@@ -51,7 +51,7 @@ export default function HomePage() {
                 <IconHeart className="w-5 h-5" />
               </div>
               <span className="justify-self-start self-start max-w-full font-mono text-[11px] leading-snug font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded-lg px-3 py-1.5 mb-3 text-balance">
-                SOY CREADORA DE CONTENIDO DE UÑAS O INSTRUCTORA
+                SOY CREADORA DE CONTENIDO DE UÑAS
               </span>
               <p className="font-display text-2xl font-semibold text-brand-ink mb-2 text-balance">
                 Convierte tu contenido e influencia en dinero
@@ -85,8 +85,8 @@ export default function HomePage() {
                 <span className="block text-lg text-brand-accent mb-2">
                   Gana visibilidad. Aumenta tus ventas.
                 </span>
-                Conectamos tu marca de uñas con una red seleccionada de creadoras de contenido e
-                instructoras.
+                Conectamos tu marca de uñas con una red seleccionada de creadoras de
+                contenido.
               </p>
               <p className="text-base text-brand-ink/75 leading-relaxed mb-6">
                 Ellas recomiendan tus productos a miles de manicuristas. Tú solo pagas comisión cuando

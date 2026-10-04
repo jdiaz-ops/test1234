@@ -23,7 +23,7 @@ import { CAMPAIGNS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
 export const metadata: Metadata = {
   title: "Convierte tu contenido de uñas e influencia en dinero — Marcolini",
   description:
-    "Aplicaciones abiertas para creadoras de contenido de uñas e instructoras: aplica gratis a una red seleccionada, elige las marcas de uñas con las que trabajas y gana comisión por cada venta.",
+    "Aplicaciones abiertas para creadoras de contenido de uñas: aplica gratis a una red seleccionada, elige las marcas de uñas con las que trabajas y gana comisión por cada venta.",
 };
 
 // Datos de ejemplo para las vistas previas — mismo tratamiento que la
@@ -180,7 +180,7 @@ export default function ParaCreadoresPage() {
             <div className="text-center lg:text-left">
               <div className="flex justify-center lg:justify-start mb-6">
                 <span className="inline-flex items-center bg-brand-surface border border-brand-line rounded-full px-5 py-2.5 font-mono text-xs font-medium text-brand-accent tracking-widest">
-                  PARA CREADORAS DE CONTENIDO DE UÑAS &amp; INSTRUCTORAS
+                  PARA CREADORAS DE CONTENIDO DE UÑAS
                 </span>
               </div>
               {/* En mobile el título ahora va más grande (text-3xl, antes

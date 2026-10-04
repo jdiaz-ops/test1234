@@ -20,7 +20,7 @@ import { CAMPAIGNS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
 export const metadata: Metadata = {
   title: "Marcas de uñas y una red seleccionada de creadoras — Marcolini",
   description:
-    "Conectamos tu marca de uñas con una red seleccionada de creadoras de contenido e instructoras. Solo pagas comisión cuando generan ventas.",
+    "Conectamos tu marca de uñas con una red seleccionada de creadoras de contenido. Solo pagas comisión cuando generan ventas.",
 };
 
 const confianza = ["Sin mensualidades"];
@@ -59,7 +59,7 @@ const previewMuestras = [
 // Vista previa de "Buscador de creadores" — mismo tratamiento visual que
 // creator-directory-panel.tsx: nombre, especialidad y botón de invitar.
 const previewTalento = [
-  { name: "Daniela P.", especialidad: "Instructora de gel" },
+  { name: "Daniela P.", especialidad: "Tutoriales de gel" },
   { name: "Andrea L.", especialidad: "Stamping" },
 ];
 
@@ -110,7 +110,7 @@ const faq = [
   {
     pregunta: "¿Cómo encuentro creadoras para mi marca?",
     respuesta:
-      "De dos formas: las creadoras de contenido de uñas e instructoras descubren tu marca en el marketplace de Marcolini y aplican para promocionarla, o tú mismo las buscas en el directorio y les envías una invitación directa a tu programa.",
+      "De dos formas: las creadoras de contenido de uñas descubren tu marca en el marketplace de Marcolini y aplican para promocionarla, o tú mismo las buscas en el directorio y les envías una invitación directa a tu programa.",
   },
   {
     pregunta: "¿Hay permanencia mínima o contrato?",
@@ -161,8 +161,8 @@ export default function ParaMarcasPage() {
                 Gana visibilidad. Aumenta tus ventas.
               </p>
               <h1 className="font-display text-2xl sm:text-4xl font-semibold text-brand-ink mb-5 text-balance leading-[1.15]">
-                Conectamos tu marca de uñas con una red seleccionada de creadoras de contenido e
-                instructoras.
+                Conectamos tu marca de uñas con una red seleccionada de creadoras de
+                contenido.
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg lg:mx-auto">
                 Ellas recomiendan tus productos a miles de manicuristas. Tú solo pagas comisión
@@ -475,8 +475,8 @@ export default function ParaMarcasPage() {
                   Consigue las creadoras que tu marca necesita
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed mb-6">
-                  Accede a nuestra red: creadoras de contenido de uñas e instructoras aplican solas
-                  para promocionar tu marca. O tú mismo las buscas en el directorio y las invitas
+                  Accede a nuestra red: creadoras de contenido de uñas aplican solas para
+                  promocionar tu marca. O tú mismo las buscas en el directorio y las invitas
                   directo a tu programa, con la comisión que quieras ofrecer.
                 </p>
                 <Link
