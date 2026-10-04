@@ -146,7 +146,6 @@ function Section({ title, children, aside }: { title: string; children: React.Re
 /// los datos ya llenos (ver wompi-widget.ts) — antes había un paso
 /// intermedio con un segundo botón. Ver conversación del 2026-10-01.
 export function CheckoutForm({
-  requireBillingId = false,
   brandSlug,
   basePath = `/t/${brandSlug}`,
   taxRatePercent,
@@ -163,9 +162,6 @@ export function CheckoutForm({
   /// Código de la cookie de atribución de primera parte (ver src/proxy.ts)
   /// — si el comprador llegó por el link de un creador se aplica solo.
   referredCode?: string | null;
-  /// La tienda factura electrónicamente (Dataico): la cédula o NIT es
-  /// obligatoria. Si no, el campo es opcional.
-  requireBillingId?: boolean;
 }) {
   const { items, subtotal, discountCode: cartDiscountCode } = useCart();
   // Un carrito nunca mezcla tipos (ver cart-context.tsx).
@@ -580,8 +576,7 @@ export function CheckoutForm({
               <Field
                 label={idType === "CC" ? "Cédula o NIT" : idTypeInfo.field}
                 inputMode={idType === "PASAPORTE" ? "text" : "numeric"}
-                required={requireBillingId}
-                optional={!requireBillingId}
+                required
                 value={idNumber}
                 onChange={setIdNumber}
               />

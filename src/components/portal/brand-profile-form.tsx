@@ -20,6 +20,7 @@ type Values = {
 
 type Files = {
   logoUrl: string | null;
+  faviconUrl: string | null;
   rutDocumentUrl: string | null;
   camaraComercioUrl: string | null;
 };
@@ -129,6 +130,16 @@ export function BrandProfileForm({
           de creadores, comunicados).
         </p>
         <FileUploadField kind="logo" label="" currentUrl={files.logoUrl} />
+      </div>
+
+      <div>
+        <h2 className="font-display font-semibold text-brand-ink mb-1">Ícono de la pestaña</h2>
+        <p className="text-xs text-brand-ink-soft mb-3">
+          El ícono pequeño que aparece en la pestaña del navegador cuando
+          alguien abre tu tienda (favicon). Cuadrado, mínimo 192×192px, PNG.
+          Si no subes uno, usamos tu logo.
+        </p>
+        <FileUploadField kind="favicon" label="" currentUrl={files.faviconUrl} />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">

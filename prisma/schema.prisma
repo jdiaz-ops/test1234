@@ -525,6 +525,9 @@ model BrandProfile {
   legalName   String? // razón social
   taxId       String? // NIT
   logoUrl     String?
+  /// Ícono de la pestaña del navegador en su tienda (favicon). Si no hay,
+  /// la tienda usa el logo. Ver app/t/[slug]/layout.tsx.
+  faviconUrl  String?
   description String?
   city        String?
   country     String  @default("Colombia")

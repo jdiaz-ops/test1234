@@ -297,15 +297,11 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     );
   }
 
-  // Con facturación electrónica activa (Dataico), la cédula o NIT es
-  // obligatoria — el checkout la pide; esto cubre a quien llame la API
-  // directo.
-  const invoicing = await prisma.dataicoConnection.findUnique({
-    where: { brandId: brand.id },
-    select: { enabled: true },
-  });
-  if (invoicing?.enabled && !(input.billingIdType && input.billingIdNumber?.trim())) {
-    throw new StoreOrderError("Escribe tu cédula o NIT para la factura electrónica.");
+  // El documento del comprador es obligatorio en toda tienda (pedido del
+  // 2026-10-04): lo piden la factura electrónica y las transportadoras. El
+  // checkout ya lo exige; esto cubre a quien llame la API directo.
+  if (!(input.billingIdType && input.billingIdNumber?.trim())) {
+    throw new StoreOrderError("Escribe tu número de documento.");
   }
 
   const productIds = input.items.map((i) => i.productId);

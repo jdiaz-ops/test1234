@@ -5,6 +5,7 @@ import { uploadFile, FileUploadError } from "@/lib/file-upload";
 
 const FIELD_BY_KIND: Record<string, string> = {
   logo: "logoUrl",
+  favicon: "faviconUrl",
   rut: "rutDocumentUrl",
   camara: "camaraComercioUrl",
 };
@@ -22,6 +23,11 @@ export async function POST(req: Request) {
   }
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "Selecciona un archivo" }, { status: 400 });
+  }
+
+  // El ícono de la pestaña tiene que ser una imagen (un PDF no sirve).
+  if (kind === "favicon" && !file.type.startsWith("image/")) {
+    return NextResponse.json({ error: "El ícono tiene que ser una imagen PNG, JPG, WEBP o SVG." }, { status: 400 });
   }
 
   try {

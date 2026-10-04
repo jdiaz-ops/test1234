@@ -71,6 +71,7 @@ export default async function OnboardingPage() {
               },
               files: {
                 logoUrl: profile.logoUrl,
+                faviconUrl: profile.faviconUrl,
                 rutDocumentUrl: profile.rutDocumentUrl,
                 camaraComercioUrl: profile.camaraComercioUrl,
               },

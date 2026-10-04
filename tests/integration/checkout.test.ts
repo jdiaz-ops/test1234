@@ -192,6 +192,21 @@ describe.skipIf(!hasDb)("checkout: la ruta que usa el navegador", () => {
     expect(order).toMatchObject({ billingIdType: "CC", billingIdNumber: "1020304050" });
   });
 
+  it("sin número de documento no crea el pedido", async () => {
+    const brand = await createSellingBrand();
+    const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });
+    const res = await post(brand.storefrontSlug!, {
+      ...BUYER,
+      buyerEmail: email("sindoc"),
+      items: [{ productId: placa.id, quantity: 1 }],
+      billingIdType: "CE",
+      billingIdNumber: "",
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Escribe tu número de documento.");
+    expect(await prisma.storeOrder.count({ where: { brandId: brand.id } })).toBe(0);
+  });
+
   it("devuelve el link directo a Wompi con los datos del comprador y guarda los campos nuevos", async () => {
     const brand = await createSellingBrand();
     const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });
@@ -253,17 +268,6 @@ describe.skipIf(!hasDb)("checkout: la ruta que usa el navegador", () => {
       where: { brandId_email: { brandId: brand.id, email: buyerEmail } },
     });
     expect(customer.emailSubscribed).toBe(true);
-  });
-
-  it("con facturación de Dataico activa, la cédula o NIT es obligatoria", async () => {
-    const brand = await createSellingBrand();
-    await prisma.dataicoConnection.create({
-      data: { brandId: brand.id, accountId: "a", authToken: "t", prefix: "FE", nextNumber: 1, enabled: true },
-    });
-    const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });
-    const res = await post(brand.storefrontSlug!, { ...BUYER, buyerEmail: email("sinid"), items: [{ productId: placa.id, quantity: 1 }] });
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/cédula o NIT/);
   });
 
   it("sin la casilla responde el mensaje de autorización", async () => {

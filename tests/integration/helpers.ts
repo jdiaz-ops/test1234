@@ -106,5 +106,7 @@ export const BUYER = {
   shippingAddress: "Calle 1 # 2-3",
   shippingCity: "Medellín",
   shippingRegion: "Antioquia",
+  billingIdType: "CC" as const,
+  billingIdNumber: "1020304050",
   dataConsent: true,
 };

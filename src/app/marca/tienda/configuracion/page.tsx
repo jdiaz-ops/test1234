@@ -32,6 +32,7 @@ export default async function TiendaConfiguracionPage() {
         }}
         files={{
           logoUrl: profile.logoUrl,
+          faviconUrl: profile.faviconUrl,
           rutDocumentUrl: profile.rutDocumentUrl,
           camaraComercioUrl: profile.camaraComercioUrl,
         }}

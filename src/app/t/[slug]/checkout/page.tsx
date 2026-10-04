@@ -3,7 +3,6 @@ import { TrackInitiateCheckout } from "@/components/storefront/pixel-events";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
-import { prisma } from "@/lib/prisma";
 import { getActiveWompiKeys } from "@/server/integrations/wompi-client";
 import { CheckoutForm } from "@/components/storefront/checkout-form";
 import { CartIcon } from "@/components/storefront/mobile-nav-icons";
@@ -21,11 +20,6 @@ export default async function StorefrontCheckoutPage({
   if (!brand) notFound();
 
   const paymentsReady = getActiveWompiKeys(brand) !== null;
-  // Con la facturación de Dataico activa, la cédula o NIT es obligatoria
-  // en el checkout (si no, opcional). Ver dataico-service.ts.
-  const askBilling = Boolean(
-    (await prisma.dataicoConnection.findUnique({ where: { brandId: brand.id }, select: { enabled: true } }))?.enabled,
-  );
   const basePath = await getStoreBasePath(slug);
   const theme = await getStorefrontTheme(brand.id);
   const headerBg = checkoutHeaderColor(theme);
@@ -73,7 +67,6 @@ export default async function StorefrontCheckoutPage({
       </header>
       <TrackInitiateCheckout />
       <CheckoutForm
-        requireBillingId={askBilling}
         brandSlug={slug}
         basePath={basePath}
         taxRatePercent={Number(brand.taxRatePercent)}

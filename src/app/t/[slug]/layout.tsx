@@ -2,6 +2,7 @@ import { PoweredByBadge } from "@/components/storefront/powered-by-badge";
 import { AdPixels } from "@/components/storefront/ad-pixels";
 import { AnnouncementBar } from "@/components/storefront/announcement-bar";
 import { StoreFooter } from "@/components/storefront/store-footer";
+import { HideInCheckout } from "@/components/storefront/hide-in-checkout";
 import { PromoPopup } from "@/components/storefront/promo-popup";
 import { MobileBottomNav } from "@/components/storefront/mobile-bottom-nav";
 import { CartProvider } from "@/components/storefront/cart-context";
@@ -10,6 +11,7 @@ import { StorefrontThemeProvider } from "@/components/storefront/storefront-them
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { resolveSlugRedirect } from "@/server/services/brand-store-config-service";
 import { ROOT_DOMAIN } from "@/lib/subdomain";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
@@ -28,6 +30,21 @@ import {
 /// existía) y el pop-up promocional. Ver conversación del 2026-09-14,
 /// recorrido completo del editor de diseño de Tiendanube — esto es el
 /// motor que aplica lo que se configura en /marca/tienda/diseno.
+/// La pestaña del navegador muestra el ícono de la marca (o su logo), no
+/// el de Marcolini. El favicon.ico de Marcolini vive en public/ (no en
+/// app/) justamente para que esto lo pueda reemplazar: el de app/ se pega
+/// en todas las páginas sin importar lo que diga acá.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const brand = await getStorefrontBrand(slug);
+  const icon = brand?.faviconUrl || brand?.logoUrl;
+  return icon ? { icons: { icon, apple: icon } } : {};
+}
+
 export default async function StorefrontLayout({
   children,
   params,
@@ -100,16 +117,18 @@ export default async function StorefrontLayout({
           >
             <AnnouncementBar config={theme.announcementBar} colors={theme.colors} />
             {children}
-            <StoreFooter
-              config={theme.footer}
-              colors={theme.colors}
-              phone={brand.phone}
-              websiteUrl={brand.websiteUrl}
-              instagramHandle={brand.instagramHandle}
-              tiktokHandle={brand.tiktokHandle}
-              menuItems={menuItems}
-              basePath={basePath}
-            />
+            <HideInCheckout>
+              <StoreFooter
+                config={theme.footer}
+                colors={theme.colors}
+                phone={brand.phone}
+                websiteUrl={brand.websiteUrl}
+                instagramHandle={brand.instagramHandle}
+                tiktokHandle={brand.tiktokHandle}
+                menuItems={menuItems}
+                basePath={basePath}
+              />
+            </HideInCheckout>
             <PromoPopup config={theme.popup} brandSlug={slug} />
             <MobileBottomNav config={theme.mobileNav} basePath={basePath} />
             <PoweredByBadge />

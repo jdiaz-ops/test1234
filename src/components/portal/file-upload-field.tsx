@@ -9,7 +9,7 @@ export function FileUploadField({
   hint,
   currentUrl,
 }: {
-  kind: "logo" | "rut" | "camara";
+  kind: "logo" | "favicon" | "rut" | "camara";
   label: string;
   hint?: string;
   currentUrl: string | null;
@@ -72,7 +72,7 @@ export function FileUploadField({
           {uploading ? "Subiendo..." : currentUrl ? "Reemplazar" : "Subir archivo"}
           <input
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml,application/pdf"
+            accept={kind === "logo" || kind === "favicon" ? "image/png,image/jpeg,image/webp,image/svg+xml" : "image/png,image/jpeg,image/webp,image/svg+xml,application/pdf"}
             onChange={handleChange}
             disabled={uploading}
             className="hidden"
