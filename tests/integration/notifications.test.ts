@@ -27,8 +27,15 @@ describe.skipIf(!hasDb)("notificaciones", () => {
     // Mismo texto por defecto que SALE_COMMISSION, a través de su clave.
     NOTIFICATION_TYPE_DEFAULTS.push({ ...def, key });
     try {
-      const n = await createNotification(user.id, key, { marca: "H la Cosedora", monto: "$ 432" });
-      expect(n?.message).toBe("¡Vendiste con tu código en H la Cosedora! Ganaste $ 432 de comisión.");
+      const n = await createNotification(user.id, key, {
+        marca: "H la Cosedora",
+        monto: "$ 432",
+        fecha_pago: "15 de noviembre",
+        mes: "octubre",
+      });
+      expect(n?.message).toBe(
+        "¡Vendiste con tu código en H la Cosedora! Ganaste $ 432 de comisión. Se te paga el 15 de noviembre, junto con tus demás ventas de octubre.",
+      );
     } finally {
       NOTIFICATION_TYPE_DEFAULTS.pop();
       await prisma.notificationTypeConfig.delete({ where: { key } });

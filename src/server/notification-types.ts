@@ -23,8 +23,8 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
-      "¡Vendiste con tu código en {marca}! Ganaste {monto} de comisión.",
-    placeholders: "marca,monto",
+      "¡Vendiste con tu código en {marca}! Ganaste {monto} de comisión. Se te paga el {fecha_pago}, junto con tus demás ventas de {mes}.",
+    placeholders: "marca,monto,fecha_pago,mes",
   },
   {
     key: "REFERRAL_QUALIFIED",

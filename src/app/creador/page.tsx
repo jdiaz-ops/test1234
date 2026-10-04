@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCreatorDashboardSummary } from "@/server/services/creator-finance-service";
 import { CAMPAIGNS_ENABLED } from "@/lib/features";
+import { formatPayoutDay, monthName } from "@/lib/payout-calendar";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -12,8 +13,8 @@ function formatCOP(amount: number) {
   }).format(amount);
 }
 
-function formatDay(date: Date) {
-  return date.toLocaleDateString("es-CO", { day: "numeric", month: "long", timeZone: "America/Bogota" });
+function capitalize(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 export default async function CreadorDashboardPage() {
@@ -80,38 +81,29 @@ export default async function CreadorDashboardPage() {
       {/* 2 columnas desde el arranque en mobile (antes se apilaban una
           debajo de otra) — mismo tratamiento que los dashboards de admin
           y marca. */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-10">
-        {/* La comisión recién ganada no espera a los 15 días para verse:
-            sale aquí apenas se vende, con la fecha en que se confirma. */}
+      {/* Cierre por mes: lo vendido en un mes se paga el día de pago del
+          mes siguiente (ver lib/payout-calendar.ts). */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-10">
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
-          <p className="text-xs text-brand-ink-soft mb-1">En espera</p>
+          <p className="text-xs text-brand-ink-soft mb-1">
+            Comisiones de {monthName(summary.monthStart)}
+          </p>
           <p className="font-display text-lg sm:text-2xl font-semibold text-brand-ink">
-            {formatCOP(summary.pendingTotal)}
+            {formatCOP(summary.thisMonthTotal)}
           </p>
           <p className="text-xs text-brand-ink-soft mt-1">
-            {summary.pendingConfirmsAt
-              ? `se confirma desde el ${formatDay(summary.pendingConfirmsAt)}, si no hay devoluciones`
-              : "sin ventas en espera"}
+            se pagan el {formatPayoutDay(summary.thisMonthPayout)}
           </p>
         </div>
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
-          <p className="text-xs text-brand-ink-soft mb-1">Comisión confirmada</p>
-          <p className="font-display text-lg sm:text-2xl font-semibold text-brand-ink">
-            {formatCOP(summary.approvedPendingPayout)}
+          <p className="text-xs text-brand-ink-soft mb-1">
+            Próximo pago · {formatPayoutDay(summary.nextPayout)}
           </p>
-          <p className="text-xs text-brand-ink-soft mt-1">lista para tu próximo pago</p>
-        </div>
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
-          <p className="text-xs text-brand-ink-soft mb-1">Próximo pago</p>
           <p className="font-display text-lg sm:text-2xl font-semibold text-brand-ink">
-            {formatDay(summary.nextPayout)}
+            {formatCOP(summary.nextPayoutAmount)}
           </p>
           <p className="text-xs text-brand-ink-soft mt-1">
-            {summary.nextPayoutAmount > 0
-              ? `recibes ${formatCOP(summary.nextPayoutAmount)}`
-              : summary.pendingPayoutDate
-                ? `tu comisión en espera se paga el ${formatDay(summary.pendingPayoutDate)}`
-                : "solo montos ya confirmados"}
+            {capitalize(`lo que vendiste en ${monthName(summary.nextPayoutSalesMonth)}`)}
           </p>
         </div>
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">

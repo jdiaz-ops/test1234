@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { recordOrderFromWebhook } from "@/server/services/attribution-service";
 import { getBrandDashboardSummary } from "@/server/services/brand-finance-service";
-import { getCreatorDashboardSummary, payoutDateOnOrAfter } from "@/server/services/creator-finance-service";
+import { getCreatorDashboardSummary } from "@/server/services/creator-finance-service";
+import { payoutDateForSale } from "@/lib/payout-calendar";
 import { createBrand, hasDb } from "./helpers";
 
 /// Una venta de $5.400 con el código de una creadora al 8 % (el caso real
@@ -48,30 +49,16 @@ describe.skipIf(!hasDb)("dashboards", () => {
     expect(summary.monthPlatformFee).toBeCloseTo(fee + Math.round(fee * Number(config.vatPercent)) / 100, 2);
   });
 
-  it("creadora: ve la comisión en espera y en qué pago le llega", async () => {
+  it("creadora: ve lo que lleva este mes, cuándo se le paga y la comisión queda para ese día", async () => {
     const { creator, config } = await saleWithCreatorCode();
     const summary = await getCreatorDashboardSummary(creator.id);
-    expect(summary.pendingTotal).toBe(432);
-    expect(summary.approvedPendingPayout).toBe(0);
+    expect(summary.thisMonthTotal).toBe(432);
     expect(summary.topBrands).toHaveLength(1);
-    expect(summary.pendingConfirmsAt).not.toBeNull();
-    // Se confirma a los N días; si eso cae después del próximo pago, va al
-    // siguiente, y ese pago todavía no la incluye.
-    const confirms = summary.pendingConfirmsAt!;
-    if (confirms >= summary.nextPayout) {
-      expect(summary.nextPayoutAmount).toBe(0);
-      expect(summary.pendingPayoutDate!.getTime()).toBeGreaterThan(confirms.getTime());
-      expect(summary.pendingPayoutDate!.getDate()).toBe(config.payoutDayOfMonth);
-    } else {
-      expect(summary.nextPayoutAmount).toBe(432);
-    }
-  });
-});
-
-describe("fecha de pago", () => {
-  it("el mismo día cuenta; si ya pasó, el del mes siguiente", () => {
-    expect(payoutDateOnOrAfter(new Date(2026, 9, 4), 15)).toEqual(new Date(2026, 9, 15));
-    expect(payoutDateOnOrAfter(new Date(2026, 9, 15, 18), 15)).toEqual(new Date(2026, 9, 15));
-    expect(payoutDateOnOrAfter(new Date(2026, 9, 20), 15)).toEqual(new Date(2026, 10, 15));
+    const payout = payoutDateForSale(new Date(), config.payoutDayOfMonth, config.refundHoldDays);
+    expect(summary.thisMonthPayout).toEqual(payout);
+    // La venta de hoy se paga el día de pago del mes siguiente, no antes.
+    expect(summary.nextPayoutAmount).toBe(0);
+    const commission = await prisma.commission.findFirstOrThrow({ where: { creatorProfileId: creator.id } });
+    expect(commission.holdUntil).toEqual(payout);
   });
 });

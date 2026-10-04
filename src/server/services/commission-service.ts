@@ -4,6 +4,7 @@ import { getActiveCommissionBoost } from "@/server/services/challenge-service";
 import { createNotification } from "@/server/services/notification-service";
 import { checkReferralQualification } from "@/server/services/referral-service";
 import { flagPotentialFraud } from "@/server/services/admin-fraud-service";
+import { formatPayoutDay, monthName, payoutDateForSale } from "@/lib/payout-calendar";
 
 export class CommissionError extends Error {}
 
@@ -21,12 +22,20 @@ function formatCOP(amount: number) {
 /// no calificó), y de paso revisa si esta fue la primera venta de un
 /// creador referido (ver referral-service.ts).
 async function notifyOnSale(
-  transaction: { creatorId: string; creator: { userId: string; displayName: string }; brand: { companyName: string } },
-  amounts: { creatorCommissionAmount: number; platformFeeAmount: number }
+  transaction: {
+    creatorId: string;
+    occurredAt: Date;
+    creator: { userId: string; displayName: string };
+    brand: { companyName: string };
+  },
+  amounts: { creatorCommissionAmount: number; platformFeeAmount: number },
+  payoutDate: Date,
 ) {
   await createNotification(transaction.creator.userId, "SALE_COMMISSION", {
     marca: transaction.brand.companyName,
     monto: formatCOP(amounts.creatorCommissionAmount),
+    fecha_pago: formatPayoutDay(payoutDate),
+    mes: monthName(transaction.occurredAt),
   });
 
   const admins = await prisma.user.findMany({
@@ -46,12 +55,6 @@ async function notifyOnSale(
   await checkReferralQualification(transaction.creatorId);
 }
 
-function addDays(date: Date, days: number) {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
 /// Motor de Comisiones: toma una Transaction ya creada por el Motor de
 /// Atribución y calcula el reparto exacto — el mismo cálculo que ya se le
 /// muestra a las marcas en la calculadora de costos al crear su oferta (ver
@@ -63,9 +66,10 @@ function addDays(date: Date, days: number) {
 ///   platformFeeAmount       = netAmount * % tarifa Marcolini
 ///   platformFeeVatAmount    = platformFeeAmount * % IVA
 ///
-/// La comisión nace PENDING con un `holdUntil` (hoy + días de espera por
-/// reembolsos configurados en PlatformConfig) — el Motor de Pagos (tarea
-/// siguiente) es quien agrupa las APPROVED en un Payout real.
+/// La comisión nace PENDING con un `holdUntil` = el día en que se le paga
+/// (cierre por mes: el día de pago del mes siguiente a la venta, ver
+/// lib/payout-calendar.ts). Ese día el cron la aprueba y enseguida el Motor
+/// de Pagos la agrupa en un Payout real.
 export async function createCommissionForTransaction(transactionId: string) {
   const existing = await prisma.commission.findUnique({ where: { transactionId } });
   if (existing) return existing; // idempotente — nunca se duplica una comisión
@@ -104,6 +108,7 @@ export async function createCommissionForTransaction(transactionId: string) {
   const platformFeeAmount = round2(netAmount * (platformFeePercent / 100));
   const platformFeeVatAmount = round2(platformFeeAmount * (vatPercent / 100));
 
+  const payoutDate = payoutDateForSale(transaction.occurredAt, config.payoutDayOfMonth, config.refundHoldDays);
   const commission = await prisma.commission.create({
     data: {
       transactionId: transaction.id,
@@ -112,11 +117,11 @@ export async function createCommissionForTransaction(transactionId: string) {
       platformFeeAmount: new Prisma.Decimal(platformFeeAmount),
       platformFeeVatAmount: new Prisma.Decimal(platformFeeVatAmount),
       status: "PENDING",
-      holdUntil: addDays(transaction.occurredAt, config.refundHoldDays),
+      holdUntil: payoutDate,
     },
   });
 
-  await notifyOnSale(transaction, { creatorCommissionAmount, platformFeeAmount });
+  await notifyOnSale(transaction, { creatorCommissionAmount, platformFeeAmount }, payoutDate);
 
   return commission;
 }
@@ -191,7 +196,7 @@ async function checkAbnormalRefundRate(creatorId: string, transactionId: string)
   );
 }
 
-/// Levanta la espera de 15 días: toda comisión PENDING cuyo holdUntil ya
+/// Levanta la espera (hasta el día de pago): toda comisión PENDING cuyo holdUntil ya
 /// pasó, y cuya venta sigue en pie (no se reembolsó mientras tanto), pasa a
 /// APPROVED — lista para el próximo Payout del Motor de Pagos. Se ejecuta a
 /// diario (la tarea del Motor de Pagos programará esto); mientras tanto el

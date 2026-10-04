@@ -1,40 +1,40 @@
 import { prisma } from "@/lib/prisma";
+import { bogotaDate, bogotaMidnight, nextPayoutDate, payoutDateForSale } from "@/lib/payout-calendar";
 
-/// Primer día de pago (payoutDayOfMonth) que cae en o después de `from`.
-export function payoutDateOnOrAfter(from: Date, dayOfMonth: number) {
-  const candidate = new Date(from.getFullYear(), from.getMonth(), dayOfMonth);
-  if (candidate < new Date(from.getFullYear(), from.getMonth(), from.getDate())) {
-    candidate.setMonth(candidate.getMonth() + 1);
-  }
-  return candidate;
-}
-
-/// Resumen para el Dashboard del creador. Muestra lo confirmado (aprobado
-/// o pagado) y también lo que sigue en los días de espera por devoluciones
-/// — antes solo lo confirmado, y una creadora que acababa de recibir
-/// "ganaste $432" entraba y veía $0 (2026-10-04).
+/// Resumen para el Dashboard del creador, con el cierre por mes (ver
+/// lib/payout-calendar.ts): lo que lleva vendido este mes y cuándo se le
+/// paga, cuánto recibe en el próximo pago y lo ya pagado en el año.
 export async function getCreatorDashboardSummary(creatorId: string) {
-  const [approved, pending, paidThisYear, config, transactions] = await Promise.all([
+  const now = new Date();
+  const today = bogotaDate(now);
+  const monthStart = bogotaMidnight(today.year, today.month, 1);
+  const config = await prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } });
+  const nextPayout = nextPayoutDate(now, config.payoutDayOfMonth);
+
+  const [thisMonth, approved, pendingDue, paidThisYear, transactions] = await Promise.all([
+    prisma.commission.aggregate({
+      where: { transaction: { creatorId, occurredAt: { gte: monthStart } }, status: { not: "REVERSED" } },
+      _sum: { creatorCommissionAmount: true },
+    }),
     prisma.commission.aggregate({
       where: { transaction: { creatorId }, status: "APPROVED" },
       _sum: { creatorCommissionAmount: true },
     }),
-    prisma.commission.findMany({
-      where: { transaction: { creatorId, status: "COMPLETED" }, status: "PENDING" },
-      select: { creatorCommissionAmount: true, holdUntil: true },
-      orderBy: { holdUntil: "asc" },
+    // Las que el cron aprueba el mismo día de pago, antes de pagar.
+    prisma.commission.aggregate({
+      where: { transaction: { creatorId, status: "COMPLETED" }, status: "PENDING", holdUntil: { lte: nextPayout } },
+      _sum: { creatorCommissionAmount: true },
     }),
     prisma.commission.aggregate({
       where: {
         transaction: { creatorId },
         status: "PAID",
-        approvedAt: { gte: new Date(new Date().getFullYear(), 0, 1) },
+        approvedAt: { gte: bogotaMidnight(today.year, 0, 1) },
       },
       _sum: { creatorCommissionAmount: true },
     }),
-    prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } }),
-    // Top marcas por comisión generada (también la que sigue en espera) —
-    // se agrupa en memoria porque agrupar por una relación anidada
+    // Top marcas por comisión generada (también la que todavía no se
+    // paga) — se agrupa en memoria porque agrupar por una relación anidada
     // (offer.brand) no lo soporta groupBy.
     prisma.transaction.findMany({
       where: { creatorId, commission: { status: { in: ["PENDING", "APPROVED", "PAID"] } } },
@@ -51,34 +51,21 @@ export async function getCreatorDashboardSummary(creatorId: string) {
   }
   const topBrandsList = Array.from(byBrand.values()).sort((a, b) => b.total - a.total).slice(0, 5);
 
-  const approvedTotal = Number(approved._sum.creatorCommissionAmount ?? 0);
-  const pendingTotal = pending.reduce((sum, c) => sum + Number(c.creatorCommissionAmount), 0);
-  const nextPayout = payoutDateOnOrAfter(new Date(), config.payoutDayOfMonth);
-  // Lo que entra al próximo pago: lo ya aprobado más lo que termina la
-  // espera antes de ese día (el cron aprueba y paga el mismo día, en ese
-  // orden; se cuenta solo lo que vence antes de que empiece el día, para
-  // no prometer de más).
-  const nextPayoutAmount =
-    approvedTotal +
-    pending.filter((c) => c.holdUntil && c.holdUntil < nextPayout).reduce((sum, c) => sum + Number(c.creatorCommissionAmount), 0);
-  const firstPendingConfirm = pending[0]?.holdUntil ?? null;
-
   return {
-    approvedPendingPayout: approvedTotal,
-    pendingTotal,
-    pendingConfirmsAt: firstPendingConfirm,
-    // Si lo que está en espera no alcanza el próximo pago, en qué pago cae.
-    pendingPayoutDate:
-      firstPendingConfirm && firstPendingConfirm >= nextPayout
-        ? payoutDateOnOrAfter(
-            new Date(firstPendingConfirm.getFullYear(), firstPendingConfirm.getMonth(), firstPendingConfirm.getDate() + 1),
-            config.payoutDayOfMonth,
-          )
-        : null,
+    monthStart,
+    thisMonthTotal: Number(thisMonth._sum.creatorCommissionAmount ?? 0),
+    // Cuándo se paga lo que se venda hoy (el último día del mes da el mismo
+    // pago, salvo que no alcance los días de espera).
+    thisMonthPayout: payoutDateForSale(now, config.payoutDayOfMonth, config.refundHoldDays),
     nextPayout,
-    nextPayoutAmount,
+    nextPayoutAmount:
+      Number(approved._sum.creatorCommissionAmount ?? 0) + Number(pendingDue._sum.creatorCommissionAmount ?? 0),
+    // Las ventas que entran al próximo pago son las del mes anterior a él.
+    nextPayoutSalesMonth: (() => {
+      const p = bogotaDate(nextPayout);
+      return bogotaMidnight(p.year, p.month - 1, 1);
+    })(),
     paidThisYear: Number(paidThisYear._sum.creatorCommissionAmount ?? 0),
-    payoutDayOfMonth: config.payoutDayOfMonth,
     topBrands: topBrandsList,
   };
 }

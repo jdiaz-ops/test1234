@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getCreatorTransactions } from "@/server/services/creator-finance-service";
+import { formatPayoutDay } from "@/lib/payout-calendar";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -10,12 +11,22 @@ function formatCOP(amount: number) {
   }).format(amount);
 }
 
-const statusLabel: Record<string, string> = {
-  PENDING: "Pendiente",
-  APPROVED: "Aprobada",
-  PAID: "Pagada",
-  REVERSED: "Revertida",
-};
+/// Con el cierre por mes, cada venta dice el día en que se paga
+/// (holdUntil, ver lib/payout-calendar.ts) en vez de "Pendiente".
+function statusLabel(commission: { status: string; holdUntil: Date | null }) {
+  switch (commission.status) {
+    case "PENDING":
+      return commission.holdUntil ? `Se paga el ${formatPayoutDay(commission.holdUntil)}` : "Por pagar";
+    case "APPROVED":
+      return "Por pagar";
+    case "PAID":
+      return "Pagada";
+    case "REVERSED":
+      return "Anulada por devolución";
+    default:
+      return "—";
+  }
+}
 
 const statusColor: Record<string, string> = {
   PENDING: "text-brand-ink-soft",
@@ -62,7 +73,7 @@ export default async function TransaccionesPage() {
                 {transactions.map((t) => (
                   <tr key={t.id}>
                     <td className="px-5 py-3 text-brand-ink-soft font-mono">
-                      {t.occurredAt.toLocaleDateString("es-CO")}
+                      {t.occurredAt.toLocaleDateString("es-CO", { timeZone: "America/Bogota" })}
                     </td>
                     <td className="px-5 py-3 text-brand-ink">
                       {t.offer.brand.companyName}
@@ -80,7 +91,7 @@ export default async function TransaccionesPage() {
                     <td
                       className={`px-5 py-3 font-medium ${t.commission ? statusColor[t.commission.status] : ""}`}
                     >
-                      {t.commission ? statusLabel[t.commission.status] : "—"}
+                      {t.commission ? statusLabel(t.commission) : "—"}
                     </td>
                   </tr>
                 ))}
