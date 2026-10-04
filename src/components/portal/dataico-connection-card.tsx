@@ -20,8 +20,8 @@ type Numbering = {
 };
 
 /// Conexión directa con la API de Dataico: cada venta pagada se factura
-/// sola ante la DIAN, con la cédula o NIT del comprador si la dio en el
-/// checkout (si no, consumidor final). Ver dataico-service.ts.
+/// sola ante la DIAN, con el documento que el comprador da en el checkout
+/// (obligatorio desde el 2026-10-04). Ver dataico-service.ts.
 export function DataicoConnectionCard({
   initial,
   hasDataicoWebhook,
@@ -44,6 +44,10 @@ export function DataicoConnectionCard({
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  // Lo último guardado — de acá sale la etiqueta de estado, para que pase
+  // de "Pausada" a "Facturando" apenas se guarda, sin esperar a que la
+  // página se recargue (antes se quedaba en "Pausada").
+  const [savedState, setSavedState] = useState(initial ? { enabled: initial.enabled, env: initial.env } : null);
 
   async function testConnection() {
     setTesting(true);
@@ -101,6 +105,7 @@ export function DataicoConnectionCard({
     }
     setToken("");
     setChangingToken(false);
+    setSavedState({ enabled, env });
     setMessage({ ok: true, text: enabled ? "Guardado. Las próximas ventas pagadas se facturan solas." : "Guardado." });
     router.refresh();
   }
@@ -108,14 +113,15 @@ export function DataicoConnectionCard({
   async function disconnect() {
     if (!window.confirm("¿Desconectar Dataico? Las ventas dejan de facturarse solas.")) return;
     await fetch("/api/marca/tienda/conexiones/dataico", { method: "DELETE" });
+    setSavedState(null);
     router.refresh();
     setOpen(false);
   }
 
-  const status = !initial
+  const status = !savedState
     ? { label: "Sin conectar", className: "bg-brand-bg text-brand-ink-soft border border-brand-line" }
-    : initial.enabled
-      ? initial.env === "PRODUCCION"
+    : savedState.enabled
+      ? savedState.env === "PRODUCCION"
         ? { label: "Facturando", className: "bg-emerald-100 text-emerald-800" }
         : { label: "En pruebas", className: "bg-amber-100 text-amber-800" }
       : { label: "Pausada", className: "bg-brand-bg text-brand-ink-soft border border-brand-line" };
@@ -136,7 +142,7 @@ export function DataicoConnectionCard({
             <span className={`text-[11px] font-medium rounded-md px-1.5 py-0.5 ${status.className}`}>{status.label}</span>
           </span>
           <span className="block text-xs text-brand-ink-soft mt-0.5">
-            Conexión directa: cada venta pagada se factura sola ante la DIAN, con la cédula o NIT del comprador si la da.
+            Conexión directa: cada venta pagada se factura sola ante la DIAN, con el documento del comprador.
           </span>
         </span>
         <svg
