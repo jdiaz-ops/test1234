@@ -12,14 +12,8 @@ function formatCOP(amount: number) {
   }).format(amount);
 }
 
-function nextPayoutDate(dayOfMonth: number) {
-  const now = new Date();
-  const candidate = new Date(now.getFullYear(), now.getMonth(), dayOfMonth);
-  if (candidate < now) candidate.setMonth(candidate.getMonth() + 1);
-  return candidate.toLocaleDateString("es-CO", {
-    day: "numeric",
-    month: "long",
-  });
+function formatDay(date: Date) {
+  return date.toLocaleDateString("es-CO", { day: "numeric", month: "long", timeZone: "America/Bogota" });
 }
 
 export default async function CreadorDashboardPage() {
@@ -86,25 +80,38 @@ export default async function CreadorDashboardPage() {
       {/* 2 columnas desde el arranque en mobile (antes se apilaban una
           debajo de otra) — mismo tratamiento que los dashboards de admin
           y marca. */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-10">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-10">
+        {/* La comisión recién ganada no espera a los 15 días para verse:
+            sale aquí apenas se vende, con la fecha en que se confirma. */}
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
-          <p className="text-xs text-brand-ink-soft mb-1">
-            Comisión confirmada
+          <p className="text-xs text-brand-ink-soft mb-1">En espera</p>
+          <p className="font-display text-lg sm:text-2xl font-semibold text-brand-ink">
+            {formatCOP(summary.pendingTotal)}
           </p>
+          <p className="text-xs text-brand-ink-soft mt-1">
+            {summary.pendingConfirmsAt
+              ? `se confirma desde el ${formatDay(summary.pendingConfirmsAt)}, si no hay devoluciones`
+              : "sin ventas en espera"}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
+          <p className="text-xs text-brand-ink-soft mb-1">Comisión confirmada</p>
           <p className="font-display text-lg sm:text-2xl font-semibold text-brand-ink">
             {formatCOP(summary.approvedPendingPayout)}
           </p>
-          <p className="text-xs text-brand-ink-soft mt-1">
-            lista para tu próximo pago
-          </p>
+          <p className="text-xs text-brand-ink-soft mt-1">lista para tu próximo pago</p>
         </div>
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
           <p className="text-xs text-brand-ink-soft mb-1">Próximo pago</p>
           <p className="font-display text-lg sm:text-2xl font-semibold text-brand-ink">
-            {nextPayoutDate(summary.payoutDayOfMonth)}
+            {formatDay(summary.nextPayout)}
           </p>
           <p className="text-xs text-brand-ink-soft mt-1">
-            solo montos ya aprobados
+            {summary.nextPayoutAmount > 0
+              ? `recibes ${formatCOP(summary.nextPayoutAmount)}`
+              : summary.pendingPayoutDate
+                ? `tu comisión en espera se paga el ${formatDay(summary.pendingPayoutDate)}`
+                : "solo montos ya confirmados"}
           </p>
         </div>
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
@@ -112,9 +119,7 @@ export default async function CreadorDashboardPage() {
           <p className="font-display text-lg sm:text-2xl font-semibold text-brand-ink">
             {formatCOP(summary.paidThisYear)}
           </p>
-          <p className="text-xs text-brand-ink-soft mt-1">
-            acumulado en desembolsos
-          </p>
+          <p className="text-xs text-brand-ink-soft mt-1">acumulado en desembolsos</p>
         </div>
       </div>
 

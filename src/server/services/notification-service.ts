@@ -1,13 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { sendPushForUser } from "@/server/services/push-service";
 import { sendGenericNotificationEmail } from "@/lib/email";
+import { NOTIFICATION_TYPE_DEFAULTS } from "@/server/notification-types";
 
 export async function listNotifications(userId: string) {
   return prisma.notification.findMany({
     // PENDING_REVIEW (tipo en modo Manual, esperando que un admin la
     // apruebe) y DISCARDED nunca se muestran en la bandeja normal de nadie
     // — solo las que realmente se mandaron.
-    where: { userId, status: "SENT" },
+    // Sin las vacías que alcanzaron a crearse antes del 2026-10-04 (se
+    // veía solo la fecha).
+    where: { userId, status: "SENT", message: { not: "" } },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -15,7 +18,7 @@ export async function listNotifications(userId: string) {
 
 /// Para la burbuja de notificaciones pendientes en el menú lateral.
 export async function countUnreadNotifications(userId: string) {
-  return prisma.notification.count({ where: { userId, read: false, status: "SENT" } });
+  return prisma.notification.count({ where: { userId, read: false, status: "SENT", message: { not: "" } } });
 }
 
 export async function markNotificationRead(userId: string, notificationId: string) {
@@ -64,10 +67,16 @@ export async function createNotification(
   const config = await prisma.notificationTypeConfig.findUnique({ where: { key: type } });
   if (config && !config.enabled) return null;
 
-  const message =
-    typeof content === "string"
-      ? content
-      : interpolate(config?.messageTemplate ?? "", content);
+  // Si el tipo no tiene texto guardado en la base (fila sin sembrar o texto
+  // borrado en Admin → Notificaciones), se usa el texto por defecto del
+  // catálogo. Antes salía una notificación vacía, solo con la fecha.
+  const template =
+    config?.messageTemplate?.trim() || NOTIFICATION_TYPE_DEFAULTS.find((d) => d.key === type)?.messageTemplate || "";
+  const message = (typeof content === "string" ? content : interpolate(template, content)).trim();
+  if (!message) {
+    console.error(`[notificaciones] El tipo "${type}" no tiene texto: no se crea una notificación vacía.`);
+    return null;
+  }
 
   const mode = config?.mode ?? "AUTOMATIC";
   const notification = await prisma.notification.create({
