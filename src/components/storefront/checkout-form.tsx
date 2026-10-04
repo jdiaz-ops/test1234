@@ -190,6 +190,61 @@ export function CheckoutForm({
   const [servicePreferredAt, setServicePreferredAt] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
 
+  // Los datos del comprador se guardan en su navegador mientras escribe:
+  // si recarga la página (o vuelve después) no tiene que llenar todo otra
+  // vez. Solo en ese dispositivo, nunca en el servidor. Pedido del
+  // 2026-10-04.
+  const draftKey = `mc_checkout_${brandSlug}`;
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      const d = raw ? (JSON.parse(raw) as Partial<Record<string, unknown>>) : null;
+      const str = (v: unknown) => (typeof v === "string" ? v : null);
+      if (d) {
+        /* eslint-disable react-hooks/set-state-in-effect -- localStorage solo se puede leer tras montar */
+        if (str(d.email)) setEmail(str(d.email)!);
+        if (str(d.firstName)) setFirstName(str(d.firstName)!);
+        if (str(d.lastName)) setLastName(str(d.lastName)!);
+        if (str(d.idType) && ID_TYPES.some((t) => t.value === d.idType)) setIdType(str(d.idType)!);
+        if (str(d.idNumber)) setIdNumber(str(d.idNumber)!);
+        if (str(d.companyName)) setCompanyName(str(d.companyName)!);
+        if (str(d.address)) setAddress(str(d.address)!);
+        if (str(d.address2)) setAddress2(str(d.address2)!);
+        if (str(d.city)) setCity(str(d.city)!);
+        if (str(d.region)) setRegion(str(d.region)!);
+        if (str(d.postalCode)) setPostalCode(str(d.postalCode)!);
+        if (str(d.phone)) setPhone(str(d.phone)!);
+        if (typeof d.sameBilling === "boolean") setSameBilling(d.sameBilling);
+        if (str(d.billingAddress)) setBillingAddress(str(d.billingAddress)!);
+        if (str(d.billingCity)) setBillingCity(str(d.billingCity)!);
+        if (str(d.billingRegion)) setBillingRegion(str(d.billingRegion)!);
+        /* eslint-enable react-hooks/set-state-in-effect */
+      }
+    } catch {
+      // Sin localStorage (modo privado) o datos dañados: se llena a mano.
+    }
+    setDraftLoaded(true);
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftLoaded) return;
+    try {
+      window.localStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          email, firstName, lastName, idType, idNumber, companyName, address, address2, city,
+          region, postalCode, phone, sameBilling, billingAddress, billingCity, billingRegion,
+        }),
+      );
+    } catch {
+      // Sin espacio o sin permiso: no pasa nada, solo no se recuerda.
+    }
+  }, [
+    draftLoaded, draftKey, email, firstName, lastName, idType, idNumber, companyName, address, address2,
+    city, region, postalCode, phone, sameBilling, billingAddress, billingCity, billingRegion,
+  ]);
+
   // Date.now() es impuro — se lee una sola vez tras montar.
   const [minServiceDate, setMinServiceDate] = useState("");
   useEffect(() => {
