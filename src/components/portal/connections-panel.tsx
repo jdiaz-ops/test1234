@@ -281,10 +281,13 @@ export function ConnectionsPanel({
   webhooks,
   signingSecret,
   dataico,
+  showDataico,
 }: {
   webhooks: Webhook[];
   signingSecret: string;
   dataico: DataicoConnectionView | null;
+  /// Solo las tiendas de DATAICO_STORE_SLUGS (ver lib/features.ts).
+  showDataico: boolean;
 }) {
   const [creating, setCreating] = useState(false);
   const hasDataicoWebhook = webhooks.some((w) => /^https:\/\/([^/]+\.)?dataico\.com\//i.test(w.url));
@@ -297,7 +300,7 @@ export function ConnectionsPanel({
         que sirven las mismas URLs que ya tenías configuradas allá.
       </p>
 
-      <DataicoConnectionCard initial={dataico} hasDataicoWebhook={hasDataicoWebhook} />
+      {showDataico && <DataicoConnectionCard initial={dataico} hasDataicoWebhook={hasDataicoWebhook} />}
 
       <Card>
         <div className="px-5 pt-4 pb-3">

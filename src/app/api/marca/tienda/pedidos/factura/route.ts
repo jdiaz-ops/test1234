@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireBrandProfile } from "@/lib/current-brand";
+import { dataicoAllowed } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { issueOrderInvoice } from "@/server/services/dataico-service";
 
@@ -10,6 +11,7 @@ const schema = z.object({ orderId: z.string().min(1) });
 export async function POST(req: Request) {
   const profile = await requireBrandProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!dataicoAllowed(profile)) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Pedido inválido" }, { status: 400 });

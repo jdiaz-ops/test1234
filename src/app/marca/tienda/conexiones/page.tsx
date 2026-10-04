@@ -4,20 +4,24 @@ import { SettingsShell } from "@/components/portal/settings-shell";
 import { ConnectionsPanel } from "@/components/portal/connections-panel";
 import { getWebhookSigningSecret, listBrandWebhooks } from "@/server/services/webhook-service";
 import { getDataicoConnection } from "@/server/services/dataico-service";
+import { dataicoAllowed } from "@/lib/features";
 
 export default async function TiendaConexionesPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 
+  // Dataico solo existe para las tiendas de DATAICO_STORE_SLUGS.
+  const showDataico = dataicoAllowed(profile);
   const [webhooks, secret, dataico] = await Promise.all([
     listBrandWebhooks(profile.id),
     getWebhookSigningSecret(profile.id),
-    getDataicoConnection(profile.id),
+    showDataico ? getDataicoConnection(profile.id) : null,
   ]);
 
   return (
     <SettingsShell active="conexiones">
       <ConnectionsPanel
+        showDataico={showDataico}
         dataico={
           dataico
             ? {

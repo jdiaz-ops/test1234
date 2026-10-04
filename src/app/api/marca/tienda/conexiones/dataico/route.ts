@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireBrandProfile } from "@/lib/current-brand";
+import { dataicoAllowed } from "@/lib/features";
 import {
   DataicoError,
   deleteDataicoConnection,
@@ -22,6 +23,7 @@ const dataicoSchema = z.object({
 export async function PUT(req: Request) {
   const profile = await requireBrandProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!dataicoAllowed(profile)) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   const parsed = dataicoSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
@@ -38,6 +40,7 @@ export async function PUT(req: Request) {
 export async function DELETE() {
   const profile = await requireBrandProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!dataicoAllowed(profile)) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   await deleteDataicoConnection(profile.id);
   return NextResponse.json({ ok: true });
 }

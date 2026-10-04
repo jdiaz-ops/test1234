@@ -52,3 +52,15 @@ export const CAMPAIGNS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CAMPAIGNS === "
 /// Para encenderlo: NEXT_PUBLIC_FEATURE_REFERRALS=true. Ver conversación
 /// del 2026-10-01.
 export const REFERRALS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_REFERRALS === "true";
+
+/// Facturación electrónica con Dataico (Configuración → Conexiones y la
+/// factura en el detalle del pedido): módulo hecho a la medida para la
+/// tienda de H la Cosedora, la marca de Juan. Escondido para todas las
+/// demás tiendas: no ven la tarjeta, la API responde 404 y nunca se
+/// factura nada a su nombre. Para dársela a otra tienda, agregar su link
+/// (el {slug} de {slug}.marcolini.lat). Pedido del 2026-10-04.
+export const DATAICO_STORE_SLUGS = ["hlacosedora"];
+
+export function dataicoAllowed(brand: { storefrontSlug: string | null } | null | undefined) {
+  return Boolean(brand?.storefrontSlug && DATAICO_STORE_SLUGS.includes(brand.storefrontSlug));
+}

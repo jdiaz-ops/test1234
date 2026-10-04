@@ -27,8 +27,20 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-async function paidOrder(opts: { billing?: { type: string; number: string; name?: string } } = {}) {
+/// Dataico solo existe para la tienda de H la Cosedora (DATAICO_STORE_SLUGS):
+/// la marca de prueba toma ese link (y se lo quita a la de la prueba
+/// anterior, porque el link es único).
+async function cosedoraBrand() {
   const brand = await createBrand();
+  await prisma.brandProfile.updateMany({
+    where: { storefrontSlug: "hlacosedora" },
+    data: { storefrontSlug: `antes-hlacosedora-${brand.id}` },
+  });
+  return prisma.brandProfile.update({ where: { id: brand.id }, data: { storefrontSlug: "hlacosedora" } });
+}
+
+async function paidOrder(opts: { billing?: { type: string; number: string; name?: string }; otherStore?: boolean } = {}) {
+  const brand = opts.otherStore ? await createBrand() : await cosedoraBrand();
   await saveDataicoConnection(brand.id, {
     accountId: "acct-1",
     authToken: "tok-1",
@@ -135,6 +147,13 @@ describe.skipIf(!hasDb)("factura electrónica con Dataico", () => {
     const customer = calls[0].body!.invoice.customer as Record<string, unknown>;
     expect(customer).not.toHaveProperty("address_line");
     expect(customer).not.toHaveProperty("department");
+  });
+
+  it("en las demás tiendas no factura nada (módulo solo de H la Cosedora)", async () => {
+    const { order } = await paidOrder({ otherStore: true });
+    await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt: new Date() } });
+    expect((await issueOrderInvoice(order.id)).status).toBe("SKIPPED");
+    expect(calls).toHaveLength(0);
   });
 
   it("si Dataico lo rechaza queda el error y se puede reintentar con el mismo número", async () => {

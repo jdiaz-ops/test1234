@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { orderNumber } from "@/lib/order-math";
 import { resolveDaneLocation } from "@/lib/dane";
+import { dataicoAllowed } from "@/lib/features";
 import { fetchWompiTransaction, getActiveWompiKeys } from "@/server/integrations/wompi-client";
 
 /// Conexión directa con la API de Dataico (facturación electrónica ante la
@@ -179,7 +180,7 @@ export async function fetchDataicoNumberings(authToken: string): Promise<Dataico
 // ---------------------------------------------------------------------------
 
 const invoiceOrderInclude = {
-  brand: { select: { taxRatePercent: true, paymentMode: true } },
+  brand: { select: { taxRatePercent: true, paymentMode: true, storefrontSlug: true } },
   items: {
     orderBy: { id: "asc" },
     include: {
@@ -375,6 +376,7 @@ async function wompiPaymentMethod(order: InvoiceOrder & { brand: unknown }) {
 export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISSUED" | "FAILED" | "SKIPPED"; error?: string }> {
   const order = await prisma.storeOrder.findUnique({ where: { id: orderId }, include: invoiceOrderInclude });
   if (!order || order.kind !== "PURCHASE" || order.status !== "PAID") return { status: "SKIPPED" };
+  if (!dataicoAllowed(order.brand)) return { status: "SKIPPED" };
   const connection = await getDataicoConnection(order.brandId);
   if (!connection?.enabled || !connection.prefix) return { status: "SKIPPED" };
   // Un pedido de prueba (Wompi en modo prueba) solo se factura en el

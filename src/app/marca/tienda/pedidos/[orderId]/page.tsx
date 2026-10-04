@@ -4,6 +4,7 @@ import { requireBrandProfile } from "@/lib/current-brand";
 import { canDeleteStoreOrder, getBrandOrderDetail } from "@/server/services/store-order-service";
 import { OrderArchiveActions } from "@/components/portal/order-archive-actions";
 import { getDataicoConnection } from "@/server/services/dataico-service";
+import { dataicoAllowed } from "@/lib/features";
 import { OrderInvoicePanel } from "@/components/portal/order-invoice-panel";
 import { prisma } from "@/lib/prisma";
 import { creatorVitrinaUrl } from "@/lib/creator-identity";
@@ -71,7 +72,8 @@ export default async function TiendaPedidoDetallePage({
   const { orderId } = await params;
   const [order, dataico] = await Promise.all([
     getBrandOrderDetail(profile.id, orderId),
-    getDataicoConnection(profile.id),
+    // Dataico solo para las tiendas de DATAICO_STORE_SLUGS.
+    dataicoAllowed(profile) ? getDataicoConnection(profile.id) : null,
   ]);
   if (!order) notFound();
 

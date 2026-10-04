@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBrandProfile } from "@/lib/current-brand";
+import { dataicoAllowed } from "@/lib/features";
 import { limitOrReject } from "@/lib/rate-limit";
 import {
   DataicoError,
@@ -12,6 +13,7 @@ import {
 export async function POST(req: Request) {
   const profile = await requireBrandProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!dataicoAllowed(profile)) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   const limited = await limitOrReject(req, `dataico-probar:${profile.id}`, 30, 3600);
   if (limited) return limited;
 
