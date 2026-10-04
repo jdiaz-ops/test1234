@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 export async function getBrandDashboardSummary(brandId: string) {
   const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-  const [gmv, orders, commissionPaid, newCreatorsThisMonth, config, brand] = await Promise.all([
+  const [gmv, orders, commissionPaid, newCreatorsThisMonth, config, brand, monthSales, monthCommissions] = await Promise.all([
     prisma.transaction.aggregate({
       where: { offer: { brandId }, status: { not: "REFUNDED" } },
       _sum: { netAmount: true },
@@ -20,6 +20,23 @@ export async function getBrandDashboardSummary(brandId: string) {
     }),
     prisma.platformConfig.findUniqueOrThrow({ where: { id: "singleton" } }),
     prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId } }),
+    // Lo de este mes (para el dashboard): ventas con creadoras y lo que
+    // cuestan, aunque la comisión siga en los 15 días de espera — igual
+    // entra al próximo corte (ver runBrandCharges). Antes el dashboard
+    // decía "Este mes invertiste $0" con comisiones ya causadas, porque
+    // solo contaba las aprobadas. Pedido del 2026-10-04.
+    prisma.transaction.aggregate({
+      where: { offer: { brandId }, status: { not: "REFUNDED" }, occurredAt: { gte: startOfMonth } },
+      _sum: { netAmount: true },
+      _count: true,
+    }),
+    prisma.commission.aggregate({
+      where: {
+        transaction: { offer: { brandId }, occurredAt: { gte: startOfMonth } },
+        status: { not: "REVERSED" },
+      },
+      _sum: { creatorCommissionAmount: true, platformFeeAmount: true, platformFeeVatAmount: true },
+    }),
   ]);
 
   const effectiveFeePercent = brand.platformFeePercentOverride
@@ -35,6 +52,12 @@ export async function getBrandDashboardSummary(brandId: string) {
       Number(commissionPaid._sum.platformFeeAmount ?? 0) +
       Number(commissionPaid._sum.platformFeeVatAmount ?? 0),
     newCreatorsThisMonth,
+    monthSales: Number(monthSales._sum.netAmount ?? 0),
+    monthOrders: monthSales._count,
+    monthCreatorCommissions: Number(monthCommissions._sum.creatorCommissionAmount ?? 0),
+    monthPlatformFee:
+      Number(monthCommissions._sum.platformFeeAmount ?? 0) + Number(monthCommissions._sum.platformFeeVatAmount ?? 0),
+    chargeDayOfMonth: config.chargeDayOfMonth,
     platformFeePercent: effectiveFeePercent,
     vatPercent: Number(config.vatPercent),
   };
