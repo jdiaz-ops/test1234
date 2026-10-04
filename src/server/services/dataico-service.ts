@@ -321,7 +321,8 @@ export function buildDataicoInvoice(
       payment_means_type: "DEBITO",
       payment_means: paymentMeans,
       order_reference: `#${orderNumber(order.reference)}`,
-      notes: [`Pedido #${orderNumber(order.reference)} en Marcolini`],
+      // La factura es de la marca: no menciona Marcolini (pedido del 2026-10-04).
+      notes: [`Pedido #${orderNumber(order.reference)}`],
       customer: customerFor(order),
       items: order.items.map((item, i) => ({
         sku: item.variant?.sku || item.product?.sku || item.product?.slug || `MKL-${order.number}-${i + 1}`,

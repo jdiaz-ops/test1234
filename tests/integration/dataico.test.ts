@@ -122,6 +122,7 @@ describe.skipIf(!hasDb)("factura electrónica con Dataico", () => {
     });
     await issueOrderInvoice(order.id);
     expect(calls[0].body!.invoice.customer).toMatchObject({ address_line: "Calle 10 # 43-12", department: "05", city: "001" });
+    expect(calls[0].body!.invoice.notes).toEqual([expect.stringMatching(/^Pedido #\w+$/)]);
   });
 
   it("si la ciudad no se reconoce factura sin dirección en vez de fallar", async () => {
