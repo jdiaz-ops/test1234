@@ -7,6 +7,6 @@ export async function GET() {
   if (!profile)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const customers = await listStoreCustomers(profile.id);
+  const { customers } = await listStoreCustomers(profile.id, { pageSize: 1_000_000 });
   return NextResponse.json({ customers });
 }

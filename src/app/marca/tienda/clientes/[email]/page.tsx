@@ -64,8 +64,12 @@ export default async function TiendaClienteDetallePage({
           <p className="font-mono text-sm text-brand-ink">{customer.orderCount}</p>
         </div>
         <div className="rounded-xl border border-brand-line bg-brand-surface p-3">
-          <p className="text-[11px] text-brand-ink-soft">Cliente desde</p>
-          <p className="text-sm text-brand-ink">{formatDate(customer.firstOrderAt)}</p>
+          <p className="text-[11px] text-brand-ink-soft">
+            {customer.firstOrderAt ? "Primera compra en Marcolini" : "En Marcolini"}
+          </p>
+          <p className="text-sm text-brand-ink">
+            {customer.firstOrderAt ? formatDate(customer.firstOrderAt) : "Aún no compra"}
+          </p>
         </div>
         <div className="rounded-xl border border-brand-line bg-brand-surface p-3">
           <p className="text-[11px] text-brand-ink-soft" title="Estimado, no un cálculo exacto">
@@ -74,6 +78,13 @@ export default async function TiendaClienteDetallePage({
           <p className="text-sm text-brand-ink">{segment}</p>
         </div>
       </div>
+
+      {customer.importedOrderCount > 0 && (
+        <p className="text-xs text-brand-ink-soft -mt-3 mb-6">
+          Incluye su historial en Shopify: {customer.importedOrderCount}{" "}
+          {customer.importedOrderCount === 1 ? "pedido" : "pedidos"} por {formatCOP(customer.importedSpentCents)}.
+        </p>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -142,15 +153,32 @@ export default async function TiendaClienteDetallePage({
               </p>
               <p className="text-brand-ink">{customer.email}</p>
               <p className="text-brand-ink">{customer.phone}</p>
+              {customer.documentNumber && (
+                <p className="text-brand-ink-soft text-xs mt-1">Documento {customer.documentNumber}</p>
+              )}
+              {customer.company && <p className="text-brand-ink-soft text-xs">{customer.company}</p>}
+            </div>
+            <div>
+              <p className="text-xs font-medium text-brand-ink-soft mb-1">Suscripciones</p>
+              <p className="text-brand-ink text-xs">
+                Correos: {customer.emailSubscribed ? "Sí" : "No"} · SMS y WhatsApp: {customer.smsSubscribed ? "Sí" : "No"}
+              </p>
             </div>
             {customer.city && (
               <div>
                 <p className="text-xs font-medium text-brand-ink-soft mb-1">
                   Ubicación
                 </p>
+                {customer.address && (
+                  <p className="text-brand-ink">
+                    {customer.address}
+                    {customer.address2 && `, ${customer.address2}`}
+                  </p>
+                )}
                 <p className="text-brand-ink">
                   {customer.city}
                   {customer.region && `, ${customer.region}`}
+                  {customer.countryCode && customer.countryCode !== "CO" && ` (${customer.countryCode})`}
                 </p>
               </div>
             )}

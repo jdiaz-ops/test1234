@@ -534,21 +534,21 @@ model BrandProfile {
 
   /// Perfil más sólido — para que se vea profesional y sirva también para
   /// lo tributario/facturación (ver BrandInvoice).
-  websiteUrl        String?
-  phone             String?
-  fiscalAddress     String?
-  taxRegime         String? // ej. "Responsable de IVA" / "No responsable"
-  legalRepName      String? // representante legal
-  legalRepId        String? // cédula del representante legal
-  instagramHandle   String?
-  tiktokHandle      String?
+  websiteUrl      String?
+  phone           String?
+  fiscalAddress   String?
+  taxRegime       String? // ej. "Responsable de IVA" / "No responsable"
+  legalRepName    String? // representante legal
+  legalRepId      String? // cédula del representante legal
+  instagramHandle String?
+  tiktokHandle    String?
 
   /// Píxeles de anuncios de la marca (Configuración → Píxeles de
   /// anuncios). Con solo pegar el ID, su tienda carga el pixel de Meta /
   /// TikTok y les avisa de visitas, productos vistos, carrito, checkout y
   /// compras (ver components/storefront/ad-pixels.tsx). 2026-10-03.
-  metaPixelId   String?
-  tiktokPixelId String?
+  metaPixelId       String?
+  tiktokPixelId     String?
   rutDocumentUrl    String? // PDF/imagen del RUT
   camaraComercioUrl String? // PDF/imagen de Cámara de Comercio
 
@@ -1334,6 +1334,27 @@ model StoreCustomer {
   /// Centavos de COP — solo un número editable, sin libro contable de
   /// movimientos (alcance acotado a propósito).
   storeCreditCents Int      @default(0)
+
+  /// Datos que llegan al importar los clientes de Shopify (ver
+  /// importStoreCustomers, 2026-10-04). La compra en Marcolini no los
+  /// llena: ahí van en el pedido.
+  documentNumber     String?
+  company            String?
+  address            String?
+  address2           String?
+  city               String?
+  region             String?
+  postalCode         String?
+  countryCode        String?
+  /// Aceptó recibir SMS / WhatsApp de la marca.
+  smsSubscribed      Boolean   @default(false)
+  /// Historial de compras en Shopify (pedidos y total gastado), que se
+  /// suma al de Marcolini en la lista de clientes.
+  importedOrderCount Int       @default(0)
+  importedSpentCents Int       @default(0)
+  shopifyCustomerId  String?
+  /// Cuándo llegó por importación (null = nació de una compra o a mano).
+  importedAt         DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
