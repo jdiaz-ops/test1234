@@ -45,6 +45,7 @@ function Field({
   inputMode,
   autoComplete,
   className = "",
+  suggestions,
 }: {
   label: string;
   value: string;
@@ -55,12 +56,24 @@ function Field({
   inputMode?: "text" | "numeric" | "tel" | "email";
   autoComplete?: string;
   className?: string;
+  /// Opciones que el navegador sugiere mientras escribe (se puede escribir
+  /// otra cosa igual).
+  suggestions?: string[];
 }) {
   const id = useId();
+  const listId = `${id}-opciones`;
   return (
     <div className={`relative ${className}`}>
+      {suggestions && suggestions.length > 0 && (
+        <datalist id={listId}>
+          {suggestions.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+      )}
       <input
         id={id}
+        list={suggestions && suggestions.length > 0 ? listId : undefined}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -189,6 +202,24 @@ export function CheckoutForm({
   const [dataConsent, setDataConsent] = useState(false);
   const [servicePreferredAt, setServicePreferredAt] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
+
+  // Ciudades del departamento elegido, para sugerirlas al escribir: así la
+  // ciudad queda con su nombre oficial y la factura electrónica la reconoce
+  // (Dataico pide su código DANE, ver lib/dane.ts). La lista se carga solo
+  // cuando hace falta.
+  const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
+  const [billingCitySuggestions, setBillingCitySuggestions] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    import("@/lib/dane").then(({ municipalitiesOf }) => {
+      if (cancelled) return;
+      setCitySuggestions(region ? municipalitiesOf(region) : []);
+      setBillingCitySuggestions(billingRegion ? municipalitiesOf(billingRegion) : []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [region, billingRegion]);
 
   // Los datos del comprador se guardan en su navegador mientras escribe:
   // si recarga la página (o vuelve después) no tiene que llenar todo otra
@@ -645,7 +676,7 @@ export function CheckoutForm({
                 <Field label="Dirección" autoComplete="address-line1" required value={address} onChange={setAddress} />
                 <Field label="Casa, apartamento, etc." optional autoComplete="address-line2" value={address2} onChange={setAddress2} />
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <Field label="Ciudad" autoComplete="address-level2" required value={city} onChange={setCity} className="col-span-2 sm:col-span-1" />
+                  <Field label="Ciudad" autoComplete="address-level2" required value={city} onChange={setCity} suggestions={citySuggestions} className="col-span-2 sm:col-span-1" />
                   <SelectField label="Departamento" required value={region} onChange={setRegion}>
                     <option value="">Elige uno</option>
                     {COLOMBIA_REGIONS.map((r) => (
@@ -760,7 +791,7 @@ export function CheckoutForm({
                   <div className="border-t border-brand-line bg-brand-bg/40 p-4 space-y-3">
                     <Field label="Dirección" required value={billingAddress} onChange={setBillingAddress} />
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="Ciudad" required value={billingCity} onChange={setBillingCity} />
+                      <Field label="Ciudad" required value={billingCity} onChange={setBillingCity} suggestions={billingCitySuggestions} />
                       <SelectField label="Departamento" required value={billingRegion} onChange={setBillingRegion}>
                         <option value="">Elige uno</option>
                         {COLOMBIA_REGIONS.map((r) => (

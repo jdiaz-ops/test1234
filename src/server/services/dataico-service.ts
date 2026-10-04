@@ -2,6 +2,7 @@ import { after } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { orderNumber } from "@/lib/order-math";
+import { resolveDaneLocation } from "@/lib/dane";
 import { fetchWompiTransaction, getActiveWompiKeys } from "@/server/integrations/wompi-client";
 
 /// Conexión directa con la API de Dataico (facturación electrónica ante la
@@ -250,7 +251,19 @@ function customerFor(order: InvoiceOrder) {
   const first = order.buyerFirstName?.trim() || split.first;
   const last = order.buyerLastName?.trim() || split.last;
   const company = type === "NIT";
-  const addressLine = order.billingAddress ?? order.shippingAddress;
+  // Dataico exige departamento y ciudad (en código DANE) junto con la
+  // dirección; si la ciudad no se puede identificar sin dudas, la factura
+  // sale sin dirección (la DIAN no la exige para quien compra) en vez de
+  // fallar. Antes se mandaba solo la dirección y Dataico la rechazaba:
+  // "Departamento '' es inválido". Ver lib/dane.ts.
+  const useBilling = Boolean(order.billingAddress);
+  const addressLine = useBilling ? order.billingAddress : order.shippingAddress;
+  const location = addressLine
+    ? resolveDaneLocation(
+        useBilling ? order.billingRegion : order.shippingRegion,
+        useBilling ? order.billingCity : order.shippingCity,
+      )
+    : null;
   return {
     party_identification: identification,
     party_identification_type: type,
@@ -260,7 +273,9 @@ function customerFor(order: InvoiceOrder) {
     ...(company ? { company_name: order.billingName?.trim() || order.buyerName } : { first_name: first, family_name: last }),
     email: order.buyerEmail,
     phone: order.buyerPhone,
-    ...(addressLine ? { address_line: addressLine } : {}),
+    ...(addressLine && location
+      ? { address_line: addressLine, department: location.department, city: location.city }
+      : {}),
     country_code: "CO",
   };
 }

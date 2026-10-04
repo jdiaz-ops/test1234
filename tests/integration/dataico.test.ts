@@ -114,6 +114,28 @@ describe.skipIf(!hasDb)("factura electrónica con Dataico", () => {
     });
   });
 
+  it("manda el departamento y la ciudad en código DANE junto con la dirección", async () => {
+    const { order } = await paidOrder({ billing: { type: "CE", number: "454003" } });
+    await prisma.storeOrder.update({
+      where: { id: order.id },
+      data: { status: "PAID", paidAt: new Date(), shippingAddress: "Calle 10 # 43-12", shippingCity: "Medellin", shippingRegion: "Antioquia" },
+    });
+    await issueOrderInvoice(order.id);
+    expect(calls[0].body!.invoice.customer).toMatchObject({ address_line: "Calle 10 # 43-12", department: "05", city: "001" });
+  });
+
+  it("si la ciudad no se reconoce factura sin dirección en vez de fallar", async () => {
+    const { order } = await paidOrder({ billing: { type: "CC", number: "1020304050" } });
+    await prisma.storeOrder.update({
+      where: { id: order.id },
+      data: { status: "PAID", paidAt: new Date(), shippingAddress: "Calle 1", shippingCity: "Ciudad Inventada", shippingRegion: "Antioquia" },
+    });
+    await issueOrderInvoice(order.id);
+    const customer = calls[0].body!.invoice.customer as Record<string, unknown>;
+    expect(customer).not.toHaveProperty("address_line");
+    expect(customer).not.toHaveProperty("department");
+  });
+
   it("si Dataico lo rechaza queda el error y se puede reintentar con el mismo número", async () => {
     const { order } = await paidOrder();
     await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt: new Date() } });
