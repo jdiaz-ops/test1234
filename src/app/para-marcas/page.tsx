@@ -20,7 +20,7 @@ import { CAMPAIGNS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
 export const metadata: Metadata = {
   title: "Marcas de uñas y una red seleccionada de creadoras — Marcolini",
   description:
-    "Conectamos tu marca de uñas con una red seleccionada de creadoras de contenido. Solo pagas comisión cuando generan ventas.",
+    "Conectamos tu marca de uñas con una red seleccionada de creadoras de contenido. Tú solo pagas cuando vendes.",
 };
 
 const confianza = ["Sin mensualidades"];
@@ -93,9 +93,14 @@ const previewTransacciones = [
 // refundHoldDays=15), no inventadas ni genéricas.
 const faq = [
   {
+    pregunta: "¿Cuánto cuesta Marcolini?",
+    respuesta:
+      "El 5 % de cada venta pagada en tu tienda, con o sin código de creadora. Si la venta viene con código, además pagas la comisión que tú definiste para la creadora. Sin mensualidades ni costos de instalación.",
+  },
+  {
     pregunta: "¿Qué pasa si una creadora no genera ventas?",
     respuesta:
-      "No pagas nada. No hay mensualidad ni comisión si no hay una venta confirmada — el riesgo es de la campaña, no tuyo.",
+      "No pagas comisión de creadora. Marcolini solo cobra el 5 % sobre las ventas que sí entren a tu tienda.",
   },
   {
     pregunta: "¿Cuándo y cómo se pagan las comisiones a las creadoras?",
@@ -105,7 +110,7 @@ const faq = [
   {
     pregunta: "¿Qué pasa si un cliente pide un reembolso?",
     respuesta:
-      "La comisión de la creadora queda retenida 15 días antes de liberarse — si hay un reembolso en ese período, se ajusta automáticamente y no pagas comisión sobre una venta que se devolvió.",
+      "Las comisiones de un mes se pagan el 15 del mes siguiente. Si la venta se devuelve antes, la comisión se anula sola y no pagas nada por esa venta.",
   },
   {
     pregunta: "¿Cómo encuentro creadoras para mi marca?",
@@ -165,8 +170,8 @@ export default function ParaMarcasPage() {
                 contenido.
               </h1>
               <p className="text-brand-accent text-lg sm:text-xl font-semibold mb-8 text-balance max-w-lg lg:mx-auto">
-                Ellas recomiendan tus productos a miles de manicuristas. Tú solo pagas comisión
-                cuando generan ventas.
+                Ellas recomiendan tus productos a miles de manicuristas. Tú solo pagas cuando
+                vendes.
               </p>
               <Link
                 href="/lista-de-espera/marcas"

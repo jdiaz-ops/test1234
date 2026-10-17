@@ -7,10 +7,10 @@ import {
   type ManualProduct,
   type ProductStatusValue,
 } from "@/components/portal/store-product-form";
-import { ShopifyCsvImporter } from "@/components/portal/shopify-csv-importer";
+import { ShopifyImporter } from "@/components/portal/shopify-importer";
 
 /// Lista de productos de "Mi tienda" con Agregar (a mano) e Importar desde
-/// Shopify (CSV). El viejo "Importar producto" — elegir uno ya
+/// Shopify (por el link de la tienda o el CSV). El viejo "Importar producto" — elegir uno ya
 /// sincronizado por la conexión Shopify/WooCommerce para precargar el
 /// formulario — se quitó a pedido de la marca: al lado del importador de
 /// CSV confundía. Ver conversación del 2026-09-30.
@@ -414,7 +414,7 @@ export function StoreProductsPanel({
   }
   if (mode.kind === "shopify") {
     return (
-      <ShopifyCsvImporter
+      <ShopifyImporter
         onImported={reloadProducts}
         onClose={() => setMode({ kind: "list" })}
       />

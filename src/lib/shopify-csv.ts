@@ -4,7 +4,7 @@ import Papa from "papaparse";
 /// y la convierte al shape de un producto manual de "Mi tienda". Es código
 /// puro (sin Prisma ni Node) porque corre en el navegador: el archivo se
 /// analiza ahí y la lista resultante se manda al servidor por lotes (ver
-/// shopify-csv-importer.tsx), así un catálogo grande nunca depende de que
+/// shopify-importer.tsx), así un catálogo grande nunca depende de que
 /// un solo request termine a tiempo.
 ///
 /// Formato de Shopify: una fila por variante Y una fila extra por cada
@@ -67,13 +67,14 @@ export type ShopifyCsvParseResult = {
 
 type Row = Record<string, string>;
 
-const MAX_IMAGES_PER_PRODUCT = 50;
-const MAX_DESCRIPTION_LENGTH = 20000;
-const MAX_PRODUCTS = 2000;
+/// Topes compartidos con la importación por link (ver shopify-products-json.ts).
+export const MAX_IMAGES_PER_PRODUCT = 50;
+export const MAX_DESCRIPTION_LENGTH = 20000;
+export const MAX_PRODUCTS = 2000;
 
 /// "Sin categoría" en español, "Uncategorized" en inglés — Shopify lo pone
 /// en Product Category cuando la marca nunca eligió una.
-const PLACEHOLDER_CATEGORIES = new Set([
+export const PLACEHOLDER_CATEGORIES = new Set([
   "sin categoría",
   "sin categoria",
   "uncategorized",
@@ -119,7 +120,7 @@ function parseInteger(value: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function positiveOrNull(value: number | null) {
+export function positiveOrNull(value: number | null) {
   return value != null && value > 0 ? value : null;
 }
 
@@ -142,7 +143,7 @@ function mapWeightUnit(value: string): "KG" | "G" {
   return value.toLowerCase() === "g" ? "G" : "KG";
 }
 
-function isDefaultTitle(optionName: string, optionValue: string) {
+export function isDefaultTitle(optionName: string, optionValue: string) {
   return (
     optionName.toLowerCase() === "title" &&
     optionValue.toLowerCase() === "default title"

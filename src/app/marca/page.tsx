@@ -266,7 +266,7 @@ export default async function MarcaDashboardPage() {
         <p className="text-sm text-brand-ink">
           Va a tu próxima cuenta de cobro:{" "}
           <span className="font-mono text-brand-accent font-medium">{formatCOP(marcoliniFee)}</span> de tarifa
-          Marcolini ({summary.platformFeePercent} % de todas las ventas, con IVA)
+          Marcolini ({summary.platformFeePercent} % de todas las ventas{summary.vatPercent > 0 ? ", con IVA" : ""})
           {summary.monthCreatorCommissions > 0 && (
             <>
               {" "}

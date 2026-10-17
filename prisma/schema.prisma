@@ -1661,7 +1661,10 @@ model InstantPayoutRequest {
 model PlatformConfig {
   id                        String  @id @default("singleton")
   defaultPlatformFeePercent Decimal @default(5.0) @db.Decimal(5, 2)
-  vatPercent                Decimal @default(19.0) @db.Decimal(5, 2)
+  /// IVA sobre la tarifa de Marcolini. 0 desde el 2026-10-17: Juan factura
+  /// como persona natural, sin IVA. Si algún día aplica, se sube desde el
+  /// panel admin y todo el "+ IVA" del portal reaparece solo.
+  vatPercent                Decimal @default(0) @db.Decimal(5, 2)
   chargeDayOfMonth          Int     @default(1)
   payoutDayOfMonth          Int     @default(15)
   refundHoldDays            Int     @default(15)

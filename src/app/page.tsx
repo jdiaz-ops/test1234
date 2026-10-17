@@ -89,8 +89,7 @@ export default function HomePage() {
                 contenido.
               </p>
               <p className="text-base text-brand-ink/75 leading-relaxed mb-6">
-                Ellas recomiendan tus productos a miles de manicuristas. Tú solo pagas comisión cuando
-                generan ventas.
+                Ellas recomiendan tus productos a miles de manicuristas. Tú solo pagas cuando vendes.
               </p>
               <p className="self-end justify-self-start text-sm text-brand-accent font-semibold inline-flex items-center gap-1.5">
                 Quiero saber más

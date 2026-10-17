@@ -137,6 +137,7 @@ export function OnboardingWizard({
                       paymentInstructions={paymentInstructions}
                       paymentQrImageUrl={paymentQrImageUrl}
                       platformFeePercent={platformFeePercent}
+                      vatPercent={vatPercent}
                       onSaved={() => goToNext("pago")}
                     />
                   )}

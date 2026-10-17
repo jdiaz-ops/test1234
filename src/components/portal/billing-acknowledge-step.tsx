@@ -8,16 +8,20 @@ import { useRouter } from "next/navigation";
 /// antes de salir en vivo: la tarifa es sobre toda venta de la tienda (con
 /// o sin creadora, 2026-10-17), el día 1 llega el corte, paga por
 /// transferencia (QR/Bre-B) y tiene un plazo antes de quedar oculta del
-/// marketplace si no se verifica el pago.
+/// marketplace si no se verifica el pago. El "+ IVA" solo aparece si
+/// PlatformConfig.vatPercent > 0: hoy es 0 (Juan factura como persona
+/// natural, 2026-10-17).
 export function BillingAcknowledgeStep({
   paymentInstructions,
   paymentQrImageUrl,
   platformFeePercent,
+  vatPercent,
   onSaved,
 }: {
   paymentInstructions: string | null;
   paymentQrImageUrl: string | null;
   platformFeePercent: number;
+  vatPercent: number;
   onSaved?: () => void;
 }) {
   const router = useRouter();
@@ -43,7 +47,7 @@ export function BillingAcknowledgeStep({
     <div className="max-w-lg space-y-5">
       <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-3">
         <p className="text-sm text-brand-ink">
-          Marcolini cobra el <strong>{platformFeePercent} % + IVA sobre cada venta pagada en tu tienda</strong>,
+          Marcolini cobra el <strong>{platformFeePercent} %{vatPercent > 0 ? " + IVA" : ""} sobre cada venta pagada en tu tienda</strong>,
           tenga o no código de creadora. Si usas solo la tienda, pagas lo mismo por cada venta.
         </p>
         <p className="text-sm text-brand-ink">

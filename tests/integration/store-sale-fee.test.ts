@@ -21,7 +21,7 @@ async function config() {
 }
 
 describe.skipIf(!hasDb)("tarifa de Marcolini sobre todas las ventas de la tienda", () => {
-  it("una venta sin código paga la tarifa: el % sobre los productos (sin envío) más IVA", async () => {
+  it("una venta sin código paga la tarifa: el % sobre los productos (sin envío), más IVA solo si está configurado", async () => {
     const cfg = await config();
     const brand = await createSellingBrand();
     const product = await createProduct(brand.id, { name: "Placa", price: 20000, stock: 5 });

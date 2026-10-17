@@ -4,7 +4,7 @@ import { importShopifyProductsSchema } from "@/lib/validation/brand";
 import { importShopifyProducts } from "@/server/services/shopify-csv-import-service";
 
 /// Un lote de hasta 25 productos por request — el navegador ya leyó el
-/// CSV completo (ver shopify-csv-importer.tsx) y va mandando de a poco,
+/// CSV completo (ver shopify-importer.tsx) y va mandando de a poco,
 /// así una tienda con cientos de productos no depende de que un solo
 /// request termine dentro del tiempo máximo de una función de Vercel.
 export const maxDuration = 60;

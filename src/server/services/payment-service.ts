@@ -96,7 +96,8 @@ async function notifyCreatorsBrandPaused(brandId: string, brandName: string, dea
 }
 
 /// Corte del día 1: junta todo lo que esa marca debe (comisiones de
-/// creadores + tarifa Marcolini sobre todas las ventas de la tienda + IVA +
+/// creadoras + tarifa Marcolini sobre todas las ventas de la tienda, más IVA
+/// solo si PlatformConfig.vatPercent > 0 (hoy 0: persona natural) +
 /// fees de licencias de contenido) que
 /// todavía no se le haya facturado, genera el aviso de cobro (PDF con el
 /// desglose, instrucciones de pago por transferencia — QR/Bre-B — y fecha
