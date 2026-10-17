@@ -130,3 +130,47 @@ describe("importar productos desde el link de la tienda Shopify", () => {
     expect(parseShopifyProductsPage({ products: [null, 1, { title: "ok" }] })).toEqual([{ title: "ok" }]);
   });
 });
+
+describe("colecciones de /collections.json", () => {
+  it("convierte las colecciones publicadas y salta la portada, 'all' y las vacías", async () => {
+    const { convertShopifyCollections, parseShopifyCollectionsPage, collectionProductHandles, htmlToText } = await import(
+      "@/lib/shopify-products-json"
+    );
+    const raw = parseShopifyCollectionsPage({
+      collections: [
+        { id: 1, handle: "Soft-Gel", title: " Soft Gel ", body_html: "<p>Tips &amp; m&aacute;s</p><p>Todo.</p>", published_at: "2026-01-01", sort_order: "best-selling", products_count: 8, image: { src: "//cdn.shopify.com/c.jpg" } },
+        { id: 2, handle: "frontpage", title: "Página principal", published_at: "2026-01-01", products_count: 3 },
+        { id: 3, handle: "all", title: "Todos", published_at: "2026-01-01", products_count: 30 },
+        { id: 4, handle: "vacia", title: "Vacía", published_at: "2026-01-01", products_count: 0 },
+        { id: 5, handle: "no-publicada", title: "Oculta", published_at: null, products_count: 2 },
+        { id: 6, handle: "precio", title: "Por precio", published_at: "2026-01-01", sort_order: "price-asc", products_count: null, image: null },
+        { id: 7, handle: "soft-gel", title: "Repetida", published_at: "2026-01-01", products_count: 1 },
+        null,
+      ],
+    });
+    const collections = convertShopifyCollections(raw);
+    expect(collections.map((c) => c.handle)).toEqual(["soft-gel", "precio"]);
+    expect(collections[0]).toEqual({
+      handle: "soft-gel",
+      name: "Soft Gel",
+      description: "Tips & más\nTodo.",
+      imageUrl: "https://cdn.shopify.com/c.jpg",
+      productsCount: 8,
+      sortOrder: "MANUAL",
+      productHandles: [],
+    });
+    expect(collections[1]).toMatchObject({ sortOrder: "PRICE_ASC", productsCount: null, imageUrl: null });
+    expect(htmlToText("Uno<br>Dos &quot;tres&quot; &#x41;")).toBe('Uno\nDos "tres" A');
+    expect(() => parseShopifyCollectionsPage({ products: [] })).toThrow(ShopifyStoreError);
+    expect(collectionProductHandles({ products: [{ handle: "a" }, { handle: "b" }, { handle: "a" }, { title: "sin handle" }] })).toEqual(["a", "b"]);
+  });
+
+  it("guarda las etiquetas de cada producto para proponer categorías", () => {
+    const [product] = convertShopifyProducts([
+      { title: "Placa", handle: "placa", tags: ["Stamping", " stamping ", "Placas"], variants: [{ option1: "Default Title", price: "1000.00" }], options: [{ name: "Title", values: ["Default Title"] }] },
+    ]).products;
+    expect(product.tags).toEqual(["Stamping", "Placas"]);
+    const [fromString] = convertShopifyProducts([{ title: "Esmalte", handle: "esmalte", tags: "rojo, gel", variants: [{ option1: "Default Title", price: "1000.00" }] }]).products;
+    expect(fromString.tags).toEqual(["rojo", "gel"]);
+  });
+});

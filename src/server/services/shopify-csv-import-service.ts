@@ -26,7 +26,7 @@ export type ShopifyImportResult = {
 /// handle, así volver a subir el archivo actualiza el producto en vez de
 /// duplicarlo. No choca con los ids de la sincronización en vivo
 /// (numéricos/GIDs) ni con los "manual-" de Crear producto.
-const EXTERNAL_ID_PREFIX = "shopify-csv-";
+export const EXTERNAL_ID_PREFIX = "shopify-csv-";
 
 /// Crea o actualiza cada producto del lote como producto manual de "Mi
 /// tienda" (editable después como cualquier otro) y lo mete en la

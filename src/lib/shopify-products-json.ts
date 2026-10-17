@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from "@/lib/html-entities";
 import {
   isDefaultTitle,
   MAX_DESCRIPTION_LENGTH,
@@ -6,6 +7,7 @@ import {
   PLACEHOLDER_CATEGORIES,
   positiveOrNull,
   slugify,
+  splitTags,
   type ShopifyCsvParseResult,
   type ShopifyCsvStats,
   type ShopifyImportProduct,
@@ -52,6 +54,7 @@ export type ShopifyJsonProduct = {
   handle?: string | null;
   body_html?: string | null;
   product_type?: string | null;
+  tags?: string[] | string | null;
   published_at?: string | null;
   variants?: ShopifyJsonVariant[] | null;
   images?: ({ src?: string | null; position?: number | null } | null)[] | null;
@@ -174,6 +177,7 @@ export function convertShopifyProducts(raw: ShopifyJsonProduct[]): ShopifyCsvPar
     const images = collectImages(item);
     const description = text(item.body_html).slice(0, MAX_DESCRIPTION_LENGTH);
     const collectionName = resolveCollectionName(item);
+    const tags = splitTags(item.tags);
     // Todo lo que Shopify publica en products.json está activo; si viene
     // sin fecha de publicación, mejor que entre como borrador.
     let status: "ACTIVE" | "DRAFT" = item.published_at === null ? "DRAFT" : "ACTIVE";
@@ -219,6 +223,7 @@ export function convertShopifyProducts(raw: ShopifyJsonProduct[]): ShopifyCsvPar
         stock: null,
         status,
         collectionName,
+        tags,
         hasVariants: true,
         optionNames,
         variants,
@@ -243,6 +248,7 @@ export function convertShopifyProducts(raw: ShopifyJsonProduct[]): ShopifyCsvPar
         stock: null,
         status,
         collectionName,
+        tags,
         hasVariants: false,
         optionNames: [],
         variants: [],
@@ -256,4 +262,112 @@ export function convertShopifyProducts(raw: ShopifyJsonProduct[]): ShopifyCsvPar
   }
 
   return { products, warnings, stats };
+}
+
+// ----------------------------------------------------------------------------
+// Colecciones — /collections.json (y /collections/{handle}/products.json
+// para saber qué producto va en cuál). Ver conversación del 2026-10-17:
+// traer las colecciones como las tiene la marca y organizar los productos.
+// ----------------------------------------------------------------------------
+
+export type ShopifyJsonCollection = {
+  id?: number | string;
+  handle?: string | null;
+  title?: string | null;
+  body_html?: string | null;
+  published_at?: string | null;
+  sort_order?: string | null;
+  products_count?: number | null;
+  image?: { src?: string | null } | null;
+};
+
+export type ShopifyCollectionSortOrder = "MANUAL" | "ALPHA_ASC" | "ALPHA_DESC" | "PRICE_ASC" | "PRICE_DESC" | "NEWEST";
+
+export type ShopifyImportCollection = {
+  handle: string;
+  name: string;
+  /// Texto plano (la descripción de Shopify viene en HTML).
+  description: string;
+  imageUrl: string | null;
+  productsCount: number | null;
+  sortOrder: ShopifyCollectionSortOrder;
+  /// Handles de sus productos, en el orden de la colección — se llenan
+  /// leyendo /collections/{handle}/products.json (ver shopify-importer.tsx).
+  productHandles: string[];
+};
+
+/// "frontpage" es la colección de la portada de Shopify (los destacados)
+/// y "all" es virtual: ninguna es una categoría de verdad.
+const SKIPPED_COLLECTION_HANDLES = new Set(["frontpage", "all"]);
+
+const SORT_ORDER_MAP: Record<string, ShopifyCollectionSortOrder> = {
+  manual: "MANUAL",
+  "alpha-asc": "ALPHA_ASC",
+  "alpha-desc": "ALPHA_DESC",
+  "price-asc": "PRICE_ASC",
+  "price-desc": "PRICE_DESC",
+  "created-desc": "NEWEST",
+};
+
+/// Quita las etiquetas HTML y deja el texto (para descripciones de
+/// colección, que en Marcolini son texto plano).
+export function htmlToText(html: string): string {
+  return decodeHtmlEntities(
+    html.replace(/<br\s*\/?>|<\/p>|<\/div>|<\/li>|<\/h[1-6]>/gi, "\n").replace(/<[^>]+>/g, ""),
+  )
+    .replace(/[ \t\u00a0]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .trim();
+}
+
+function imageSrc(value: unknown): string | null {
+  const src = text(value);
+  if (/^https?:\/\//i.test(src)) return src;
+  if (src.startsWith("//")) return `https:${src}`;
+  return null;
+}
+
+export function parseShopifyCollectionsPage(raw: unknown): ShopifyJsonCollection[] {
+  const collections = raw && typeof raw === "object" ? (raw as { collections?: unknown }).collections : null;
+  if (!Array.isArray(collections)) {
+    throw new ShopifyStoreError("Ese link no devolvió las colecciones de Shopify.");
+  }
+  return collections.filter((c): c is ShopifyJsonCollection => Boolean(c) && typeof c === "object");
+}
+
+export function convertShopifyCollections(raw: ShopifyJsonCollection[]): ShopifyImportCollection[] {
+  const out: ShopifyImportCollection[] = [];
+  const seen = new Set<string>();
+  for (const c of raw) {
+    const handle = text(c.handle).toLowerCase();
+    const name = text(c.title).slice(0, 80);
+    if (!handle || name.length < 2 || SKIPPED_COLLECTION_HANDLES.has(handle) || seen.has(handle)) continue;
+    if (c.published_at === null) continue;
+    if (typeof c.products_count === "number" && c.products_count <= 0) continue;
+    seen.add(handle);
+    out.push({
+      handle,
+      name,
+      description: htmlToText(text(c.body_html)).slice(0, 500),
+      imageUrl: imageSrc(c.image?.src),
+      productsCount: typeof c.products_count === "number" ? c.products_count : null,
+      sortOrder: SORT_ORDER_MAP[text(c.sort_order).toLowerCase()] ?? "MANUAL",
+      productHandles: [],
+    });
+  }
+  return out;
+}
+
+/// /collections/{handle}/products.json trae los productos de esa colección
+/// en su orden — acá solo interesan los handles.
+export function collectionProductHandles(raw: unknown): string[] {
+  const handles: string[] = [];
+  const seen = new Set<string>();
+  for (const product of parseShopifyProductsPage(raw)) {
+    const handle = text(product.handle);
+    if (!handle || seen.has(handle)) continue;
+    seen.add(handle);
+    handles.push(handle);
+  }
+  return handles;
 }

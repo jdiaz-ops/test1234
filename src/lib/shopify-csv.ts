@@ -40,6 +40,10 @@ export type ShopifyImportProduct = {
   stock: number | null;
   status: "ACTIVE" | "DRAFT";
   collectionName: string | null;
+  /// Etiquetas de Shopify ("Tags") — solo para proponer categorías cuando
+  /// la tienda no tiene colecciones (ver shopify-categorize.ts); el
+  /// importador no las guarda.
+  tags?: string[];
   hasVariants: boolean;
   optionNames: string[];
   variants: ShopifyImportVariant[];
@@ -174,6 +178,22 @@ function resolveCollectionName(main: Row): string | null {
   return last.slice(0, 80);
 }
 
+/// "Tags" viene como una sola celda separada por comas.
+export function splitTags(value: string | string[] | null | undefined): string[] {
+  const list = Array.isArray(value) ? value : (value ?? "").split(",");
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const raw of list) {
+    const tag = String(raw).trim().slice(0, 60);
+    const key = tag.toLowerCase();
+    if (!tag || seen.has(key)) continue;
+    seen.add(key);
+    tags.push(tag);
+    if (tags.length >= 30) break;
+  }
+  return tags;
+}
+
 function collectImages(group: Row[]) {
   const withImage = group
     .map((row, index) => ({
@@ -267,6 +287,7 @@ export function parseShopifyProductsCsv(text: string): ShopifyCsvParseResult {
     const images = collectImages(group);
     const description = cell(main, "Body (HTML)").slice(0, MAX_DESCRIPTION_LENGTH);
     const collectionName = resolveCollectionName(main);
+    const tags = splitTags(cell(main, "Tags"));
     let status = resolveStatus(main, hasStatusColumn);
     let unknownStock = false;
 
@@ -309,6 +330,7 @@ export function parseShopifyProductsCsv(text: string): ShopifyCsvParseResult {
         stock: null,
         status,
         collectionName,
+        tags,
         hasVariants: true,
         optionNames,
         variants,
@@ -335,6 +357,7 @@ export function parseShopifyProductsCsv(text: string): ShopifyCsvParseResult {
         stock,
         status,
         collectionName,
+        tags,
         hasVariants: false,
         optionNames: [],
         variants: [],

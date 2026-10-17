@@ -138,3 +138,53 @@ describe("leer el catálogo público por páginas", () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe("leer colecciones y portada", () => {
+  it("lee las colecciones y los productos de cada una, y una colección borrada vuelve vacía", async () => {
+    const { readShopifyCollections, readShopifyCollectionProducts } = await import("@/server/services/shopify-store-reader");
+    const { impl, calls } = fakeFetch((url) => {
+      if (url.pathname === "/collections.json") {
+        return new Response(
+          JSON.stringify({
+            collections: [
+              { handle: "soft-gel", title: "Soft Gel", published_at: "2026-01-01", products_count: 2 },
+              { handle: "frontpage", title: "Portada", published_at: "2026-01-01", products_count: 2 },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.pathname === "/collections/soft-gel/products.json") return page(1, 2);
+      if (url.pathname === "/collections/borrada/products.json") return new Response("no", { status: 404 });
+      return new Response("x", { status: 500 });
+    });
+    const { collections, storeUrl } = await readShopifyCollections("tienda.com", impl);
+    expect(storeUrl).toBe("https://tienda.com/");
+    expect(collections.map((c) => c.handle)).toEqual(["soft-gel"]);
+    expect(calls[0]).toBe(`https://tienda.com/collections.json?limit=${PAGE_SIZE}&page=1`);
+
+    const products = await readShopifyCollectionProducts("tienda.com", "Soft-Gel", 1, impl);
+    expect(products).toEqual({ storeUrl: "https://tienda.com/", handles: ["producto-1", "producto-2"], hasMore: false });
+    expect(calls[1]).toBe(`https://tienda.com/collections/soft-gel/products.json?limit=${PAGE_SIZE}&page=1`);
+
+    expect(await readShopifyCollectionProducts("tienda.com", "borrada", 1, impl)).toMatchObject({ handles: [], hasMore: false });
+    await expect(readShopifyCollectionProducts("tienda.com", "../x", 1, impl)).rejects.toThrow(ShopifyStoreError);
+  });
+
+  it("lee la portada y saca el diseño; una portada con contraseña se explica", async () => {
+    const { readShopifyStorefront } = await import("@/server/services/shopify-store-reader");
+    const html = `<html><head><meta property="og:site_name" content="Tienda"><style>:root{--color-button:#ff0000;--color-background:#ffffff;--color-foreground:#111111;--font-body-family:Montserrat,sans-serif}</style></head><body><header><nav><a href="/collections/todo">Todo</a></nav></header></body></html>`;
+    const { impl, calls } = fakeFetch(() => new Response(html, { status: 200, headers: { "content-type": "text/html" } }));
+    const result = await readShopifyStorefront("https://marca.myshopify.com", impl);
+    expect(calls[0]).toBe("https://marca.myshopify.com/");
+    expect(result.theme.storeName).toBe("Tienda");
+    expect(result.theme.colors?.botones).toBe("#ff0000");
+    expect(result.theme.fonts?.bodyFont).toBe("Montserrat");
+    expect(result.theme.menu).toEqual([{ label: "Todo", href: "/collections/todo" }]);
+
+    const locked = fakeFetch(() =>
+      new Response(`<html><body><form action="/password" method="post"><input name="password"></form></body></html>`, { status: 200 }),
+    );
+    await expect(readShopifyStorefront("tienda.com", locked.impl)).rejects.toThrow(/contraseña/);
+  });
+});
