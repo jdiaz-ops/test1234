@@ -257,7 +257,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
   },
   {
     key: "SAMPLE_REQUESTED",
-    label: "Creador solicitó una muestra",
+    label: "Una creadora solicitó una muestra",
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:
@@ -266,7 +266,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
   },
   {
     key: "SAMPLE_OFFER_ACCEPTED",
-    label: "Creador aceptó tu oferta de muestra",
+    label: "Una creadora aceptó tu oferta de muestra",
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:

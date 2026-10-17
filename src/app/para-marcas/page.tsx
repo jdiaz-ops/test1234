@@ -498,7 +498,7 @@ export default function ParaMarcasPage() {
                 contenido, sin salir de Marcolini. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Muestras</p>
+                <p className="text-xs text-brand-ink-soft mb-4">Muestras<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="space-y-3">
                   {previewMuestras.map((m) => (
                     <div key={m.producto} className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-4 py-3">
@@ -512,12 +512,12 @@ export default function ParaMarcasPage() {
               </div>
               <div className="lg:order-1">
                 <h3 className="font-display text-xl sm:text-2xl font-semibold text-brand-ink mb-3">
-                  Gestiona el envío de muestras a tus creadores
+                  Envía muestras a tus creadoras
                 </h3>
                 <p className="text-brand-ink-soft leading-relaxed mb-6">
-                  Regala producto a los creadores de tu red para que lo prueben y lo muestren en su
-                  contenido — recibe y aprueba solicitudes de muestra directamente desde tu panel,
-                  sin coordinar envíos por fuera de la plataforma.
+                  Regala producto a las creadoras de tu red para que lo prueben y lo muestren en su
+                  contenido. La que no tenga tu producto lo pide desde la plataforma, tú apruebas y
+                  despachas, sin coordinar envíos por fuera.
                 </p>
                 <Link
                   href="/lista-de-espera/marcas"

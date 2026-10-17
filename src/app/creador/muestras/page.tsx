@@ -58,7 +58,7 @@ export default async function CreadorMuestrasPage() {
         Solicitar muestras
       </h1>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Productos que las marcas de Marcolini regalan a creadores para que los
+        Productos que las marcas de Marcolini regalan a creadoras para que los
         prueben y los muestren en su contenido.
       </p>
       <CreatorSamplesPanel

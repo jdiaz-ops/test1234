@@ -244,7 +244,7 @@ export async function offerSampleToCreator(
     where: { id: data.creatorId },
   });
   if (!creator || creator.suspended) {
-    throw new SampleError("Ese creador no está disponible.");
+    throw new SampleError("Esa creadora no está disponible.");
   }
 
   // El gate de discoverable es para el buscador (reclutar creadores
@@ -256,7 +256,7 @@ export async function offerSampleToCreator(
     const linked = await prisma.creatorOfferEnrollment.findFirst({
       where: { creatorId: data.creatorId, status: "ACTIVE", offer: { brandId } },
     });
-    if (!linked) throw new SampleError("Ese creador no está disponible.");
+    if (!linked) throw new SampleError("Esa creadora no está disponible.");
   }
 
   const existing = await prisma.sampleRequest.findFirst({
@@ -268,7 +268,7 @@ export async function offerSampleToCreator(
   });
   if (existing) {
     throw new SampleError(
-      "Ya hay una solicitud/oferta abierta con este creador para este producto.",
+      "Ya hay una solicitud/oferta abierta con esta creadora para este producto.",
     );
   }
 

@@ -25,7 +25,7 @@ export default async function TiendaMuestrasPage() {
         Muestras
       </h1>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Envía muestras de productos a creadores para que los prueben y los
+        Envía muestras de productos a creadoras para que los prueben y los
         muestren en su contenido.
       </p>
       <StoreSamplesPanel

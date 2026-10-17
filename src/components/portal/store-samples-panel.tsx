@@ -156,7 +156,7 @@ function ProductRow({
 
       {(stock === "" || Number(stock) <= 0) && (
         <p className="text-xs text-amber-700 mt-2">
-          Pon cuántas unidades regalas — con 0 los creadores no lo ven.
+          Pon cuántas unidades regalas — con 0 las creadoras no lo ven.
         </p>
       )}
 
@@ -503,7 +503,7 @@ export function StoreSamplesPanel({
           Solicitudes de muestra
         </h2>
         <p className="text-sm text-brand-ink-soft mb-4">
-          Creadores que pidieron una muestra de tu catálogo.
+          Creadoras que pidieron una muestra de tu catálogo.
         </p>
         {requests.length === 0 ? (
           <p className="text-sm text-brand-ink-soft">
@@ -532,7 +532,7 @@ export function StoreSamplesPanel({
         </h2>
         <p className="text-sm text-brand-ink-soft mb-4">
           Agrega los productos que quieres regalar y cuántas unidades tienes —
-          solo los ven los creadores, nunca tu tienda pública.
+          solo los ven las creadoras, nunca tu tienda pública.
         </p>
         {products.length === 0 ? (
           <p className="text-sm text-brand-ink-soft">

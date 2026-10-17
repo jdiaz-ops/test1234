@@ -479,7 +479,7 @@ export default function ParaCreadoresPage() {
                 una forma más de conocer marcas antes incluso de vender. */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
-                <p className="text-xs text-brand-ink-soft mb-4">Muestras</p>
+                <p className="text-xs text-brand-ink-soft mb-4">Muestras<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="space-y-3">
                   {previewMuestras.map((m) => (
                     <div
