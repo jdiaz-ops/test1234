@@ -584,9 +584,9 @@ export function ShopifyImporter({
                   </ul>
                   <p className="text-xs text-brand-ink-soft">
                     {theme && theme.menu.length > 0
-                      ? `Menú: ${theme.menu.map((m) => m.label).join(" · ")}`
+                      ? `Menú: ${theme.menu.map((m) => m.label).join(" · ")}.`
                       : "Menú: una entrada por colección."}{" "}
-                    Reemplaza el menú actual de tu tienda.
+                    Reemplaza el menú actual de tu tienda. Los enlaces a páginas o blogs de Shopify no se traen.
                   </p>
                 </div>
               )}
