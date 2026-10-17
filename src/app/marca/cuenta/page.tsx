@@ -113,9 +113,11 @@ export default async function MarcaCuentaPage({ searchParams }: PageProps<"/marc
         <p className="text-sm text-brand-ink-soft">
           El fee de servicio de Marcolini es de{" "}
           <span className="font-mono text-brand-accent">
-            {summary.platformFeePercent}%
+            {summary.platformFeePercent}% + IVA
           </span>{" "}
-          sobre cada venta confirmada.
+          sobre cada venta pagada en tu tienda, tenga o no código de creadora.
+          Cuando la venta viene con código, se suma la comisión que definiste
+          para esa creadora. Sin mensualidades.
         </p>
       </div>
 

@@ -136,6 +136,7 @@ export function OnboardingWizard({
                     <BillingAcknowledgeStep
                       paymentInstructions={paymentInstructions}
                       paymentQrImageUrl={paymentQrImageUrl}
+                      platformFeePercent={platformFeePercent}
                       onSaved={() => goToNext("pago")}
                     />
                   )}

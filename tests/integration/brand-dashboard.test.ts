@@ -56,8 +56,10 @@ describe.skipIf(!hasDb)("dashboards", () => {
     expect(summary.topBrands).toHaveLength(1);
     const payout = payoutDateForSale(new Date(), config.payoutDayOfMonth, config.refundHoldDays);
     expect(summary.thisMonthPayout).toEqual(payout);
-    // La venta de hoy se paga el día de pago del mes siguiente, no antes.
-    expect(summary.nextPayoutAmount).toBe(0);
+    // La venta de hoy se paga el día de pago del mes siguiente: entra al
+    // "próximo pago" solo si ese es el próximo (hoy ya pasó el día de pago
+    // de este mes); si no, el próximo pago no la incluye.
+    expect(summary.nextPayoutAmount).toBe(payout.getTime() === summary.nextPayout.getTime() ? 432 : 0);
     const commission = await prisma.commission.findFirstOrThrow({ where: { creatorProfileId: creator.id } });
     expect(commission.holdUntil).toEqual(payout);
   });

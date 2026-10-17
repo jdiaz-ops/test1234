@@ -4,17 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 /// Paso "Cómo te cobramos" del onboarding — sin nada que configurar (no hay
-/// tarjeta que guardar), solo que la marca entienda el ciclo antes de salir
-/// en vivo: el día 1 llega el corte, paga por transferencia (QR/Bre-B) y
-/// tiene un plazo antes de quedar oculta del marketplace si no se verifica
-/// el pago.
+/// tarjeta que guardar), solo que la marca entienda qué paga y el ciclo
+/// antes de salir en vivo: la tarifa es sobre toda venta de la tienda (con
+/// o sin creadora, 2026-10-17), el día 1 llega el corte, paga por
+/// transferencia (QR/Bre-B) y tiene un plazo antes de quedar oculta del
+/// marketplace si no se verifica el pago.
 export function BillingAcknowledgeStep({
   paymentInstructions,
   paymentQrImageUrl,
+  platformFeePercent,
   onSaved,
 }: {
   paymentInstructions: string | null;
   paymentQrImageUrl: string | null;
+  platformFeePercent: number;
   onSaved?: () => void;
 }) {
   const router = useRouter();
@@ -40,9 +43,16 @@ export function BillingAcknowledgeStep({
     <div className="max-w-lg space-y-5">
       <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-3">
         <p className="text-sm text-brand-ink">
-          El día 1 de cada mes te mandamos el corte: la comisión de tus
-          creadores de contenido + la tarifa de Marcolini de ese período, con el
-          desglose completo.
+          Marcolini cobra el <strong>{platformFeePercent} % + IVA sobre cada venta pagada en tu tienda</strong>,
+          tenga o no código de creadora. Si usas solo la tienda, pagas lo mismo por cada venta.
+        </p>
+        <p className="text-sm text-brand-ink">
+          Cuando la venta viene con el código de una creadora, se suma la comisión que tú definiste
+          para ella. Sin mensualidades: si no vendes, no pagas.
+        </p>
+        <p className="text-sm text-brand-ink">
+          El día 1 de cada mes te mandamos el corte con el desglose completo: tarifa de Marcolini +
+          comisiones de tus creadoras de ese período.
         </p>
         <p className="text-sm text-brand-ink">
           Pagas por transferencia directa — QR o Bre-B — y subes tu comprobante

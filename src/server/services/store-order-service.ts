@@ -20,6 +20,7 @@ import {
   pickShippingRate,
 } from "@/server/services/shipping-zone-service";
 import { ensureStoreCustomerExists } from "@/server/services/store-customer-service";
+import { createStoreSaleFeeForOrder, reverseStoreSaleFee } from "@/server/services/store-sale-fee-service";
 import {
   taxIncluded,
   orderTotal,
@@ -797,6 +798,13 @@ export async function refundStoreOrder(
     }
   }
 
+  // La tarifa de Marcolini de una venta sin creadora también se anula.
+  try {
+    await reverseStoreSaleFee(order.id);
+  } catch (err) {
+    console.error(`[mi-tienda] No se pudo anular la tarifa del pedido ${order.id}:`, err);
+  }
+
   await sendOrderRefundedEmailFor(order.id, reason);
   await emitOrderEvent(order.id, ["orders/updated"]);
   return updated;
@@ -904,6 +912,16 @@ export async function applyWompiTransactionStatus(params: {
           err,
         );
       }
+    }
+
+    // Tarifa de Marcolini cuando la venta no quedó atribuida a una creadora
+    // (sin código, o con un código que no se reconoció): la tarifa se cobra
+    // sobre toda venta de la tienda. Con creadora ya va en la Commission.
+    // Nunca tumba el pago (2026-10-17).
+    try {
+      await createStoreSaleFeeForOrder(order.id);
+    } catch (err) {
+      console.error(`[mi-tienda] No se pudo registrar la tarifa del pedido ${order.id}:`, err);
     }
 
     // Confirmación al comprador + "tienes una venta" a la marca. Nunca

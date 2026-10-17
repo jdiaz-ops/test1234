@@ -96,7 +96,8 @@ async function notifyCreatorsBrandPaused(brandId: string, brandName: string, dea
 }
 
 /// Corte del día 1: junta todo lo que esa marca debe (comisiones de
-/// creadores + tarifa Marcolini + IVA + fees de licencias de contenido) que
+/// creadores + tarifa Marcolini sobre todas las ventas de la tienda + IVA +
+/// fees de licencias de contenido) que
 /// todavía no se le haya facturado, genera el aviso de cobro (PDF con el
 /// desglose, instrucciones de pago por transferencia — QR/Bre-B — y fecha
 /// límite) y lo notifica por dashboard y correo. No hay cobro automático ni
@@ -117,7 +118,7 @@ export async function chargeBrandForPeriod(brandId: string) {
   });
   if (openCharge) return null;
 
-  const [pending, pendingRewards, pendingLicenses, pendingPaidContent] = await Promise.all([
+  const [pending, pendingRewards, pendingLicenses, pendingPaidContent, pendingStoreFees] = await Promise.all([
     prisma.commission.findMany({
       where: { brandChargeId: null, status: { in: ["PENDING", "APPROVED"] }, transaction: { brandId } },
       include: { transaction: true },
@@ -141,30 +142,42 @@ export async function chargeBrandForPeriod(brandId: string) {
     prisma.paidContentRequest.findMany({
       where: { brandChargeId: null, status: "DELIVERED", brandId },
     }),
+    // Tarifa de Marcolini sobre las ventas de la tienda sin creadora (ver
+    // store-sale-fee-service.ts) — con creadora ya viene en la comisión.
+    prisma.storeSaleFee.findMany({
+      where: { brandChargeId: null, status: "PENDING", brandId },
+    }),
   ]);
 
   if (
     pending.length === 0 &&
     pendingRewards.length === 0 &&
     pendingLicenses.length === 0 &&
-    pendingPaidContent.length === 0
+    pendingPaidContent.length === 0 &&
+    pendingStoreFees.length === 0
   )
     return null;
 
   const commissionsTotal = pending.reduce((sum, c) => sum + Number(c.creatorCommissionAmount), 0);
   const platformFeeTotal = pending.reduce((sum, c) => sum + Number(c.platformFeeAmount), 0);
-  const vatTotal = pending.reduce((sum, c) => sum + Number(c.platformFeeVatAmount), 0);
+  const storeFeeTotal = pendingStoreFees.reduce((sum, f) => sum + Number(f.feeAmount), 0);
+  const vatTotal =
+    pending.reduce((sum, c) => sum + Number(c.platformFeeVatAmount), 0) +
+    pendingStoreFees.reduce((sum, f) => sum + Number(f.vatAmount), 0);
   const rewardsTotal = pendingRewards.reduce((sum, r) => sum + Number(r.amount), 0);
   const licenseFeesTotal =
     pendingLicenses.reduce((sum, l) => sum + Number(l.feeAmount), 0) +
     pendingPaidContent.reduce((sum, p) => sum + Number(p.feeAmount), 0);
-  const totalAmount = round2(commissionsTotal + platformFeeTotal + vatTotal + rewardsTotal + licenseFeesTotal);
+  const totalAmount = round2(
+    commissionsTotal + platformFeeTotal + storeFeeTotal + vatTotal + rewardsTotal + licenseFeesTotal,
+  );
 
   const occurredDates = [
     ...pending.map((c) => c.transaction.occurredAt.getTime()),
     ...pendingRewards.map((r) => r.createdAt.getTime()),
     ...pendingLicenses.map((l) => l.createdAt.getTime()),
     ...pendingPaidContent.map((p) => p.createdAt.getTime()),
+    ...pendingStoreFees.map((f) => f.createdAt.getTime()),
   ];
   const periodStart = new Date(Math.min(...occurredDates));
   const periodEnd = new Date(Math.max(...occurredDates));
@@ -193,6 +206,10 @@ export async function chargeBrandForPeriod(brandId: string) {
       where: { id: { in: pendingPaidContent.map((p) => p.id) } },
       data: { brandChargeId: charge.id },
     }),
+    prisma.storeSaleFee.updateMany({
+      where: { id: { in: pendingStoreFees.map((f) => f.id) } },
+      data: { brandChargeId: charge.id },
+    }),
   ]);
 
   try {
@@ -202,6 +219,7 @@ export async function chargeBrandForPeriod(brandId: string) {
       periodEnd,
       commissionsTotal,
       platformFeeTotal,
+      storeFeeTotal,
       vatTotal,
       rewardsTotal,
       licenseFeesTotal,
@@ -219,7 +237,8 @@ export async function chargeBrandForPeriod(brandId: string) {
     console.error(`[pagos] no se pudo generar el aviso de cobro de ${brand.companyName}:`, err);
   }
 
-  const itemCount = pending.length + pendingRewards.length + pendingLicenses.length + pendingPaidContent.length;
+  const itemCount =
+    pending.length + pendingRewards.length + pendingLicenses.length + pendingPaidContent.length + pendingStoreFees.length;
   const dueAtLabel = dueAt.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" });
 
   await createNotification(
@@ -250,6 +269,7 @@ export async function runBrandCharges() {
         { offers: { some: { challenges: { some: { rewards: { some: { brandChargeId: null, status: { in: ["PENDING", "APPROVED"] } } } } } } } },
         { contentLicenses: { some: { brandChargeId: null, status: "APPROVED" } } },
         { paidContentRequests: { some: { brandChargeId: null, status: "DELIVERED" } } },
+        { storeSaleFees: { some: { brandChargeId: null, status: "PENDING" } } },
       ],
     },
     select: { id: true },

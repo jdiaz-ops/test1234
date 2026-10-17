@@ -100,6 +100,8 @@ export default async function MarcaDashboardPage() {
   // Todo el resumen es del mes en curso (antes las ventas sumaban desde
   // siempre y la frase de abajo decía "este mes").
   const totalCost = summary.monthCreatorCommissions + summary.monthPlatformFee;
+  // Toda la tarifa del mes: sobre ventas con creadoras y sobre las demás.
+  const marcoliniFee = summary.monthPlatformFee + summary.monthStoreFee;
   const roi = totalCost > 0 ? summary.monthSales / totalCost : null;
   const aov = summary.monthOrders > 0 ? summary.monthSales / summary.monthOrders : null;
 
@@ -243,29 +245,43 @@ export default async function MarcaDashboardPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-brand-line bg-brand-accent-soft/40 p-6 mb-10">
+      {/* La tarifa se cobra sobre TODA venta de la tienda, con o sin creadora
+          (2026-10-17): acá se ve el total vendido, cuánto fue con creadoras
+          y qué va a la próxima cuenta de cobro. */}
+      <div className="rounded-2xl border border-brand-line bg-brand-accent-soft/40 p-6 mb-10 space-y-2">
         <p className="text-sm text-brand-ink">
-          Este mes tus creadoras generaron{" "}
+          Este mes tu tienda vendió{" "}
           <span className="font-mono text-brand-accent font-medium">
-            {formatCOP(summary.monthSales)}
-          </span>{" "}
-          en ventas. Su costo es{" "}
-          <span className="font-mono text-brand-accent font-medium">
-            {formatCOP(totalCost)}
+            {formatCOP(summary.monthSales + summary.monthStoreSales)}
           </span>
-          {totalCost > 0 && (
+          {summary.monthSales > 0 && (
             <>
-              : {formatCOP(summary.monthCreatorCommissions)} de comisiones y{" "}
-              {formatCOP(summary.monthPlatformFee)} de tarifa Marcolini con IVA
+              , de los cuales{" "}
+              <span className="font-mono text-brand-accent font-medium">{formatCOP(summary.monthSales)}</span> con tus
+              creadoras
             </>
           )}
           .
         </p>
-        {totalCost > 0 && (
-          <p className="text-xs text-brand-ink-soft mt-2">
-            Se suma a tu próxima cuenta de cobro (el día {summary.chargeDayOfMonth} de cada mes).
-          </p>
-        )}
+        <p className="text-sm text-brand-ink">
+          Va a tu próxima cuenta de cobro:{" "}
+          <span className="font-mono text-brand-accent font-medium">{formatCOP(marcoliniFee)}</span> de tarifa
+          Marcolini ({summary.platformFeePercent} % de todas las ventas, con IVA)
+          {summary.monthCreatorCommissions > 0 && (
+            <>
+              {" "}
+              y{" "}
+              <span className="font-mono text-brand-accent font-medium">
+                {formatCOP(summary.monthCreatorCommissions)}
+              </span>{" "}
+              de comisiones a tus creadoras
+            </>
+          )}
+          .
+        </p>
+        <p className="text-xs text-brand-ink-soft">
+          La cuenta de cobro llega el día {summary.chargeDayOfMonth} de cada mes.
+        </p>
       </div>
 
       {topCreators.length > 0 && (

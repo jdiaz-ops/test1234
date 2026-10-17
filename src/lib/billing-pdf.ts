@@ -11,7 +11,10 @@ export async function generateBrandChargeDoc(params: {
   periodStart: Date;
   periodEnd: Date;
   commissionsTotal: number;
+  /// Tarifa sobre las ventas con creadora (va en cada Commission).
   platformFeeTotal: number;
+  /// Tarifa sobre las demás ventas de la tienda (ver StoreSaleFee).
+  storeFeeTotal?: number;
   vatTotal: number;
   rewardsTotal: number;
   licenseFeesTotal?: number;
@@ -49,8 +52,10 @@ export async function generateBrandChargeDoc(params: {
   );
 
   line("Desglose", { size: 12, f: bold, dy: 20 });
-  line(`Comisión de creadores de contenido: ${money(params.commissionsTotal)}`);
-  line(`Tarifa Marcolini: ${money(params.platformFeeTotal)}`);
+  line(`Comisión de creadoras de contenido: ${money(params.commissionsTotal)}`);
+  line(`Tarifa Marcolini sobre ventas con creadoras: ${money(params.platformFeeTotal)}`);
+  if (params.storeFeeTotal && params.storeFeeTotal > 0)
+    line(`Tarifa Marcolini sobre las demás ventas de la tienda: ${money(params.storeFeeTotal)}`);
   line(`IVA sobre la tarifa: ${money(params.vatTotal)}`);
   if (params.rewardsTotal > 0) line(`Premios de retos: ${money(params.rewardsTotal)}`);
   if (params.licenseFeesTotal && params.licenseFeesTotal > 0)

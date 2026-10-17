@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 export async function getBrandDashboardSummary(brandId: string) {
   const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-  const [gmv, orders, commissionPaid, newCreatorsThisMonth, config, brand, monthSales, monthCommissions] = await Promise.all([
+  const [gmv, orders, commissionPaid, newCreatorsThisMonth, config, brand, monthSales, monthCommissions, monthStoreFees] =
+    await Promise.all([
     prisma.transaction.aggregate({
       where: { offer: { brandId }, status: { not: "REFUNDED" } },
       _sum: { netAmount: true },
@@ -37,6 +38,14 @@ export async function getBrandDashboardSummary(brandId: string) {
       },
       _sum: { creatorCommissionAmount: true, platformFeeAmount: true, platformFeeVatAmount: true },
     }),
+    // Las demás ventas de la tienda (sin creadora) de este mes y la tarifa
+    // sobre ellas — la tarifa se cobra sobre toda venta (2026-10-17). Ver
+    // store-sale-fee-service.ts.
+    prisma.storeSaleFee.aggregate({
+      where: { brandId, status: { not: "REVERSED" }, createdAt: { gte: startOfMonth } },
+      _sum: { baseAmount: true, feeAmount: true, vatAmount: true },
+      _count: true,
+    }),
   ]);
 
   const effectiveFeePercent = brand.platformFeePercentOverride
@@ -57,6 +66,9 @@ export async function getBrandDashboardSummary(brandId: string) {
     monthCreatorCommissions: Number(monthCommissions._sum.creatorCommissionAmount ?? 0),
     monthPlatformFee:
       Number(monthCommissions._sum.platformFeeAmount ?? 0) + Number(monthCommissions._sum.platformFeeVatAmount ?? 0),
+    monthStoreSales: Number(monthStoreFees._sum.baseAmount ?? 0),
+    monthStoreOrders: monthStoreFees._count,
+    monthStoreFee: Number(monthStoreFees._sum.feeAmount ?? 0) + Number(monthStoreFees._sum.vatAmount ?? 0),
     chargeDayOfMonth: config.chargeDayOfMonth,
     platformFeePercent: effectiveFeePercent,
     vatPercent: Number(config.vatPercent),

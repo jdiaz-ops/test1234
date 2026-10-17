@@ -86,8 +86,8 @@ export async function sendBrandChargeEmail(
     to,
     `Marcolini — tu cobro de este mes: ${params.totalAmount}`,
     `<p>Hola ${params.companyName},</p>
-     <p>Este mes te corresponde pagar <strong>${params.totalAmount}</strong> (comisión de tus creadores de
-     contenido + tarifa de Marcolini).</p>
+     <p>Este mes te corresponde pagar <strong>${params.totalAmount}</strong> (tarifa de Marcolini sobre las
+     ventas de tu tienda + comisión de tus creadoras de contenido).</p>
      <p><strong>Fecha límite: ${params.dueAt}</strong> Si no verificamos tu pago antes de esa fecha, tu
      cuenta queda temporalmente inhabilitada (sin acceso al panel) hasta que regularices — el servicio,
      marketplace y códigos de tus creadores siguen funcionando.</p>
