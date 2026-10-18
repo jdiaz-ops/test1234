@@ -77,6 +77,12 @@ function renderMenuLink(
   );
 }
 
+/// Hasta dónde el desplegable va en columnas (todo a la vista); con más
+/// que esto va como lista con submenús al lado. Ver conversación del
+/// 2026-10-18 ("El menú de rumi sigue un desastre").
+const MEGA_MAX_CHILDREN = 6;
+const MEGA_MAX_GRANDCHILDREN = 24;
+
 /// Alto del logo — el ancho sale solo de la proporción de la imagen, sin
 /// marco ni recorte circular. En celular va un escalón más grande que en
 /// computadora: ahí el logo es lo único que identifica la tienda y se veía
@@ -133,6 +139,24 @@ export function StoreHeader({
       const left = Math.max(margin, Math.min(desired, viewport - margin - width));
       const shift = Math.round(left - desired);
       setPanelShift((prev) => (prev[id] === shift ? prev : { ...prev, [id]: shift }));
+    });
+  };
+  // Los submenús de segundo nivel en computadora se abren hacia un lado
+  // del ítem; si no caben a la derecha, a la izquierda, y si se salen por
+  // abajo, se suben. Se mide al pasar el mouse.
+  const [flyouts, setFlyouts] = useState<Record<string, { left: boolean; top: number }>>({});
+  const placeFlyout = (id: string, item: HTMLElement) => {
+    const panel = item.querySelector<HTMLElement>("[data-menu-flyout]");
+    if (!panel) return;
+    requestAnimationFrame(() => {
+      const margin = 16;
+      const viewport = document.documentElement.clientWidth;
+      const height = window.innerHeight;
+      const rect = panel.getBoundingClientRect();
+      const current = flyouts[id] ?? { left: false, top: 0 };
+      const left = current.left ? rect.right + rect.width + margin > viewport && rect.left - rect.width >= margin ? false : current.left : rect.right > viewport - margin;
+      const top = Math.round(Math.min(0, height - margin - (rect.bottom - current.top)));
+      if (left !== current.left || top !== current.top) setFlyouts((prev) => ({ ...prev, [id]: { left, top } }));
     });
   };
   // Submenús abiertos en el panel lateral de celular (acordeón).
@@ -243,7 +267,11 @@ export function StoreHeader({
         const linkClass = "text-sm text-brand-ink-soft hover:text-brand-ink whitespace-nowrap";
         if (!hasChildren(item)) return renderMenuEntry(item, basePath, linkClass);
         const children = item.children ?? [];
-        const columns = children.some(hasChildren);
+        // En columnas (mega menú) solo cuando cabe de un vistazo; un árbol
+        // grande como el de Rumi (11 categorías con 80 subítems) va como
+        // lista y cada categoría abre la suya al lado.
+        const grandchildren = children.reduce((n, c) => n + (c.children?.length ?? 0), 0);
+        const columns = children.some(hasChildren) && children.length <= MEGA_MAX_CHILDREN && grandchildren <= MEGA_MAX_GRANDCHILDREN;
         return (
           <div
             key={item.id}
@@ -267,7 +295,7 @@ export function StoreHeader({
               className="absolute top-full pt-2 hidden group-hover:block group-focus-within:block z-50 w-max max-w-[min(100vw_-_2rem,56rem)]"
               style={{ left: panelShift[item.id] ?? 0 }}
             >
-              <div className="bg-brand-bg border border-brand-line rounded-xl shadow-lg p-4 max-h-[70vh] overflow-y-auto">
+              <div className={`bg-brand-bg border border-brand-line rounded-xl shadow-lg p-4 ${columns ? "max-h-[70vh] overflow-y-auto" : ""}`}>
                 {columns ? (
                   <div className="flex flex-wrap gap-x-8 gap-y-5">
                     {children.map((child) => (
@@ -286,12 +314,38 @@ export function StoreHeader({
                     ))}
                   </div>
                 ) : (
-                  <ul className="space-y-1.5 min-w-[11rem]">
-                    {children.map((child) => (
-                      <li key={child.id}>
-                        {renderMenuEntry(child, basePath, "text-sm text-brand-ink-soft hover:text-brand-ink block whitespace-nowrap")}
-                      </li>
-                    ))}
+                  <ul className="space-y-0.5 min-w-[12rem]">
+                    {children.map((child) =>
+                      hasChildren(child) ? (
+                        <li key={child.id} className="relative group/sub" onMouseEnter={(e) => placeFlyout(child.id, e.currentTarget)} onFocus={(e) => placeFlyout(child.id, e.currentTarget)}>
+                          <div className="flex items-center justify-between gap-3">
+                            {renderMenuEntry(child, basePath, "text-sm text-brand-ink-soft group-hover/sub:text-brand-ink block whitespace-nowrap py-0.5 flex-1")}
+                            <span aria-hidden className="text-xs text-brand-ink-soft">›</span>
+                          </div>
+                          <div
+                            data-menu-flyout
+                            className={`absolute top-0 hidden group-hover/sub:block group-focus-within/sub:block z-50 w-max ${
+                              flyouts[child.id]?.left ? "right-full pr-2" : "left-full pl-2"
+                            }`}
+                            style={{ top: flyouts[child.id]?.top ?? 0 }}
+                          >
+                            <div className="bg-brand-bg border border-brand-line rounded-xl shadow-lg p-3 max-h-[70vh] overflow-y-auto">
+                              <ul className="space-y-0.5 min-w-[11rem] max-w-[20rem]">
+                                {(child.children ?? []).map((grandchild) => (
+                                  <li key={grandchild.id}>
+                                    {renderMenuEntry(grandchild, basePath, "text-sm text-brand-ink-soft hover:text-brand-ink block py-0.5")}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </li>
+                      ) : (
+                        <li key={child.id}>
+                          {renderMenuEntry(child, basePath, "text-sm text-brand-ink-soft hover:text-brand-ink block whitespace-nowrap py-0.5")}
+                        </li>
+                      ),
+                    )}
                   </ul>
                 )}
               </div>
