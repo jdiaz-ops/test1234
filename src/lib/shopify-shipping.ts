@@ -158,14 +158,15 @@ export type ProposedShippingRate = {
   price: number;
   condition: "NONE" | "MIN_ORDER_AMOUNT";
   conditionValue?: number;
-  /// Tarifa en $0 cuyo nombre dice que el envío se paga al recibir
-  /// (contraentrega) — ver isPayOnDeliveryRate.
-  payOnDelivery?: boolean;
+  /// Tarifa en $0 cuyo nombre dice que el envío se pagaba al recibir
+  /// (contraentrega): Marcolini no lo permite, así que entra como tarifa
+  /// sin precio para que la marca le ponga el suyo — ver isPayOnDeliveryRate.
+  pendingPrice?: boolean;
 };
 
 /// "EL ENVIO LO PAGAS CONTRAENTREGA", "Pago contra entrega", "Flete al
-/// recibir"… en $0: el envío no es gratis, se le paga a la transportadora.
-/// Si tiene precio, es un cobro normal (no se marca).
+/// recibir"… en $0: el envío no era gratis, se le pagaba a la
+/// transportadora. Si tiene precio, es un cobro normal (no se marca).
 const PAY_ON_DELIVERY =
   /contra\s*-?\s*entrega|al\s+recibir|pag[aá]s?\s+(el\s+)?(env[ií]o|flete)|cobro\s+en\s+destino|flete\s+(al\s+)?destino|pago\s+en\s+destino/i;
 
@@ -217,12 +218,12 @@ export function buildShippingZones(
     const threshold = group.regions.map((r) => thresholds[r]?.threshold ?? null).find((t): t is number => t != null) ?? null;
     const rates: ProposedShippingRate[] = [];
     if (group.cheapest.price === 0) {
-      const payOnDelivery = isPayOnDeliveryRate(group.cheapest.name, 0);
+      const pendingPrice = isPayOnDeliveryRate(group.cheapest.name, 0);
       rates.push({
         name: group.cheapest.name === "Envío" ? "Envío gratis" : group.cheapest.name,
         price: 0,
         condition: "NONE",
-        ...(payOnDelivery ? { payOnDelivery: true } : {}),
+        ...(pendingPrice ? { pendingPrice: true } : {}),
       });
     } else {
       rates.push({ name: group.cheapest.name, price: group.cheapest.price, condition: "NONE" });

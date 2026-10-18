@@ -229,7 +229,11 @@ describe.skipIf(!hasDb)("fotos alojadas en Marcolini, zonas de envío y datos de
       { name: "Resto de Colombia", regions: ["*"], rates: [{ name: "Nacional", price: 15000, condition: "NONE" as const }], otherRates: [] },
     ];
     const first = await importShopifyShippingZones(brand.id, zones, { replace: true });
-    expect(first).toEqual({ zones: [{ name: "Bogotá D.C. y Cundinamarca", action: "created", regions: 2 }, { name: "Resto de Colombia", action: "created", regions: 1 }], removed: 0 });
+    expect(first).toEqual({
+      zones: [{ name: "Bogotá D.C. y Cundinamarca", action: "created", regions: 2 }, { name: "Resto de Colombia", action: "created", regions: 1 }],
+      removed: 0,
+      pendingPrice: 0,
+    });
     const stored = await listShippingZones(brand.id);
     expect(stored.map((z) => z.name)).toEqual(["Bogotá D.C. y Cundinamarca", "Resto de Colombia"]);
     expect(stored[0].rates.map((r) => [r.name, Number(r.price), r.condition, r.conditionValue ? Number(r.conditionValue) : null])).toEqual([

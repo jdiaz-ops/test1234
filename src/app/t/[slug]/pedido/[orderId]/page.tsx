@@ -187,12 +187,6 @@ export default async function StorefrontOrderStatusPage({
                 </span>
               </div>
             )}
-            {order.shippingCents === 0 && order.shippingPayOnDelivery && (
-              <div className="flex justify-between text-brand-ink-soft">
-                <span>Envío</span>
-                <span>Se paga al recibir</span>
-              </div>
-            )}
             <div className="flex justify-between font-semibold text-brand-ink">
               <span>Total</span>
               <span className="font-mono">

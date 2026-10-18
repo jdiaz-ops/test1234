@@ -13,6 +13,9 @@ import {
 export type ImportShippingResult = {
   zones: { name: string; action: "created" | "error"; regions: number; error?: string }[];
   removed: number;
+  /// Tarifas que venían como contraentrega (Marcolini no lo permite) y
+  /// quedaron sin precio: la marca tiene que ponérselo en Envíos.
+  pendingPrice: number;
 };
 
 export async function importShopifyShippingZones(
@@ -25,16 +28,18 @@ export async function importShopifyShippingZones(
     removed = (await prisma.shippingZone.deleteMany({ where: { brandId } })).count;
   }
   const results: ImportShippingResult["zones"] = [];
+  let pendingPrice = 0;
   for (const zone of zones) {
     try {
       const rates: ShippingRateInput[] = zone.rates.map((r) => ({
         name: r.name,
         price: r.price,
-        payOnDelivery: r.payOnDelivery ?? isPayOnDeliveryRate(r.name, r.price),
+        pendingPrice: r.pendingPrice ?? isPayOnDeliveryRate(r.name, r.price),
         condition: r.condition,
         conditionValue: r.condition === "MIN_ORDER_AMOUNT" ? (r.conditionValue ?? null) : null,
       }));
       const created = await createShippingZone(brandId, { name: zone.name, regions: zone.regions, rates });
+      pendingPrice += created.rates.filter((r) => r.pendingPrice).length;
       results.push({ name: created.name, action: "created", regions: zone.regions.length });
     } catch (err) {
       results.push({
@@ -45,5 +50,5 @@ export async function importShopifyShippingZones(
       });
     }
   }
-  return { zones: results, removed };
+  return { zones: results, removed, pendingPrice };
 }

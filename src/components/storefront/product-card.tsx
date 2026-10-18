@@ -4,6 +4,7 @@ import { CardVariantPicker } from "@/components/storefront/card-variant-picker";
 import { StoreImage } from "@/components/storefront/store-image";
 import { formatCOP } from "@/components/storefront/catalog-templates/types";
 import { priceRange } from "@/lib/product-price";
+import { readProductAttributes } from "@/lib/product-attributes";
 
 export type CardVariant = {
   id: string;
@@ -41,11 +42,7 @@ export type CardProduct = {
 export { CARD_VARIANT_SELECT, cardProductSelect } from "@/lib/card-product-select";
 
 function readAttributes(value: unknown): Record<string, string> | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof v === "string" && v.trim()) out[k] = v;
-  }
+  const out = readProductAttributes(value);
   return Object.keys(out).length > 0 ? out : undefined;
 }
 

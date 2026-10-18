@@ -8,6 +8,7 @@ const REASON_MESSAGE: Record<string, string> = {
   NO_ZONES: "Esta tienda todavía no configuró sus zonas de envío.",
   NO_ZONE_MATCH: "Todavía no hacemos envíos a tu departamento.",
   NO_RATE_MATCH: "No hay una tarifa de envío que aplique a tu pedido.",
+  RATE_PENDING_PRICE: "Esta tienda todavía no definió el costo de envío a tu departamento — contacta a la tienda.",
 };
 
 /// Cotiza el envío en vivo durante el checkout, antes de confirmar el
@@ -45,10 +46,5 @@ export async function POST(
       { status: 400 },
     );
   }
-  return NextResponse.json({
-    ok: true,
-    shippingCents: result.shippingCents,
-    rateName: result.rateName,
-    payOnDelivery: result.payOnDelivery,
-  });
+  return NextResponse.json({ ok: true, shippingCents: result.shippingCents, rateName: result.rateName });
 }

@@ -362,8 +362,8 @@ export const storeConfigSchema = z.object({
 const shippingRateSchema = z.object({
   name: z.string().min(2, "Ingresa un nombre para la tarifa").max(80),
   price: z.coerce.number().min(0, "No puede ser negativo"),
-  /// "Se paga al recibir" (contraentrega) — ver ShippingZoneRate.payOnDelivery.
-  payOnDelivery: z.boolean().optional(),
+  /// Tarifa sin precio real (venía como contraentrega) — ver ShippingZoneRate.pendingPrice.
+  pendingPrice: z.boolean().optional(),
   condition: z.enum(["NONE", "MIN_ORDER_AMOUNT", "MIN_WEIGHT"]),
   conditionValue: z.coerce
     .number()

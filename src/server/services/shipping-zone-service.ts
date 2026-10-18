@@ -8,10 +8,10 @@ export type ShippingRateCondition = "NONE" | "MIN_ORDER_AMOUNT" | "MIN_WEIGHT";
 export type ShippingRateInput = {
   name: string;
   price: number;
-  /// "El envío lo pagas contraentrega": tarifa en $0 que no es gratis — el
-  /// comprador se la paga a la transportadora al recibir. Solo aplica con
-  /// precio 0. Ver conversación del 2026-10-18.
-  payOnDelivery?: boolean;
+  /// Tarifa sin precio real (venía como contraentrega, que Marcolini no
+  /// permite): bloquea el checkout en la zona hasta que tenga precio. Solo
+  /// se conserva con precio 0. Ver ShippingZoneRate.pendingPrice.
+  pendingPrice?: boolean;
   condition: ShippingRateCondition;
   conditionValue?: number | null;
   /// Tope opcional para armar un rango (ej. "pesa entre 2 y 5 kg", "pedido
@@ -101,7 +101,7 @@ export async function createShippingZone(brandId: string, data: ShippingZoneInpu
         create: data.rates.map((r, position) => ({
           name: r.name.trim(),
           price: r.price,
-          payOnDelivery: Boolean(r.payOnDelivery) && r.price === 0,
+          pendingPrice: Boolean(r.pendingPrice) && r.price === 0,
           condition: r.condition,
           conditionValue: r.condition === "NONE" ? null : r.conditionValue,
           conditionMaxValue: r.condition === "NONE" ? null : r.conditionMaxValue,
@@ -137,7 +137,7 @@ export async function updateShippingZone(
         zoneId,
         name: r.name.trim(),
         price: r.price,
-        payOnDelivery: Boolean(r.payOnDelivery) && r.price === 0,
+        pendingPrice: Boolean(r.pendingPrice) && r.price === 0,
         condition: r.condition,
         conditionValue: r.condition === "NONE" ? null : r.conditionValue,
         conditionMaxValue: r.condition === "NONE" ? null : r.conditionMaxValue,

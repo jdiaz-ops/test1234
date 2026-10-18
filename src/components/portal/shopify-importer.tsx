@@ -113,7 +113,7 @@ type ExtrasResult = {
   menu: { items: number; replaced: boolean } | null;
   home: { created: number; skipped: number; errors: number; removed: number } | null;
   design: DesignResult | null;
-  shipping: { created: number; errors: number; removed: number } | null;
+  shipping: { created: number; errors: number; removed: number; pendingPrice: number } | null;
   photos: RehostSummary | null;
   profile: { filled: string[] } | null;
   /// Pasarelas que Marcolini no tiene y por las que se avisó al equipo.
@@ -999,6 +999,7 @@ export function ShopifyImporter({
           created: rows.filter((r) => r.action === "created").length,
           errors: rows.filter((r) => r.action === "error").length,
           removed: body.removed as number,
+          pendingPrice: (body.pendingPrice as number) ?? 0,
         };
       } catch (err) {
         result.errors.push(`Envíos: ${message(err)}`);
@@ -1575,7 +1576,13 @@ export function ShopifyImporter({
                       return (
                         <li key={zone.name}>
                           <strong className="font-medium text-brand-ink">{zone.name}:</strong>{" "}
-                          {base ? (base.price === 0 ? "envío gratis" : `${base.name} ${cop(base.price)}`) : ""}
+                          {base
+                            ? base.pendingPrice
+                              ? `${base.name} (contraentrega: Marcolini no lo permite, queda sin precio para que la marca ponga el suyo)`
+                              : base.price === 0
+                                ? "envío gratis"
+                                : `${base.name} ${cop(base.price)}`
+                            : ""}
                           {free?.conditionValue ? ` · gratis desde ${cop(free.conditionValue)}` : ""}
                           {zone.otherRates.length > 0 &&
                             ` (también ofrecía ${zone.otherRates.map((r) => `${r.name} ${cop(r.price)}`).join(", ")})`}
@@ -1744,6 +1751,8 @@ export function ShopifyImporter({
               Envíos: {extrasResult.shipping.created} zonas creadas
               {extrasResult.shipping.removed > 0 && ` (reemplazaron ${extrasResult.shipping.removed})`}
               {extrasResult.shipping.errors > 0 && ` · ${extrasResult.shipping.errors} con error`}
+              {extrasResult.shipping.pendingPrice > 0 &&
+                ` · ${extrasResult.shipping.pendingPrice} ${extrasResult.shipping.pendingPrice === 1 ? "tarifa venía" : "tarifas venían"} como contraentrega (no se permite): la marca tiene que ponerle precio en Envíos`}
             </p>
           )}
           {extrasResult?.photos && (

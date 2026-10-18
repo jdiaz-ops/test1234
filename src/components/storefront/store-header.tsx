@@ -53,16 +53,16 @@ function renderMenuLink(
 /// computadora: ahí el logo es lo único que identifica la tienda y se veía
 /// chico al lado del buscador. Ver conversación del 2026-10-18.
 const LOGO_HEIGHT_CLASS = {
-  small: "h-9 sm:h-7",
-  medium: "h-12 sm:h-9",
-  large: "h-16 sm:h-14",
+  small: "h-10 sm:h-7",
+  medium: "h-14 sm:h-9",
+  large: "h-[4.5rem] sm:h-14",
 };
 
 /// El círculo con la inicial, solo para la marca que todavía no subió logo.
 const LOGO_FALLBACK_CLASS = {
-  small: "w-9 h-9 sm:w-7 sm:h-7 text-sm",
-  medium: "w-12 h-12 sm:w-9 sm:h-9 text-base",
-  large: "w-14 h-14 sm:w-12 sm:h-12 text-lg",
+  small: "w-10 h-10 sm:w-7 sm:h-7 text-sm",
+  medium: "w-14 h-14 sm:w-9 sm:h-9 text-base",
+  large: "w-16 h-16 sm:w-12 sm:h-12 text-lg",
 };
 
 export function StoreHeader({
@@ -118,7 +118,7 @@ export function StoreHeader({
         <img
           src={logoUrl}
           alt={brandName}
-          className={`${LOGO_HEIGHT_CLASS[header.logoSize]} w-auto max-w-[min(220px,55vw)] sm:max-w-[180px] object-contain`}
+          className={`${LOGO_HEIGHT_CLASS[header.logoSize]} w-auto max-w-[calc(100vw-8.5rem)] sm:max-w-[180px] object-contain`}
         />
       ) : (
         <>
@@ -133,27 +133,19 @@ export function StoreHeader({
     </Link>
   );
 
-  // El logo y el hamburger comparten el mismo "casillero" del layout (ver
-  // más abajo) para no alterar el conteo de columnas del grid/flex del
-  // encabezado en computadora — el botón trae su propio sm:hidden, así
-  // que en computadora no ocupa espacio ni se nota que está ahí.
-  const logo = showHamburger ? (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={() => setMenuOpen(true)}
-        aria-label="Abrir menú"
-        className="sm:hidden shrink-0 w-8 h-8 -ml-1 flex items-center justify-center rounded-full hover:bg-brand-accent-soft text-brand-ink"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="w-5 h-5">
-          <path d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-      {logoLink}
-    </div>
-  ) : (
-    logoLink
-  );
+  // Botón del menú lateral — solo existe en celular.
+  const hamburgerButton = showHamburger ? (
+    <button
+      type="button"
+      onClick={() => setMenuOpen(true)}
+      aria-label="Abrir menú"
+      className="shrink-0 w-8 h-8 -ml-1 flex items-center justify-center rounded-full hover:bg-brand-accent-soft text-brand-ink"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="w-5 h-5">
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+  ) : null;
 
   // Solo en computadora — en celular el menú vive en la fila deslizable
   // de abajo (mobileNavRow) o en el panel del hamburguesa, nunca acá. Ver
@@ -182,16 +174,13 @@ export function StoreHeader({
 
   // Buscador de celular — un <form> GET liso a /buscar, sin JS: funciona
   // incluso donde la hidratación no prende. Se activa desde Diseño →
-  // Encabezado → Mostrar → "Buscador". Antes ocupaba todo el ancho entre
-  // el logo y el carrito; ahora es una caja compacta que crece al tocarla,
-  // para dejarle el espacio al logo. Ver conversación del 2026-10-18.
+  // Encabezado → Mostrar → "Buscador". Antes ocupaba la fila del logo y lo
+  // dejaba chico y a la izquierda; ahora vive arriba del menú lateral (o
+  // es una lupa junto al carrito cuando la tienda no tiene menú), y el
+  // logo se queda con la fila entera. Ver conversación del 2026-10-18
+  // ("Más grande y centrado").
   const searchBar = showSearch && (
-    <form
-      action={`${basePath}/buscar`}
-      method="GET"
-      role="search"
-      className="w-28 shrink-0 focus-within:w-44 transition-[width] duration-200 motion-reduce:transition-none"
-    >
+    <form action={`${basePath}/buscar`} method="GET" role="search" className="w-full">
       <div className="relative">
         <svg
           viewBox="0 0 24 24"
@@ -218,14 +207,16 @@ export function StoreHeader({
   // El mismo ícono de carrito que el navegador de abajo, con el contador
   // encima — antes era una pastilla con la palabra "Carrito". Ver
   // conversación del 2026-09-30.
-  // Lupa de computadora — lleva a la página de búsqueda; en celular no
-  // hace falta porque ahí va la barra grande (searchBar).
-  const desktopSearchLink = showSearch && (
+  // Lupa — lleva a la página de búsqueda. En computadora siempre; en
+  // celular solo cuando no hay menú lateral (ahí el buscador va adentro
+  // del menú).
+  const searchLink = (forMobile: boolean) =>
+    showSearch && (
     <Link
       href={`${basePath}/buscar`}
       aria-label="Buscar"
-      className={`hidden sm:flex shrink-0 items-center justify-center rounded-full text-brand-ink hover:bg-brand-accent-soft ${
-        cartLarge ? "w-12 h-12" : "w-10 h-10"
+      className={`${forMobile ? "flex sm:hidden" : "hidden sm:flex"} shrink-0 items-center justify-center rounded-full text-brand-ink hover:bg-brand-accent-soft ${
+        !forMobile && cartLarge ? "w-12 h-12" : "w-10 h-10"
       }`}
     >
       <svg
@@ -241,7 +232,7 @@ export function StoreHeader({
         <path d="m20 20-3.5-3.5" />
       </svg>
     </Link>
-  );
+    );
 
   const cartButton = (
     <button
@@ -269,28 +260,32 @@ export function StoreHeader({
         } ${bgStyle ? "" : "bg-brand-bg/95 backdrop-blur"}`}
         style={bgStyle}
       >
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-4 space-y-2">
-          {/* Con buscador: fila fija logo-izquierda / buscador-centro /
-              carrito, propia de celular (la fila de computadora de abajo
-              se ocupa de esa pantalla). Sin buscador: el layout de
-              siempre, con las posiciones que la marca eligió. */}
-          {searchBar && (
-            <div className="flex items-center gap-3 sm:hidden">
-              <div className="flex-1 min-w-0 flex items-center">{logo}</div>
-              {searchBar}
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-3 sm:py-4 space-y-2">
+          {/* Fila de celular: menú a la izquierda, logo centrado (o a la
+              izquierda, según Diseño → Encabezado) con casi todo el ancho
+              de la pantalla, y el carrito a la derecha. */}
+          <div className="relative flex items-center justify-between gap-2 sm:hidden min-h-10">
+            <div className="flex items-center gap-2 min-w-0">
+              {hamburgerButton}
+              {!mobileCentered && logoLink}
+            </div>
+            {mobileCentered && (
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex justify-center">{logoLink}</div>
+            )}
+            <div className="flex items-center gap-1 shrink-0">
+              {!showHamburger && searchLink(true)}
               {cartButton}
             </div>
-          )}
+          </div>
+          {/* Fila de computadora. */}
           <div
-            className={`items-center gap-4 ${searchBar ? "hidden sm:flex" : "flex"} ${
-              desktopCentered ? "sm:grid sm:grid-cols-3" : "justify-between"
-            } ${mobileCentered ? "justify-center relative" : "justify-between"}`}
+            className={`hidden sm:flex items-center gap-4 ${desktopCentered ? "sm:grid sm:grid-cols-3" : "justify-between"}`}
           >
-            <div className={mobileCentered ? "absolute left-6 sm:static" : ""}>{logo}</div>
+            <div>{logoLink}</div>
             {desktopCentered && <div className="hidden sm:flex justify-center">{desktopNav}</div>}
-            <div className={`flex items-center gap-4 ${desktopCentered ? "justify-end" : ""} ${mobileCentered ? "ml-auto" : ""}`}>
+            <div className={`flex items-center gap-4 ${desktopCentered ? "justify-end" : ""}`}>
               {!desktopCentered && desktopNav}
-              {desktopSearchLink}
+              {searchLink(false)}
               {cartButton}
             </div>
           </div>
@@ -326,6 +321,7 @@ export function StoreHeader({
                 ×
               </button>
             </div>
+            {searchBar && <div className="px-4 pt-4">{searchBar}</div>}
             <nav className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
               {menuItems.map((item) =>
                 renderMenuLink(item, basePath, "text-sm text-brand-ink py-2.5 hover:text-brand-accent", () => setMenuOpen(false)),

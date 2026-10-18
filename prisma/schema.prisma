@@ -1229,11 +1229,6 @@ model StoreOrder {
   shippingPostalCode String?
   /// Nombre de la tarifa de envío que aplicó (ej. "Envío a domicilio").
   shippingMethod     String?
-  /// true cuando la tarifa elegida era "se paga al recibir" (contraentrega,
-  /// ver ShippingZoneRate.payOnDelivery): el envío no va en el total y el
-  /// checkout, la página del pedido y los correos lo dicen en vez de
-  /// "Gratis". Ver conversación del 2026-10-18.
-  shippingPayOnDelivery Boolean @default(false)
   /// "Enviarme novedades y ofertas por correo" en el checkout.
   acceptsMarketing   Boolean         @default(false)
   /// Archivado por la marca (como "Archivar" en Shopify): sale de la lista
@@ -2610,12 +2605,14 @@ model ShippingZoneRate {
 
   name  String
   price Decimal @db.Decimal(12, 2)
-  /// "El envío lo pagas contraentrega": la tarifa va en $0 pero el envío
-  /// no es gratis — el comprador se lo paga a la transportadora al
-  /// recibir. Se detecta al importar fletes de Shopify por el nombre de
-  /// la tarifa y la marca lo puede marcar en Envíos. Ver conversación
-  /// del 2026-10-18 ("porque dice esto en el checkout?").
-  payOnDelivery Boolean @default(false)
+  /// Tarifa sin precio real: venía de la tienda anterior como
+  /// "contraentrega" en $0 (el comprador le pagaba el envío a la
+  /// transportadora). Marcolini NO permite envío contraentrega, así que
+  /// mientras esté marcada el checkout no deja pagar pedidos a esa zona y
+  /// la marca ve en Envíos que tiene que ponerle precio; al guardar un
+  /// precio mayor a cero se desmarca sola. Ver conversación del
+  /// 2026-10-18 ("No permitimos envío contra entrega").
+  pendingPrice Boolean @default(false)
 
   condition          ShippingRateCondition @default(NONE)
   /// Null cuando condition = NONE. Ambos son opcionales — al menos uno

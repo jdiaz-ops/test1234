@@ -316,17 +316,14 @@ export function CheckoutForm({
   const [shippingQuote, setShippingQuote] = useState<{
     amount: number | null;
     name: string | null;
-    /// "Se paga al recibir": la tarifa va en $0 pero el envío no es gratis,
-    /// el comprador se lo paga a la transportadora al recibir.
-    payOnDelivery: boolean;
     error: string | null;
     loading: boolean;
-  }>({ amount: null, name: null, payOnDelivery: false, error: null, loading: false });
+  }>({ amount: null, name: null, error: null, loading: false });
 
   useEffect(() => {
     if (!needsShipping || !region) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- resetea la cotización cuando se borra el departamento
-      setShippingQuote({ amount: null, name: null, payOnDelivery: false, error: null, loading: false });
+      setShippingQuote({ amount: null, name: null, error: null, loading: false });
       return;
     }
     let cancelled = false;
@@ -340,20 +337,14 @@ export function CheckoutForm({
       .then((body) => {
         if (cancelled) return;
         if (body?.ok) {
-          setShippingQuote({
-            amount: body.shippingCents / 100,
-            name: body.rateName ?? null,
-            payOnDelivery: Boolean(body.payOnDelivery),
-            error: null,
-            loading: false,
-          });
+          setShippingQuote({ amount: body.shippingCents / 100, name: body.rateName ?? null, error: null, loading: false });
         } else {
-          setShippingQuote({ amount: null, name: null, payOnDelivery: false, error: body?.error ?? "No se pudo cotizar el envío.", loading: false });
+          setShippingQuote({ amount: null, name: null, error: body?.error ?? "No se pudo cotizar el envío.", loading: false });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setShippingQuote({ amount: null, name: null, payOnDelivery: false, error: "No se pudo cotizar el envío — revisa tu conexión.", loading: false });
+          setShippingQuote({ amount: null, name: null, error: "No se pudo cotizar el envío — revisa tu conexión.", loading: false });
         }
       });
     return () => {
@@ -363,14 +354,10 @@ export function CheckoutForm({
   }, [brandSlug, needsShipping, region]);
 
   const shippingCost = shippingQuote.amount ?? 0;
-  // Cómo se muestra el envío cotizado: el valor, "Gratis" o, si la tarifa
-  // es contraentrega, "Se paga al recibir" (antes salía "Gratis" y el
-  // comprador entendía que no pagaba envío). Ver conversación del 2026-10-18.
-  const shippingLabel = shippingQuote.payOnDelivery
-    ? "Se paga al recibir"
-    : shippingCost === 0
-      ? "Gratis"
-      : formatCOP(shippingCost);
+  // Cómo se muestra el envío cotizado: el valor o "Gratis". Una tarifa que
+  // venía como contraentrega no se cotiza (Marcolini no lo permite, ver
+  // quoteShipping): el checkout muestra el aviso de la tienda.
+  const shippingLabel = shippingCost === 0 ? "Gratis" : formatCOP(shippingCost);
   // Los precios ya traen el IVA: se muestra cuánto va incluido, no se suma.
   const taxAmount = taxIncluded(afterDiscount, taxRatePercent);
   const total = orderTotal({ subtotal, discount: discountAmount, shipping: shippingCost });
@@ -744,11 +731,6 @@ export function CheckoutForm({
                   </span>
                   <span className="font-medium text-brand-ink tabular-nums">{shippingLabel}</span>
                 </div>
-              )}
-              {shippingQuote.payOnDelivery && !shippingQuote.loading && !shippingQuote.error && (
-                <p className="text-xs text-brand-ink-soft">
-                  El valor del envío lo pagas al recibir el pedido, directo a la transportadora. No va en el total de hoy.
-                </p>
               )}
             </Section>
           )}

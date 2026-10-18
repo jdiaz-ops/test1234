@@ -19,6 +19,15 @@ export default async function TiendaEnviosPage() {
         del pedido, no Marcolini.
       </p>
 
+      {zones.some((z) => z.rates.some((r) => r.pendingPrice)) && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 mb-4">
+          <p className="text-sm text-amber-900">
+            Marcolini no permite envío contraentrega. Tienes tarifas que venían así de tu tienda anterior y todavía no
+            tienen precio: ponles el precio del envío para que esas zonas se puedan comprar.
+          </p>
+        </div>
+      )}
+
       {zones.length === 0 && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 mb-4">
           <p className="text-sm text-amber-900">
@@ -39,7 +48,7 @@ export default async function TiendaEnviosPage() {
             id: r.id,
             name: r.name,
             price: Number(r.price),
-            payOnDelivery: r.payOnDelivery,
+            pendingPrice: r.pendingPrice,
             condition: r.condition,
             conditionValue: r.conditionValue != null ? Number(r.conditionValue) : null,
             conditionMaxValue:

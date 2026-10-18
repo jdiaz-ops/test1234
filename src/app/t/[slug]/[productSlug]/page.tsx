@@ -21,6 +21,8 @@ import { getStoreBasePath } from "@/lib/store-base-path";
 import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
+import { getSiblingProducts } from "@/server/services/product-sibling-service";
+import { SiblingProducts } from "@/components/storefront/sibling-products";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 
 export async function generateMetadata({
@@ -66,12 +68,13 @@ export default async function StorefrontProductPage({
   const outOfStock = product.stock != null && product.stock <= 0;
   const isService = product.type === "SERVICE";
   const isDigital = product.type === "DIGITAL";
-  const [basePath, menuItems, theme, relatedProducts, reviewData] = await Promise.all([
+  const [basePath, menuItems, theme, relatedProducts, reviewData, siblings] = await Promise.all([
     getStoreBasePath(slug),
     listStorefrontMenuItems(brand.id),
     getStorefrontTheme(brand.id),
     getRelatedProducts(brand.id, product.id),
     REVIEWS_ENABLED ? getProductReviews(product.id) : null,
+      getSiblingProducts(brand.id, product),
   ]);
   const { productDetail } = theme;
   const savedAmountPercent =
@@ -157,6 +160,8 @@ export default async function StorefrontProductPage({
                 )}
               </div>
             )}
+
+            {siblings && <SiblingProducts siblings={siblings} basePath={basePath} />}
 
             {isService && (
               <div className="rounded-xl border border-brand-line p-3 space-y-1.5 text-sm">

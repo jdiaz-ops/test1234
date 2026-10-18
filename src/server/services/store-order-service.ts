@@ -210,17 +210,18 @@ export async function quoteShipping(
   if (zones.length === 0) return { ok: false as const, reason: "NO_ZONES" as const };
   const zone = matchShippingZone(zones, params.region);
   if (!zone) return { ok: false as const, reason: "NO_ZONE_MATCH" as const };
-  const rate = pickShippingRate(zone.rates, {
+  // Una tarifa sin precio (venía como contraentrega, que Marcolini no
+  // permite) no se cotiza: si es la única que aplica, la zona queda
+  // bloqueada hasta que la marca le ponga precio.
+  const priced = zone.rates.filter((r) => !r.pendingPrice);
+  const rate = pickShippingRate(priced, {
     orderAmountCents: params.orderAmountCents,
     weightKg: params.weightKg,
   });
-  if (!rate) return { ok: false as const, reason: "NO_RATE_MATCH" as const };
-  return {
-    ok: true as const,
-    shippingCents: Math.round(Number(rate.price) * 100),
-    rateName: rate.name,
-    payOnDelivery: rate.payOnDelivery,
-  };
+  if (!rate) {
+    return { ok: false as const, reason: priced.length < zone.rates.length ? ("RATE_PENDING_PRICE" as const) : ("NO_RATE_MATCH" as const) };
+  }
+  return { ok: true as const, shippingCents: Math.round(Number(rate.price) * 100), rateName: rate.name };
 }
 
 /// Valida un código de creador sin crear nada — se usa para mostrar el
@@ -445,7 +446,6 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   // obligatorio".
   let shippingCents = 0;
   let shippingMethod: string | null = null;
-  let shippingPayOnDelivery = false;
   if (!isServiceOrder && !isDigitalOrder) {
     const zones = await listShippingZones(brand.id);
     if (zones.length === 0) {
@@ -459,18 +459,21 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
         "Todavía no hacemos envíos a tu departamento — contacta a la tienda.",
       );
     }
-    const rate = pickShippingRate(zone.rates, {
+    // Sin las tarifas que todavía no tienen precio (ver quoteShipping).
+    const priced = zone.rates.filter((r) => !r.pendingPrice);
+    const rate = pickShippingRate(priced, {
       orderAmountCents: afterDiscount,
       weightKg: totalWeightKg,
     });
     if (!rate) {
       throw new StoreOrderError(
-        "No hay una tarifa de envío que aplique a tu pedido — contacta a la tienda.",
+        priced.length < zone.rates.length
+          ? "Esta tienda todavía no definió el costo de envío a tu departamento — contacta a la tienda."
+          : "No hay una tarifa de envío que aplique a tu pedido — contacta a la tienda.",
       );
     }
     shippingCents = Math.round(Number(rate.price) * 100);
     shippingMethod = rate.name;
-    shippingPayOnDelivery = rate.payOnDelivery;
   }
 
   // Los precios ya traen el IVA (precio al público). taxCents es la parte
@@ -579,7 +582,6 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
         buyerLastName: input.buyerLastName?.trim() || null,
         shippingPostalCode: isServiceOrder || isDigitalOrder ? null : input.shippingPostalCode?.trim() || null,
         shippingMethod,
-        shippingPayOnDelivery,
         acceptsMarketing: input.acceptsMarketing ?? false,
         items: { create: itemsData },
       },

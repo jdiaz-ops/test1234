@@ -56,7 +56,7 @@ type BrandFields = {
   taxId: string | null;
 };
 
-type Counts = { products: number; noStock: number; zones: number; orders: number; photos: number };
+type Counts = { products: number; noStock: number; zones: number; pendingRates: number; orders: number; photos: number };
 
 const BRAND_SELECT = {
   storefrontSlug: true,
@@ -97,7 +97,7 @@ function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
   const anyKeys = provider ? credentialsFor(gatewayFields, provider, "TEST") !== null || prodKeys : false;
   const live = Boolean(provider) && prodKeys && brand.paymentMode === "PRODUCTION";
   const providerName = provider ? PAYMENT_PROVIDERS[provider].name : null;
-  const { products, noStock, zones, orders, photos } = counts;
+  const { products, noStock, zones, pendingRates, orders, photos } = counts;
 
   const items: GoLiveItem[] = [
     {
@@ -136,8 +136,13 @@ function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
     {
       key: "envios",
       label: "Configura tus zonas de envío",
-      detail: zones > 0 ? `${zones} ${zones === 1 ? "zona" : "zonas"} de envío.` : "Sin zonas de envío no se puede pagar un pedido.",
-      done: zones > 0,
+      detail:
+        zones === 0
+          ? "Sin zonas de envío no se puede pagar un pedido."
+          : pendingRates > 0
+            ? `${pendingRates} ${pendingRates === 1 ? "tarifa venía" : "tarifas venían"} como contraentrega y Marcolini no lo permite: ponle precio al envío en Envíos.`
+            : `${zones} ${zones === 1 ? "zona" : "zonas"} de envío.`,
+      done: zones > 0 && pendingRates === 0,
       manual: false,
       href: "/marca/tienda/envios",
     },
@@ -188,14 +193,15 @@ function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
 export async function getGoLiveChecklist(brandId: string): Promise<GoLiveChecklist | null> {
   const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId }, select: BRAND_SELECT });
   if (!brand.storefrontSlug) return null;
-  const [products, noStock, zones, orders, photos] = await Promise.all([
+  const [products, noStock, zones, pendingRates, orders, photos] = await Promise.all([
     prisma.product.count({ where: { brandId, manual: true, status: "ACTIVE" } }),
     prisma.product.count({ where: { brandId, ...NO_STOCK_WHERE } }),
     prisma.shippingZone.count({ where: { brandId } }),
+    prisma.shippingZoneRate.count({ where: { zone: { brandId }, pendingPrice: true } }),
     prisma.storeOrder.count({ where: { brandId } }),
     countExternalImages(brandId),
   ]);
-  return buildItems(brand, { products, noStock, zones, orders, photos: photos.total });
+  return buildItems(brand, { products, noStock, zones, pendingRates, orders, photos: photos.total });
 }
 
 export type GoLiveSummary = { done: number; total: number; missing: string[] };
@@ -209,10 +215,14 @@ export async function getGoLiveSummaries(brands: (BrandFields & { id: string })[
   const ids = withStore.map((b) => b.id);
   const out = new Map<string, GoLiveSummary>();
   if (ids.length === 0) return out;
-  const [products, noStock, zones, orders, external] = await Promise.all([
+  const [products, noStock, zones, pendingRates, orders, external] = await Promise.all([
     prisma.product.groupBy({ by: ["brandId"], where: { brandId: { in: ids }, manual: true, status: "ACTIVE" }, _count: { _all: true } }),
     prisma.product.groupBy({ by: ["brandId"], where: { brandId: { in: ids }, ...NO_STOCK_WHERE }, _count: { _all: true } }),
     prisma.shippingZone.groupBy({ by: ["brandId"], where: { brandId: { in: ids } }, _count: { _all: true } }),
+    prisma.shippingZoneRate.findMany({
+      where: { zone: { brandId: { in: ids } }, pendingPrice: true },
+      select: { zone: { select: { brandId: true } } },
+    }),
     prisma.storeOrder.groupBy({ by: ["brandId"], where: { brandId: { in: ids } }, _count: { _all: true } }),
     prisma.product.findMany({
       where: {
@@ -227,6 +237,8 @@ export async function getGoLiveSummaries(brands: (BrandFields & { id: string })[
   const productsBy = count(products);
   const noStockBy = count(noStock);
   const zonesBy = count(zones);
+  const pendingBy = new Map<string, number>();
+  for (const r of pendingRates) pendingBy.set(r.zone.brandId, (pendingBy.get(r.zone.brandId) ?? 0) + 1);
   const ordersBy = count(orders);
   const photosBy = new Map<string, number>();
   for (const p of external) {
@@ -238,6 +250,7 @@ export async function getGoLiveSummaries(brands: (BrandFields & { id: string })[
       products: productsBy.get(brand.id) ?? 0,
       noStock: noStockBy.get(brand.id) ?? 0,
       zones: zonesBy.get(brand.id) ?? 0,
+      pendingRates: pendingBy.get(brand.id) ?? 0,
       orders: ordersBy.get(brand.id) ?? 0,
       photos: photosBy.get(brand.id) ?? 0,
     });

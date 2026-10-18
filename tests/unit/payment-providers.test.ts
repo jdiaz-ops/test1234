@@ -238,7 +238,7 @@ describe("Bold", () => {
 });
 
 describe("envío contraentrega", () => {
-  it("reconoce por el nombre las tarifas en $0 que se pagan al recibir", () => {
+  it("reconoce por el nombre las tarifas en $0 que se pagaban al recibir", () => {
     expect(isPayOnDeliveryRate("EL ENVIO LO PAGAS CONTRAENTREGA", 0)).toBe(true);
     expect(isPayOnDeliveryRate("Pago contra entrega", 0)).toBe(true);
     expect(isPayOnDeliveryRate("Flete al recibir", 0)).toBe(true);
@@ -248,10 +248,10 @@ describe("envío contraentrega", () => {
     expect(isPayOnDeliveryRate("Contraentrega", 12000)).toBe(false);
   });
 
-  it("al leer los fletes de Shopify la zona queda marcada como contraentrega", () => {
+  it("al leer los fletes de Shopify una tarifa contraentrega entra como tarifa sin precio", () => {
     const { zones } = buildShippingZones({ Antioquia: [{ name: "EL ENVIO LO PAGAS CONTRAENTREGA", price: 0 }] });
     expect(zones).toHaveLength(1);
-    expect(zones[0].rates[0]).toEqual({ name: "EL ENVIO LO PAGAS CONTRAENTREGA", price: 0, condition: "NONE", payOnDelivery: true });
+    expect(zones[0].rates[0]).toEqual({ name: "EL ENVIO LO PAGAS CONTRAENTREGA", price: 0, condition: "NONE", pendingPrice: true });
     const free = buildShippingZones({ Antioquia: [{ name: "Envío", price: 0 }] });
     expect(free.zones[0].rates[0]).toEqual({ name: "Envío gratis", price: 0, condition: "NONE" });
   });

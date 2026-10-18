@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { commonNamePrefix, groupLabel, splitProductsVariants, splitProductVariants } from "@/server/services/product-split-service";
 import { getPublicBrandCollection } from "@/server/services/brand-collection-service";
+import { getSiblingProducts } from "@/server/services/product-sibling-service";
 import { toCardProduct } from "@/components/storefront/product-card";
 import { createBrand, createProduct, hasDb } from "./helpers";
 
@@ -45,6 +46,18 @@ describe.skipIf(!hasDb)("separar variantes en productos", () => {
       where: { id: placa.variants.find((v) => v.option1Value === "Loca")!.id },
       data: { price: 17900, imageUrl: "https://cdn.prueba.test/loca.jpg", sku: "GP-LOCA" },
     });
+    await prisma.productVariant.update({
+      where: { id: placa.variants.find((v) => v.option1Value === "Princesa")!.id },
+      data: { imageUrl: "https://cdn.prueba.test/princesa.jpg" },
+    });
+    // Galería del original: la placa con todos los tonos + la foto de cada tono.
+    await prisma.productImage.createMany({
+      data: ["https://cdn.prueba.test/placa.jpg", "https://cdn.prueba.test/princesa.jpg", "https://cdn.prueba.test/loca.jpg"].map((url, position) => ({
+        productId: placa.id,
+        url,
+        position,
+      })),
+    });
     const verdes = await createProduct(brand.id, {
       name: "Gel Polish Verdes",
       price: 15900,
@@ -78,10 +91,26 @@ describe.skipIf(!hasDb)("separar variantes en productos", () => {
     expect(loca.variants).toHaveLength(0);
     expect(loca.brandCollections.map((c) => c.collectionId)).toEqual([collection.id]);
     expect(loca.slug).toBe("gel-polish-rosados-loca");
+    // Cada tono se queda con su foto y la general (la placa), no con las
+    // de los demás tonos.
+    expect(loca.images.map((i) => i.url)).toEqual(["https://cdn.prueba.test/loca.jpg", "https://cdn.prueba.test/placa.jpg"]);
     const princesa = created[1];
     expect(Number(princesa.price)).toBe(15900);
     expect(princesa.stock).toBe(4);
+    expect(princesa.images.map((i) => i.url)).toEqual(["https://cdn.prueba.test/princesa.jpg", "https://cdn.prueba.test/placa.jpg"]);
     expect(created[2].stock).toBeNull();
+    expect(created[2].imageUrl).toBe("https://cdn.prueba.test/placa.jpg");
+
+    // Dentro del producto, los otros tonos del grupo (como las variaciones
+    // de Amazon): el actual primero, los demás como links.
+    const siblings = await getSiblingProducts(brand.id, loca);
+    expect(siblings).toMatchObject({ group: "Rosados", axis: "Tono", current: "Loca" });
+    expect(siblings!.items.map((i) => [i.value, i.current, i.soldOut])).toEqual([
+      ["Loca", true, true],
+      ["Princesa", false, false],
+      ["Reina", false, false],
+    ]);
+    expect(await getSiblingProducts(brand.id, sinVariantes)).toBeNull();
 
     const acida = await prisma.product.findFirstOrThrow({ where: { brandId: brand.id, name: "Gel Polish Verdes – Acida" } });
     expect(acida.attributes).toEqual({ Grupo: "Verdes", Tono: "Acida" });

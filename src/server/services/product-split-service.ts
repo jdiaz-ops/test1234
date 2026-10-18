@@ -64,6 +64,12 @@ export async function splitProductVariants(brandId: string, productId: string, g
   }
 
   const productImages = product.images.map((i) => i.url);
+  // Las fotos de la galería que son la foto de alguna variante pertenecen a
+  // ese tono; las demás (la placa con todos los tonos, el empaque) son
+  // generales y van en todos. Antes cada tono se llevaba la galería entera
+  // y en su página aparecían los demás tonos (2026-10-18).
+  const variantImages = new Set(product.variants.map((v) => v.imageUrl).filter((u): u is string => Boolean(u)));
+  const genericImages = productImages.filter((u) => !variantImages.has(u));
   const collectionIds = product.brandCollections.map((c) => c.collectionId);
   const created: SplitResult["created"] = [];
 
@@ -79,7 +85,11 @@ export async function splitProductVariants(brandId: string, productId: string, g
       const value = values[idx];
       if (value && value.trim()) attributes[axisLabel(axis)] = value.trim();
     });
-    const images = variant.imageUrl ? [variant.imageUrl, ...productImages.filter((u) => u !== variant.imageUrl)] : productImages;
+    const images = variant.imageUrl
+      ? [variant.imageUrl, ...genericImages.filter((u) => u !== variant.imageUrl)]
+      : genericImages.length > 0
+        ? genericImages
+        : productImages.slice(0, 1);
     const item = await createManualProduct(brandId, {
       name,
       description: product.description ?? undefined,
