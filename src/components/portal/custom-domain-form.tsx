@@ -1,7 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+type DnsRecord = { type: "A" | "CNAME" | "TXT"; name: string; value: string };
+
+/// Lo que devuelve /api/marca/tienda/dominio/estado (ver
+/// custom-domain-service.ts): si Marcolini ya registró el dominio en
+/// Vercel, si el DNS ya apunta y qué registros poner.
+type DomainStatus = {
+  domain: string | null;
+  verified: boolean;
+  vercel: {
+    automatic: boolean;
+    registered: boolean;
+    verification: DnsRecord[];
+    configured: boolean;
+    records: DnsRecord[];
+    error: string | null;
+  };
+};
+
+/// null cuando no se pudo consultar.
+async function fetchStatus(): Promise<DomainStatus | null> {
+  try {
+    const res = await fetch("/api/marca/tienda/dominio/estado", { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as DomainStatus;
+  } catch {
+    return null;
+  }
+}
+
+function Records({ records }: { records: DnsRecord[] }) {
+  return (
+    <div className="font-mono text-brand-ink bg-white rounded-lg p-2 border border-brand-line overflow-x-auto space-y-1">
+      {records.map((r) => (
+        <div key={`${r.type}-${r.name}-${r.value}`}>
+          <p>Tipo: {r.type}</p>
+          <p>Nombre: {r.name}</p>
+          <p>Valor: {r.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function CustomDomainForm({
   initialDomain,
@@ -19,7 +62,36 @@ export function CustomDomainForm({
   const [verified, setVerified] = useState(initialVerified);
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [status, setStatus] = useState<DomainStatus | null>(null);
+  const [statusFailed, setStatusFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /// Después de verificar, el estado de la conexión (Vercel y DNS).
+  useEffect(() => {
+    if (!verified || !savedDomain) return;
+    let cancelled = false;
+    void fetchStatus().then((next) => {
+      if (cancelled) return;
+      if (next) setStatus(next);
+      else setStatusFailed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [verified, savedDomain]);
+
+  async function recheck() {
+    setChecking(true);
+    const next = await fetchStatus();
+    if (next) {
+      setStatus(next);
+      setStatusFailed(false);
+    } else {
+      setStatusFailed(true);
+    }
+    setChecking(false);
+  }
 
   async function save() {
     setSaving(true);
@@ -38,6 +110,8 @@ export function CustomDomainForm({
       setSavedDomain(body.domain);
       setToken(body.verificationToken);
       setVerified(false);
+      setStatus(null);
+      setStatusFailed(false);
     } catch {
       setError("No se pudo guardar — revisa tu conexión.");
     } finally {
@@ -71,12 +145,16 @@ export function CustomDomainForm({
       setSavedDomain(null);
       setToken(null);
       setVerified(false);
+      setStatus(null);
+      setStatusFailed(false);
       setDomain("");
       router.refresh();
     } finally {
       setSaving(false);
     }
   }
+
+  const vercel = status?.vercel ?? null;
 
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mt-6">
@@ -113,7 +191,7 @@ export function CustomDomainForm({
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-sm text-brand-ink">{savedDomain}</span>
             {verified ? (
               <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-brand-accent-soft text-brand-accent">
@@ -124,6 +202,15 @@ export function CustomDomainForm({
                 SIN VERIFICAR
               </span>
             )}
+            {verified && vercel && vercel.automatic && (
+              <span
+                className={`text-[10px] font-mono font-medium rounded-full px-2 py-0.5 ${
+                  vercel.configured ? "bg-brand-accent-soft text-brand-accent" : "bg-amber-100 text-amber-700"
+                }`}
+              >
+                {vercel.configured ? "CONECTADO" : vercel.registered ? "FALTA EL DNS" : "SIN REGISTRAR"}
+              </span>
+            )}
           </div>
 
           {!verified && token && (
@@ -132,11 +219,7 @@ export function CustomDomainForm({
                 Agrega este registro TXT en el DNS de{" "}
                 <span className="font-mono text-brand-ink">{savedDomain}</span>:
               </p>
-              <div className="font-mono text-brand-ink bg-white rounded-lg p-2 border border-brand-line overflow-x-auto">
-                <p>Nombre: _marcolini-verify.{savedDomain}</p>
-                <p>Tipo: TXT</p>
-                <p>Valor: {token}</p>
-              </div>
+              <Records records={[{ type: "TXT", name: `_marcolini-verify.${savedDomain}`, value: token }]} />
               <p>
                 Puede tardar unos minutos en propagar. Cuando lo hayas
                 agregado, dale a &ldquo;Verificar&rdquo;.
@@ -153,11 +236,49 @@ export function CustomDomainForm({
           )}
 
           {verified && (
-            <p className="text-xs text-brand-ink-soft">
-              Ahora apunta el DNS de {savedDomain} a Marcolini (registro CNAME
-              — te lo confirma el equipo de Marcolini con el valor exacto)
-              para que el tráfico real empiece a llegar ahí.
-            </p>
+            <div className="rounded-xl bg-brand-bg p-3 text-xs text-brand-ink-soft space-y-2">
+              {!vercel ? (
+                <p>{statusFailed && !checking ? "No pudimos revisar la conexión. Intenta de nuevo." : "Revisando la conexión…"}</p>
+              ) : (
+                <>
+                  <p>
+                    {vercel.automatic
+                      ? vercel.registered
+                        ? "Tu dominio ya quedó registrado en Marcolini. "
+                        : vercel.error
+                          ? `No se pudo registrar el dominio en Marcolini (${vercel.error}). El equipo de Marcolini lo termina a mano. `
+                          : "Tu dominio todavía no está registrado en Marcolini; el equipo lo termina a mano. "
+                      : "El equipo de Marcolini termina el registro del dominio. "}
+                    Para que el tráfico llegue a tu tienda, pon este registro en el DNS de{" "}
+                    <span className="font-mono text-brand-ink">{savedDomain}</span>:
+                  </p>
+                  <Records records={vercel.records} />
+                  {vercel.verification.length > 0 && (
+                    <>
+                      <p>
+                        Ese dominio estuvo en otra cuenta de Vercel, así que también pide este registro TXT:
+                      </p>
+                      <Records records={vercel.verification} />
+                    </>
+                  )}
+                  {vercel.automatic && (
+                    <p>
+                      {vercel.configured
+                        ? "El DNS ya apunta a Marcolini: tu tienda responde en tu dominio."
+                        : "El DNS puede tardar hasta un día en propagarse. Cuando lo hayas cambiado, revisa de nuevo."}
+                    </p>
+                  )}
+                </>
+              )}
+              <button
+                type="button"
+                onClick={recheck}
+                disabled={checking}
+                className="bg-brand-accent text-white rounded-full px-4 py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+              >
+                {checking ? "Revisando..." : "Revisar conexión"}
+              </button>
+            </div>
           )}
 
           <button

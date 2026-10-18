@@ -11,8 +11,8 @@ export async function POST() {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   try {
-    const brand = await verifyCustomDomain(profile.id);
-    return NextResponse.json({ ok: true, verifiedAt: brand.customDomainVerifiedAt });
+    const { brand, vercelError } = await verifyCustomDomain(profile.id);
+    return NextResponse.json({ ok: true, verifiedAt: brand.customDomainVerifiedAt, vercelError });
   } catch (err) {
     if (err instanceof CustomDomainError)
       return NextResponse.json({ error: err.message }, { status: 400 });

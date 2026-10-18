@@ -34,6 +34,8 @@ const bodySchema = z.object({
     .array(z.object({ handle: z.string().trim().min(1).max(255), slug: z.string().trim().min(1).max(120) }))
     .max(50)
     .optional(),
+  /// handle de la colección → handles viejos que se unieron en ella.
+  aliases: z.record(z.string().trim().min(1).max(255), z.array(z.string().trim().min(1).max(255)).max(50)).optional(),
 });
 
 export async function POST(req: Request) {

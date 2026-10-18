@@ -1,6 +1,7 @@
 import type { CollectionSortOrder } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/shopify-csv";
+import { saveRedirects } from "@/server/services/storefront-redirect-service";
 import { mapShopifyMenuHref, type ShopifyMenuLink } from "@/lib/shopify-theme";
 import {
   BrandCollectionError,
@@ -57,6 +58,9 @@ export async function importShopifyCollections(
     /// Páginas ya importadas (handle de Shopify → slug acá), para que los
     /// links "/pages/x" del menú apunten a /pagina/{slug}.
     pageLinks?: { handle: string; slug: string }[];
+    /// Handles de la tienda vieja que se unieron en cada colección (ver
+    /// collection-merge.ts): sus links viejos también deben llegar acá.
+    aliases?: Record<string, string[]>;
   },
 ) {
   const products = await prisma.product.findMany({
@@ -140,6 +144,12 @@ export async function importShopifyCollections(
         });
       }
       results.push({ handle, name: collection.name, slug: collection.slug, action, linked: ids.length, missing });
+      // Los links viejos de esta colección (y de las que se unieron en
+      // ella) siguen funcionando — ver storefront-redirect-service.ts.
+      await saveRedirects(
+        brandId,
+        [handle, ...(data.aliases?.[handle] ?? [])].map((h) => ({ fromPath: `/collections/${h}`, toPath: `/coleccion/${collection.slug}` })),
+      );
     } catch (err) {
       console.error(`[colecciones-shopify] "${handle}":`, err);
       results.push({

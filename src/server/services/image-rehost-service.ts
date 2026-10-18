@@ -7,7 +7,8 @@ import type { FetchLike } from "@/server/services/shopify-store-reader";
 
 /// Copia a Marcolini las fotos que todavía viven en otro servidor (las
 /// importadas de Shopify quedan enlazadas a cdn.shopify.com) — de
-/// productos, variantes, colecciones, secciones de la home y páginas: se
+/// productos (también las que van dentro de la descripción), variantes,
+/// colecciones, secciones de la home y páginas: se
 /// descargan, se comprimen como cualquier foto subida (ver
 /// image-optimize.ts) y se suben al almacenamiento de Marcolini, y todas
 /// las filas que apuntaban a la URL vieja pasan a la nueva. Así el día que
@@ -62,7 +63,7 @@ export function imageUrlsInHtml(html: string): string[] {
 /// URLs externas distintas, de más antigua a más nueva, sin las que ya se
 /// intentaron y fallaron en esta pasada.
 async function findExternalImages(brandId: string, exclude: Set<string>) {
-  const [images, products, variants, collections, sections, pages] = await Promise.all([
+  const [images, products, variants, collections, sections, pages, descriptions] = await Promise.all([
     prisma.productImage.findMany({
       where: { product: { brandId }, url: { startsWith: "http" } },
       select: { url: true },
@@ -85,6 +86,11 @@ async function findExternalImages(brandId: string, exclude: Set<string>) {
     }),
     prisma.storefrontSection.findMany({ where: { brandId }, select: { config: true } }),
     prisma.storePage.findMany({ where: { brandId }, select: { body: true } }),
+    prisma.product.findMany({
+      where: { brandId, description: { contains: "<img" } },
+      select: { description: true },
+      take: MAX_SCAN,
+    }),
   ]);
   const urls: string[] = [];
   const seen = new Set<string>();
@@ -103,6 +109,7 @@ async function findExternalImages(brandId: string, exclude: Set<string>) {
   }
   for (const s of sections) for (const url of imageUrlsInConfig(s.config)) add(url);
   for (const p of pages) for (const url of imageUrlsInHtml(p.body)) add(url);
+  for (const d of descriptions) for (const url of imageUrlsInHtml(d.description ?? "")) add(url);
   return urls;
 }
 
@@ -121,6 +128,13 @@ async function replaceInSectionsAndPages(brandId: string, url: string, newUrl: s
   const pages = await prisma.storePage.findMany({ where: { brandId, body: { contains: url } }, select: { id: true, body: true } });
   for (const page of pages) {
     await prisma.storePage.update({ where: { id: page.id }, data: { body: page.body.split(url).join(newUrl) } });
+  }
+  const products = await prisma.product.findMany({
+    where: { brandId, description: { contains: url } },
+    select: { id: true, description: true },
+  });
+  for (const product of products) {
+    await prisma.product.update({ where: { id: product.id }, data: { description: (product.description ?? "").split(url).join(newUrl) } });
   }
 }
 

@@ -385,6 +385,29 @@ enum StorefrontSectionType {
 /// sanitización que Product.description). Se enlaza desde el menú de
 /// navegación (ver StorefrontMenuItem) o con su URL directa. Ver
 /// conversación del 2026-09-14, referencia de "Páginas" de Tiendanube.
+/// Redirecciones de los links de la tienda que la marca tenía antes
+/// (Shopify, WooCommerce…) a la página equivalente en su tienda de
+/// Marcolini — para que los links repartidos (Instagram, WhatsApp) y los
+/// de Google sigan funcionando cuando apague la tienda vieja. Se llenan
+/// al importar colecciones, páginas y políticas; los productos ya se
+/// resuelven por su handle (ver src/app/t/[slug]/products). Las rutas
+/// viejas viven en src/app/t/[slug]/{collections,pages,policies,…}. Ver
+/// conversación del 2026-10-18.
+model StorefrontRedirect {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  /// Ruta vieja sin dominio, en minúsculas: "/collections/gel-polish-azules".
+  fromPath String
+  /// Ruta nueva dentro de la tienda: "/coleccion/gel-polish".
+  toPath   String
+
+  createdAt DateTime @default(now())
+
+  @@unique([brandId, fromPath])
+}
+
 model StorePage {
   id      String       @id @default(cuid())
   brandId String
@@ -611,6 +634,7 @@ model BrandProfile {
   storefrontSections  StorefrontSection[]
   storeCustomers      StoreCustomer[]
   storePages          StorePage[]
+  storefrontRedirects StorefrontRedirect[]
   storefrontMenuItems StorefrontMenuItem[]
   theme               BrandTheme?
 

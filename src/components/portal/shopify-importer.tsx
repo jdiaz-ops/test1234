@@ -825,10 +825,20 @@ export function ShopifyImporter({
                 productHandles: c.productHandles,
               }));
         const menuLinks = merge ? menuForProposal(extras.theme?.menu ?? [], merge) : (extras.theme?.menu ?? []);
+        // Los links viejos de las colecciones unidas también deben llegar
+        // a la colección nueva (ver storefront-redirect-service.ts).
+        const aliases = merge
+          ? Object.fromEntries(
+              merge.collections
+                .filter((m) => m.sourceHandles.some((h) => h !== m.handle))
+                .map((m) => [m.handle, m.sourceHandles.filter((h) => h !== m.handle)]),
+            )
+          : undefined;
         const body = await postJson(API_COLLECTIONS, {
           collections: payload,
           menu: { links: menuLinks, replace: true },
           pageLinks,
+          aliases,
         });
         const rows = body.collections as { handle: string; slug: string; action: string; linked: number }[];
         for (const row of rows) if (row.action !== "error" && row.slug) collectionSlugByHandle[row.handle] = row.slug;
