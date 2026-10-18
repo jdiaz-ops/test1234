@@ -56,6 +56,9 @@ export type ShopifySocial = {
 
 export type ShopifyThemeInfo = {
   storeName: string | null;
+  /// <meta name="description"> de la portada: sirve para la descripción
+  /// corta del perfil (ver brand-profile-extract-service.ts).
+  metaDescription: string | null;
   logoUrl: string | null;
   faviconUrl: string | null;
   colors: ShopifyThemeColors | null;
@@ -532,6 +535,15 @@ export function extractFaviconUrl(html: string, baseUrl: string): string | null 
   return touch ?? icon;
 }
 
+export function extractMetaDescription(html: string): string | null {
+  const meta =
+    html.match(/<meta[^>]+name=["']description["'][^>]*>/i)?.[0] ??
+    html.match(/<meta[^>]+property=["']og:description["'][^>]*>/i)?.[0];
+  const content = meta ? attr(meta, "content") : null;
+  const clean = (content ?? "").replace(/\s+/g, " ").trim();
+  return clean ? clean.slice(0, 500) : null;
+}
+
 export function extractStoreName(html: string): string | null {
   const meta = html.match(/<meta[^>]+property=["']og:site_name["'][^>]*>/i)?.[0];
   const fromMeta = meta ? attr(meta, "content") : null;
@@ -782,6 +794,7 @@ export function extractAnnouncements(html: string): string[] {
 export function parseShopifyStorefront(html: string, baseUrl: string): ShopifyThemeInfo {
   return {
     storeName: extractStoreName(html),
+    metaDescription: extractMetaDescription(html),
     logoUrl: extractLogoUrl(html, baseUrl),
     faviconUrl: extractFaviconUrl(html, baseUrl),
     colors: extractColors(html),

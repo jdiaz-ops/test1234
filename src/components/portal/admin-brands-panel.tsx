@@ -22,6 +22,8 @@ type Brand = {
   platformFeePercentOverride: number | null;
   marketplaceVisibilityOverride: "AUTO" | "FORCE_VISIBLE" | "FORCE_HIDDEN";
   marketplaceMissing: string[];
+  /// "Lo que falta para vender" (ver go-live-service.ts); null sin tienda.
+  goLive: { done: number; total: number; missing: string[] } | null;
   _count: { offers: number };
   // El query que llena esto ya filtra status != PAID — el tipo incluye PAID
   // solo porque así lo infiere Prisma, nunca llega ese valor en la práctica.
@@ -439,6 +441,7 @@ export function AdminBrandsPanel({
             <tr className="border-b border-brand-line text-left text-xs text-brand-ink-soft">
               <th className="px-5 py-3 font-normal">Marca</th>
               <th className="px-5 py-3 font-normal">Tienda</th>
+              <th className="px-5 py-3 font-normal">En vivo</th>
               <th className="px-5 py-3 font-normal">Link</th>
               <th className="px-5 py-3 font-normal">Ofertas</th>
               <th className="px-5 py-3 font-normal">Tarifa</th>
@@ -486,6 +489,18 @@ export function AdminBrandsPanel({
                     >
                       {b.storefrontSlug ?? "— sin link"}
                     </button>
+                  )}
+                </td>
+                <td className="px-5 py-3">
+                  {b.goLive ? (
+                    <span
+                      title={b.goLive.missing.length > 0 ? `Falta: ${b.goLive.missing.join(" · ")}` : "Lista para vender"}
+                      className={`font-mono text-xs ${b.goLive.done === b.goLive.total ? "text-brand-accent" : "text-amber-600"}`}
+                    >
+                      {b.goLive.done}/{b.goLive.total}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-brand-ink-soft">—</span>
                   )}
                 </td>
                 <td className="px-5 py-3 font-mono text-brand-ink-soft">
@@ -669,7 +684,7 @@ export function AdminBrandsPanel({
               </tr>
               {(accessLinks[b.id] || accessError?.brandId === b.id) && (
                 <tr>
-                  <td colSpan={isOwner ? 8 : 7} className="px-5 py-3 bg-brand-bg">
+                  <td colSpan={isOwner ? 9 : 8} className="px-5 py-3 bg-brand-bg">
                     {accessError?.brandId === b.id && (
                       <p className="text-sm text-red-600">{accessError.message}</p>
                     )}

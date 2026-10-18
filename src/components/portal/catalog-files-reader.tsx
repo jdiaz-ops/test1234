@@ -431,6 +431,7 @@ export function CatalogFilesReader({
       logoUrl || organized?.palette || social.instagram || social.whatsapp
         ? {
             storeName: organized?.storeName || null,
+            metaDescription: null,
             logoUrl,
             faviconUrl: null,
             colors: organized?.palette ?? null,

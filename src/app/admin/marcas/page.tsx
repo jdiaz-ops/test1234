@@ -5,6 +5,7 @@ import { isOwner } from "@/lib/current-admin";
 import { prisma } from "@/lib/prisma";
 import { marketplaceMissing } from "@/lib/marketplace-readiness";
 import { DeleteTestProfilesButton } from "@/components/portal/delete-test-profiles-button";
+import { getGoLiveSummaries } from "@/server/services/go-live-service";
 
 export default async function AdminMarcasPage() {
   const session = await auth();
@@ -13,6 +14,9 @@ export default async function AdminMarcasPage() {
     prisma.offer.groupBy({ by: ["brandId"], where: { status: "ACTIVE" }, _count: { _all: true } }),
   ]);
   const activeOffersByBrand = new Map(activeOffers.map((o) => [o.brandId, o._count._all]));
+  // "Lo que falta para vender" de cada marca con tienda, en pocas
+  // consultas para todas (ver getGoLiveSummaries en go-live-service.ts).
+  const goLiveByBrand = await getGoLiveSummaries(brands);
   const pendingCount = brands.filter((b) => b.status === "PENDING").length;
 
   return (
@@ -38,6 +42,7 @@ export default async function AdminMarcasPage() {
             ? Number(b.platformFeePercentOverride)
             : null,
           marketplaceVisibilityOverride: b.marketplaceVisibilityOverride,
+          goLive: goLiveByBrand.get(b.id) ?? null,
           // Qué le falta para salir en el marketplace en modo Auto (ver
           // marketplace-readiness.ts).
           marketplaceMissing: marketplaceMissing(

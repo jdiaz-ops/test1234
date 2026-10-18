@@ -635,6 +635,10 @@ model BrandProfile {
   storeCustomers      StoreCustomer[]
   storePages          StorePage[]
   storefrontRedirects StorefrontRedirect[]
+
+  /// Pasos de "lo que falta para vender" que la marca marcó a mano (ver
+  /// go-live-service.ts); los demás se calculan solos.
+  goLiveChecks String[] @default([])
   storefrontMenuItems StorefrontMenuItem[]
   theme               BrandTheme?
 

@@ -11,6 +11,8 @@ import { getPlatformConfig } from "@/server/services/admin-config-service";
 import { getRecentEndedChallengeForBrand } from "@/server/services/challenge-service";
 import { CAMPAIGNS_ENABLED } from "@/lib/features";
 import { ChargePaymentBox } from "@/components/portal/charge-payment-box";
+import { GoLiveCard } from "@/components/portal/go-live-card";
+import { getGoLiveChecklist } from "@/server/services/go-live-service";
 import {
   ChallengeResultsGrid,
   type ChallengeResults,
@@ -81,6 +83,7 @@ export default async function MarcaDashboardPage() {
     openCharge,
     activeCampaigns,
     recentChallenge,
+    goLive,
   ] = await Promise.all([
     getBrandDashboardSummary(profile.id),
     getTopCreatorsForBrand(profile.id, 3),
@@ -94,6 +97,8 @@ export default async function MarcaDashboardPage() {
       where: { offer: { brandId: profile.id }, status: "ACTIVE" },
     }),
     getRecentEndedChallengeForBrand(profile.id),
+    // "Lo que falta para vender" (ver go-live-service.ts): solo con tienda.
+    profile.storefrontSlug ? getGoLiveChecklist(profile.id) : Promise.resolve(null),
   ]);
   const platformConfig = openCharge ? await getPlatformConfig() : null;
 
@@ -137,6 +142,8 @@ export default async function MarcaDashboardPage() {
           />
         </div>
       )}
+
+      {goLive && !goLive.complete && <GoLiveCard checklist={goLive} />}
 
       {pendingApprovals > 0 && (
         <Link

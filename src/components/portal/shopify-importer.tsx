@@ -9,7 +9,8 @@ import {
   type ShopifyCsvStats,
   type ShopifyImportProduct,
 } from "@/lib/shopify-csv";
-import { MAX_PAGES, PAGE_SIZE, type ShopifyImportCollection } from "@/lib/shopify-products-json";
+import { htmlToText, MAX_PAGES, PAGE_SIZE, type ShopifyImportCollection } from "@/lib/shopify-products-json";
+import { PROFILE_FIELD_LABELS, type ExtractedProfile } from "@/lib/legal-extract";
 import type { ProposedCollection } from "@/lib/shopify-categorize";
 import {
   POLICY_TITLES,
@@ -72,6 +73,8 @@ type LinkExtras = {
   /// Menos colecciones cuando la tienda trae de más (ver
   /// collection-merge.ts); la administradora elige en la vista previa.
   merge: MergeProposal | null;
+  /// Razón social, NIT, dirección… leídos de las políticas.
+  profile: ProfileRead | null;
   theme: ShopifyThemeInfo | null;
   shipping: ShippingRead | null;
   /// Avisos de lectura (algo que no se pudo leer y se siguió sin eso).
@@ -86,7 +89,12 @@ type ImportOptions = {
   design: boolean;
   shipping: boolean;
   photos: boolean;
+  profile: boolean;
 };
+
+/// Datos del perfil leídos de las políticas y páginas (ver
+/// brand-profile-extract-service.ts).
+type ProfileRead = { fields: ExtractedProfile; source: "ia" | "reglas" };
 
 type DesignResult = {
   colors: boolean;
@@ -106,6 +114,7 @@ type ExtrasResult = {
   design: DesignResult | null;
   shipping: { created: number; errors: number; removed: number } | null;
   photos: RehostSummary | null;
+  profile: { filled: string[] } | null;
   errors: string[];
 };
 
@@ -130,6 +139,8 @@ const API_DESIGN = "/api/marca/tienda/diseno/importar-shopify";
 const API_SHIPPING = "/api/marca/tienda/envios/importar-shopify";
 const API_PAGES = "/api/marca/tienda/paginas/importar-shopify";
 const API_SECTIONS = "/api/marca/tienda/secciones/importar-shopify";
+const API_PROFILE_READ = "/api/marca/tienda/perfil/leer";
+const API_PROFILE_IMPORT = "/api/marca/tienda/perfil/importar";
 /// Políticas que se buscan siempre, aunque la portada no las enlace.
 const DEFAULT_POLICIES: ShopifyPolicyKind[] = ["shipping-policy", "refund-policy", "privacy-policy", "terms-of-service"];
 
@@ -260,6 +271,7 @@ export function ShopifyImporter({
     design: true,
     shipping: true,
     photos: true,
+    profile: true,
   });
   const [parseError, setParseError] = useState<string | null>(null);
   const [phase, setPhase] = useState<"pick" | "importing" | "done">("pick");
@@ -369,6 +381,39 @@ export function ShopifyImporter({
     }
   }
 
+  /// Razón social, NIT, dirección, ciudad, correo, teléfono y descripción
+  /// corta, leídos de las políticas y páginas de la tienda (ver
+  /// brand-profile-extract-service.ts). null si no hay de dónde leer.
+  async function readProfile(
+    theme: ShopifyThemeInfo | null,
+    pages: PageRead[],
+    collections: ShopifyImportCollection[],
+    notes: string[],
+  ): Promise<ProfileRead | null> {
+    const texts = pages
+      .slice()
+      .sort((a, b) => (a.kind === "policy" ? 0 : 1) - (b.kind === "policy" ? 0 : 1))
+      .slice(0, 6)
+      .map((p) => ({ title: p.title, text: htmlToText(p.body).slice(0, 60_000) }))
+      .filter((t) => t.text.length > 40);
+    if (texts.length === 0 && !theme?.metaDescription) return null;
+    try {
+      setReadingStep("Leyendo los datos de la marca en sus políticas…");
+      const body = await postJson(API_PROFILE_READ, {
+        storeName: theme?.storeName ?? null,
+        metaDescription: theme?.metaDescription ?? null,
+        announcements: theme?.announcements ?? [],
+        categories: collections.map((c) => c.name).slice(0, 50),
+        texts,
+      });
+      const fields = body.fields as ExtractedProfile;
+      return Object.values(fields).some((v) => v) ? { fields, source: body.source } : null;
+    } catch (err) {
+      notes.push(`No se pudieron leer los datos de la marca: ${message(err)}`);
+      return null;
+    }
+  }
+
   /// Lo leído de los archivos de una marca sin web (catalog-files-reader.tsx)
   /// entra a la misma vista previa que el link.
   function handleFilesRead(read: FilesRead) {
@@ -380,6 +425,7 @@ export function ShopifyImporter({
       collections: read.collections,
       proposed: null,
       merge: null,
+      profile: null,
       theme: read.theme,
       shipping: null,
       notes: read.notes,
@@ -392,6 +438,7 @@ export function ShopifyImporter({
       design: Boolean(read.theme && (read.theme.colors || read.theme.logoUrl)),
       shipping: false,
       photos: false,
+      profile: false,
     });
   }
 
@@ -497,8 +544,9 @@ export function ShopifyImporter({
     const cleaned = cleanCatalogTitles(products, collections, theme?.storeName);
     if (cleaned.suffix) notes.push(suffixNote(cleaned.suffix));
     const merge = await proposeMerge(cleaned.collections, cleaned.products, notes);
+    const profileRead = await readProfile(theme, pages, cleaned.collections, notes);
     setParsed({ products: cleaned.products, warnings, stats });
-    setExtras({ storeUrl: origin, pages, collections: cleaned.collections, proposed, merge, theme, shipping: null, notes });
+    setExtras({ storeUrl: origin, pages, collections: cleaned.collections, proposed, merge, profile: profileRead, theme, shipping: null, notes });
     setCollectionChoice(merge ? "proposed" : "original");
     setOptions({
       products: true,
@@ -508,6 +556,7 @@ export function ShopifyImporter({
       design: Boolean(theme && (theme.colors || theme.fonts || theme.logoUrl)),
       shipping: false,
       photos: true,
+      profile: Boolean(profileRead),
     });
   }
 
@@ -636,6 +685,8 @@ export function ShopifyImporter({
         }
       }
 
+      const profileRead = await readProfile(theme, pages, cleaned.collections, notes);
+
       let shipping: ShippingRead | null = null;
       try {
         const regions = [...COLOMBIA_REGIONS];
@@ -700,7 +751,7 @@ export function ShopifyImporter({
         shipping = { ...shipping, variant: { ...shipping.variant, productName: cleanTitle(shipping.variant.productName, cleaned.suffix) } };
       }
       setParsed({ products: cleaned.products, warnings, stats });
-      setExtras({ storeUrl: resolvedUrl, pages, collections: cleaned.collections, proposed, merge, theme, shipping, notes });
+      setExtras({ storeUrl: resolvedUrl, pages, collections: cleaned.collections, proposed, merge, profile: profileRead, theme, shipping, notes });
       setCollectionChoice(merge ? "proposed" : "original");
       setOptions({
         products: true,
@@ -711,6 +762,7 @@ export function ShopifyImporter({
         shipping: Boolean(shipping),
         // Siempre: también hay fotos en la portada y en las páginas.
         photos: true,
+        profile: Boolean(profileRead),
       });
     } catch (err) {
       setParseError(message(err));
@@ -766,6 +818,7 @@ export function ShopifyImporter({
       design: null,
       shipping: null,
       photos: null,
+      profile: null,
       errors: [],
     };
     const pageLinks: { handle: string; slug: string }[] = [];
@@ -909,6 +962,16 @@ export function ShopifyImporter({
       }
     }
 
+    if (byLink && options.profile && extras.profile) {
+      setExtraStep("Guardando los datos de la marca…");
+      try {
+        const body = await postJson(API_PROFILE_IMPORT, { fields: extras.profile.fields });
+        result.profile = { filled: body.filled as string[] };
+      } catch (err) {
+        result.errors.push(`Datos de la marca: ${message(err)}`);
+      }
+    }
+
     if (byLink && options.shipping && extras.shipping) {
       setExtraStep("Configurando las zonas de envío…");
       try {
@@ -977,6 +1040,7 @@ export function ShopifyImporter({
     if (options.pages && extras.pages.length > 0) parts.push("páginas");
     if (options.collections && (extras.collections.length > 0 || extras.proposed)) parts.push("colecciones y menú");
     if (options.home && theme && theme.homeSections.length > 0) parts.push("portada");
+    if (options.profile && extras?.profile) parts.push("datos de la marca");
     if (options.design && theme) parts.push("diseño");
     if (options.shipping && shipping) parts.push("envíos");
     return parts.length ? `Importar ${parts.join(" + ")}` : "Importar";
@@ -1413,6 +1477,36 @@ export function ShopifyImporter({
                 </div>
               )}
 
+              {extras?.profile && (
+                <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-2">
+                  <label className="flex items-start gap-2 text-sm font-medium text-brand-ink">
+                    <input
+                      type="checkbox"
+                      checked={options.profile}
+                      onChange={(e) => setOptions({ ...options, profile: e.target.checked })}
+                      className="mt-1"
+                    />
+                    <span>Datos de la marca para el perfil</span>
+                  </label>
+                  <ul className="text-xs text-brand-ink-soft space-y-0.5">
+                    {(Object.keys(PROFILE_FIELD_LABELS) as (keyof ExtractedProfile)[])
+                      .filter((key) => extras.profile!.fields[key])
+                      .map((key) => (
+                        <li key={key}>
+                          <span className="text-brand-ink">{PROFILE_FIELD_LABELS[key]}:</span> {extras.profile!.fields[key]}
+                        </li>
+                      ))}
+                  </ul>
+                  <p className="text-xs text-brand-ink-soft">
+                    {extras.profile.source === "ia"
+                      ? "Leídos con inteligencia artificial de las políticas y páginas de la tienda. "
+                      : "Leídos de las políticas y páginas de la tienda. "}
+                    Se guardan en Perfil solo los campos que estén vacíos; el correo no se toca y el sitio web queda con el
+                    link de la tienda en Marcolini.
+                  </p>
+                </div>
+              )}
+
               {extras && theme && (theme.payments.methods.length > 0 || theme.payments.gateways.length > 0) && (
                 <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-1.5">
                   <p className="text-sm font-medium text-brand-ink">Pagos (solo informativo)</p>
@@ -1604,6 +1698,16 @@ export function ShopifyImporter({
                 ` · favicon ${IMAGE_OUTCOME[extrasResult.design.favicon] ?? extrasResult.design.favicon}`}
               {extrasResult.design.profileFields.length > 0 &&
                 ` · guardados: ${extrasResult.design.profileFields.map((f) => PROFILE_FIELD_LABEL[f] ?? f).join(", ")}`}
+            </p>
+          )}
+          {extrasResult?.profile && (
+            <p className="text-sm text-brand-ink">
+              Datos de la marca:{" "}
+              {extrasResult.profile.filled.length > 0
+                ? `guardados ${extrasResult.profile.filled
+                    .map((f) => PROFILE_FIELD_LABELS[f as keyof ExtractedProfile] ?? (f === "websiteUrl" ? "sitio web" : f))
+                    .join(", ")}`
+                : "el perfil ya tenía todo, no se cambió nada"}
             </p>
           )}
           {extrasResult?.shipping && (
