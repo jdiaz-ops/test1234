@@ -787,7 +787,7 @@ export function ShopifyImporter({
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-brand-ink">Importar desde Shopify</p>
+        <p className="text-sm font-medium text-brand-ink">Duplicar tienda</p>
         {phase !== "importing" && (
           <button
             type="button"

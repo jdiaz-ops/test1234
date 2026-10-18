@@ -442,7 +442,7 @@ export function StoreProductsPanel({
             onClick={() => setMode({ kind: "shopify" })}
             className="border border-brand-line rounded-full px-6 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft"
           >
-            Importar desde Shopify
+            Duplicar tienda
           </button>
         )}
         {products.length > 0 && (
