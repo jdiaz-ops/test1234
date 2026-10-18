@@ -199,6 +199,7 @@ const TEXT_PROPS = [
 ];
 const BUTTON_PROPS = [
   "--color-button",
+  "--color-primary-button-background",
   "--color-base-accent-1",
   "--color-btn-primary",
   "--colorbtnprimary",
@@ -315,13 +316,91 @@ function luminance(hex: string) {
 
 const ELEMENTOR_STOCK_COLORS = new Set(["#6ec1e4", "#61ce70", "#54595f"]);
 
+/// Un esquema de color de un tema de Shopify (Dawn: ".color-scheme-1";
+/// Horizon: ".color-scheme-2"…) con sus variables.
+type SchemeBlock = { name: string; props: Map<string, string[]> };
+
+function schemeBlocks(html: string): SchemeBlock[] {
+  const out: SchemeBlock[] = [];
+  for (const style of html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) ?? []) {
+    for (const rule of style.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!/--color-background\s*:/.test(rule[2])) continue;
+      for (const cls of rule[1].matchAll(/\.(color-[a-z0-9_-]+)/gi)) {
+        const name = cls[1].toLowerCase();
+        if (out.some((b) => b.name === name)) continue;
+        const props = new Map<string, string[]>();
+        for (const d of rule[2].matchAll(/(--[a-zA-Z0-9_-]+)\s*:\s*([^;}]+)/g)) {
+          const key = d[1].toLowerCase();
+          props.set(key, [...(props.get(key) ?? []), d[2].trim()]);
+        }
+        out.push({ name, props });
+      }
+    }
+  }
+  return out;
+}
+
+/// Qué esquema pinta el cuerpo de la página. Horizon pone un esquema por
+/// sección (el de :root puede ser el de la barra de anuncio, no el de la
+/// página — amglowspa.com salió con fondo rosa por eso), así que manda el
+/// más usado por las secciones del contenido; si no, el de <body>; si no,
+/// el que Dawn pega a body ("body, .color-scheme-1 {"); si no, el primero.
+function bodySchemeName(html: string, blocks: SchemeBlock[]): string | null {
+  if (blocks.length === 0) return null;
+  const names = new Set(blocks.map((b) => b.name));
+  const tokenIn = (part: string) => {
+    for (const m of part.matchAll(/\b(color-[a-z0-9_-]+)\b/gi)) {
+      const name = m[1].toLowerCase();
+      if (names.has(name)) return name;
+    }
+    return null;
+  };
+  const mainStart = html.search(/<main\b/i);
+  const main = mainStart >= 0 ? (innerHtmlAt(html, mainStart) ?? "") : "";
+  const counts = new Map<string, number>();
+  for (const m of main.matchAll(/<(?:div|section)\b[^>]*id=["']shopify-section-[^"']*["'][^>]*>/gi)) {
+    if (m.index == null) continue;
+    const name = tokenIn(main.slice(m.index, m.index + 1200));
+    if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  for (const [name, count] of counts) if (best == null || count > (counts.get(best) ?? 0)) best = name;
+  if (best) return best;
+  const body = html.match(/<body\b[^>]*>/i)?.[0] ?? "";
+  const onBody = tokenIn(attr(body, "class") ?? "");
+  if (onBody) return onBody;
+  const dawn = html.match(/(?:^|[\s,;}])body\s*,\s*\.(color-[a-z0-9_-]+)\s*\{/i)?.[1] ?? html.match(/\.(color-[a-z0-9_-]+)\s*,\s*body\s*\{/i)?.[1];
+  if (dawn && names.has(dawn.toLowerCase())) return dawn.toLowerCase();
+  return blocks[0].name;
+}
+
+/// El esquema de la barra de anuncio (su fondo es el "secundario").
+function announcementSchemeName(html: string, blocks: SchemeBlock[]): string | null {
+  if (blocks.length === 0) return null;
+  const names = new Set(blocks.map((b) => b.name));
+  const at = html.search(/class=["'][^"']*announcement/i);
+  if (at < 0) return null;
+  const window = html.slice(Math.max(0, at - 1500), at + 1500);
+  for (const m of window.matchAll(/\b(color-[a-z0-9_-]+)\b/gi)) {
+    const name = m[1].toLowerCase();
+    if (names.has(name)) return name;
+  }
+  return null;
+}
+
 export function extractColors(html: string): ShopifyThemeColors | null {
-  const props = collectCustomProps(html);
+  const global = collectCustomProps(html);
+  const blocks = schemeBlocks(html);
+  const bodyScheme = blocks.find((b) => b.name === bodySchemeName(html, blocks));
+  // Las variables del esquema del cuerpo mandan; las globales completan.
+  const props = new Map(global);
+  if (bodyScheme) for (const [key, values] of bodyScheme.props) props.set(key, [...values, ...(global.get(key) ?? [])]);
   let fondo = firstColor(props, BACKGROUND_PROPS);
   let texto = firstColor(props, TEXT_PROPS);
   let botones = firstColor(props, BUTTON_PROPS);
   let principal = firstColor(props, ACCENT_PROPS);
-  const fondo2 = firstColor(props, BACKGROUND_2_PROPS);
+  const announcement = blocks.find((b) => b.name === announcementSchemeName(html, blocks));
+  const fondo2 = (announcement && announcement !== bodyScheme ? firstColor(announcement.props, BACKGROUND_PROPS) : null) ?? firstColor(props, BACKGROUND_2_PROPS);
 
   if (!fondo && !texto && !botones && !principal) {
     const meta = html.match(/<meta[^>]+name=["']theme-color["'][^>]*>/i)?.[0];
@@ -887,9 +966,8 @@ export function extractAnnouncements(html: string): string[] {
   // barra superior (topbar, promo-bar, marquee, ticker).
   const bar = "(?:announcement|topbar|top-bar|promo-bar|header-top|ticker|notice-bar|site-notice|marquee)";
   for (const match of html.matchAll(new RegExp(`<(span|p|a)\\b[^>]*class=["'][^"']*${bar}[^"']*["'][^>]*>([\\s\\S]*?)<\\/\\1>`, "gi"))) push(match[2]);
-  if (texts.length === 0) {
-    for (const match of html.matchAll(new RegExp(`<div\\b[^>]*class=["'][^"']*${bar}[^"']*["'][^>]*>([\\s\\S]*?)<\\/div>`, "gi"))) push(match[1]);
-  }
+  // También los bloques (un marquee de "10% de descuento" en la portada).
+  for (const match of html.matchAll(new RegExp(`<div\\b[^>]*class=["'][^"']*${bar}[^"']*["'][^>]*>([\\s\\S]*?)<\\/div>`, "gi"))) push(match[1]);
   return texts.slice(0, 4);
 }
 
@@ -1095,7 +1173,9 @@ export function extractHomeSections(html: string, baseUrl: string, extraCss = ""
     const inner = innerHtmlAt(html, match.index);
     if (!inner) continue;
     const innerClasses = (inner.slice(0, 1500).match(/class=["']([^"']+)["']/gi) ?? []).join(" ").toLowerCase();
-    const key = `${id} ${cls} ${innerClasses}`;
+    // Los ids llevan "template--1__gallery_abc": con guiones, para que las
+    // palabras se reconozcan como en las clases.
+    const key = `${id} ${cls} ${innerClasses}`.replace(/_/g, "-");
 
     if (/slideshow|image[-_]banner|\bhero\b|\bbanner\b/.test(key)) {
       const images = sectionImages(inner, baseUrl);
@@ -1107,11 +1187,36 @@ export function extractHomeSections(html: string, baseUrl: string, extraCss = ""
       }
       continue;
     }
-    if (/featured[-_]collection/.test(key)) {
+    if (/featured[-_]collection|product[-_]list|featured[-_]products|product[-_]grid|products?[-_]carousel/.test(key)) {
+      const title = firstText(inner, "h2|h3", 120);
       const [collectionHandle] = collectionHandles(inner, 1);
-      if (collectionHandle) sections.push({ type: "FEATURED_COLLECTION", collectionHandle, title: firstText(inner, "h2|h3", 120) });
+      if (collectionHandle) {
+        sections.push({ type: "FEATURED_COLLECTION", collectionHandle, title });
+        continue;
+      }
+      // Horizon: una lista de productos de "todos" (con su "Ver todo" a
+      // /collections/all) se arma sola acá; si no, los productos listados.
+      const handles = productHandles(inner, 8);
+      if (/\/collections\/all\b/i.test(inner) && !ON_SALE_RE.test(title)) sections.push({ type: "NEW_PRODUCTS", title });
+      else if (handles.length > 0) sections.push(productListSection(key, title, handles));
       continue;
     }
+    if (/logo[-_]list|brand[-_]list|logos/.test(key)) {
+      const items: { imageUrl: string; link: string }[] = [];
+      for (const link of inner.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+        const [imageUrl] = sectionImages(link[2], baseUrl, 1);
+        if (imageUrl && !items.some((i) => i.imageUrl === imageUrl)) items.push({ imageUrl, link: mapHref(attr(`<a ${link[1]}>`, "href"), baseUrl) });
+      }
+      for (const imageUrl of sectionImages(inner, baseUrl, 12)) if (!items.some((i) => i.imageUrl === imageUrl)) items.push({ imageUrl, link: "" });
+      if (items.length >= 3) sections.push({ type: "BRAND_CAROUSEL", items: items.slice(0, 12) });
+      continue;
+    }
+    if (/\bgallery\b|media[-_]grid|image[-_]gallery/.test(key)) {
+      const images = sectionImages(inner, baseUrl, 8);
+      if (images.length >= 2) sections.push({ type: "IMAGE_CAROUSEL", images });
+      continue;
+    }
+    if (/testimonial|email|newsletter|marquee/.test(key)) continue;
     if (/collection[-_]list/.test(key)) {
       const items: { collectionHandle: string; imageUrl: string | null; label: string }[] = [];
       for (const link of inner.matchAll(/<a\b([^>]*href=["'][^"']*\/collections\/([^"'/?#]+)[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi)) {
@@ -1123,7 +1228,7 @@ export function extractHomeSections(html: string, baseUrl: string, extraCss = ""
       if (items.length > 0) sections.push({ type: "CATEGORY_GRID", title: firstText(inner, "h2|h3", 120), items });
       continue;
     }
-    if (/image[-_]with[-_]text|multirow/.test(key)) {
+    if (/image[-_]with[-_]text|media[-_]with[-_]text|multirow/.test(key)) {
       const images = sectionImages(inner, baseUrl, 1);
       const title = firstText(inner, "h2|h3", 120);
       const button = firstButton(inner, baseUrl);

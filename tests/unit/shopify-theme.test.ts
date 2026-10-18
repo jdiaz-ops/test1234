@@ -628,6 +628,47 @@ describe("portada de tiendas que no son Shopify (WooCommerce con Elementor, Gute
     ]);
   });
 
+  // Como amglowspa.com (tema Horizon de Shopify): el esquema de :root es
+  // el rosa de la barra de anuncio, pero las secciones de la página usan el
+  // esquema 2 (fondo blanco, texto y botones rosa).
+  const HORIZON = `<html><head><style>:root, .color-scheme-1 { --color-background: rgb(253 86 206 / 0.92); --color-foreground: rgb(255 255 255 / 1.0); --color-primary: rgb(0 0 0 / 0.81); --color-primary-button-background: rgb(253 86 206 / 0.5); }
+.color-scheme-2 { --color-background: rgb(255 255 255 / 1.0); --color-foreground: rgb(253 86 206 / 1.0); --color-primary: rgb(253 86 206 / 0.88); --color-primary-button-background: rgb(253 86 206 / 0.92); }
+.color-scheme-3 { --color-background: rgb(51 51 51 / 1.0); --color-foreground: rgb(255 255 255 / 1.0); }
+body, .color-scheme-1, .color-scheme-2, .color-scheme-3 { color: var(--color-foreground); background-color: var(--color-background); }</style></head>
+<body class="page-width-normal">
+<div id="shopify-section-sections--1__announcement-bar_x" class="shopify-section shopify-section-group-header-group"><div class="section-background color-scheme-1"><div class="announcement-bar"><div class="announcement-bar__slides"><p class="announcement-bar__message">ENVIO GRATIS POR COMPRAS SUPERIORES A $ 150.000</p></div></div></div></div>
+<div id="shopify-section-sections--1__header" class="shopify-section header-section"><header><div class="header__row color-scheme-2"><nav><a href="/collections/hidratacion">Hidratación</a></nav></div></header></div>
+<main id="MainContent">
+<div id="shopify-section-template--1__hero_abc" class="shopify-section hero-wrapper"><div class="hero color-scheme-2"><a class="hero__link" href="/collections/all"><img src="//www.amglowspa.com/cdn/shop/files/WEB_2.png?width=3840" width="3840" height="1280"></a></div></div>
+<div id="shopify-section-template--1__product_list_def" class="shopify-section ui-test-product-list"><div class="section-background color-scheme-2"><div class="section color-scheme-2"><h2>Productos</h2><a href="/collections/all">Ver todo</a><ul><li><a href="/products/aceite-de-cuticula-almendra">Aceite</a></li><li><a href="/products/aceite-de-cuticula-chocolate">Aceite 2</a></li></ul></div></div></div>
+<div id="shopify-section-template--1__marquee_ghi" class="shopify-section"><div class="section-background color-scheme-1"><div class="marquee__wrapper"><p class="text-block">10% de descuento en tu primera compra</p></div></div></div>
+<div id="shopify-section-template--1__logo_list_jkl" class="shopify-section"><div class="section color-scheme-2"><a href="https://marca1.com"><img src="//www.amglowspa.com/cdn/shop/files/m1.png"></a><img src="//www.amglowspa.com/cdn/shop/files/m2.png"><img src="//www.amglowspa.com/cdn/shop/files/m3.png"></div></div>
+<div id="shopify-section-template--1__gallery_mno" class="shopify-section"><div class="section color-scheme-2"><img src="//www.amglowspa.com/cdn/shop/files/g1.jpg"><img src="//www.amglowspa.com/cdn/shop/files/g2.jpg"></div></div>
+</main>
+<div id="shopify-section-sections--1__footer" class="shopify-section shopify-section-group-footer-group"><footer class="color-scheme-3"><p>pie</p></footer></div>
+</body></html>`;
+
+  it("en Horizon toma el esquema de las secciones (fondo blanco, rosa en texto y botones) y la barra de anuncio como secundario", async () => {
+    const { parseShopifyStorefront } = await import("@/lib/shopify-theme");
+    const theme = parseShopifyStorefront(HORIZON, "https://www.amglowspa.com/");
+    expect(theme.colors).toEqual({ fondo: "#ffffff", texto: "#fd56ce", botones: "#fd56ce", principal: "#fd56ce", secundario: "#fd56ce" });
+    expect(theme.announcements).toEqual(["ENVIO GRATIS POR COMPRAS SUPERIORES A $ 150.000", "10% de descuento en tu primera compra"]);
+    expect(theme.homeSections).toEqual([
+      { type: "BANNER", images: ["https://www.amglowspa.com/cdn/shop/files/WEB_2.png?width=3840"], title: "", subtitle: "", buttonText: "", buttonHref: "" },
+      // "Ver todo" a /collections/all: la lista se arma sola acá.
+      { type: "NEW_PRODUCTS", title: "Productos" },
+      {
+        type: "BRAND_CAROUSEL",
+        items: [
+          { imageUrl: "https://www.amglowspa.com/cdn/shop/files/m1.png", link: "https://marca1.com/" },
+          { imageUrl: "https://www.amglowspa.com/cdn/shop/files/m2.png", link: "" },
+          { imageUrl: "https://www.amglowspa.com/cdn/shop/files/m3.png", link: "" },
+        ],
+      },
+      { type: "IMAGE_CAROUSEL", images: ["https://www.amglowspa.com/cdn/shop/files/g1.jpg", "https://www.amglowspa.com/cdn/shop/files/g2.jpg"] },
+    ]);
+  });
+
   it("una portada vacía o solo con menú y pie no inventa secciones", async () => {
     const { extractHomeSections } = await import("@/lib/shopify-theme");
     expect(extractHomeSections("<html><body><header><nav><a href='/product-category/x/'>X</a><a href='/product-category/y/'>Y</a></nav></header><main></main><footer><h2>Síguenos</h2><p>Instagram y TikTok, todos los días con novedades y descuentos para ti.</p></footer></body></html>", "https://rumicol.com")).toEqual([]);

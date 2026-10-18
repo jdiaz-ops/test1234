@@ -363,20 +363,42 @@ export async function readStylesheets(
     if (!candidates.some((c) => c.url === url.href)) candidates.push({ url: url.href, score });
   }
   candidates.sort((a, b) => b.score - a.score);
+  // De a cuatro en paralelo y con poco tiempo por hoja: diez hojas en
+  // serie podían pasarse del tiempo que tiene la función en Vercel.
+  const picked = candidates.slice(0, options.max ?? MAX_STYLESHEETS);
   const parts: string[] = [];
-  for (const { url } of candidates.slice(0, options.max ?? MAX_STYLESHEETS)) {
-    try {
-      const response = await doFetch(fetchImpl, url, "text/css,*/*;q=0.1");
-      if (response.status !== 200) continue;
-      const css = (await response.text()).slice(0, MAX_CSS_CHARS);
+  for (let i = 0; i < picked.length; i += STYLESHEET_CONCURRENCY) {
+    const batch = picked.slice(i, i + STYLESHEET_CONCURRENCY);
+    const results = await Promise.all(
+      batch.map(async ({ url }) => {
+        try {
+          const response = await fetchImpl(url, {
+            method: "GET",
+            redirect: "manual",
+            signal: AbortSignal.timeout(STYLESHEET_TIMEOUT_MS),
+            headers: { accept: "text/css,*/*;q=0.1", "user-agent": USER_AGENT },
+          });
+          if (response.status !== 200) return "";
+          return (await response.text()).slice(0, MAX_CSS_CHARS);
+        } catch {
+          // Una hoja que no se pudo leer no frena el resto.
+          return "";
+        }
+      }),
+    );
+    let found = false;
+    for (const css of results) {
+      if (!css) continue;
       parts.push(css);
-      if (options.until && css.includes(options.until)) break;
-    } catch {
-      // Una hoja que no se pudo leer no frena el resto.
+      if (options.until && css.includes(options.until)) found = true;
     }
+    if (found) break;
   }
   return parts.join("\n");
 }
+
+const STYLESHEET_CONCURRENCY = 4;
+const STYLESHEET_TIMEOUT_MS = 6_000;
 
 // ----------------------------------------------------------------------------
 // Fletes: carrito de prueba + /cart/shipping_rates.json por departamento
