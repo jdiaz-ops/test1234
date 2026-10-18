@@ -117,6 +117,7 @@ export default async function StorefrontProductPage({
                     : []
               }
               alt={product.name}
+              productId={product.id}
             />
           </div>
           <div className="flex flex-col gap-4">

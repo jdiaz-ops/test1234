@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { setSelectedVariantImage } from "@/components/storefront/selected-variant-store";
 import { QuantityAddToCart } from "@/components/storefront/quantity-add-to-cart";
 import { useStorefrontTheme } from "@/components/storefront/storefront-theme-context";
 
@@ -98,6 +99,13 @@ export function VariantPicker({
     ? (matchedVariant.price ?? basePrice)
     : basePrice;
   const outOfStock = matchedVariant != null && matchedVariant.stock != null && matchedVariant.stock <= 0;
+
+  // La galería muestra la foto de la variante elegida (ver
+  // selected-variant-store.ts y product-gallery.tsx).
+  const matchedImage = matchedVariant?.imageUrl ?? null;
+  useEffect(() => {
+    setSelectedVariantImage(productId, matchedImage);
+  }, [productId, matchedImage]);
 
   return (
     <div className="space-y-4">

@@ -157,8 +157,9 @@ const headerSchema = withDefaults({
     /// "hamburger" = ícono a la izquierda del logo que abre un panel
     /// lateral; "below" = fila deslizable con los ítems debajo del
     /// encabezado. Antes se mostraban las dos formas a la vez; pedido
-    /// explícito de elegir una. Ver conversación del 2026-09-15.
-    menuStyle: z.enum(["hamburger", "below"]).default("below"),
+    /// explícito de elegir una (2026-09-15). Por defecto el lateral: con
+    /// un menú de varias colecciones la fila no es práctica (2026-10-18).
+    menuStyle: z.enum(["hamburger", "below"]).default("hamburger"),
   }),
   desktop: withDefaults({
     logoPosition: z.enum(["left", "center"]).default("left"),

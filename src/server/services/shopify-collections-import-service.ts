@@ -2,6 +2,7 @@ import type { CollectionSortOrder } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/shopify-csv";
 import { saveRedirects } from "@/server/services/storefront-redirect-service";
+import { publishTheme, updateDraftTheme } from "@/server/services/brand-theme-store";
 import { mapShopifyMenuHref, type ShopifyMenuLink } from "@/lib/shopify-theme";
 import {
   BrandCollectionError,
@@ -44,6 +45,8 @@ export type ImportMenuInput = {
   replace: boolean;
 };
 
+/// Desde cuántas entradas el menú importado pasa al panel lateral en celular.
+const HAMBURGER_FROM_ITEMS = 5;
 const MAX_MENU_ITEMS = 12;
 
 function nameKey(name: string) {
@@ -198,6 +201,13 @@ export async function importShopifyCollections(
         data: items.map((item, i) => ({ brandId, label: item.label, url: item.url, position: offset + i })),
       });
       menu = { items: items.length, replaced: data.menu.replace && count > 0 };
+      // Con varias entradas, en celular el menú va en el panel lateral
+      // (hamburguesa): la fila deslizable no es práctica. Ver conversación
+      // del 2026-10-18.
+      if (items.length >= HAMBURGER_FROM_ITEMS) {
+        await updateDraftTheme(brandId, { header: { mobile: { menuStyle: "hamburger" } } });
+        await publishTheme(brandId);
+      }
     } else {
       menu = { items: 0, replaced: false };
     }

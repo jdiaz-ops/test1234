@@ -159,7 +159,7 @@ export function StoreHeader({
   // celular cuando mobile.show === "categories", duplicado con la fila
   // de abajo).
   const desktopNav = showMenu && (
-    <nav className="hidden sm:flex items-center gap-5">
+    <nav className="hidden sm:flex flex-wrap items-center gap-x-5 gap-y-1">
       {menuItems.map((item) =>
         renderMenuLink(item, basePath, "text-sm text-brand-ink-soft hover:text-brand-ink whitespace-nowrap"),
       )}

@@ -2,18 +2,35 @@
 
 import { useState } from "react";
 import { StoreImage } from "@/components/storefront/store-image";
+import { useSelectedVariantImage } from "@/components/storefront/selected-variant-store";
 
 /// Galería simple: foto grande + tira de miniaturas debajo (clic para
 /// cambiar la principal). Con una sola foto (o ninguna) se ve igual que
-/// antes, sin miniaturas.
+/// antes, sin miniaturas. Con `productId`, al elegir una variante en el
+/// selector salta a la foto de esa variante (ver selected-variant-store.ts).
 export function ProductGallery({
-  images,
+  images: productImages,
   alt,
+  productId,
 }: {
   images: string[];
   alt: string;
+  productId?: string;
 }) {
+  const variantImage = useSelectedVariantImage(productId);
+  // Una variante con foto que no está entre las del producto se muestra
+  // igual, de primera.
+  const images = variantImage && !productImages.includes(variantImage) ? [variantImage, ...productImages] : productImages;
   const [active, setActive] = useState(0);
+  // Cambió la variante elegida: la foto grande pasa a la suya. Se guarda
+  // la última vista para reaccionar solo al cambio (y dejar que después
+  // la compradora navegue las miniaturas a su gusto).
+  const [seenVariantImage, setSeenVariantImage] = useState<string | null>(null);
+  if (variantImage !== seenVariantImage) {
+    setSeenVariantImage(variantImage);
+    const index = variantImage ? images.indexOf(variantImage) : -1;
+    if (index >= 0) setActive(index);
+  }
 
   if (images.length === 0) {
     return <div className="w-full aspect-square bg-brand-accent-soft rounded-2xl" />;
