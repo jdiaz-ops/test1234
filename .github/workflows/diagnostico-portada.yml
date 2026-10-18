@@ -13,6 +13,14 @@ on:
         description: Link de la tienda (su portada)
         required: true
         type: string
+      modo:
+        description: Qué leer
+        required: false
+        default: portada
+        type: choice
+        options:
+          - portada
+          - productos
 
 jobs:
   leer:
@@ -32,4 +40,5 @@ jobs:
       - name: Leer la portada
         env:
           TIENDA_URL: ${{ inputs.url }}
-        run: npx tsx scripts/diagnostico-portada.ts "$TIENDA_URL"
+          MODO: ${{ inputs.modo }}
+        run: npx tsx scripts/diagnostico-portada.ts "$TIENDA_URL" "$MODO"
