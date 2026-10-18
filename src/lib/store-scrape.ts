@@ -819,6 +819,7 @@ export function extractInfoPageLinks(html: string, origin: string, max = 16): In
 /// equivalente acá (no se trae, para no mandar a la gente a la tienda
 /// vieja).
 export function menuHrefToShopify(href: string, origin: string, pageHandles: Set<string>): string | null {
+  if (href.trim() === "#" || href.trim() === "") return "#";
   let url: URL;
   try {
     url = new URL(href, origin);

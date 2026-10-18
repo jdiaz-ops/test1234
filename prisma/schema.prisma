@@ -403,10 +403,10 @@ model PaymentGatewayRequest {
   brandId String
   brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
 
-  gateway String
+  gateway         String
   /// "DUPLICAR" (detectada en la tienda anterior) o "MARCA" (la pidió ella).
-  source  String
-  note    String?
+  source          String
+  note            String?
   /// Cuándo se le avisó a la marca que esa pasarela ya está integrada
   /// (ver notifyGatewayReady, corre en el cron diario). Null = pendiente
   /// de avisar o la pasarela todavía no existe.
@@ -451,20 +451,30 @@ model StorePage {
 
 /// Un link del menú de navegación de la vitrina — puede apuntar a una
 /// StorePage propia (ej. "/p/quienes-somos") o a cualquier URL (interna
-/// o externa). Un solo menú por marca, sin anidar — ver conversación del
-/// 2026-09-14, referencia de "Menús" de Tiendanube.
+/// o externa). Un solo menú por marca, con submenús de hasta tres niveles
+/// (parentId) — ver conversaciones del 2026-09-14 (referencia de "Menús"
+/// de Tiendanube) y del 2026-10-18 (el mega menú de Rumi).
 model StorefrontMenuItem {
   id      String       @id @default(cuid())
   brandId String
   brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
 
   label String
+  /// "#" = sin link: solo abre el submenú.
   url   String
+
+  /// Submenús: un ítem puede colgar de otro (hasta tres niveles, como el
+  /// menú de la tienda original — pedido el 2026-10-18 con el menú de
+  /// Rumi). null = nivel de arriba. Al borrar el padre se van los hijos.
+  parentId String?
+  parent   StorefrontMenuItem?  @relation("MenuChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children StorefrontMenuItem[] @relation("MenuChildren")
 
   position  Int      @default(0)
   createdAt DateTime @default(now())
 
   @@index([brandId])
+  @@index([parentId])
 }
 
 /// Configuración visual de la vitrina — un solo registro por marca, con
@@ -609,8 +619,8 @@ model BrandProfile {
   verticalId String?
   vertical   Vertical? @relation(fields: [verticalId], references: [id])
 
-  status       BrandStatus @default(PENDING)
-  approvedAt   DateTime?
+  status     BrandStatus @default(PENDING)
+  approvedAt DateTime?
 
   /// Marca creada por el admin sin el correo de la dueña (2026-10-18): la
   /// cuenta es provisional (correo @pendiente.marcolini.lat, sin
@@ -622,7 +632,7 @@ model BrandProfile {
   accessTokenExpiresAt DateTime?
   accessLinkCreatedAt  DateTime?
   claimedAt            DateTime?
-  approvedById String? // referencia al User admin que aprobó
+  approvedById         String? // referencia al User admin que aprobó
 
   marketplaceVisibilityOverride MarketplaceVisibilityOverride @default(AUTO)
 
@@ -650,25 +660,25 @@ model BrandProfile {
   /// negociación, y la marca lo ve reflejado automáticamente en su portal.
   platformFeePercentOverride Decimal? @db.Decimal(5, 2)
 
-  offers              Offer[]
-  charges             BrandCharge[]
-  invoices            BrandInvoice[]
-  transactions        Transaction[]
-  products            Product[]
+  offers                 Offer[]
+  charges                BrandCharge[]
+  invoices               BrandInvoice[]
+  transactions           Transaction[]
+  products               Product[]
   /// Colecciones propias de la marca (ej. "Verano 2026") para organizar su
   /// catálogo — distinto de `Collection` (esa es la vitrina curada del
   /// creador, cruzando varias marcas). Ver conversación del 2026-09-14.
-  productCollections  BrandCollection[]
-  shippingZones       ShippingZone[]
-  storefrontSections  StorefrontSection[]
-  storeCustomers      StoreCustomer[]
-  storePages          StorePage[]
-  storefrontRedirects StorefrontRedirect[]
+  productCollections     BrandCollection[]
+  shippingZones          ShippingZone[]
+  storefrontSections     StorefrontSection[]
+  storeCustomers         StoreCustomer[]
+  storePages             StorePage[]
+  storefrontRedirects    StorefrontRedirect[]
   paymentGatewayRequests PaymentGatewayRequest[]
 
   /// Pasos de "lo que falta para vender" que la marca marcó a mano (ver
   /// go-live-service.ts); los demás se calculan solos.
-  goLiveChecks String[] @default([])
+  goLiveChecks        String[]             @default([])
   storefrontMenuItems StorefrontMenuItem[]
   theme               BrandTheme?
 
@@ -2603,8 +2613,8 @@ model ShippingZoneRate {
   zoneId String
   zone   ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
-  name  String
-  price Decimal @db.Decimal(12, 2)
+  name         String
+  price        Decimal @db.Decimal(12, 2)
   /// Tarifa sin precio real: venía de la tienda anterior como
   /// "contraentrega" en $0 (el comprador le pagaba el envío a la
   /// transportadora). Marcolini NO permite envío contraentrega, así que

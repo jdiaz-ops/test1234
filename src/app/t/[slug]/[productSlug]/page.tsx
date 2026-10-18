@@ -19,7 +19,7 @@ import { FloatingAddToCartBar } from "@/components/storefront/floating-add-to-ca
 import { ProductCard, ProductPrice, toCardProduct } from "@/components/storefront/product-card";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
-import { listStorefrontMenuItems } from "@/server/services/store-page-service";
+import { listStorefrontMenuTree } from "@/server/services/store-page-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { getSiblingProducts } from "@/server/services/product-sibling-service";
 import { SiblingProducts } from "@/components/storefront/sibling-products";
@@ -72,7 +72,7 @@ export default async function StorefrontProductPage({
   const stock = { showSoldOut: theme.productListing.showSoldOut };
   const [basePath, menuItems, relatedProducts, reviewData, siblings] = await Promise.all([
     getStoreBasePath(slug),
-    listStorefrontMenuItems(brand.id),
+    listStorefrontMenuTree(brand.id),
     getRelatedProducts(brand.id, product.id, 4, stock),
     REVIEWS_ENABLED ? getProductReviews(product.id) : null,
     getSiblingProducts(brand.id, product, stock),

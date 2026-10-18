@@ -5,7 +5,7 @@ import {
   getStorefrontBrand,
   searchStorefrontProducts,
 } from "@/server/services/store-order-service";
-import { listStorefrontMenuItems } from "@/server/services/store-page-service";
+import { listStorefrontMenuTree } from "@/server/services/store-page-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CollectionProductGrid } from "@/components/storefront/collection-product-grid";
 import { toCardProduct } from "@/components/storefront/product-card";
@@ -44,7 +44,7 @@ export default async function StorefrontSearchPage({
 
   const theme = await getStorefrontTheme(brand.id);
   const [menuItems, basePath, products] = await Promise.all([
-    listStorefrontMenuItems(brand.id),
+    listStorefrontMenuTree(brand.id),
     getStoreBasePath(slug),
     searchStorefrontProducts(brand.id, q, { showSoldOut: theme.productListing.showSoldOut }),
   ]);
@@ -56,7 +56,7 @@ export default async function StorefrontSearchPage({
         brandName={brand.companyName}
         logoUrl={brand.logoUrl}
         basePath={basePath}
-        menuItems={menuItems.map((i) => ({ id: i.id, label: i.label, url: i.url }))}
+        menuItems={menuItems}
       />
       <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
         <form action={`${basePath}/buscar`} method="GET" role="search" className="mb-6 sm:hidden">

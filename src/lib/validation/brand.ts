@@ -738,7 +738,9 @@ export const storePageSchema = z.object({
 
 export const storefrontMenuItemSchema = z.object({
   label: z.string().min(1, "Ingresa un nombre").max(60),
+  /// "#" = sin link (solo abre el submenú).
   url: z.string().min(1, "Ingresa el link").max(300),
+  parentId: z.string().min(1).max(64).nullable().optional(),
 });
 
 export const reorderStorePagesSchema = z.object({

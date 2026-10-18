@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/components/storefront/cart-context";
@@ -7,7 +9,22 @@ import { useStorefrontTheme } from "@/components/storefront/storefront-theme-con
 import { resolveColorRef } from "@/lib/brand-theme";
 import { CartIcon } from "@/components/storefront/mobile-nav-icons";
 
-export type StoreHeaderMenuItem = { id: string; label: string; url: string };
+export type StoreHeaderMenuItem = { id: string; label: string; url: string; children?: StoreHeaderMenuItem[] };
+
+/// "#" (o vacío) = el ítem no es un link: solo abre su submenú.
+function isPlaceholderUrl(url: string) {
+  return url.trim() === "" || url.trim() === "#";
+}
+
+function hasChildren(item: StoreHeaderMenuItem) {
+  return Boolean(item.children && item.children.length > 0);
+}
+
+/// Para la fila deslizable de celular (sin desplegables): los ítems con
+/// link van tal cual y un padre sin link se reemplaza por sus ítems.
+function flattenForRow(items: StoreHeaderMenuItem[]): StoreHeaderMenuItem[] {
+  return items.flatMap((item) => (isPlaceholderUrl(item.url) ? flattenForRow(item.children ?? []) : [item]));
+}
 
 /// Un link del menú es interno (empieza con "/") o externo (todo lo
 /// demás) — uno interno se arma sobre basePath, uno externo se usa tal
@@ -24,6 +41,18 @@ function isExternalUrl(url: string) {
 /// Un solo ítem de menú, compartido por el nav de computadora, la fila
 /// deslizable de celular y el panel del hamburguesa — antes cada uno
 /// repetía el mismo if/else externo-vs-interno por su cuenta.
+/// Como renderMenuLink, pero un ítem sin link ("#") se muestra como texto.
+function renderMenuEntry(item: StoreHeaderMenuItem, basePath: string, className: string, onClick?: () => void) {
+  if (isPlaceholderUrl(item.url)) {
+    return (
+      <span key={item.id} className={className}>
+        {item.label}
+      </span>
+    );
+  }
+  return renderMenuLink(item, basePath, className, onClick);
+}
+
 function renderMenuLink(
   item: StoreHeaderMenuItem,
   basePath: string,
@@ -88,6 +117,58 @@ export function StoreHeader({
   const theme = useStorefrontTheme();
   const { header } = theme;
   const [menuOpen, setMenuOpen] = useState(false);
+  // Dónde cae cada desplegable de computadora: debajo de su ítem, corrido
+  // lo necesario para que no se salga de la pantalla (los últimos ítems
+  // del menú quedan pegados al borde derecho). Se mide al pasar el mouse,
+  // cuando el panel ya está visible.
+  const [panelShift, setPanelShift] = useState<Record<string, number>>({});
+  const placePanel = (id: string, group: HTMLElement) => {
+    const panel = group.querySelector<HTMLElement>("[data-menu-panel]");
+    if (!panel) return;
+    requestAnimationFrame(() => {
+      const margin = 16;
+      const viewport = document.documentElement.clientWidth;
+      const desired = group.getBoundingClientRect().left;
+      const width = panel.offsetWidth;
+      const left = Math.max(margin, Math.min(desired, viewport - margin - width));
+      const shift = Math.round(left - desired);
+      setPanelShift((prev) => (prev[id] === shift ? prev : { ...prev, [id]: shift }));
+    });
+  };
+  // Submenús abiertos en el panel lateral de celular (acordeón).
+  const [openIds, setOpenIds] = useState<string[]>([]);
+  const toggleOpen = (id: string) => setOpenIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const renderMobileItems = (items: StoreHeaderMenuItem[], depth: number): React.ReactNode =>
+    items.map((item) => {
+      const children = item.children ?? [];
+      const open = openIds.includes(item.id);
+      const textClass = depth === 0 ? "text-sm text-brand-ink" : "text-sm text-brand-ink-soft";
+      return (
+        <div key={item.id} className={depth > 0 ? "pl-3 border-l border-brand-line" : undefined}>
+          <div className="flex items-center justify-between gap-2">
+            {isPlaceholderUrl(item.url) && children.length > 0 ? (
+              <button type="button" onClick={() => toggleOpen(item.id)} className={`${textClass} py-2.5 text-left flex-1 hover:text-brand-accent`}>
+                {item.label}
+              </button>
+            ) : (
+              renderMenuEntry(item, basePath, `${textClass} py-2.5 hover:text-brand-accent flex-1`, () => setMenuOpen(false))
+            )}
+            {children.length > 0 && (
+              <button
+                type="button"
+                onClick={() => toggleOpen(item.id)}
+                aria-expanded={open}
+                aria-label={open ? `Cerrar ${item.label}` : `Abrir ${item.label}`}
+                className="w-9 h-9 flex items-center justify-center rounded-full text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink text-lg leading-none"
+              >
+                {open ? "−" : "+"}
+              </button>
+            )}
+          </div>
+          {open && children.length > 0 && <div className="flex flex-col gap-1 mb-1">{renderMobileItems(children, depth + 1)}</div>}
+        </div>
+      );
+    });
 
   const bgStyle =
     header.bgColorRef === "fondo"
@@ -152,11 +233,72 @@ export function StoreHeader({
   // conversación del 2026-09-15 (antes esto también se mostraba en
   // celular cuando mobile.show === "categories", duplicado con la fila
   // de abajo).
+  // Un ítem con submenú abre un desplegable al pasar el mouse (o con el
+  // teclado); si sus hijos también tienen hijos, el panel va en columnas
+  // como el mega menú de la tienda original. Ver conversación del
+  // 2026-10-18 (el menú de Rumi).
   const desktopNav = showMenu && (
     <nav className="hidden sm:flex flex-wrap items-center gap-x-5 gap-y-1">
-      {menuItems.map((item) =>
-        renderMenuLink(item, basePath, "text-sm text-brand-ink-soft hover:text-brand-ink whitespace-nowrap"),
-      )}
+      {menuItems.map((item) => {
+        const linkClass = "text-sm text-brand-ink-soft hover:text-brand-ink whitespace-nowrap";
+        if (!hasChildren(item)) return renderMenuEntry(item, basePath, linkClass);
+        const children = item.children ?? [];
+        const columns = children.some(hasChildren);
+        return (
+          <div
+            key={item.id}
+            className="relative group"
+            onMouseEnter={(e) => placePanel(item.id, e.currentTarget)}
+            onFocus={(e) => placePanel(item.id, e.currentTarget)}
+          >
+            {isPlaceholderUrl(item.url) ? (
+              <button type="button" aria-haspopup="true" className={`${linkClass} inline-flex items-center gap-1`}>
+                {item.label}
+                <span aria-hidden className="text-[10px]">▾</span>
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                {renderMenuLink(item, basePath, linkClass)}
+                <span aria-hidden className="text-[10px] text-brand-ink-soft">▾</span>
+              </span>
+            )}
+            <div
+              data-menu-panel
+              className="absolute top-full pt-2 hidden group-hover:block group-focus-within:block z-50 w-max max-w-[min(100vw_-_2rem,56rem)]"
+              style={{ left: panelShift[item.id] ?? 0 }}
+            >
+              <div className="bg-brand-bg border border-brand-line rounded-xl shadow-lg p-4 max-h-[70vh] overflow-y-auto">
+                {columns ? (
+                  <div className="flex flex-wrap gap-x-8 gap-y-5">
+                    {children.map((child) => (
+                      <div key={child.id} className="min-w-[9rem] max-w-[14rem]">
+                        {renderMenuEntry(child, basePath, "text-sm font-medium text-brand-ink hover:text-brand-accent block mb-1.5")}
+                        {hasChildren(child) && (
+                          <ul className="space-y-1">
+                            {(child.children ?? []).map((grandchild) => (
+                              <li key={grandchild.id}>
+                                {renderMenuEntry(grandchild, basePath, "text-xs text-brand-ink-soft hover:text-brand-ink block")}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <ul className="space-y-1.5 min-w-[11rem]">
+                    {children.map((child) => (
+                      <li key={child.id}>
+                        {renderMenuEntry(child, basePath, "text-sm text-brand-ink-soft hover:text-brand-ink block whitespace-nowrap")}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </nav>
   );
 
@@ -164,9 +306,11 @@ export function StoreHeader({
   // estilo elegido es "below" (independiente de "Mostrar": buscador o
   // íconos ya no la tapan). Pedido explícito: "la barra de menú así
   // debajo que sea deslizable". Ver conversación del 2026-09-15.
+  // La fila no tiene desplegables: un padre sin link propio ("#") se
+  // reemplaza por sus ítems, y los demás van tal cual.
   const mobileNavRow = showMobileNavRow && (
     <nav className="sm:hidden flex items-center gap-5 overflow-x-auto">
-      {menuItems.map((item) =>
+      {flattenForRow(menuItems).map((item) =>
         renderMenuLink(item, basePath, "text-sm text-brand-ink-soft hover:text-brand-ink whitespace-nowrap shrink-0"),
       )}
     </nav>
@@ -323,9 +467,7 @@ export function StoreHeader({
             </div>
             {searchBar && <div className="px-4 pt-4">{searchBar}</div>}
             <nav className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
-              {menuItems.map((item) =>
-                renderMenuLink(item, basePath, "text-sm text-brand-ink py-2.5 hover:text-brand-accent", () => setMenuOpen(false)),
-              )}
+              {renderMobileItems(menuItems, 0)}
             </nav>
           </div>
         </>

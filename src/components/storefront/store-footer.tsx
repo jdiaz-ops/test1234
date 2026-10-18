@@ -71,12 +71,16 @@ export function StoreFooter({
             <ul className="space-y-1.5">
               {menuItems.map((item) => (
                 <li key={item.id}>
-                  <Link
-                    href={item.url.startsWith("/") ? `${basePath}${item.url}` : item.url}
-                    className="opacity-80 hover:opacity-100"
-                  >
-                    {item.label}
-                  </Link>
+                  {item.url.trim() === "#" || item.url.trim() === "" ? (
+                    <span className="opacity-80">{item.label}</span>
+                  ) : (
+                    <Link
+                      href={item.url.startsWith("/") ? `${basePath}${item.url}` : item.url}
+                      className="opacity-80 hover:opacity-100"
+                    >
+                      {item.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

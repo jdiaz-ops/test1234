@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { getPublicBrandCollections } from "@/server/services/brand-collection-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
-import { listStorefrontMenuItems } from "@/server/services/store-page-service";
+import { listStorefrontMenuTree } from "@/server/services/store-page-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { getStoreBasePath } from "@/lib/store-base-path";
 
@@ -35,7 +35,7 @@ export default async function StorefrontCollectionsIndexPage({
   const theme = await getStorefrontTheme(brand.id);
   const [collections, menuItems, basePath] = await Promise.all([
     getPublicBrandCollections(brand.id, { showSoldOut: theme.productListing.showSoldOut }),
-    listStorefrontMenuItems(brand.id),
+    listStorefrontMenuTree(brand.id),
     getStoreBasePath(slug),
   ]);
 

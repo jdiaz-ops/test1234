@@ -16,6 +16,7 @@ import type { ProposedCollection } from "@/lib/shopify-categorize";
 import {
   POLICY_TITLES,
   type ShopifyHomeSection,
+  type ShopifyMenuLink,
   type ShopifyPolicyKind,
   type ShopifyThemeInfo,
 } from "@/lib/shopify-theme";
@@ -543,9 +544,16 @@ export function ShopifyImporter({
       setReadingStep("Leyendo diseño, menú y redes…");
       const read = (await postJson(API_READ, { url: origin, part: "tema" })).theme as ShopifyThemeInfo;
       const pageHandles = new Set(pages.map((p) => p.handle));
-      const menu = read.menu
-        .map((link) => ({ ...link, href: menuHrefToShopify(link.href, origin, pageHandles) }))
-        .filter((link): link is { label: string; href: string } => link.href !== null);
+      // Los submenús se traducen igual; un padre sin equivalente acá pero
+      // con submenú queda como "#" (solo abre el submenú).
+      const translate = (links: ShopifyMenuLink[]): ShopifyMenuLink[] =>
+        links.flatMap((link) => {
+          const children = link.children ? translate(link.children) : [];
+          const href = menuHrefToShopify(link.href, origin, pageHandles) ?? (children.length > 0 ? "#" : null);
+          if (href === null) return [];
+          return [children.length > 0 ? { label: link.label, href, children } : { label: link.label, href }];
+        });
+      const menu = translate(read.menu);
       theme = { ...read, menu, pageLinks: [], policyLinks: [] };
     } catch (err) {
       notes.push(`No se pudo leer el diseño de la tienda: ${message(err)}`);
@@ -1399,7 +1407,7 @@ export function ShopifyImporter({
                   <p className="text-xs text-brand-ink-soft">
                     {theme && theme.menu.length > 0
                       ? `Menú: ${(extras.merge && collectionChoice === "proposed" ? menuForProposal(theme.menu, extras.merge) : theme.menu)
-                          .map((m) => m.label)
+                          .map((m) => (m.children && m.children.length > 0 ? `${m.label} (${m.children.length} en el submenú)` : m.label))
                           .join(" · ")}.`
                       : "Menú: una entrada por colección."}{" "}
                     Reemplaza el menú actual de tu tienda. Los enlaces a blogs de Shopify no se traen.

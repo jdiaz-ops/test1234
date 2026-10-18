@@ -14,7 +14,7 @@ import { ROOT_DOMAIN } from "@/lib/subdomain";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { listStorefrontMenuItems, listStorePages } from "@/server/services/store-page-service";
+import { listStorefrontMenuTree, listStorePages } from "@/server/services/store-page-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import {
@@ -76,11 +76,11 @@ export default async function StorefrontLayout({
 
   const [theme, menuItemsRaw, basePath, pagesRaw] = await Promise.all([
     getStorefrontTheme(brand.id),
-    listStorefrontMenuItems(brand.id),
+    listStorefrontMenuTree(brand.id),
     getStoreBasePath(slug),
     listStorePages(brand.id),
   ]);
-  const menuItems = menuItemsRaw.map((i) => ({ id: i.id, label: i.label, url: i.url }));
+  const menuItems = menuItemsRaw;
   // Las páginas propias (políticas, quiénes somos) van en la segunda
   // columna del pie de página — ver StoreFooter.
   const pages = pagesRaw.map((p) => ({ title: p.title, slug: p.slug }));

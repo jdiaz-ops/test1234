@@ -675,3 +675,172 @@ body, .color-scheme-1, .color-scheme-2, .color-scheme-3 { color: var(--color-for
     expect(extractHomeSections("", "https://rumicol.com")).toEqual([]);
   });
 });
+
+// ----------------------------------------------------------------------------
+// Menú con submenús (el mega menú de Rumi). Ver conversación del 2026-10-18.
+// ----------------------------------------------------------------------------
+
+const RUMI_BASE = "https://rumicol.com";
+
+const ELEMENTOR_NAV = `<!doctype html><html><body>
+<header data-elementor-type="header" class="elementor elementor-5">
+<div class="elementor-element elementor-widget-nav-menu">
+<nav class="elementor-nav-menu--main elementor-nav-menu__container elementor-nav-menu--layout-horizontal e--pointer-underline">
+<ul id="menu-1-abc" class="elementor-nav-menu">
+<li class="menu-item menu-item-type-custom menu-item-home"><a href="https://rumicol.com/" class="elementor-item">HOME</a></li>
+<li class="menu-item menu-item-has-children"><a href="#" class="elementor-item elementor-item-anchor">NUESTROS PRODUCTOS</a>
+<ul class="sub-menu elementor-nav-menu--dropdown">
+<li class="menu-item"><a href="https://rumicol.com/semipermanente/" class="elementor-sub-item">Semipermanentes</a></li>
+<li class="menu-item menu-item-has-children"><a href="https://rumicol.com/categoria-producto/colecciones/" class="elementor-sub-item">Colecciones</a>
+<ul class="sub-menu">
+<li class="menu-item"><a href="https://rumicol.com/producto/coleccion-capsula/" class="elementor-sub-item">Colección cápsula</a></li>
+<li class="menu-item"><a href="https://rumicol.com/producto/coleccion-nude/" class="elementor-sub-item">Colección nude</a></li>
+</ul>
+</li>
+<li class="menu-item menu-item-has-children"><a href="https://rumicol.com/categoria-producto/decoracion/" class="elementor-sub-item">Decoración</a>
+<ul class="sub-menu">
+<li class="menu-item menu-item-has-children"><a href="https://rumicol.com/categoria-producto/decoracion/glitter-gel/" class="elementor-sub-item">Glitter gel</a>
+<ul class="sub-menu"><li class="menu-item"><a href="https://rumicol.com/producto/glitter-rosa/">Glitter rosa (cuarto nivel)</a></li></ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="menu-item"><a href="https://rumicol.com/lo-nuevo/" class="elementor-item">LO NUEVO</a></li>
+<li class="menu-item"><a href="#" class="elementor-item">VACÍO</a></li>
+<li class="menu-item"><a href="#contacto" class="elementor-item">Ancla</a></li>
+<li class="menu-item"><a href="https://rumicol.com/cart/" class="elementor-item">Carrito</a></li>
+</ul>
+</nav>
+<nav class="elementor-nav-menu--dropdown elementor-nav-menu__container" aria-hidden="true">
+<ul id="menu-2-abc" class="elementor-nav-menu">
+<li class="menu-item"><a href="https://rumicol.com/" class="elementor-item" tabindex="-1">HOME</a></li>
+<li class="menu-item menu-item-has-children"><a href="#" class="elementor-item" tabindex="-1">NUESTROS PRODUCTOS</a>
+<ul class="sub-menu"><li class="menu-item"><a href="https://rumicol.com/semipermanente/" tabindex="-1">Semipermanentes</a></li></ul>
+</li>
+</ul>
+</nav>
+</div>
+<div class="elementor-widget-button"><a class="elementor-button elementor-button-link elementor-size-xs" href="https://rumicol.com/categoria-producto/colecciones-solas/"><span class="elementor-button-text">DESCUENTOS</span></a></div>
+<div class="elementor-hidden-desktop"><a class="elementor-button" href="https://rumicol.com/categoria-producto/colecciones-solas/"><span>DESCUENTOS</span></a></div>
+<a class="elementor-button" href="https://wa.me/573001234567">WhatsApp</a>
+<a class="elementor-button" href="https://rumicol.com/cart/">Carrito</a>
+</header>
+<main><p>portada</p></main>
+</body></html>`;
+
+const DAWN_MEGA = `<!doctype html><html><body>
+<header class="header">
+<nav class="header__inline-menu">
+<ul class="list-menu list-menu--inline" role="list">
+<li><a id="HeaderMenu-inicio" href="/" class="header__menu-item"><span>Inicio</span></a></li>
+<li>
+<header-menu><details id="Details-HeaderMenu-2" class="mega-menu">
+<summary id="HeaderMenu-tienda" class="header__menu-item list-menu__item link focus-inset"><span>Tienda</span><svg class="icon icon-caret" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4"/></svg></summary>
+<div id="MegaMenu-Content-2" class="mega-menu__content">
+<ul class="mega-menu__list page-width" role="list">
+<li><a id="HeaderMenu-tienda-esmaltes" href="/collections/esmaltes" class="mega-menu__link mega-menu__link--level-2 link">Esmaltes</a>
+<ul class="list-unstyled" role="list">
+<li><a href="/collections/esmaltes-gel" class="mega-menu__link link">Gel</a></li>
+<li><a href="/collections/esmaltes-tradicional" class="mega-menu__link link">Tradicional</a></li>
+</ul>
+</li>
+<li><a href="/collections/herramientas" class="mega-menu__link mega-menu__link--level-2 link">Herramientas</a></li>
+</ul>
+</div>
+</details></header-menu>
+</li>
+<li><a href="/collections/marcas" class="header__menu-item">Marcas</a>
+<div class="columns">
+<ul><li><a href="/collections/marca-a">Marca A</a></li></ul>
+<ul><li><a href="/collections/marca-b">Marca B</a></li><li><a href="/collections/marca-a">Marca A otra vez</a></li></ul>
+</div>
+</li>
+<li><a href="/pages/contacto" class="header__menu-item"><span>Contacto</span></a></li>
+</ul>
+</nav>
+</header>
+</body></html>`;
+
+const HORIZON_NAV = `<html><body><header class="header">
+<nav class="menu__nav"><ul class="menu__list">
+<li class="menu__item"><details class="menu__details"><summary class="menu__summary"><a href="/collections/all" class="menu__link">Tienda</a><span class="menu__chevron"></span></summary>
+<div class="menu__panel"><ul class="menu__sublist"><li><a href="/collections/kits">Kits</a></li></ul></div></details></li>
+<li class="menu__item"><a href="/pages/nosotros">Nosotros</a></li>
+</ul></nav>
+</header></body></html>`;
+
+describe("menú con submenús", () => {
+  it("lee los tres niveles del menú de Elementor; el padre sin link queda como '#'", () => {
+    expect(extractMenu(ELEMENTOR_NAV, RUMI_BASE)).toEqual([
+      { label: "HOME", href: "/" },
+      {
+        label: "NUESTROS PRODUCTOS",
+        href: "#",
+        children: [
+          { label: "Semipermanentes", href: "/semipermanente" },
+          {
+            label: "Colecciones",
+            href: "/categoria-producto/colecciones",
+            children: [
+              { label: "Colección cápsula", href: "/producto/coleccion-capsula" },
+              { label: "Colección nude", href: "/producto/coleccion-nude" },
+            ],
+          },
+          {
+            label: "Decoración",
+            href: "/categoria-producto/decoracion",
+            // El cuarto nivel (Glitter rosa) se descarta.
+            children: [{ label: "Glitter gel", href: "/categoria-producto/decoracion/glitter-gel" }],
+          },
+        ],
+      },
+      { label: "LO NUEVO", href: "/lo-nuevo" },
+      // El botón del encabezado por fuera del menú, una sola vez.
+      { label: "DESCUENTOS", href: "/categoria-producto/colecciones-solas" },
+    ]);
+  });
+
+  it("lee el mega menú de Dawn (<details>/<summary>) y junta las columnas de un mismo padre sin repetidos", () => {
+    expect(extractMenu(DAWN_MEGA, BASE)).toEqual([
+      { label: "Inicio", href: "/" },
+      {
+        label: "Tienda",
+        href: "#",
+        children: [
+          {
+            label: "Esmaltes",
+            href: "/collections/esmaltes",
+            children: [
+              { label: "Gel", href: "/collections/esmaltes-gel" },
+              { label: "Tradicional", href: "/collections/esmaltes-tradicional" },
+            ],
+          },
+          { label: "Herramientas", href: "/collections/herramientas" },
+        ],
+      },
+      {
+        label: "Marcas",
+        href: "/collections/marcas",
+        children: [
+          { label: "Marca A", href: "/collections/marca-a" },
+          { label: "Marca B", href: "/collections/marca-b" },
+        ],
+      },
+      { label: "Contacto", href: "/pages/contacto" },
+    ]);
+  });
+
+  it("un <summary> con link adentro (Horizon) es un padre con link propio", () => {
+    expect(extractMenu(HORIZON_NAV, BASE)).toEqual([
+      { label: "Tienda", href: "/collections/all", children: [{ label: "Kits", href: "/collections/kits" }] },
+      { label: "Nosotros", href: "/pages/nosotros" },
+    ]);
+  });
+
+  it("traduce '#' como ítem sin link", () => {
+    const maps = { collectionSlugByHandle: new Map<string, string>(), productSlugByHandle: new Map<string, string>() };
+    expect(mapShopifyMenuHref("#", maps)).toBe("#");
+    expect(mapShopifyMenuHref("", maps)).toBe("#");
+  });
+});

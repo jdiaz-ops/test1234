@@ -7,6 +7,7 @@ import {
   sanitizeMergeProposal,
   type MergeSourceCollection,
 } from "@/lib/collection-merge";
+import type { ShopifyMenuLink } from "@/lib/shopify-theme";
 
 const c = (handle: string, name: string, products: string[]): MergeSourceCollection => ({ handle, name, productHandles: products });
 
@@ -167,6 +168,22 @@ describe("menuForProposal", () => {
   it("respeta la escritura del menú cuando no es en mayúsculas", () => {
     const mixed = menu.map((m) => ({ ...m, label: m.label.charAt(0) + m.label.slice(1).toLowerCase() }));
     expect(menuForProposal(mixed, proposal)[1]).toEqual({ label: "Gel Polish", href: "/collections/gel-polish" });
+  });
+
+  it("también junta los links de un submenú", () => {
+    const nested: ShopifyMenuLink[] = [{ label: "TIENDA", href: "#", children: menu }];
+    expect(menuForProposal(nested, proposal)).toEqual([
+      {
+        label: "TIENDA",
+        href: "#",
+        children: [
+          { label: "ACRYSOFT™", href: "/collections/acrysoft" },
+          { label: "GEL POLISH", href: "/collections/gel-polish" },
+          { label: "POLYGEL", href: "/collections/polygel" },
+          { label: "CONTACTO", href: "/pages/contacto" },
+        ],
+      },
+    ]);
   });
 
   it("lee el handle de un enlace relativo o completo", () => {

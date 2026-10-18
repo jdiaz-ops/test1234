@@ -5,7 +5,7 @@ import { fallbackCollectionTarget } from "@/server/services/storefront-redirect-
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { getPublicBrandCollection } from "@/server/services/brand-collection-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
-import { listStorefrontMenuItems } from "@/server/services/store-page-service";
+import { listStorefrontMenuTree } from "@/server/services/store-page-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CollectionBrowser } from "@/components/storefront/collection-browser";
 import { getStoreBasePath } from "@/lib/store-base-path";
@@ -52,7 +52,7 @@ export default async function StorefrontCollectionPage({
   }
 
   const [menuItems, basePath] = await Promise.all([
-    listStorefrontMenuItems(brand.id),
+    listStorefrontMenuTree(brand.id),
     getStoreBasePath(slug),
   ]);
 
@@ -65,7 +65,7 @@ export default async function StorefrontCollectionPage({
         brandName={brand.companyName}
         logoUrl={brand.logoUrl}
         basePath={basePath}
-        menuItems={menuItems.map((i) => ({ id: i.id, label: i.label, url: i.url }))}
+        menuItems={menuItems}
       />
       {/* Banner de borde a borde, con versión para celular si la marca la
           subió. Ver conversación del 2026-10-02. */}

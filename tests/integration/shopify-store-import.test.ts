@@ -6,6 +6,8 @@ import { getDraftTheme, getPublishedTheme } from "@/server/services/brand-theme-
 import { importShopifyProducts } from "@/server/services/shopify-csv-import-service";
 import { importShopifyCollections } from "@/server/services/shopify-collections-import-service";
 import { applyShopifyDesign } from "@/server/services/shopify-design-import-service";
+import { listStorefrontMenuTree } from "@/server/services/store-page-service";
+import type { MenuNode } from "@/lib/menu-tree";
 import { createBrand, hasDb } from "./helpers";
 
 function product(handle: string, name: string) {
@@ -593,5 +595,77 @@ describe.skipIf(!hasDb)("páginas, portada, fotos de variante y Google Analytics
     expect(result.profileFields).toEqual(["googleAnalyticsId"]);
     expect((await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id } })).googleAnalyticsId).toBe("G-ABC123XYZ");
     expect((await applyShopifyDesign(brand.id, { pixels: { googleAnalyticsId: "G-OTRO" } }, never)).profileFields).toEqual([]);
+  });
+});
+
+/// El árbol del menú sin ids, para compararlo.
+function menuShape(nodes: MenuNode[]): unknown[] {
+  return nodes.map((n) => ({ label: n.label, url: n.url, children: menuShape(n.children) }));
+}
+
+describe.skipIf(!hasDb)("importar el menú con submenús", () => {
+  it("crea los ítems anidados con parentId; un padre sin equivalente queda como '#' y uno sin hijos válidos se omite", async () => {
+    const brand = await createBrand();
+    await importShopifyProducts(brand.id, [product("glitter-rosa", "Glitter rosa")]);
+    const result = await importShopifyCollections(brand.id, {
+      collections: [
+        { handle: "semipermanentes", name: "Semipermanentes", productHandles: [] },
+        { handle: "decoracion", name: "Decoración", productHandles: ["glitter-rosa"] },
+      ],
+      menu: {
+        links: [
+          { label: "Inicio", href: "/" },
+          {
+            label: "Nuestros productos",
+            href: "#",
+            children: [
+              { label: "Semipermanentes", href: "/collections/semipermanentes" },
+              {
+                label: "Decoración",
+                href: "/collections/decoracion",
+                children: [
+                  { label: "Glitter rosa", href: "/products/glitter-rosa" },
+                  { label: "No existe", href: "/collections/no-existe" },
+                ],
+              },
+              { label: "Blog", href: "/blogs/news" },
+            ],
+          },
+          { label: "Vacío", href: "#", children: [{ label: "Nada", href: "/pages/nada" }] },
+        ],
+        replace: true,
+      },
+    });
+    expect(result.menu).toEqual({ items: 5, replaced: false });
+    expect(menuShape(await listStorefrontMenuTree(brand.id))).toEqual([
+      { label: "Inicio", url: "/", children: [] },
+      {
+        label: "Nuestros productos",
+        url: "#",
+        children: [
+          { label: "Semipermanentes", url: "/coleccion/semipermanentes", children: [] },
+          {
+            label: "Decoración",
+            url: "/coleccion/decoracion",
+            children: [{ label: "Glitter rosa", url: "/glitter-rosa", children: [] }],
+          },
+        ],
+      },
+    ]);
+    const rows = await prisma.storefrontMenuItem.findMany({ where: { brandId: brand.id } });
+    const byLabel = new Map(rows.map((r) => [r.label, r]));
+    expect(byLabel.get("Semipermanentes")?.parentId).toBe(byLabel.get("Nuestros productos")?.id);
+    expect(byLabel.get("Glitter rosa")?.parentId).toBe(byLabel.get("Decoración")?.id);
+    expect(byLabel.get("Inicio")?.parentId).toBeNull();
+    // Con submenús, en celular el menú va en el panel lateral.
+    expect((await getPublishedTheme(brand.id)).header.mobile.menuStyle).toBe("hamburger");
+
+    // Reemplazar borra también los ítems anidados.
+    const again = await importShopifyCollections(brand.id, {
+      collections: [],
+      menu: { links: [{ label: "Solo inicio", href: "/" }], replace: true },
+    });
+    expect(again.menu).toEqual({ items: 1, replaced: true });
+    expect(await prisma.storefrontMenuItem.count({ where: { brandId: brand.id } })).toBe(1);
   });
 });

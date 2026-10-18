@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { buildMenuTree, menuDepthOf, MENU_MAX_DEPTH, type MenuNode } from "@/lib/menu-tree";
 import { sanitizeProductDescription } from "@/lib/sanitize-html";
 
 export class StorePageError extends Error {}
@@ -149,16 +150,27 @@ export async function listStorefrontMenuItems(brandId: string) {
   });
 }
 
-type MenuItemInput = { label: string; url: string };
+/// El menú como árbol (submenús incluidos) — lo que consume la vitrina.
+export async function listStorefrontMenuTree(brandId: string): Promise<MenuNode[]> {
+  return buildMenuTree(await listStorefrontMenuItems(brandId));
+}
+
+type MenuItemInput = { label: string; url: string; parentId?: string | null };
 
 export async function createStorefrontMenuItem(brandId: string, data: MenuItemInput) {
   const label = data.label.trim();
   const url = data.url.trim();
   if (!label) throw new StorefrontMenuError("Ingresa un nombre para el ítem del menú.");
-  if (!url) throw new StorefrontMenuError("Ingresa el link del ítem del menú.");
-  const count = await prisma.storefrontMenuItem.count({ where: { brandId } });
+  if (!url) throw new StorefrontMenuError("Ingresa el link del ítem del menú (o # para que solo abra el submenú).");
+  const parentId = data.parentId ?? null;
+  if (parentId) {
+    const rows = await prisma.storefrontMenuItem.findMany({ where: { brandId }, select: { id: true, parentId: true } });
+    if (!rows.some((r) => r.id === parentId)) throw new StorefrontMenuError("Ítem padre no encontrado.");
+    if (menuDepthOf(rows, parentId) >= MENU_MAX_DEPTH - 1) throw new StorefrontMenuError("El menú tiene hasta tres niveles.");
+  }
+  const count = await prisma.storefrontMenuItem.count({ where: { brandId, parentId } });
   return prisma.storefrontMenuItem.create({
-    data: { brandId, label, url, position: count },
+    data: { brandId, label, url, parentId, position: count },
   });
 }
 
@@ -189,9 +201,15 @@ export async function deleteStorefrontMenuItem(brandId: string, itemId: string) 
   await prisma.storefrontMenuItem.delete({ where: { id: itemId } });
 }
 
+/// Reordena un grupo de hermanos (los de arriba, o los hijos de un
+/// mismo ítem): llega el orden completo de ese grupo.
 export async function reorderStorefrontMenuItems(brandId: string, orderedIds: string[]) {
+  const first = orderedIds[0]
+    ? await prisma.storefrontMenuItem.findFirst({ where: { id: orderedIds[0], brandId }, select: { parentId: true } })
+    : null;
+  if (!first) throw new StorefrontMenuError("La lista de orden no calza con los ítems actuales.");
   const existing = await prisma.storefrontMenuItem.findMany({
-    where: { brandId },
+    where: { brandId, parentId: first.parentId },
     select: { id: true },
   });
   const existingIds = new Set(existing.map((i) => i.id));

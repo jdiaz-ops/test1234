@@ -45,7 +45,7 @@ export default async function TiendaDisenoPage() {
             (SECTION_TYPES as readonly string[]).includes(s.type),
           )
           .map((s) => ({ id: s.id, type: s.type, enabled: s.enabled, config: s.config }))}
-        initialMenuItems={menuItems.map((i) => ({ id: i.id, label: i.label, url: i.url }))}
+        initialMenuItems={menuItems.map((i) => ({ id: i.id, label: i.label, url: i.url, parentId: i.parentId ?? null }))}
         storefrontSlug={profile.storefrontSlug}
       />
     </div>

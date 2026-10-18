@@ -1,5 +1,6 @@
 import type { CollectionSortOrder } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { MENU_MAX_DEPTH } from "@/lib/menu-tree";
 import { slugify } from "@/lib/shopify-csv";
 import { saveRedirects } from "@/server/services/storefront-redirect-service";
 import { publishTheme, updateDraftTheme } from "@/server/services/brand-theme-store";
@@ -48,6 +49,7 @@ export type ImportMenuInput = {
 /// Desde cuántas entradas el menú importado pasa al panel lateral en celular.
 const HAMBURGER_FROM_ITEMS = 5;
 const MAX_MENU_ITEMS = 12;
+const MAX_MENU_CHILDREN = 24;
 
 function nameKey(name: string) {
   return name.trim().toLowerCase();
@@ -175,36 +177,54 @@ export async function importShopifyCollections(
     const productSlugByHandle = new Map<string, string>();
     for (const p of products) if (p.slug) productSlugByHandle.set(handleOf(p.externalId), p.slug);
     const pageSlugByHandle = new Map((data.pageLinks ?? []).map((l) => [l.handle.trim().toLowerCase(), l.slug]));
-    const items: { label: string; url: string }[] = [];
-    const seenUrl = new Set<string>();
-    for (const link of data.menu.links) {
-      const url = mapShopifyMenuHref(link.href, { collectionSlugByHandle, productSlugByHandle, pageSlugByHandle });
-      const label = link.label.trim().slice(0, 60);
-      if (!url || !label || seenUrl.has(url)) continue;
-      seenUrl.add(url);
-      items.push({ label, url });
-      if (items.length >= MAX_MENU_ITEMS) break;
-    }
-    // Sin menú legible en Shopify: una entrada por colección importada.
+    const maps = { collectionSlugByHandle, productSlugByHandle, pageSlugByHandle };
+    // El menú con sus submenús (hasta tres niveles): un padre sin
+    // equivalente acá pero con submenú queda como "#" (solo lo abre).
+    type Built = { label: string; url: string; children: Built[] };
+    const build = (links: ShopifyMenuLink[], depth: number): Built[] => {
+      const out: Built[] = [];
+      const seenUrl = new Set<string>();
+      for (const link of links) {
+        const children = depth < MENU_MAX_DEPTH ? build(link.children ?? [], depth + 1) : [];
+        const mapped = mapShopifyMenuHref(link.href, maps);
+        const url = mapped && mapped !== "#" ? mapped : children.length > 0 ? "#" : null;
+        const label = link.label.trim().slice(0, 60);
+        if (!url || !label || (url !== "#" && seenUrl.has(url))) continue;
+        if (url !== "#") seenUrl.add(url);
+        out.push({ label, url, children });
+        if (out.length >= (depth === 1 ? MAX_MENU_ITEMS : MAX_MENU_CHILDREN)) break;
+      }
+      return out;
+    };
+    const items = build(data.menu.links, 1);
+    // Sin menú legible en la tienda vieja: una entrada por colección importada.
     if (items.length === 0) {
       for (const r of results) {
         if (r.action === "error") continue;
-        items.push({ label: r.name, url: `/coleccion/${r.slug}` });
+        items.push({ label: r.name, url: `/coleccion/${r.slug}`, children: [] });
         if (items.length >= MAX_MENU_ITEMS) break;
       }
     }
     if (items.length > 0) {
-      const count = await prisma.storefrontMenuItem.count({ where: { brandId } });
+      const count = await prisma.storefrontMenuItem.count({ where: { brandId, parentId: null } });
       if (data.menu.replace && count > 0) await prisma.storefrontMenuItem.deleteMany({ where: { brandId } });
       const offset = data.menu.replace ? 0 : count;
-      await prisma.storefrontMenuItem.createMany({
-        data: items.map((item, i) => ({ brandId, label: item.label, url: item.url, position: offset + i })),
-      });
-      menu = { items: items.length, replaced: data.menu.replace && count > 0 };
-      // Con varias entradas, en celular el menú va en el panel lateral
-      // (hamburguesa): la fila deslizable no es práctica. Ver conversación
-      // del 2026-10-18.
-      if (items.length >= HAMBURGER_FROM_ITEMS) {
+      let created = 0;
+      const insert = async (list: Built[], parentId: string | null, start: number) => {
+        for (const [i, item] of list.entries()) {
+          const row = await prisma.storefrontMenuItem.create({
+            data: { brandId, label: item.label, url: item.url, parentId, position: start + i },
+          });
+          created++;
+          if (item.children.length > 0) await insert(item.children, row.id, 0);
+        }
+      };
+      await insert(items, null, offset);
+      menu = { items: created, replaced: data.menu.replace && count > 0 };
+      // Con varias entradas o submenús, en celular el menú va en el panel
+      // lateral (hamburguesa): la fila deslizable no es práctica. Ver
+      // conversación del 2026-10-18.
+      if (items.length >= HAMBURGER_FROM_ITEMS || items.some((i) => i.children.length > 0)) {
         await updateDraftTheme(brandId, { header: { mobile: { menuStyle: "hamburger" } } });
         await publishTheme(brandId);
       }

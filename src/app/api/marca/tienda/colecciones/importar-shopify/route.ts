@@ -10,10 +10,15 @@ import { importShopifyCollections } from "@/server/services/shopify-collections-
 /// que los productos ya entraron por lotes.
 export const maxDuration = 60;
 
-const linkSchema = z.object({
-  label: z.string().trim().min(1).max(60),
-  href: z.string().trim().min(1).max(500),
-});
+type LinkInput = { label: string; href: string; children?: LinkInput[] };
+/// Un link del menú con su submenú (hasta tres niveles, ver extractMenu).
+const linkSchema: z.ZodType<LinkInput> = z.lazy(() =>
+  z.object({
+    label: z.string().trim().min(1).max(60),
+    href: z.string().trim().min(1).max(500),
+    children: z.array(linkSchema).max(40).optional(),
+  }),
+);
 
 const collectionSchema = z.object({
   handle: z.string().trim().min(1).max(255),

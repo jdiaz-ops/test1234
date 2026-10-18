@@ -224,7 +224,7 @@ export function collectionHandleFromHref(href: string): string | null {
 /// originales de un grupo se vuelven uno solo, con el nombre del grupo,
 /// en el lugar del primero. Si el menú viene en mayúsculas, el nuevo
 /// también.
-export function menuForProposal<L extends { label: string; href: string }>(links: L[], proposal: MergeProposal): L[] {
+export function menuForProposal<L extends { label: string; href: string; children?: L[] }>(links: L[], proposal: MergeProposal): L[] {
   const groupBySource = new Map<string, MergedCollection>();
   for (const m of proposal.collections) {
     if (m.sourceHandles.length > 1) for (const h of m.sourceHandles) groupBySource.set(h, m);
@@ -234,7 +234,9 @@ export function menuForProposal<L extends { label: string; href: string }>(links
   const uppercase = labels.length > 0 && labels.filter((l) => l === l.toUpperCase()).length >= labels.length * 0.8;
   const out: L[] = [];
   const seen = new Set<string>();
-  for (const link of links) {
+  for (const rawLink of links) {
+    // Los submenús se traducen igual.
+    const link = rawLink.children ? { ...rawLink, children: menuForProposal(rawLink.children, proposal) } : rawLink;
     const handle = collectionHandleFromHref(link.href);
     const group = handle ? groupBySource.get(handle) : undefined;
     if (!group) {

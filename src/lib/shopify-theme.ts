@@ -31,7 +31,8 @@ export type ShopifyThemeFonts = {
   bodyExact: boolean;
 };
 
-export type ShopifyMenuLink = { label: string; href: string };
+/// `children`: el submenú (solo cuando lo hay), hasta tres niveles.
+export type ShopifyMenuLink = { label: string; href: string; children?: ShopifyMenuLink[] };
 
 export type ShopifyPayments = {
   /// Medios que la tienda muestra en el pie de página (Visa, PSE, Nequi…).
@@ -757,6 +758,9 @@ function cleanHref(href: string, baseUrl: string): string | null {
   return path;
 }
 
+const MAX_MENU_CHILDREN = 24;
+const MAX_MENU_DEPTH = 3;
+
 export function extractMenu(html: string, baseUrl: string): ShopifyMenuLink[] {
   const header = headerHtml(html);
   if (!header) return [];
@@ -765,20 +769,143 @@ export function extractMenu(html: string, baseUrl: string): ShopifyMenuLink[] {
   // mismos links y se quitan por duplicados).
   const navs = header.match(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi) ?? [];
   const scope =
-    navs.find((nav) => (nav.match(/href=["'][^"']*\/(collections|products|pages)\//gi) ?? []).length >= 1) ?? header;
-  const links: ShopifyMenuLink[] = [];
-  const seen = new Set<string>();
-  for (const match of scope.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
-    const href = attr(`<a ${match[1]}>`, "href");
-    if (!href) continue;
-    const clean = cleanHref(href, baseUrl);
-    const label = stripTags(match[2]).slice(0, 60);
-    if (!clean || !label || seen.has(clean)) continue;
-    seen.add(clean);
-    links.push({ label, href: clean });
-    if (links.length >= MAX_MENU_LINKS) break;
+    navs.find((nav) => (nav.match(/href=["'][^"']*\/(collections|products|pages|product-category|categoria-producto|producto)\//gi) ?? []).length >= 1) ??
+    header;
+  const items = parseMenuTree(scope, baseUrl);
+  // Los botones del encabezado por fuera del menú (el "DESCUENTOS" de
+  // Rumi) van al final como ítems sueltos; se repiten en las versiones
+  // para tablet y celular, por eso se quitan los repetidos.
+  if (scope !== header) {
+    const seen = new Set(items.map((item) => item.href));
+    for (const button of headerButtons(header.replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, ""), baseUrl)) {
+      if (items.length >= MAX_MENU_LINKS) break;
+      if (seen.has(button.href)) continue;
+      seen.add(button.href);
+      items.push(button);
+    }
   }
-  return links;
+  return items;
+}
+
+/// Links con pinta de botón (class button/btn) a páginas de la misma
+/// tienda. Los externos (WhatsApp) y el carrito o la cuenta no cuentan.
+function headerButtons(html: string, baseUrl: string): ShopifyMenuLink[] {
+  const out: ShopifyMenuLink[] = [];
+  for (const m of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+    const tag = `<a ${m[1]}>`;
+    if (!/\b(?:[\w-]*button[\w-]*|btn[\w-]*)\b/i.test(attr(tag, "class") ?? "")) continue;
+    const href = attr(tag, "href");
+    const clean = href ? cleanHref(href, baseUrl) : null;
+    if (!clean || !clean.startsWith("/") || clean === "/") continue;
+    const label = stripTags(m[2]).slice(0, 60);
+    if (label) out.push({ label, href: clean });
+  }
+  return out;
+}
+
+/// El menú con sus submenús, leyendo la estructura <ul>/<li>: un <ul>
+/// dentro de un <li> es el submenú de ese ítem (WordPress/Elementor,
+/// Horizon); en Dawn el padre es un <summary> y el <ul> va adentro del
+/// <details>. Un padre sin link propio queda con "#". Ver conversación
+/// del 2026-10-18 (el mega menú de Rumi).
+function parseMenuTree(scope: string, baseUrl: string): ShopifyMenuLink[] {
+  type Frame = {
+    items: ShopifyMenuLink[];
+    /// El ítem del <li> abierto (dueño del <ul> que venga adentro).
+    current: ShopifyMenuLink | null;
+    liOpen: boolean;
+    /// Ya se tomó el link (o el <summary>) de este <li>: otro link en el
+    /// mismo <li> ("Ver todo", el de adentro del <summary>) se ignora.
+    liTaken: boolean;
+    seen: Set<string>;
+    depth: number;
+  };
+  const root: Frame = { items: [], current: null, liOpen: false, liTaken: false, seen: new Set(), depth: 1 };
+  const stack: Frame[] = [root];
+  const top = () => stack[stack.length - 1];
+  // Los links ya vistos en el submenú de cada ítem: un mega menú en
+  // columnas reparte los hijos de un mismo padre en varios <ul>.
+  const seenOf = new Map<ShopifyMenuLink, Set<string>>();
+  const addItem = (frame: Frame, label: string, href: string | null) => {
+    if (href && frame.seen.has(href)) return null;
+    if (frame.items.length >= (frame.depth === 1 ? MAX_MENU_LINKS : MAX_MENU_CHILDREN)) return null;
+    if (href) frame.seen.add(href);
+    const link: ShopifyMenuLink = { label, href: href ?? "#" };
+    frame.items.push(link);
+    return link;
+  };
+  const take = (frame: Frame, label: string, href: string | null) => {
+    if (frame.liOpen) frame.liTaken = true;
+    const link = addItem(frame, label, href);
+    if (link) frame.current = link;
+  };
+  const linkInside = (fragment: string) => {
+    const href = fragment.match(/<a\b[^>]*\bhref=["']([^"']*)["']/i)?.[1];
+    return href ? cleanHref(href, baseUrl) : null;
+  };
+  for (const m of scope.matchAll(/<(\/?)(ul|ol|li|summary)\b[^>]*>|<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+    const tag = m[2]?.toLowerCase();
+    if (tag === "ul" || tag === "ol") {
+      if (m[1] === "/") {
+        if (stack.length > 1) stack.pop();
+        continue;
+      }
+      const frame = top();
+      if (!frame.liOpen) {
+        // Una lista suelta (la de arriba del todo o una envoltura): sigue
+        // al mismo nivel.
+        stack.push({ ...frame, current: null, liOpen: false, liTaken: false });
+      } else if (frame.current && frame.depth < MAX_MENU_DEPTH) {
+        // Un <ul> adentro de un ítem es su submenú (hasta tres niveles).
+        const parent = frame.current;
+        parent.children = parent.children ?? [];
+        let seen = seenOf.get(parent);
+        if (!seen) seenOf.set(parent, (seen = new Set()));
+        stack.push({ items: parent.children, current: null, liOpen: false, liTaken: false, seen, depth: frame.depth + 1 });
+      } else {
+        // El submenú de un ítem repetido (o un cuarto nivel): se descarta.
+        stack.push({ items: [], current: null, liOpen: false, liTaken: false, seen: new Set(), depth: frame.depth + 1 });
+      }
+      continue;
+    }
+    if (tag === "li") {
+      const frame = top();
+      frame.liOpen = m[1] !== "/";
+      frame.liTaken = false;
+      frame.current = null;
+      continue;
+    }
+    if (tag === "summary") {
+      if (m[1] === "/") continue;
+      const frame = top();
+      if (frame.liOpen && frame.liTaken) continue;
+      const start = (m.index ?? 0) + m[0].length;
+      const end = scope.indexOf("</summary>", start);
+      const inner = scope.slice(start, end < 0 ? undefined : end);
+      const label = stripTags(inner).slice(0, 60);
+      if (!label) continue;
+      // Un <summary> con link adentro (Horizon) es un padre con link propio.
+      take(frame, label, linkInside(inner));
+      continue;
+    }
+    if (m[3] != null) {
+      const frame = top();
+      if (frame.liOpen && frame.liTaken) continue;
+      const href = attr(`<a ${m[3]}>`, "href");
+      const label = stripTags(m[4]).slice(0, 60);
+      if (!label) continue;
+      const clean = href ? cleanHref(href, baseUrl) : null;
+      if (href && !clean && !/^#?$/.test(href.trim())) continue; // carrito, cuenta, buscador…
+      take(frame, label, clean);
+    }
+  }
+  // Un padre sin link y sin submenú no sirve de nada.
+  const prune = (items: ShopifyMenuLink[]): ShopifyMenuLink[] =>
+    items
+      .map((item) => (item.children ? { ...item, children: prune(item.children) } : item))
+      .map((item) => (item.children && item.children.length === 0 ? { label: item.label, href: item.href } : item))
+      .filter((item) => item.href !== "#" || (item.children && item.children.length > 0));
+  return prune(root.items);
 }
 
 /// Traduce un link del menú de Shopify a la ruta de la vitrina de
@@ -792,6 +919,8 @@ export function mapShopifyMenuHref(
     pageSlugByHandle?: Map<string, string>;
   },
 ): string | null {
+  // "#" = un ítem del menú sin link (solo abre su submenú).
+  if (href.trim() === "#" || href.trim() === "") return "#";
   if (/^https?:\/\//i.test(href)) return href;
   if (href === "/") return "/";
   if (/^\/collections(\/all)?$/i.test(href)) return "/coleccion";

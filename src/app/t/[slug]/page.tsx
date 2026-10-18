@@ -5,7 +5,7 @@ import { StoreHeader } from "@/components/storefront/store-header";
 import { StorefrontSections } from "@/components/storefront/storefront-sections";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { listEnabledStorefrontSections } from "@/server/services/storefront-section-service";
-import { listStorefrontMenuItems } from "@/server/services/store-page-service";
+import { listStorefrontMenuTree } from "@/server/services/store-page-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 
 export async function generateMetadata({
@@ -38,7 +38,7 @@ export default async function StorefrontCatalogPage({
   const [basePath, sections, menuItems, theme] = await Promise.all([
     getStoreBasePath(slug),
     listEnabledStorefrontSections(brand.id),
-    listStorefrontMenuItems(brand.id),
+    listStorefrontMenuTree(brand.id),
     getStorefrontTheme(brand.id),
   ]);
 
