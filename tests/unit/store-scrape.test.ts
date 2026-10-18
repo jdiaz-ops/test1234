@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   categoriesToCollections,
+  extractInfoPageLinks,
+  menuHrefToShopify,
   isCategoryUrl,
   isProductUrl,
   parseProductPage,
@@ -151,6 +153,32 @@ describe("al shape del importador de Shopify", () => {
       ["gorras", "Gorras", ["a", "b"]],
       ["verano", "Verano", ["a"]],
     ]);
+  });
+});
+
+describe("páginas y menú de otras plataformas", () => {
+  it("encuentra las páginas informativas de la portada", () => {
+    const html = `<footer>
+      <a href="/politica-de-envios/">Política de envíos</a>
+      <a href="https://tienda.example.com/quienes-somos">Quiénes somos</a>
+      <a href="/productos/gorra/">Gorra</a>
+      <a href="https://instagram.com/x">Instagram</a>
+      <a href="/contacto">Contacto</a>
+    </footer>`;
+    expect(extractInfoPageLinks(html, ORIGIN)).toEqual([
+      { url: `${ORIGIN}/politica-de-envios/`, label: "Política de envíos", handle: "politica-de-envios", kind: "policy" },
+      { url: `${ORIGIN}/quienes-somos`, label: "Quiénes somos", handle: "quienes-somos", kind: "page" },
+    ]);
+  });
+
+  it("traduce el menú a la forma de Shopify y no deja enlaces a la tienda vieja", () => {
+    const pages = new Set(["quienes-somos"]);
+    expect(menuHrefToShopify("/product-category/bolsos/", ORIGIN, pages)).toBe("/collections/bolsos");
+    expect(menuHrefToShopify("/productos/gorra/", ORIGIN, pages)).toBe("/products/gorra");
+    expect(menuHrefToShopify("/quienes-somos", ORIGIN, pages)).toBe("/pages/quienes-somos");
+    expect(menuHrefToShopify("/", ORIGIN, pages)).toBe("/");
+    expect(menuHrefToShopify("/blog/novedades", ORIGIN, pages)).toBeNull();
+    expect(menuHrefToShopify("https://instagram.com/x", ORIGIN, pages)).toBe("https://instagram.com/x");
   });
 });
 

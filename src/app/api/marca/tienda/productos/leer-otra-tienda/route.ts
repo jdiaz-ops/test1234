@@ -16,6 +16,7 @@ const bodySchema = z.object({
     z.object({ step: z.literal("detect"), url: z.string().trim().min(3).max(500) }),
     z.object({ step: z.literal("woo-products"), page: z.number().int().min(1).max(200), base: z.string().max(400) }),
     z.object({ step: z.literal("pages"), urls: z.array(z.string().url().max(1000)).min(1).max(6) }),
+    z.object({ step: z.literal("page"), url: z.string().url().max(1000) }),
   ]),
 });
 

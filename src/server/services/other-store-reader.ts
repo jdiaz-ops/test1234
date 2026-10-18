@@ -1,5 +1,6 @@
 import { gunzipSync } from "zlib";
 import { decodeHtmlEntities } from "@/lib/html-entities";
+import { extractPageContent } from "@/lib/shopify-theme";
 import {
   categoryNameFromUrl,
   detectPlatformFromHtml,
@@ -11,7 +12,9 @@ import {
   parseProductPage,
   parseSitemap,
   parseWooProduct,
+  extractInfoPageLinks,
   sitemapsFromRobots,
+  type InfoPageLink,
   type ScrapedProduct,
   type StorePlatform,
   type WooStoreProduct,
@@ -35,7 +38,8 @@ export class OtherStoreError extends Error {}
 export type ScanStep =
   | { step: "detect"; url: string }
   | { step: "woo-products"; page: number; base: string }
-  | { step: "pages"; urls: string[] };
+  | { step: "pages"; urls: string[] }
+  | { step: "page"; url: string };
 
 export type ScanCategory = { name: string; url: string | null };
 
@@ -45,6 +49,10 @@ export type ScanResult = {
   storeName: string;
   products: ScrapedProduct[];
   categories: ScanCategory[];
+  /// Páginas informativas enlazadas en la portada (solo en "detect").
+  infoPages: InfoPageLink[];
+  /// Contenido de una página informativa (solo en el paso "page").
+  page: { title: string | null; bodyHtml: string } | null;
   /// Pasos que el navegador debe pedir después de este.
   next: ScanStep[];
   warnings: string[];
@@ -56,7 +64,7 @@ const MAX_SITEMAPS = 25;
 const MAX_CATEGORY_PAGES_TO_CRAWL = 20;
 
 function emptyResult(origin: string, platform: StorePlatform): ScanResult {
-  return { origin, platform, storeName: "", products: [], categories: [], next: [], warnings: [] };
+  return { origin, platform, storeName: "", products: [], categories: [], infoPages: [], page: null, next: [], warnings: [] };
 }
 
 /// "mitienda.com", "https://mitienda.com/collections/x" → "https://mitienda.com".
@@ -141,6 +149,7 @@ async function detect(input: string): Promise<ScanResult> {
         .map((c) => ({ name: decodeHtmlEntities(c.name!).slice(0, 80), url: c.permalink ?? null }));
     }
     result.next = [{ step: "woo-products", page: 1, base }];
+    result.infoPages = extractInfoPageLinks(html, origin);
     return result;
   }
 
@@ -149,7 +158,8 @@ async function detect(input: string): Promise<ScanResult> {
   // Parece Shopify pero /products.json no responde (tienda con contraseña,
   // por ejemplo): se deja al lector de Shopify, que explica qué hacer.
   if (hinted === "shopify") return { ...emptyResult(origin, "shopify"), storeName };
-  return discoverPages(origin, hinted, storeName, html);
+  const result = await discoverPages(origin, hinted, storeName, html);
+  return { ...result, infoPages: extractInfoPageLinks(html, origin) };
 }
 
 /// Tiendanube y cualquier otra plataforma: se buscan las páginas de
@@ -290,6 +300,14 @@ async function productPages(origin: string, urls: string[]): Promise<ScanResult>
   return result;
 }
 
+async function infoPage(origin: string, url: string): Promise<ScanResult> {
+  const result = emptyResult(origin, "generic");
+  if (!sameSite(url, origin)) throw new OtherStoreError("Esa página no es de la tienda.");
+  const res = await safeFetchText(url).catch(() => null);
+  if (res?.text) result.page = extractPageContent(res.text, res.url);
+  return result;
+}
+
 export async function scanStore(origin: string | null, step: ScanStep): Promise<ScanResult> {
   if (step.step === "detect") return detect(step.url);
   if (!origin) throw new OtherStoreError("Falta la dirección de la tienda.");
@@ -299,5 +317,7 @@ export async function scanStore(origin: string | null, step: ScanStep): Promise<
       return wooProducts(base, step.base, step.page);
     case "pages":
       return productPages(base, step.urls);
+    case "page":
+      return infoPage(base, step.url);
   }
 }

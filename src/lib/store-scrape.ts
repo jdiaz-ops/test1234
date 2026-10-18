@@ -746,3 +746,71 @@ export function categoriesToCollections(products: ScrapedProduct[]): ShopifyImpo
   }
   return Array.from(byKey.values()).map((c) => ({ ...c, productsCount: c.productHandles.length }));
 }
+
+// ---------------------------------------------------------------------------
+// Páginas informativas y menú de una tienda que no es Shopify
+// ---------------------------------------------------------------------------
+
+const POLICY_WORDS = /env[ií]o|despacho|cambio|devoluci|garant[ií]a|privacidad|datos personales|t[ée]rminos|condiciones|pol[ií]tica|shipping|refund|return|privacy|terms/i;
+const INFO_WORDS = /nosotros|qui[eé]nes somos|historia|preguntas|faq|about|c[oó]mo comprar|medios de pago/i;
+
+export type InfoPageLink = { url: string; label: string; handle: string; kind: "page" | "policy" };
+
+function sameSiteUrl(url: URL, origin: string) {
+  const host = (h: string) => h.replace(/^www\./, "").toLowerCase();
+  return host(url.hostname) === host(new URL(origin).hostname);
+}
+
+/// Los enlaces de la portada (menú y pie de página) a páginas
+/// informativas: políticas de envío, cambios, privacidad, términos,
+/// quiénes somos, preguntas frecuentes. Es lo que en Shopify serían
+/// /pages/x y /policies/x.
+export function extractInfoPageLinks(html: string, origin: string, max = 12): InfoPageLink[] {
+  const out: InfoPageLink[] = [];
+  const seen = new Set<string>();
+  for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    let url: URL;
+    try {
+      url = new URL(decodeHtmlEntities(m[1]), origin);
+    } catch {
+      continue;
+    }
+    if (!/^https?:$/.test(url.protocol) || !sameSiteUrl(url, origin) || url.pathname === "/") continue;
+    url.search = "";
+    url.hash = "";
+    const href = url.toString();
+    if (seen.has(href) || isProductUrl(href) || isCategoryUrl(href)) continue;
+    const label = decodeHtmlEntities(m[2].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim().slice(0, 100);
+    const haystack = `${label} ${decodeURIComponent(url.pathname)}`;
+    const kind = POLICY_WORDS.test(haystack) ? "policy" : INFO_WORDS.test(haystack) ? "page" : null;
+    if (!kind || label.length < 2) continue;
+    seen.add(href);
+    out.push({ url: href, label, handle: handleFromUrl(href) || "pagina", kind });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/// Un enlace del menú de otra plataforma traducido a la forma de Shopify
+/// (/collections/x, /products/x, /pages/x), que es la que entiende la
+/// importación del menú. null = enlace propio de la tienda vieja sin
+/// equivalente acá (no se trae, para no mandar a la gente a la tienda
+/// vieja).
+export function menuHrefToShopify(href: string, origin: string, pageHandles: Set<string>): string | null {
+  let url: URL;
+  try {
+    url = new URL(href, origin);
+  } catch {
+    return null;
+  }
+  if (!/^https?:$/.test(url.protocol)) return null;
+  if (!sameSiteUrl(url, origin)) return url.toString();
+  if (url.pathname === "/" || url.pathname === "") return "/";
+  const absolute = `${url.origin}${url.pathname}`;
+  const handle = handleFromUrl(absolute);
+  if (isProductUrl(absolute)) return `/products/${handle}`;
+  if (isCategoryUrl(absolute)) return `/collections/${handle}`;
+  if (pageHandles.has(handle)) return `/pages/${handle}`;
+  if (/^\/(tienda|shop|productos|products|catalogo|cat[aá]logo)\/?$/i.test(url.pathname)) return "/collections/all";
+  return null;
+}

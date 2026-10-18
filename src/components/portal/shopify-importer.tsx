@@ -27,11 +27,13 @@ import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
 import { rehostAllImages, type RehostSummary } from "@/lib/rehost-images-client";
 import {
   categoriesToCollections,
+  menuHrefToShopify,
   toShopifyImport,
   type ScrapedProduct,
   type StorePlatform,
 } from "@/lib/store-scrape";
 import type { ScanResult, ScanStep } from "@/server/services/other-store-reader";
+import { CatalogFilesReader, type FilesRead } from "@/components/portal/catalog-files-reader";
 
 type ImportResult = {
   handle: string;
@@ -40,7 +42,7 @@ type ImportResult = {
   error?: string;
 };
 
-type Source = "link" | "csv";
+type Source = "link" | "csv" | "files";
 
 type ProbeVariant = { variantId: number; unitPrice: number; productName: string };
 
@@ -188,7 +190,7 @@ function emptyStats(): ShopifyCsvStats {
 const IMAGE_OUTCOME: Record<string, string> = {
   subido: "subido",
   "ya-tenia": "ya tenías uno, no se cambió",
-  omitido: "no se encontró en Shopify",
+  omitido: "no se encontró en la tienda",
   error: "no se pudo subir",
 };
 
@@ -273,11 +275,37 @@ export function ShopifyImporter({
     }
   }
 
+  /// Lo leído de los archivos de una marca sin web (catalog-files-reader.tsx)
+  /// entra a la misma vista previa que el link.
+  function handleFilesRead(read: FilesRead) {
+    setParseError(null);
+    setParsed(read.parsed);
+    setExtras({
+      storeUrl: "los archivos de la marca",
+      pages: [],
+      collections: read.collections,
+      proposed: null,
+      theme: read.theme,
+      shipping: null,
+      notes: read.notes,
+    });
+    setOptions({
+      products: true,
+      pages: false,
+      collections: read.collections.length > 0,
+      home: false,
+      design: Boolean(read.theme && (read.theme.colors || read.theme.logoUrl)),
+      shipping: false,
+      photos: false,
+    });
+  }
+
   /// Tienda que no es Shopify (WooCommerce, Tiendanube o cualquier otra,
   /// ver other-store-reader.ts): se leen productos y categorías por pasos
   /// y se convierten al mismo shape que lo de Shopify, así la importación
-  /// (productos, colecciones, fotos a Marcolini) es la misma. Diseño,
-  /// portada, páginas y fletes solo se leen de Shopify.
+  /// (productos, colecciones, fotos a Marcolini) es la misma. También se
+  /// leen el diseño, el menú y las páginas informativas de la portada; los
+  /// fletes no (solo Shopify deja consultarlos desde afuera).
   async function readOtherStore(first: ScanResult) {
     const origin = first.origin;
     const byHandle = new Map<string, ScrapedProduct>();
@@ -324,24 +352,58 @@ export function ShopifyImporter({
     }
     stats.unknownStock = products.filter((p) => p.stock == null || p.hasVariants).length;
     const collections = categoriesToCollections(scraped);
-    const notes = [
-      `Esta tienda es ${PLATFORM_LABEL[platform]}: se leyeron los productos y sus categorías. El diseño, la portada, las páginas y los fletes solo se leen de tiendas Shopify.`,
-    ];
+    const notes: string[] = [];
+
+    // Páginas informativas (envíos, cambios, privacidad, quiénes somos…).
+    const pages: PageRead[] = [];
+    for (const [i, link] of first.infoPages.entries()) {
+      setReadingStep(`Leyendo páginas y políticas… ${i + 1} de ${first.infoPages.length}`);
+      try {
+        const body = (await postJson(API_READ_OTHER, { origin, step: { step: "page", url: link.url } })) as ScanResult;
+        const html = body.page?.bodyHtml ?? "";
+        if (textLength(html) > 0) {
+          pages.push({ handle: link.handle, title: body.page?.title || link.label, body: html, kind: link.kind, chars: textLength(html) });
+        }
+      } catch {
+        // Una página que no se pudo leer no frena el resto.
+      }
+    }
+
+    // Diseño, menú, redes y píxeles: el lector de la portada sirve para
+    // cualquier tienda. El menú se traduce a la forma de Shopify para que
+    // la importación del menú lo entienda; las páginas y políticas de
+    // Shopify (/pages, /policies) no aplican acá.
+    let theme: ShopifyThemeInfo | null = null;
+    try {
+      setReadingStep("Leyendo diseño, menú y redes…");
+      const read = (await postJson(API_READ, { url: origin, part: "tema" })).theme as ShopifyThemeInfo;
+      const pageHandles = new Set(pages.map((p) => p.handle));
+      const menu = read.menu
+        .map((link) => ({ ...link, href: menuHrefToShopify(link.href, origin, pageHandles) }))
+        .filter((link): link is { label: string; href: string } => link.href !== null);
+      theme = { ...read, menu, pageLinks: [], policyLinks: [] };
+    } catch (err) {
+      notes.push(`No se pudo leer el diseño de la tienda: ${message(err)}`);
+    }
+
+    notes.unshift(
+      `Esta tienda es ${PLATFORM_LABEL[platform]}: se leyeron los productos, sus categorías${pages.length > 0 ? ", las páginas informativas" : ""}${theme ? ", el diseño y el menú" : ""}. Los fletes solo se pueden leer de tiendas Shopify: configúralos en Envíos.`,
+    );
+    if (theme && !theme.colors) notes.push("No reconocimos los colores del tema: ajústalos en Diseño.");
     if (failedSteps > 0) notes.push(`${failedSteps} partes de la tienda no se pudieron leer.`);
     const noWeight = products.filter((p) => !p.weight && !p.variants.some((v) => v.weight)).length;
     if (noWeight > 0) notes.push(`${noWeight} productos sin peso (la tienda no lo publica): agrégalo desde Editar para que el envío se calcule bien.`);
     const currencies = Array.from(new Set(scraped.map((p) => p.currency).filter((c): c is string => Boolean(c) && c !== "COP")));
     if (currencies.length > 0) notes.push(`Los precios están en ${currencies.join(", ")}: se importan tal cual, sin convertir a pesos.`);
     if (collections.length === 0) notes.push("La tienda no muestra categorías: los productos entran sin colección.");
-
     setParsed({ products, warnings, stats });
-    setExtras({ storeUrl: origin, pages: [], collections, proposed: null, theme: null, shipping: null, notes });
+    setExtras({ storeUrl: origin, pages, collections, proposed: null, theme, shipping: null, notes });
     setOptions({
       products: true,
-      pages: false,
+      pages: pages.length > 0,
       collections: collections.length > 0,
-      home: false,
-      design: false,
+      home: Boolean(theme && theme.homeSections.length > 0),
+      design: Boolean(theme && (theme.colors || theme.fonts || theme.logoUrl)),
       shipping: false,
       photos: true,
     });
@@ -579,7 +641,9 @@ export function ShopifyImporter({
     setResults([]);
     setExtrasResult(null);
     const all: ImportResult[] = [];
-    const byLink = source === "link" && extras !== null;
+    // "Desde archivos" también deja extras (colecciones y diseño) y sigue
+    // el mismo camino que el link.
+    const byLink = source !== "csv" && extras !== null;
     const withCollections =
       byLink && options.collections && (extras.collections.length > 0 || extras.proposed !== null);
     // Con colecciones de verdad no se arma además una por Tipo de producto.
@@ -805,6 +869,7 @@ export function ShopifyImporter({
             {(
               [
                 ["link", "Desde el link de tu tienda"],
+                ["files", "Desde archivos (sin web)"],
                 ["csv", "Desde el archivo CSV"],
               ] as [Source, string][]
             ).map(([key, label]) => (
@@ -837,7 +902,8 @@ export function ShopifyImporter({
                 </p>
                 <p>
                   También funciona con WooCommerce, Tiendanube o cualquier otra tienda: de esas se
-                  traen los productos (precios, variantes, SKU, peso y fotos) y sus categorías.
+                  traen los productos (precios, variantes, SKU, peso y fotos), sus categorías, el
+                  diseño, el menú y las páginas informativas. Los fletes solo se leen de Shopify.
                 </p>
                 <p>
                   No trae los productos en borrador ni el inventario. Si tu tienda tiene contraseña,
@@ -871,6 +937,15 @@ export function ShopifyImporter({
               </form>
               {reading && <p className="text-xs text-brand-ink-soft">{readingStep}</p>}
             </>
+          ) : source === "files" ? (
+            <CatalogFilesReader
+              onRead={handleFilesRead}
+              handedOff={parsed !== null}
+              onEdit={() => {
+                setParsed(null);
+                setExtras(null);
+              }}
+            />
           ) : (
             <>
               <div className="text-xs text-brand-ink-soft space-y-1.5">
@@ -935,7 +1010,9 @@ export function ShopifyImporter({
                   <p className="text-xs text-brand-ink-soft">
                     {source === "link"
                       ? "El link no trae cantidades de inventario, así que el stock queda sin definir: "
-                      : "La exportación de Shopify no trae cantidades de inventario, así que el stock queda sin definir: "}
+                      : source === "files"
+                        ? "Los archivos no dicen cuántas unidades hay, así que el stock queda sin definir: "
+                        : "La exportación de Shopify no trae cantidades de inventario, así que el stock queda sin definir: "}
                     los productos sin variantes se venden sin control de stock, y las variantes
                     aparecen agotadas hasta que les pongas stock desde Editar.
                   </p>
@@ -1260,14 +1337,17 @@ export function ShopifyImporter({
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={startImport}
-            disabled={!canImport}
-            className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-          >
-            {importButtonLabel}
-          </button>
+          {/* En "Desde archivos" el botón aparece cuando ya se revisó la tabla. */}
+          {(source !== "files" || parsed) && (
+            <button
+              type="button"
+              onClick={startImport}
+              disabled={!canImport}
+              className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {importButtonLabel}
+            </button>
+          )}
         </>
       )}
 
