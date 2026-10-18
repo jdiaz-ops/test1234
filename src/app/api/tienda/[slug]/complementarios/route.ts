@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { limitOrReject } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { getComplementaryProducts } from "@/server/services/store-order-service";
+import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 
 /// GET ?ids=a,b,c → productos para "Completa tu compra" en el carrito. Ver
 /// getComplementaryProducts.
@@ -27,7 +28,8 @@ export async function GET(
     .slice(0, 50);
   if (ids.length === 0) return NextResponse.json({ products: [] });
 
-  const products = await getComplementaryProducts(brand.id, ids);
+  const theme = await getStorefrontTheme(brand.id);
+  const products = await getComplementaryProducts(brand.id, ids, 4, { showSoldOut: theme.productListing.showSoldOut });
   return NextResponse.json({
     products: products.map((p) => ({
       id: p.id,

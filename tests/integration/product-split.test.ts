@@ -122,7 +122,9 @@ describe.skipIf(!hasDb)("separar variantes en productos", () => {
 
     // La colección pública muestra los nuevos (no el original) con sus
     // atributos para los filtros.
-    const publicCollection = await getPublicBrandCollection(brand.id, "gel-polish");
+    // "Loca" quedó con stock 0: por defecto la vitrina esconde los agotados
+    // (ver product-stock.ts), así que acá se piden con la opción prendida.
+    const publicCollection = await getPublicBrandCollection(brand.id, "gel-polish", { showSoldOut: true });
     const cards = publicCollection!.products.map((p) => toCardProduct(p.product));
     expect(cards.map((c) => c.name).sort()).toEqual(["Gel Polish Rosados – Loca", "Gel Polish Rosados – Princesa", "Gel Polish Rosados – Reina"]);
     expect(cards.find((c) => c.name.endsWith("Loca"))?.attributes).toEqual({ Grupo: "Rosados", Tono: "Loca" });

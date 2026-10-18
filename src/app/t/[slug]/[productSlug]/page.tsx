@@ -68,13 +68,14 @@ export default async function StorefrontProductPage({
   const outOfStock = product.stock != null && product.stock <= 0;
   const isService = product.type === "SERVICE";
   const isDigital = product.type === "DIGITAL";
-  const [basePath, menuItems, theme, relatedProducts, reviewData, siblings] = await Promise.all([
+  const theme = await getStorefrontTheme(brand.id);
+  const stock = { showSoldOut: theme.productListing.showSoldOut };
+  const [basePath, menuItems, relatedProducts, reviewData, siblings] = await Promise.all([
     getStoreBasePath(slug),
     listStorefrontMenuItems(brand.id),
-    getStorefrontTheme(brand.id),
-    getRelatedProducts(brand.id, product.id),
+    getRelatedProducts(brand.id, product.id, 4, stock),
     REVIEWS_ENABLED ? getProductReviews(product.id) : null,
-      getSiblingProducts(brand.id, product),
+    getSiblingProducts(brand.id, product, stock),
   ]);
   const { productDetail } = theme;
   const savedAmountPercent =

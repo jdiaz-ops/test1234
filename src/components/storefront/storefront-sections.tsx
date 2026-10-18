@@ -23,6 +23,7 @@ import { normalizeBannerConfig } from "@/lib/storefront-sections";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 import { getBrandCollection, sortCollectionProducts } from "@/server/services/brand-collection-service";
 import { listStorefrontProducts } from "@/server/services/store-order-service";
+import { isSoldOut, stockWhere } from "@/lib/product-stock";
 import { CatalogTemplate } from "@/components/storefront/catalog-templates";
 import { ProductCard, toCardProduct, type CardProduct } from "@/components/storefront/product-card";
 import { prisma } from "@/lib/prisma";
@@ -143,17 +144,19 @@ async function FeaturedCollectionSection({
   config,
   brandId,
   basePath,
+  showSoldOut = false,
 }: {
   config: FeaturedCollectionConfig;
   brandId: string;
   basePath: string;
+  showSoldOut?: boolean;
 }) {
   if (!config.collectionId) return null;
   const collection = await getBrandCollection(brandId, config.collectionId);
   if (!collection) return null;
   const products = sortCollectionProducts(collection.products, collection.sortOrder)
     .map((p) => p.product)
-    .filter((p) => p.status === "ACTIVE" && p.available)
+    .filter((p) => p.status === "ACTIVE" && p.available && (showSoldOut || !isSoldOut(p)))
     .slice(0, 12);
   if (products.length === 0) return null;
 
@@ -460,10 +463,10 @@ function ProductGrid({
 }
 
 /// Los productos elegidos a mano, en el orden en que la marca los marcó.
-async function listPickedProducts(brandId: string, productIds: string[]) {
+async function listPickedProducts(brandId: string, productIds: string[], showSoldOut = false) {
   if (productIds.length === 0) return [];
   const products = await prisma.product.findMany({
-    where: { id: { in: productIds }, brandId, manual: true, status: "ACTIVE" },
+    where: { id: { in: productIds }, brandId, manual: true, status: "ACTIVE", ...stockWhere({ showSoldOut }) },
     select: cardProductSelect,
   });
   const byId = new Map(products.map((p) => [p.id, p]));
@@ -477,12 +480,14 @@ async function FeaturedProductsSection({
   config,
   brandId,
   basePath,
+  showSoldOut = false,
 }: {
   config: FeaturedProductsConfig;
   brandId: string;
   basePath: string;
+  showSoldOut?: boolean;
 }) {
-  const products = await listPickedProducts(brandId, config.productIds);
+  const products = await listPickedProducts(brandId, config.productIds, showSoldOut);
   return <ProductGrid title={config.title} products={products} display={config.display} basePath={basePath} />;
 }
 
@@ -490,13 +495,15 @@ async function NewProductsSection({
   config,
   brandId,
   basePath,
+  showSoldOut = false,
 }: {
   config: NewProductsConfig;
   brandId: string;
   basePath: string;
+  showSoldOut?: boolean;
 }) {
   const products = await prisma.product.findMany({
-    where: { brandId, manual: true, status: "ACTIVE" },
+    where: { brandId, manual: true, status: "ACTIVE", ...stockWhere({ showSoldOut }) },
     orderBy: { createdAt: "desc" },
     take: 8,
     select: cardProductSelect,
@@ -515,10 +522,12 @@ async function OnSaleProductsSection({
   config,
   brandId,
   basePath,
+  showSoldOut = false,
 }: {
   config: OnSaleProductsConfig;
   brandId: string;
   basePath: string;
+  showSoldOut?: boolean;
 }) {
   // Secciones guardadas antes del selector de fuente no traen `source`
   // (el config no se revalida al leer) — se comportan como "auto".
@@ -530,14 +539,14 @@ async function OnSaleProductsSection({
     if (!collection) return null;
     const products = sortCollectionProducts(collection.products, collection.sortOrder)
       .map((p) => p.product)
-      .filter((p) => p.status === "ACTIVE" && p.available)
+      .filter((p) => p.status === "ACTIVE" && p.available && (showSoldOut || !isSoldOut(p)))
       .slice(0, 24)
       .map(toCardProduct);
     return <ProductGrid title={config.title} products={products} display={config.display} basePath={basePath} />;
   }
 
   if (source === "manual") {
-    const products = await listPickedProducts(brandId, config.productIds ?? []);
+    const products = await listPickedProducts(brandId, config.productIds ?? [], showSoldOut);
     return <ProductGrid title={config.title} products={products} display={config.display} basePath={basePath} />;
   }
 
@@ -545,7 +554,7 @@ async function OnSaleProductsSection({
   // razonable de productos activos y se filtra compareAtPrice > price en
   // memoria. Suficiente para el tamaño de catálogo de esta plataforma.
   const candidates = await prisma.product.findMany({
-    where: { brandId, manual: true, status: "ACTIVE", compareAtPrice: { not: null } },
+    where: { brandId, manual: true, status: "ACTIVE", compareAtPrice: { not: null }, ...stockWhere({ showSoldOut }) },
     orderBy: { createdAt: "desc" },
     take: 50,
     select: cardProductSelect,
@@ -642,14 +651,16 @@ async function ProductCatalogSection({
   basePath,
   template,
   productsPerRow,
+  showSoldOut = false,
 }: {
   config: ProductCatalogConfig;
   brandId: string;
   basePath: string;
   template: string;
   productsPerRow?: "1-3" | "2-4";
+  showSoldOut?: boolean;
 }) {
-  const products = await listStorefrontProducts(brandId);
+  const products = await listStorefrontProducts(brandId, { showSoldOut });
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
       {config.title && (
@@ -678,6 +689,7 @@ export async function StorefrontSections({
   instagramHandle = null,
   template = "CLASICA",
   productsPerRow,
+  showSoldOut = false,
 }: {
   sections: { id: string; type: string; config: unknown }[];
   brandId: string;
@@ -687,6 +699,8 @@ export async function StorefrontSections({
   /// de las secciones no dependen de la plantilla del catálogo.
   template?: string;
   productsPerRow?: "1-3" | "2-4";
+  /// Diseño → Página de colecciones → "Mostrar productos agotados".
+  showSoldOut?: boolean;
 }) {
   if (sections.length === 0) return null;
   return (
@@ -702,6 +716,7 @@ export async function StorefrontSections({
                 config={s.config as FeaturedCollectionConfig}
                 brandId={brandId}
                 basePath={basePath}
+                showSoldOut={showSoldOut}
               />
             );
           case "TEXT":
@@ -741,6 +756,7 @@ export async function StorefrontSections({
                 config={s.config as FeaturedProductsConfig}
                 brandId={brandId}
                 basePath={basePath}
+                showSoldOut={showSoldOut}
               />
             );
           case "NEW_PRODUCTS":
@@ -750,6 +766,7 @@ export async function StorefrontSections({
                 config={s.config as NewProductsConfig}
                 brandId={brandId}
                 basePath={basePath}
+                showSoldOut={showSoldOut}
               />
             );
           case "ON_SALE_PRODUCTS":
@@ -759,6 +776,7 @@ export async function StorefrontSections({
                 config={s.config as OnSaleProductsConfig}
                 brandId={brandId}
                 basePath={basePath}
+                showSoldOut={showSoldOut}
               />
             );
           case "BRAND_CAROUSEL":
@@ -780,6 +798,7 @@ export async function StorefrontSections({
                 config={s.config as ProductCatalogConfig}
                 brandId={brandId}
                 basePath={basePath}
+                showSoldOut={showSoldOut}
                 template={template}
                 productsPerRow={productsPerRow}
               />

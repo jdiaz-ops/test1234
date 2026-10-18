@@ -1,5 +1,6 @@
 import { CARD_VARIANT_SELECT } from "@/lib/card-product-select";
 import { prisma } from "@/lib/prisma";
+import { isSoldOut, stockWhere, type StockOptions } from "@/lib/product-stock";
 import type { CollectionSortOrder, Prisma } from "@prisma/client";
 
 export class BrandCollectionError extends Error {}
@@ -112,7 +113,7 @@ export function sortCollectionProducts<
 /// (/t/{slug}/coleccion/{collectionSlug}) — solo trae productos
 /// realmente visibles (ACTIVE y disponibles), a diferencia de
 /// getBrandCollection (portal) que trae todo para que la marca los edite.
-export async function getPublicBrandCollection(brandId: string, slug: string) {
+export async function getPublicBrandCollection(brandId: string, slug: string, options?: StockOptions) {
   const collection = await prisma.brandCollection.findUnique({
     where: { brandId_slug: { brandId, slug } },
     include: {
@@ -126,7 +127,9 @@ export async function getPublicBrandCollection(brandId: string, slug: string) {
   return {
     ...collection,
     products: sortCollectionProducts(
-      collection.products.filter((p) => p.product.status === "ACTIVE" && p.product.available),
+      collection.products.filter(
+        (p) => p.product.status === "ACTIVE" && p.product.available && (options?.showSoldOut || !isSoldOut(p.product)),
+      ),
       collection.sortOrder,
     ),
   };
@@ -137,12 +140,12 @@ export async function getPublicBrandCollection(brandId: string, slug: string) {
 /// theme.mobileNav) y de la sección CATEGORY_GRID. Solo trae colecciones
 /// con al menos un producto visible — una colección vacía no tiene nada
 /// que mostrar si le dan clic.
-export async function getPublicBrandCollections(brandId: string) {
+export async function getPublicBrandCollections(brandId: string, options?: StockOptions) {
   const collections = await prisma.brandCollection.findMany({
     where: {
       brandId,
       products: {
-        some: { product: { status: "ACTIVE", available: true } },
+        some: { product: { status: "ACTIVE", available: true, ...stockWhere(options) } },
       },
     },
     orderBy: { position: "asc" },

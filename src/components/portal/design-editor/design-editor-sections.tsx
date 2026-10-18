@@ -680,6 +680,16 @@ export function ProductListingSection({ theme, patch }: { theme: ThemeConfig; pa
         800×800px) — así se ve nítida en pantallas de alta resolución sin
         pesar de más.
       </p>
+      <Checkbox
+        label="Mostrar productos agotados"
+        checked={p.showSoldOut}
+        onChange={(v) => patch({ productListing: { showSoldOut: v } })}
+      />
+      <p className="text-[11px] text-brand-ink-soft -mt-3">
+        Apagado: los productos sin unidades no aparecen en la portada, las
+        colecciones ni el buscador (su página sigue abierta por link
+        directo). Prendido: se ven con la etiqueta &quot;Agotado&quot;.
+      </p>
     </div>
   );
 }

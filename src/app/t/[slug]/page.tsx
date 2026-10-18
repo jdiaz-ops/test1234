@@ -62,6 +62,7 @@ export default async function StorefrontCatalogPage({
         instagramHandle={brand.instagramHandle}
         template={brand.storefrontTemplate}
         productsPerRow={theme.productListing.productsPerRow}
+        showSoldOut={theme.productListing.showSoldOut}
       />
       <p className="text-center mt-4 mb-10 font-mono text-xs text-brand-ink-soft">
         Vendido por {brand.companyName} vía Marcolini

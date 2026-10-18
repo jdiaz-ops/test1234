@@ -1,4 +1,5 @@
 import { cardProductSelect } from "@/lib/card-product-select";
+import { stockWhere, type StockOptions } from "@/lib/product-stock";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -69,9 +70,9 @@ export async function getStorefrontBrand(slug: string) {
 /// comprar con el link directo, ver getStorefrontProduct) pero no sale
 /// acá, y DRAFT no se puede ver de ninguna forma. Ver ProductStatus en el
 /// schema y conversación del 2026-09-14.
-export async function listStorefrontProducts(brandId: string) {
+export async function listStorefrontProducts(brandId: string, options?: StockOptions) {
   return prisma.product.findMany({
-    where: { brandId, manual: true, status: "ACTIVE" },
+    where: { brandId, manual: true, status: "ACTIVE", ...stockWhere(options) },
     orderBy: { createdAt: "desc" },
     select: cardProductSelect,
   });
@@ -80,7 +81,7 @@ export async function listStorefrontProducts(brandId: string) {
 /// Buscador de la vitrina (header, "Buscador grande" en Diseño →
 /// Encabezado) — coincide por nombre o SKU, sin distinguir mayúsculas.
 /// Ver conversación del 2026-09-15.
-export async function searchStorefrontProducts(brandId: string, query: string) {
+export async function searchStorefrontProducts(brandId: string, query: string, options?: StockOptions) {
   const q = query.trim();
   if (!q) return [];
   return prisma.product.findMany({
@@ -88,9 +89,16 @@ export async function searchStorefrontProducts(brandId: string, query: string) {
       brandId,
       manual: true,
       status: "ACTIVE",
-      OR: [
-        { name: { contains: q, mode: "insensitive" } },
-        { sku: { contains: q, mode: "insensitive" } },
+      // El filtro de inventario también es un OR: van los dos en un AND
+      // para que ninguno pise al otro.
+      AND: [
+        stockWhere(options),
+        {
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { sku: { contains: q, mode: "insensitive" } },
+          ],
+        },
       ],
     },
     orderBy: { createdAt: "desc" },
@@ -125,7 +133,7 @@ export async function getStorefrontProduct(brandId: string, slug: string) {
 /// simple: comparten al menos una colección con este, excluyéndolo a él.
 /// No hay curación manual todavía (ver theme.productDetail.relatedTitles
 /// para los títulos configurables) — se arma solo.
-export async function getRelatedProducts(brandId: string, productId: string, limit = 4) {
+export async function getRelatedProducts(brandId: string, productId: string, limit = 4, options?: StockOptions) {
   const collectionIds = (
     await prisma.productBrandCollection.findMany({
       where: { productId },
@@ -141,6 +149,7 @@ export async function getRelatedProducts(brandId: string, productId: string, lim
       status: "ACTIVE",
       id: { not: productId },
       brandCollections: { some: { collectionId: { in: collectionIds } } },
+      ...stockWhere(options),
     },
     select: cardProductSelect,
     take: limit,
@@ -154,7 +163,7 @@ export async function getRelatedProducts(brandId: string, productId: string, lim
 /// hay ninguno (productos sin colección, o la colección entera ya está en
 /// el carrito), los más recientes de la tienda. Ver conversación del
 /// 2026-09-30.
-export async function getComplementaryProducts(brandId: string, cartProductIds: string[], limit = 4) {
+export async function getComplementaryProducts(brandId: string, cartProductIds: string[], limit = 4, options?: StockOptions) {
   const select = {
     id: true,
     name: true,
@@ -166,7 +175,7 @@ export async function getComplementaryProducts(brandId: string, cartProductIds: 
     type: true,
     hasVariants: true,
   } as const;
-  const base = { brandId, manual: true as const, status: "ACTIVE" as const, id: { notIn: cartProductIds } };
+  const base = { brandId, manual: true as const, status: "ACTIVE" as const, id: { notIn: cartProductIds }, ...stockWhere(options) };
 
   const collectionIds = (
     await prisma.productBrandCollection.findMany({

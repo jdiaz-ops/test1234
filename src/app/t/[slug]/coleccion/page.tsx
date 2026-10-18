@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { getPublicBrandCollections } from "@/server/services/brand-collection-service";
+import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { getStoreBasePath } from "@/lib/store-base-path";
@@ -31,8 +32,9 @@ export default async function StorefrontCollectionsIndexPage({
   const brand = await getStorefrontBrand(slug);
   if (!brand) notFound();
 
+  const theme = await getStorefrontTheme(brand.id);
   const [collections, menuItems, basePath] = await Promise.all([
-    getPublicBrandCollections(brand.id),
+    getPublicBrandCollections(brand.id, { showSoldOut: theme.productListing.showSoldOut }),
     listStorefrontMenuItems(brand.id),
     getStoreBasePath(slug),
   ]);

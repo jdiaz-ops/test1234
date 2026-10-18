@@ -235,6 +235,11 @@ const footerSchema = withDefaults({
 /// ProductCard). Ver conversación del 2026-09-30.
 const productListingSchema = withDefaults({
   productsPerRow: z.enum(["1-3", "2-4"]).default("2-4"),
+  /// Apagado (por defecto): los productos sin unidades no aparecen en la
+  /// vitrina (catálogo, colecciones, novedades, buscador…); su página sigue
+  /// abierta por link directo. Prendido: se ven con la etiqueta "Agotado".
+  /// Ver product-stock.ts y conversación del 2026-10-18.
+  showSoldOut: z.boolean().default(false),
 });
 
 // ----------------------------------------------------------------------------

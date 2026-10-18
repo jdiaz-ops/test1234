@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { stockWhere, type StockOptions } from "@/lib/product-stock";
 import { GROUP_ATTRIBUTE, readProductAttributes, shortVariantName, variantAxisOf } from "@/lib/product-attributes";
 
 /// "Otros tonos" de un producto que salió de separar variantes: los demás
@@ -30,6 +31,7 @@ export type SiblingGroup = {
 export async function getSiblingProducts(
   brandId: string,
   product: { id: string; name: string; slug: string | null; imageUrl: string | null; price: unknown; stock: number | null; attributes: unknown },
+  options?: StockOptions,
 ): Promise<SiblingGroup | null> {
   const attributes = readProductAttributes(product.attributes);
   const group = attributes[GROUP_ATTRIBUTE];
@@ -43,6 +45,7 @@ export async function getSiblingProducts(
       available: true,
       id: { not: product.id },
       attributes: { path: [GROUP_ATTRIBUTE], equals: group },
+      ...stockWhere(options),
     },
     select: { id: true, name: true, slug: true, imageUrl: true, price: true, stock: true, attributes: true },
     orderBy: { name: "asc" },

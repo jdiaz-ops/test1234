@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { notFound } from "next/navigation";
 import {
   getStorefrontBrand,
@@ -41,10 +42,11 @@ export default async function StorefrontSearchPage({
   const brand = await getStorefrontBrand(slug);
   if (!brand) notFound();
 
+  const theme = await getStorefrontTheme(brand.id);
   const [menuItems, basePath, products] = await Promise.all([
     listStorefrontMenuItems(brand.id),
     getStoreBasePath(slug),
-    searchStorefrontProducts(brand.id, q),
+    searchStorefrontProducts(brand.id, q, { showSoldOut: theme.productListing.showSoldOut }),
   ]);
 
   return (

@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { fallbackCollectionTarget } from "@/server/services/storefront-redirect-service";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { getPublicBrandCollection } from "@/server/services/brand-collection-service";
+import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CollectionBrowser } from "@/components/storefront/collection-browser";
@@ -39,7 +40,8 @@ export default async function StorefrontCollectionPage({
   const brand = await getStorefrontBrand(slug);
   if (!brand) notFound();
 
-  const collection = await getPublicBrandCollection(brand.id, collectionSlug);
+  const theme = await getStorefrontTheme(brand.id);
+  const collection = await getPublicBrandCollection(brand.id, collectionSlug, { showSoldOut: theme.productListing.showSoldOut });
   if (!collection) {
     // Link a una colección que ya no tiene ese slug: se resuelve por los
     // redirects viejos, por nombre o por parecido; si no, a todas las
