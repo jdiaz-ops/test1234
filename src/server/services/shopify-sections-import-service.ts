@@ -3,6 +3,8 @@ import type { SectionType } from "@/lib/storefront-sections";
 import { mapShopifyMenuHref, type ShopifyHomeSection } from "@/lib/shopify-theme";
 import { createStorefrontSection, StorefrontSectionError } from "@/server/services/storefront-section-service";
 import { EXTERNAL_ID_PREFIX } from "@/server/services/shopify-csv-import-service";
+import { buildDefaultHomeSections, ensureProductsSection } from "@/server/services/storefront-default-home-service";
+import { slugify } from "@/lib/shopify-csv";
 
 /// Arma la página de inicio de Mi tienda con las secciones leídas de la
 /// portada de Shopify (ver extractHomeSections en shopify-theme.ts):
@@ -11,8 +13,18 @@ import { EXTERNAL_ID_PREFIX } from "@/server/services/shopify-csv-import-service
 /// productos se buscan por su handle de Shopify (por eso se importan
 /// antes). Las fotos quedan apuntando a Shopify y las copia el paso de
 /// fotos (ver image-rehost-service.ts). Ver conversación del 2026-10-18.
+///
+/// Con `fillGaps` (la importación por link): si no quedó ninguna sección
+/// se arma la portada básica (categorías, novedades y catálogo, ver
+/// storefront-default-home-service.ts), y si las que quedaron no muestran
+/// productos se agrega el catálogo al final. Así una tienda importada
+/// nunca queda con la página de inicio vacía (Rumi, amglow).
 
 export type ImportSectionResult = { type: SectionType | ShopifyHomeSection["type"]; action: "created" | "skipped" | "error"; reason?: string };
+
+function nameKey(name: string) {
+  return name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 
 export async function importShopifySections(
   brandId: string,
@@ -22,6 +34,7 @@ export async function importShopifySections(
     /// handle de Shopify → slug acá (lo devuelve la importación de colecciones).
     collectionSlugByHandle: Record<string, string>;
     pageSlugByHandle?: Record<string, string>;
+    fillGaps?: boolean;
   },
 ) {
   const [products, collections] = await Promise.all([
@@ -29,19 +42,27 @@ export async function importShopifySections(
       where: { brandId, externalId: { startsWith: EXTERNAL_ID_PREFIX } },
       select: { id: true, externalId: true, slug: true },
     }),
-    prisma.brandCollection.findMany({ where: { brandId }, select: { id: true, slug: true } }),
+    prisma.brandCollection.findMany({ where: { brandId }, select: { id: true, slug: true, name: true } }),
   ]);
   const productByHandle = new Map(products.map((p) => [p.externalId.slice(EXTERNAL_ID_PREFIX.length).toLowerCase(), p]));
   const collectionIdBySlug = new Map(collections.map((c) => [c.slug, c.id]));
+  const collectionIdByName = new Map(collections.map((c) => [nameKey(c.name), c.id]));
   const collectionSlugByHandle = new Map(Object.entries(data.collectionSlugByHandle).map(([h, s]) => [h.toLowerCase(), s]));
   // Una colección que ya existía con el mismo slug que el handle también vale.
   for (const c of collections) if (!collectionSlugByHandle.has(c.slug)) collectionSlugByHandle.set(c.slug, c.slug);
   const productSlugByHandle = new Map<string, string>();
   for (const [handle, p] of productByHandle) if (p.slug) productSlugByHandle.set(handle, p.slug);
   const pageSlugByHandle = new Map(Object.entries(data.pageSlugByHandle ?? {}).map(([h, s]) => [h.toLowerCase(), s]));
-  const collectionId = (handle: string) => {
+  // Por handle; si no, por el nombre que mostraba la tienda vieja (en una
+  // tienda WooCommerce el slug de la URL y el nombre de la categoría
+  // pueden no coincidir).
+  const collectionId = (handle: string, label = "") => {
     const slug = collectionSlugByHandle.get(handle.toLowerCase());
-    return slug ? (collectionIdBySlug.get(slug) ?? null) : null;
+    const byHandle = slug ? collectionIdBySlug.get(slug) : null;
+    if (byHandle) return byHandle;
+    const name = label.trim();
+    if (!name) return null;
+    return collectionIdBySlug.get(slugify(name)) ?? collectionIdByName.get(nameKey(name)) ?? null;
   };
   const link = (href: string) => (href ? (mapShopifyMenuHref(href, { collectionSlugByHandle, productSlugByHandle, pageSlugByHandle }) ?? "") : "");
 
@@ -69,7 +90,7 @@ export async function importShopifySections(
           break;
         }
         case "FEATURED_COLLECTION": {
-          const id = collectionId(section.collectionHandle);
+          const id = collectionId(section.collectionHandle, section.title);
           if (!id) break;
           created = { type: "FEATURED_COLLECTION", config: { collectionId: id, title: section.title.slice(0, 120) } };
           break;
@@ -79,7 +100,7 @@ export async function importShopifySections(
           break;
         case "CATEGORY_GRID": {
           const items = section.items
-            .map((item) => ({ id: collectionId(item.collectionHandle), imageUrl: item.imageUrl, label: item.label.slice(0, 40) }))
+            .map((item) => ({ id: collectionId(item.collectionHandle, item.label), imageUrl: item.imageUrl, label: item.label.slice(0, 40) }))
             .filter((item): item is { id: string; imageUrl: string | null; label: string } => Boolean(item.id))
             // Varias casillas de Shopify pueden apuntar a colecciones que acá se unieron en una.
             .filter((item, i, list) => list.findIndex((other) => other.id === item.id) === i)
@@ -128,5 +149,18 @@ export async function importShopifySections(
       });
     }
   }
-  return { sections: results, removed };
+
+  // Que la portada nunca quede vacía ni sin productos.
+  let basic = 0;
+  if (data.fillGaps) {
+    if (!results.some((r) => r.action === "created")) {
+      const home = await buildDefaultHomeSections(brandId);
+      for (const type of home.created) results.push({ type, action: "created" });
+      basic = home.created.length;
+    } else if (await ensureProductsSection(brandId)) {
+      results.push({ type: "PRODUCT_CATALOG", action: "created" });
+      basic = 1;
+    }
+  }
+  return { sections: results, removed, basic };
 }

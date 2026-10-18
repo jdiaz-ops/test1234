@@ -4,9 +4,10 @@ import { requireAdminActingAsBrand } from "@/lib/current-brand";
 import { limitOrReject } from "@/lib/rate-limit";
 import { importShopifySections } from "@/server/services/shopify-sections-import-service";
 
-/// Secciones de la portada leídas de la tienda Shopify (ver
-/// shopify-sections-import-service.ts). Se llama después de productos y
-/// colecciones, porque las secciones apuntan a ellos.
+/// Secciones de la portada leídas de la tienda vieja (Shopify o
+/// WooCommerce/otra, ver shopify-sections-import-service.ts). Se llama
+/// después de productos y colecciones, porque las secciones apuntan a
+/// ellos.
 export const maxDuration = 60;
 
 const url = z.string().max(1000);
@@ -37,10 +38,12 @@ const sectionSchema = z.discriminatedUnion("type", [
 ]);
 
 const bodySchema = z.object({
-  sections: z.array(sectionSchema).min(1).max(12),
+  /// Puede venir vacío: con `fillGaps` igual se arma la portada básica.
+  sections: z.array(sectionSchema).max(12),
   replace: z.boolean().default(true),
   collectionSlugByHandle: z.record(z.string().max(255), z.string().max(120)).default({}),
   pageSlugByHandle: z.record(z.string().max(255), z.string().max(120)).optional(),
+  fillGaps: z.boolean().default(false),
 });
 
 export async function POST(req: Request) {

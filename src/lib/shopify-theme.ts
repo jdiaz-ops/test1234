@@ -1,5 +1,6 @@
 import { GOOGLE_FONT_OPTIONS } from "@/lib/brand-theme";
 import { decodeHtmlEntities } from "@/lib/html-entities";
+import { categoryNameFromUrl, handleFromUrl, isCategoryUrl, isProductUrl, menuHrefToShopify } from "@/lib/store-scrape";
 
 /// Lee el HTML público de la portada de una tienda Shopify y saca lo que
 /// sirve para dejar "Diseño" y el menú armados sin que la marca mande
@@ -1138,5 +1139,482 @@ export function extractHomeSections(html: string, baseUrl: string): ShopifyHomeS
       continue;
     }
   }
+  // Sin secciones de Shopify reconocidas (WooCommerce, Tiendanube o un
+  // tema raro) se lee la portada por lo que contiene.
+  if (sections.length === 0) return extractGenericHomeSections(html, baseUrl);
   return sections.slice(0, 12);
+}
+
+// ----------------------------------------------------------------------------
+// Portada de tiendas que no son Shopify (2026-10-18)
+// ----------------------------------------------------------------------------
+//
+// WordPress con WooCommerce (Elementor, Gutenberg, Divi, Flatsome, sliders
+// como Revolution o Smart Slider), Tiendanube y cualquier otra tienda no
+// traen ids "shopify-section-…", así que la portada se reconoce por lo que
+// contiene, en el orden en que aparece: sliders y banners (fotos grandes
+// con título y botón), cuadrículas de categorías (links a
+// /product-category/x), listas de productos (links a /product/x), videos
+// de YouTube/Vimeo, bloques de texto y columnas informativas. Lo que ya se
+// tomó para una sección no se vuelve a leer como otra. Pedido el
+// 2026-10-18: Rumi y amglow (WooCommerce) se importaron sin portada.
+
+type Range = { start: number; end: number };
+type PlacedSection = { at: number; section: ShopifyHomeSection };
+
+const VOID_TAGS = new Set(["img", "br", "hr", "input", "meta", "link", "source", "track", "wbr", "area", "base", "col", "embed", "param"]);
+
+function inRanges(index: number, ranges: Range[]) {
+  return ranges.some((r) => index >= r.start && index < r.end);
+}
+
+/// Dónde termina (índice después del cierre) el elemento que abre en
+/// `start` — el hermano de innerHtmlAt.
+function elementEndAt(html: string, start: number): number | null {
+  const tagMatch = html.slice(start, start + 40).match(/^<([a-zA-Z][a-zA-Z0-9-]*)/);
+  if (!tagMatch) return null;
+  const tag = tagMatch[1].toLowerCase();
+  const openEnd = html.indexOf(">", start);
+  if (openEnd < 0) return null;
+  if (html[openEnd - 1] === "/" || VOID_TAGS.has(tag)) return openEnd + 1;
+  const re = new RegExp(`<(/?)${tag}\\b[^>]*>`, "gi");
+  re.lastIndex = openEnd + 1;
+  let depth = 1;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    if (m[1] === "/") {
+      depth--;
+      if (depth === 0) return m.index + m[0].length;
+    } else if (!m[0].endsWith("/>")) {
+      depth++;
+    }
+  }
+  return null;
+}
+
+/// Quita los elementos enteros (con todo lo anidado) cuya apertura calza
+/// con el patrón.
+function removeElements(html: string, openTag: RegExp): string {
+  const re = new RegExp(openTag.source, "gi");
+  let out = "";
+  let cursor = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    if (m.index < cursor) continue;
+    const end = elementEndAt(html, m.index);
+    if (end == null) continue;
+    out += html.slice(cursor, m.index);
+    cursor = end;
+    re.lastIndex = end;
+  }
+  return out + html.slice(cursor);
+}
+
+const NOISE_BLOCK_RE =
+  /<(?:div|section|ul|ol|aside)\b[^>]*\b(?:class|id)=["'][^"']*(?:cookie|popup|pop-up|modal|off-?canvas|mini-?cart|cart-drawer|elementor-location-(?:header|footer)|elementor-popup|site-header|site-footer|masthead|colophon|breadcrumb|mega-?menu|newsletter|mailchimp|wp-block-woocommerce-breadcrumbs|whatsapp-button|back-to-top|scroll-top)[^"']*["']/;
+
+/// El cuerpo de la portada sin encabezado, pie, menús, formularios,
+/// scripts ni avisos: lo que queda es el contenido de la página.
+function homeScope(html: string): string {
+  let scope = html.replace(/<!--[\s\S]*?-->/g, "");
+  scope = removeElements(scope, /<(?:script|style|noscript|template|svg)\b/);
+  const main = scope.search(/<main\b/i);
+  scope = main >= 0 ? (innerHtmlAt(scope, main) ?? scope) : scope.replace(/^[\s\S]*?<body\b[^>]*>/i, "");
+  scope = removeElements(scope, /<(?:header|footer|nav|aside|form)\b/);
+  return removeElements(scope, NOISE_BLOCK_RE);
+}
+
+const IMAGE_NOISE_RE =
+  /\.svg(?:\?|$)|\.gif(?:\?|$)|placeholder|data:image|\/wp-includes\/|\/wp-content\/plugins\/|[-_/.]icons?[-_./]|[-_/]logo[-_./s]|spinner|preloader|loading|blank\.|pixel|1x1|gravatar|emoji|favicon|captcha/i;
+
+function tinyImageTag(tag: string) {
+  const width = parseInt(attr(tag, "width") ?? "", 10);
+  const height = parseInt(attr(tag, "height") ?? "", 10);
+  if (width > 0 && width < 120 && (!height || height < 120)) return true;
+  return /\b(?:avatar|emoji|icon|logo|wp-smiley|payment|badge)\b/i.test(`${attr(tag, "class") ?? ""} ${attr(tag, "alt") ?? ""}`);
+}
+
+function imageUrlOf(tag: string, baseUrl: string): string | null {
+  const srcset = largestFromSrcset(attr(tag, "data-lazy-srcset") ?? attr(tag, "data-srcset") ?? attr(tag, "srcset"));
+  const src =
+    attr(tag, "data-lazy-src") ?? attr(tag, "data-src") ?? attr(tag, "data-original") ?? attr(tag, "data-lazyload") ?? attr(tag, "src");
+  return absoluteUrl(srcset ?? src, baseUrl) ?? absoluteUrl(src, baseUrl);
+}
+
+/// Una foto grande (no un ícono): por sus medidas, su srcset o el sufijo
+/// de tamaño de WordPress ("-1024x683.jpg").
+function largeImageTag(tag: string, url: string) {
+  const width = parseInt(attr(tag, "width") ?? "", 10);
+  if (width > 0) return width >= 300;
+  const srcset = attr(tag, "data-lazy-srcset") ?? attr(tag, "data-srcset") ?? attr(tag, "srcset");
+  if (srcset) return /\b([6-9]\d{2}|\d{4,})w\b/.test(srcset);
+  const sized = url.match(/-(\d{2,4})x(\d{2,4})\.[a-z]{3,4}(?:\?|$)/i);
+  if (sized) return parseInt(sized[1], 10) >= 500;
+  return true;
+}
+
+/// Las fotos de un tramo: <img> (con sus variantes perezosas), fondos CSS
+/// y el JSON de Elementor ("background_image":{"url":…}).
+function genericImages(part: string, baseUrl: string, max = 6, onlyLarge = false): string[] {
+  const urls: string[] = [];
+  const push = (raw: string | null) => {
+    const url = absoluteUrl(raw ? decodeEntities(raw.replace(/\\\//g, "/")) : null, baseUrl);
+    if (!url || !/^https?:/.test(url) || IMAGE_NOISE_RE.test(url) || urls.includes(url)) return;
+    urls.push(url);
+  };
+  for (const tag of part.match(/<img\b[^>]*>/gi) ?? []) {
+    if (urls.length >= max) return urls;
+    if (tinyImageTag(tag)) continue;
+    const url = imageUrlOf(tag, baseUrl);
+    if (!url || (onlyLarge && !largeImageTag(tag, url))) continue;
+    push(url);
+  }
+  for (const m of part.matchAll(/background(?:-image)?\s*:\s*url\((['"]?)([^'")]+)\1\)/gi)) push(m[2]);
+  for (const m of part.matchAll(/\bdata-(?:bg|background|background-image|bg-image|lazy-bg|back)=["']([^"']+)["']/gi)) push(m[1]);
+  for (const m of part.matchAll(/background_image(?:&quot;|"):\{(?:&quot;|")url(?:&quot;|"):(?:&quot;|")([^"&]+)(?:&quot;|")/gi)) push(m[1]);
+  return urls.slice(0, max);
+}
+
+const BANNER_TOKEN_RE =
+  /\b(?:swiper|swiper-container|slick-slider|owl-carousel|rev_slider_wrapper|rev_slider|rs-module-wrap|rs-fullwidth|n2-ss-slider|n2-section-smartslider|metaslider|soliloquy-container|ls-container|elementor-widget-slides|elementor-widget-image-carousel|elementor-widget-media-carousel|elementor-widget-call-to-action|wp-block-cover|wp-block-media-text|et_pb_slider|et_pb_fullwidth_header|et_pb_fullwidth_image|ux-banner|banner-grid|slideshow|carousel|hero|banner|slider|slides)\b/i;
+const SECTION_TOKEN_RE = /\b(?:elementor-top-section|elementor-section|e-con|e-container|et_pb_section|wp-block-group|vc_row|section|row)\b/i;
+const PRODUCT_LIST_RE =
+  /\b(?:products|wc-block-grid|wc-block-product-template|wp-block-woocommerce-product-collection|wp-block-woocommerce-product-new|wp-block-woocommerce-product-best-sellers|wp-block-woocommerce-product-on-sale|wp-block-woocommerce-product-top-rated|wp-block-woocommerce-handpicked-products|wp-block-woocommerce-products-by-attribute|wp-block-woocommerce-product-category|wp-block-woocommerce-product-categories|wc-block-product-categories|elementor-widget-woocommerce-products|elementor-widget-wc-products|elementor-widget-woocommerce-product-categories|et_pb_shop|products?-(?:grid|carousel|slider|list)|woocommerce-products|js-product-table|product-table|item-product-list)\b/i;
+const INFO_ITEM_RE =
+  /\b(?:elementor-widget-icon-box|elementor-widget-image-box|et_pb_blurb|wp-block-column|icon-box|iconbox|info-box|infobox|feature-box|featured-box|feature-item|benefit|ux-box|box-text|service-box|trust-badge|usp-item)\b/i;
+const NOISE_HEADING_RE =
+  /suscr|newsletter|bolet[ií]n|cont[aá]ct|cookie|carrito|iniciar sesi|reg[ií]strate|buscar|s[ií]guenos|redes sociales|instagram|whatsapp|testimon|opinion|rese[ñn]|clientes dicen|\bblog\b|noticias|entradas recientes|comentarios/i;
+
+function tagHasBackgroundImage(tag: string) {
+  return /background(?:-image)?\s*:\s*url\(|\bdata-(?:bg|background|background-image)=|background_image(?:&quot;|")/i.test(tag);
+}
+
+function sameSite(href: string, baseUrl: string): URL | null {
+  let url: URL;
+  try {
+    url = new URL(decodeEntities(href.trim()).replace(/^\/\//, "https://"), baseUrl);
+  } catch {
+    return null;
+  }
+  if (!/^https?:$/.test(url.protocol)) return null;
+  const host = (h: string) => h.replace(/^www\./, "").toLowerCase();
+  return host(url.hostname) === host(new URL(baseUrl).hostname) ? url : null;
+}
+
+const CATEGORY_PREFIX_RE = /\/(?:product-category|categoria-producto|collections|colecciones|coleccion|categorias?|categor(?:y|ies)|c)\//i;
+const PRODUCT_PREFIX_RE = /\/(?:products?|productos?|producto|p)\//i;
+
+function genericCategoryHandle(href: string, baseUrl: string): string | null {
+  const url = sameSite(href, baseUrl);
+  if (!url) return null;
+  if (!isCategoryUrl(url.href) && !CATEGORY_PREFIX_RE.test(url.pathname)) return null;
+  const handle = handleFromUrl(url.href);
+  return handle && !/^(?:all|todos?|todas|shop|tienda)$/.test(handle) ? handle : null;
+}
+
+function genericProductHandle(href: string, baseUrl: string): string | null {
+  const url = sameSite(href, baseUrl);
+  if (!url) return null;
+  if (!isProductUrl(url.href) && !PRODUCT_PREFIX_RE.test(url.pathname)) return null;
+  return handleFromUrl(url.href) || null;
+}
+
+type LinkMatch = { at: number; end: number; href: string; inner: string };
+
+function links(part: string): LinkMatch[] {
+  const out: LinkMatch[] = [];
+  for (const m of part.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+    if (m.index == null) continue;
+    const href = attr(`<a ${m[1]}>`, "href");
+    if (href) out.push({ at: m.index, end: m.index + m[0].length, href, inner: m[2] });
+  }
+  return out;
+}
+
+/// El nombre de la categoría: el texto del link (sin el "(12)" de
+/// WooCommerce), el alt de su foto o, de última, el de la URL.
+function categoryLabel(link: LinkMatch): { label: string; fromText: boolean } {
+  const text = stripTags(link.inner).replace(/\s*\(\d+\)\s*$/, "").slice(0, 40);
+  if (text) return { label: text, fromText: true };
+  const alt = (link.inner.match(/<img\b[^>]*>/i)?.[0] ?? "") && attr(link.inner.match(/<img\b[^>]*>/i)![0], "alt");
+  return alt ? { label: alt.slice(0, 40), fromText: true } : { label: categoryNameFromUrl(link.href), fromText: false };
+}
+
+function headingText(part: string, max = 120) {
+  const text = firstText(part, "h1|h2|h3", max);
+  if (text) return text;
+  const styled = part.match(/<(div|span|p|h4|h5)\b[^>]*class=["'][^"']*(?:heading|title|headline)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/i);
+  return styled ? stripTags(styled[2]).slice(0, max) : "";
+}
+
+function subtitleText(part: string, max = 240) {
+  const paragraphs = allParagraphs(part, max);
+  if (paragraphs) return paragraphs;
+  const styled = part.match(/<(div|span)\b[^>]*class=["'][^"']*(?:description|subtitle|sub-title|caption|text-editor)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/i);
+  return styled ? stripTags(styled[2]).slice(0, max) : "";
+}
+
+/// El primer botón con link a algo que exista acá (colección, producto,
+/// catálogo). Un botón a una página de la tienda vieja no se trae.
+function genericButton(part: string, baseUrl: string) {
+  for (const m of part.matchAll(/<a\b([^>]*class=["'][^"']*(?:button|btn|cta)[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi)) {
+    const href = attr(`<a ${m[1]}>`, "href");
+    const text = stripTags(m[2]).slice(0, 40);
+    if (!href || !text) continue;
+    const mapped = menuHrefToShopify(href, baseUrl, new Set());
+    if (mapped) return { text, href: mapped.slice(0, 300) };
+  }
+  return { text: "", href: "" };
+}
+
+/// El último título (h1–h3) justo antes de un tramo — el "Compra por
+/// categoría" arriba de la cuadrícula — que no sea parte de otra sección.
+function lastHeadingBefore(scope: string, index: number, ranges: Range[], maxBack = 2500): { at: number; end: number; text: string } | null {
+  const from = Math.max(0, index - maxBack);
+  let best: { at: number; end: number; text: string } | null = null;
+  for (const m of scope.slice(from, index).matchAll(/<(h[1-3])\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
+    if (m.index == null) continue;
+    const at = from + m.index;
+    if (inRanges(at, ranges)) continue;
+    const text = stripTags(m[2]).slice(0, 120);
+    if (text) best = { at, end: at + m[0].length, text };
+  }
+  return best;
+}
+
+function countMatches(part: string, re: RegExp) {
+  return (part.match(re) ?? []).length;
+}
+
+export function extractGenericHomeSections(html: string, baseUrl: string): ShopifyHomeSection[] {
+  const scope = homeScope(html);
+  const placed: PlacedSection[] = [];
+  const ranges: Range[] = [];
+  const take = (start: number, end: number) => ranges.push({ start, end });
+  const titleBefore = (index: number) => {
+    const heading = lastHeadingBefore(scope, index, ranges);
+    if (!heading) return "";
+    take(heading.at, heading.end);
+    return heading.text;
+  };
+
+  // 1) Sliders, heros y banners: un contenedor con pinta de slider/banner
+  // o una sección con foto de fondo, que no envuelva medio sitio.
+  for (const m of scope.matchAll(/<(?:div|section|figure|header|article)\b[^>]*>/gi)) {
+    if (m.index == null || inRanges(m.index, ranges)) continue;
+    const tag = m[0];
+    const key = `${attr(tag, "class") ?? ""} ${attr(tag, "id") ?? ""}`;
+    const isBanner = BANNER_TOKEN_RE.test(key) || (SECTION_TOKEN_RE.test(key) && tagHasBackgroundImage(tag));
+    if (!isBanner) continue;
+    const end = elementEndAt(scope, m.index);
+    if (end == null) continue;
+    const whole = scope.slice(m.index, end);
+    const inner = whole.slice(tag.length);
+    const wrapperLike =
+      inner.length > 80_000 ||
+      PRODUCT_LIST_RE.test(inner) ||
+      countMatches(inner, /<iframe\b/gi) > 0 ||
+      countMatches(inner, /<h[1-3]\b/gi) >= 4 ||
+      links(inner).filter((l) => genericProductHandle(l.href, baseUrl)).length >= 3 ||
+      links(inner).filter((l) => genericCategoryHandle(l.href, baseUrl)).length >= 4;
+    if (wrapperLike) continue;
+    const images = genericImages(whole, baseUrl, 6);
+    const title = headingText(inner);
+    if (images.length === 0 && !title) continue;
+    const button = genericButton(inner, baseUrl);
+    placed.push({ at: m.index, section: { type: "BANNER", images, title, subtitle: subtitleText(inner), buttonText: button.text, buttonHref: button.href } });
+    take(m.index, end);
+  }
+
+  // 2) Listas de productos y de categorías de WooCommerce (ul.products,
+  // bloques de Gutenberg, widgets de Elementor, tienda de Divi…).
+  for (const m of scope.matchAll(/<(?:ul|ol|div|section)\b[^>]*class=["'][^"']*["'][^>]*>/gi)) {
+    if (m.index == null || inRanges(m.index, ranges)) continue;
+    const tag = m[0];
+    if (!PRODUCT_LIST_RE.test(attr(tag, "class") ?? "")) continue;
+    const end = elementEndAt(scope, m.index);
+    if (end == null) continue;
+    const inner = scope.slice(m.index + tag.length, end);
+    const productHandles: string[] = [];
+    const categories: { collectionHandle: string; imageUrl: string | null; label: string; fromText: boolean }[] = [];
+    let firstLinkAt = inner.length;
+    for (const link of links(inner)) {
+      const product = genericProductHandle(link.href, baseUrl);
+      if (product) {
+        firstLinkAt = Math.min(firstLinkAt, link.at);
+        if (!productHandles.includes(product)) productHandles.push(product);
+        continue;
+      }
+      const category = genericCategoryHandle(link.href, baseUrl);
+      if (!category) continue;
+      firstLinkAt = Math.min(firstLinkAt, link.at);
+      const imageUrl = genericImages(link.inner, baseUrl, 1)[0] ?? null;
+      const label = categoryLabel(link);
+      const existing = categories.find((c) => c.collectionHandle === category);
+      if (existing) {
+        if (!existing.imageUrl && imageUrl) existing.imageUrl = imageUrl;
+        if (label.fromText && !existing.fromText) Object.assign(existing, label);
+      } else {
+        categories.push({ collectionHandle: category, imageUrl, ...label });
+      }
+    }
+    if (productHandles.length === 0 && categories.length === 0) continue;
+    // El título del bloque: el h2 de adentro si va antes del primer link
+    // (si no, es el nombre de un producto), o el último de antes.
+    const own = inner.slice(0, firstLinkAt).match(/<(h[1-3])\b[^>]*>([\s\S]*?)<\/\1>/i);
+    const title = own ? stripTags(own[2]).slice(0, 120) : titleBefore(m.index);
+    if (productHandles.length >= categories.length) {
+      placed.push({ at: m.index, section: { type: "FEATURED_PRODUCTS", productHandles: productHandles.slice(0, 8), title } });
+    } else {
+      const items = categories.slice(0, 6).map(({ collectionHandle, imageUrl, label }) => ({ collectionHandle, imageUrl, label }));
+      placed.push({ at: m.index, section: { type: "CATEGORY_GRID", title, items } });
+    }
+    take(m.index, end);
+  }
+
+  // 3) Links sueltos a categorías (cajas de imagen de Elementor, columnas
+  // de Gutenberg): una sola cuadrícula con los primeros seis.
+  const loose = links(scope).filter((l) => !inRanges(l.at, ranges));
+  const looseCategories: { at: number; end: number; collectionHandle: string; imageUrl: string | null; label: string; fromText: boolean }[] = [];
+  for (const link of loose) {
+    const category = genericCategoryHandle(link.href, baseUrl);
+    if (!category) continue;
+    const imageUrl = genericImages(link.inner, baseUrl, 1)[0] ?? null;
+    const label = categoryLabel(link);
+    const existing = looseCategories.find((c) => c.collectionHandle === category);
+    if (existing) {
+      if (!existing.imageUrl && imageUrl) existing.imageUrl = imageUrl;
+      if (label.fromText && !existing.fromText) Object.assign(existing, label);
+      existing.end = link.end;
+    } else {
+      looseCategories.push({ at: link.at, end: link.end, collectionHandle: category, imageUrl, ...label });
+    }
+  }
+  if (looseCategories.length >= 2) {
+    const first = looseCategories[0];
+    const items = looseCategories.slice(0, 6).map(({ collectionHandle, imageUrl, label }) => ({ collectionHandle, imageUrl, label }));
+    for (const c of looseCategories) take(c.at, c.end);
+    placed.push({ at: first.at, section: { type: "CATEGORY_GRID", title: titleBefore(first.at), items } });
+  }
+
+  // 4) Links sueltos a productos: desde tres, una lista de destacados.
+  const looseProducts: { at: number; end: number; handle: string }[] = [];
+  for (const link of loose) {
+    if (inRanges(link.at, ranges)) continue;
+    const handle = genericProductHandle(link.href, baseUrl);
+    if (handle && !looseProducts.some((p) => p.handle === handle)) looseProducts.push({ at: link.at, end: link.end, handle });
+  }
+  if (looseProducts.length >= 3) {
+    for (const p of looseProducts) take(p.at, p.end);
+    placed.push({
+      at: looseProducts[0].at,
+      section: { type: "FEATURED_PRODUCTS", productHandles: looseProducts.slice(0, 8).map((p) => p.handle), title: titleBefore(looseProducts[0].at) },
+    });
+  }
+
+  // 4b) Fotos grandes sueltas (un banner promocional puesto como imagen):
+  // desde 900 px de ancho declarado; si está dentro de un link a un
+  // producto o categoría solo cuenta con el ancho declarado (la foto de
+  // un producto trae srcset grande pero width chico).
+  const allLinks = links(scope);
+  const productOrCategoryLinks = allLinks.filter((l) => genericProductHandle(l.href, baseUrl) || genericCategoryHandle(l.href, baseUrl));
+  let standalone = 0;
+  for (const m of scope.matchAll(/<img\b[^>]*>/gi)) {
+    if (m.index == null || standalone >= 3 || inRanges(m.index, ranges)) continue;
+    const tag = m[0];
+    const index = m.index;
+    const width = parseInt(attr(tag, "width") ?? "", 10);
+    const srcset = attr(tag, "data-lazy-srcset") ?? attr(tag, "data-srcset") ?? attr(tag, "srcset");
+    const inCatalogLink = productOrCategoryLinks.some((l) => index >= l.at && index < l.end);
+    const big = width >= 900 || (!inCatalogLink && !width && Boolean(srcset) && /\b(?:1[4-9]\d{2}|[2-9]\d{3}|\d{5,})w\b/.test(srcset ?? ""));
+    if (!big || tinyImageTag(tag)) continue;
+    const url = imageUrlOf(tag, baseUrl);
+    if (!url || !/^https?:/.test(url) || IMAGE_NOISE_RE.test(url)) continue;
+    const wrapping = allLinks.find((l) => index >= l.at && index < l.end);
+    const href = wrapping ? (menuHrefToShopify(wrapping.href, baseUrl, new Set()) ?? "") : "";
+    placed.push({ at: index, section: { type: "BANNER", images: [url], title: "", subtitle: "", buttonText: "", buttonHref: href.slice(0, 300) } });
+    take(index, index + tag.length);
+    standalone++;
+  }
+
+  // 5) Videos de YouTube/Vimeo: iframes, el widget de Elementor y
+  // lite-youtube.
+  const videos: { at: number; end: number; url: string }[] = [];
+  for (const m of scope.matchAll(/<iframe\b[^>]*>/gi)) {
+    if (m.index == null) continue;
+    const src = attr(m[0], "src") ?? attr(m[0], "data-src") ?? attr(m[0], "data-lazy-src");
+    if (src && /youtube|youtu\.be|vimeo/i.test(src)) videos.push({ at: m.index, end: m.index + m[0].length, url: src });
+  }
+  for (const m of scope.matchAll(/(?:youtube_url|vimeo_url)(?:&quot;|"):(?:&quot;|")([^"&]+)(?:&quot;|")/gi)) {
+    if (m.index != null) videos.push({ at: m.index, end: m.index + m[0].length, url: m[1].replace(/\\\//g, "/") });
+  }
+  for (const m of scope.matchAll(/<lite-youtube\b[^>]*videoid=["']([^"']+)["']/gi)) {
+    if (m.index != null) videos.push({ at: m.index, end: m.index + m[0].length, url: `https://www.youtube.com/watch?v=${m[1]}` });
+  }
+  videos.sort((a, b) => a.at - b.at);
+  const seenVideos = new Set<string>();
+  for (const video of videos) {
+    if (inRanges(video.at, ranges) || seenVideos.has(video.url) || seenVideos.size >= 2) continue;
+    seenVideos.add(video.url);
+    placed.push({ at: video.at, section: { type: "VIDEO", url: decodeEntities(video.url).slice(0, 300), title: titleBefore(video.at) } });
+    take(video.at, video.end);
+  }
+
+  // 6) Columnas informativas: tres o cuatro cajitas seguidas con título
+  // corto (envío gratis, pago seguro…).
+  const infoItems: { at: number; end: number; title: string; description: string }[] = [];
+  for (const m of scope.matchAll(/<(?:div|li|article)\b[^>]*class=["'][^"']*["'][^>]*>/gi)) {
+    if (m.index == null || inRanges(m.index, ranges)) continue;
+    if (!INFO_ITEM_RE.test(attr(m[0], "class") ?? "")) continue;
+    if (infoItems.length > 0 && m.index < infoItems[infoItems.length - 1].end) continue;
+    const end = elementEndAt(scope, m.index);
+    if (end == null) continue;
+    const inner = scope.slice(m.index + m[0].length, end);
+    const text = stripTags(inner);
+    const title = firstText(inner, "h2|h3|h4|h5|h6", 60) || headingText(inner, 60);
+    if (!title || title.length < 2 || text.length > 260 || genericImages(inner, baseUrl, 1, true).length > 0) continue;
+    if (links(inner).some((l) => genericCategoryHandle(l.href, baseUrl) || genericProductHandle(l.href, baseUrl))) continue;
+    const description = allParagraphs(inner, 120) || text.replace(title, "").trim().slice(0, 120);
+    infoItems.push({ at: m.index, end, title, description });
+  }
+  for (let i = 0; i < infoItems.length; i++) {
+    const group = [infoItems[i]];
+    while (group.length < 4 && i + 1 < infoItems.length && infoItems[i + 1].at - group[group.length - 1].end < 3000) group.push(infoItems[++i]);
+    if (group.length < 2) continue;
+    placed.push({ at: group[0].at, section: { type: "INFO_COLUMNS", items: group.map(({ title, description }) => ({ title, description })) } });
+    take(group[0].at, group[group.length - 1].end);
+    break;
+  }
+
+  // 7) Texto: un título con párrafos debajo (hasta el siguiente título o
+  // la siguiente sección ya tomada). Con una foto grande es un banner con
+  // texto; sin foto, un bloque de texto.
+  let texts = 0;
+  for (const m of scope.matchAll(/<(h[1-3])\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
+    if (m.index == null || texts >= 3 || inRanges(m.index, ranges)) continue;
+    const heading = stripTags(m[2]).slice(0, 120);
+    if (!heading || NOISE_HEADING_RE.test(heading)) continue;
+    const bodyStart = m.index + m[0].length;
+    let bodyEnd = Math.min(scope.length, bodyStart + 8000);
+    const next = scope.slice(bodyStart, bodyEnd).search(/<h[1-3]\b/i);
+    if (next >= 0) bodyEnd = bodyStart + next;
+    for (const r of ranges) if (r.start >= bodyStart && r.start < bodyEnd) bodyEnd = r.start;
+    const region = scope.slice(bodyStart, bodyEnd);
+    const body = allParagraphs(region, 2000);
+    if (body.length < 60) continue;
+    const image = genericImages(region, baseUrl, 1, true)[0];
+    if (image) {
+      const button = genericButton(region, baseUrl);
+      placed.push({ at: m.index, section: { type: "BANNER", images: [image], title: heading, subtitle: body.slice(0, 240), buttonText: button.text, buttonHref: button.href } });
+    } else {
+      placed.push({ at: m.index, section: { type: "TEXT", heading, body } });
+    }
+    take(m.index, bodyEnd);
+    texts++;
+  }
+
+  return placed
+    .sort((a, b) => a.at - b.at)
+    .map((p) => p.section)
+    .slice(0, 12);
 }

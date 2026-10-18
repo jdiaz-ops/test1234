@@ -350,6 +350,84 @@ describe.skipIf(!hasDb)("páginas, portada, fotos de variante y Google Analytics
     ]);
   });
 
+  it("sin secciones reconocidas arma la portada básica, y si ninguna muestra productos agrega el catálogo", async () => {
+    const { importShopifySections } = await import("@/server/services/shopify-sections-import-service");
+    const { buildDefaultHomeSections } = await import("@/server/services/storefront-default-home-service");
+    const { listStorefrontSections } = await import("@/server/services/storefront-section-service");
+    const brand = await createBrand();
+    await importShopifyProducts(brand.id, [product("a", "A"), product("b", "B"), product("c", "C"), product("d", "D")]);
+    await importShopifyCollections(brand.id, {
+      collections: [
+        { handle: "decoracion", name: "Decoración", productHandles: ["d"] },
+        { handle: "esmaltes", name: "Esmaltes", productHandles: ["a", "b", "c"] },
+        { handle: "vacia", name: "Vacía", productHandles: [] },
+      ],
+    });
+    const esmaltes = await prisma.brandCollection.findFirstOrThrow({ where: { brandId: brand.id, slug: "esmaltes" } });
+    const deco = await prisma.brandCollection.findFirstOrThrow({ where: { brandId: brand.id, slug: "decoracion" } });
+
+    // Nada reconocido (una tienda WooCommerce con portada ilegible):
+    // categorías con productos (la más grande primero), novedades y catálogo.
+    const empty = await importShopifySections(brand.id, { sections: [], replace: true, collectionSlugByHandle: {}, fillGaps: true });
+    expect(empty.basic).toBe(3);
+    expect(empty.sections.map((s) => [s.type, s.action])).toEqual([
+      ["CATEGORY_GRID", "created"],
+      ["NEW_PRODUCTS", "created"],
+      ["PRODUCT_CATALOG", "created"],
+    ]);
+    const basic = await listStorefrontSections(brand.id);
+    expect(basic.map((s) => s.type)).toEqual(["CATEGORY_GRID", "NEW_PRODUCTS", "PRODUCT_CATALOG"]);
+    const grid = basic[0].config as { title: string; items: { show: boolean; collectionId: string | null }[] };
+    expect(grid.title).toBe("Compra por categoría");
+    expect(grid.items.map((i) => [i.show, i.collectionId])).toEqual([
+      [true, esmaltes.id],
+      [true, deco.id],
+      [false, null],
+      [false, null],
+      [false, null],
+      [false, null],
+    ]);
+    // Con secciones puestas, el botón de Diseño no duplica nada.
+    expect(await buildDefaultHomeSections(brand.id)).toEqual({ created: [], skipped: "HAS_SECTIONS" });
+
+    // Solo un banner reconocido: el catálogo va al final.
+    const banner = { type: "BANNER" as const, images: ["https://rumicol.com/wp-content/uploads/hero.jpg"], title: "Hola", subtitle: "", buttonText: "", buttonHref: "" };
+    const partial = await importShopifySections(brand.id, { sections: [banner], replace: true, collectionSlugByHandle: {}, fillGaps: true });
+    expect(partial.removed).toBe(3);
+    expect(partial.basic).toBe(1);
+    expect((await listStorefrontSections(brand.id)).map((s) => s.type)).toEqual(["BANNER", "PRODUCT_CATALOG"]);
+
+    // Una cuadrícula cuyos handles no calzan con nada se resuelve por el
+    // nombre que mostraba la tienda vieja; ya muestra productos, así que
+    // no se agrega el catálogo.
+    const withGrid = await importShopifySections(brand.id, {
+      sections: [
+        banner,
+        {
+          type: "CATEGORY_GRID",
+          title: "Categorías",
+          items: [
+            { collectionHandle: "esmaltes-semipermanentes", imageUrl: null, label: "Esmaltes" },
+            { collectionHandle: "otra", imageUrl: null, label: "DECORACIÓN" },
+            { collectionHandle: "nada", imageUrl: null, label: "No existe" },
+          ],
+        },
+      ],
+      replace: true,
+      collectionSlugByHandle: {},
+      fillGaps: true,
+    });
+    expect(withGrid.basic).toBe(0);
+    const sections = await listStorefrontSections(brand.id);
+    expect(sections.map((s) => s.type)).toEqual(["BANNER", "CATEGORY_GRID"]);
+    const items = (sections[1].config as { items: { show: boolean; collectionId: string | null }[] }).items;
+    expect(items.slice(0, 3).map((i) => [i.show, i.collectionId])).toEqual([
+      [true, esmaltes.id],
+      [true, deco.id],
+      [false, null],
+    ]);
+  });
+
   it("las fotos de la portada y de las páginas también se copian a Marcolini", async () => {
     const { rehostImages, countExternalImages, imageUrlsInConfig } = await import("@/server/services/image-rehost-service");
     const { createStorefrontSection, listStorefrontSections } = await import("@/server/services/storefront-section-service");

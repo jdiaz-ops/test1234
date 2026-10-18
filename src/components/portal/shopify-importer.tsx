@@ -111,7 +111,7 @@ type ExtrasResult = {
   pages: { created: number; existing: number; errors: number; footerEnabled: boolean } | null;
   collections: { created: number; updated: number; errors: number; linked: number } | null;
   menu: { items: number; replaced: boolean } | null;
-  home: { created: number; skipped: number; errors: number; removed: number } | null;
+  home: { created: number; skipped: number; errors: number; removed: number; basic: number } | null;
   design: DesignResult | null;
   shipping: { created: number; errors: number; removed: number; pendingPrice: number } | null;
   photos: RehostSummary | null;
@@ -556,7 +556,7 @@ export function ShopifyImporter({
       products: true,
       pages: pages.length > 0,
       collections: collections.length > 0 || Boolean(proposed),
-      home: Boolean(theme && theme.homeSections.length > 0),
+      home: Boolean(theme),
       design: Boolean(theme && (theme.colors || theme.fonts || theme.logoUrl)),
       shipping: false,
       photos: true,
@@ -761,7 +761,7 @@ export function ShopifyImporter({
         products: true,
         pages: pages.length > 0,
         collections: collections.length > 0 || Boolean(proposed),
-        home: Boolean(theme && theme.homeSections.length > 0),
+        home: Boolean(theme),
         design: Boolean(theme && (theme.colors || theme.fonts || theme.logoUrl)),
         shipping: Boolean(shipping),
         // Siempre: también hay fotos en la portada y en las páginas.
@@ -918,12 +918,16 @@ export function ShopifyImporter({
       }
     }
 
-    if (byLink && options.home && extras.theme && extras.theme.homeSections.length > 0) {
+    // Aunque no se haya reconocido ninguna sección: el servidor arma la
+    // portada básica (categorías, novedades y catálogo) para que la
+    // tienda no quede con la página de inicio vacía.
+    if (byLink && options.home && extras.theme) {
       setExtraStep("Armando la página de inicio…");
       try {
         const body = await postJson(API_SECTIONS, {
           sections: extras.theme.homeSections,
           replace: true,
+          fillGaps: true,
           collectionSlugByHandle,
           pageSlugByHandle: Object.fromEntries(pageLinks.map((l) => [l.handle, l.slug])),
         });
@@ -933,6 +937,7 @@ export function ShopifyImporter({
           skipped: rows.filter((r) => r.action === "skipped").length,
           errors: rows.filter((r) => r.action === "error").length,
           removed: body.removed as number,
+          basic: (body.basic as number) ?? 0,
         };
       } catch (err) {
         result.errors.push(`Portada: ${message(err)}`);
@@ -1058,7 +1063,7 @@ export function ShopifyImporter({
     if (options.products) parts.push(`${parsed.stats.products} productos`);
     if (options.pages && extras.pages.length > 0) parts.push("páginas");
     if (options.collections && (extras.collections.length > 0 || extras.proposed)) parts.push("colecciones y menú");
-    if (options.home && theme && theme.homeSections.length > 0) parts.push("portada");
+    if (options.home && theme) parts.push("portada");
     if (options.profile && extras?.profile) parts.push("datos de la marca");
     if (options.design && theme) parts.push("diseño");
     if (options.shipping && shipping) parts.push("envíos");
@@ -1378,7 +1383,7 @@ export function ShopifyImporter({
                 </div>
               )}
 
-              {extras && theme && theme.homeSections.length > 0 && (
+              {extras && theme && (
                 <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-2">
                   <label className="flex items-start gap-2 text-sm font-medium text-brand-ink">
                     <input
@@ -1388,17 +1393,27 @@ export function ShopifyImporter({
                       className="mt-1"
                     />
                     <span>
-                      {theme.homeSections.length} {theme.homeSections.length === 1 ? "sección" : "secciones"} de la portada
+                      {theme.homeSections.length > 0
+                        ? `${theme.homeSections.length} ${theme.homeSections.length === 1 ? "sección" : "secciones"} de la portada`
+                        : "Portada básica"}
                     </span>
                   </label>
-                  <ul className="text-xs text-brand-ink-soft space-y-0.5">
-                    {theme.homeSections.map((section, i) => (
-                      <li key={i}>{sectionSummary(section)}</li>
-                    ))}
-                  </ul>
+                  {theme.homeSections.length > 0 ? (
+                    <ul className="text-xs text-brand-ink-soft space-y-0.5">
+                      {theme.homeSections.map((section, i) => (
+                        <li key={i}>{sectionSummary(section)}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-brand-ink-soft">
+                      No reconocimos las secciones de la portada de esta tienda, así que se arma una página de inicio
+                      básica: tus categorías, las novedades y el catálogo completo.
+                    </p>
+                  )}
                   <p className="text-xs text-brand-ink-soft">
-                    Se arman en Diseño → Página de inicio con tus colecciones y productos ya importados. Reemplaza
-                    las secciones actuales de tu página de inicio.
+                    Se arma en Diseño → Página de inicio con tus colecciones y productos ya importados
+                    {theme.homeSections.length > 0 ? " (si ninguna sección muestra productos, el catálogo va al final)" : ""}.
+                    Reemplaza las secciones actuales de tu página de inicio.
                   </p>
                 </div>
               )}
@@ -1707,10 +1722,14 @@ export function ShopifyImporter({
           )}
           {extrasResult?.home && (
             <p className="text-sm text-brand-ink">
-              Portada: {extrasResult.home.created} secciones creadas
+              {extrasResult.home.basic > 0 && extrasResult.home.created === extrasResult.home.basic
+                ? "Portada: no reconocimos la de la tienda, así que se armó una básica (categorías, novedades y catálogo)"
+                : `Portada: ${extrasResult.home.created} secciones creadas`}
+              {extrasResult.home.basic > 0 && extrasResult.home.created > extrasResult.home.basic && " (con el catálogo de productos al final)"}
               {extrasResult.home.removed > 0 && ` (reemplazaron ${extrasResult.home.removed})`}
               {extrasResult.home.skipped > 0 && ` · ${extrasResult.home.skipped} sin su colección o producto`}
               {extrasResult.home.errors > 0 && ` · ${extrasResult.home.errors} con error`}
+              {extrasResult.home.created === 0 && extrasResult.home.basic === 0 && " · revisa Diseño → Página de inicio"}
             </p>
           )}
           {extrasResult?.design && (

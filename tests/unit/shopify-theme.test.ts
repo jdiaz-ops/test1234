@@ -319,3 +319,165 @@ describe("diseño de tiendas WordPress (WooCommerce)", () => {
     expect(extractFonts("<html><head></head></html>")).toBeNull();
   });
 });
+
+describe("portada de tiendas que no son Shopify (WooCommerce con Elementor, Gutenberg, Storefront)", () => {
+  const ELEMENTOR = `<html><head><title>Rumi</title></head><body class="home">
+<header id="masthead" class="site-header"><nav><a href="https://rumicol.com/product-category/esmaltes/">Esmaltes</a><a href="https://rumicol.com/tienda/">Tienda</a></nav></header>
+<main id="content" class="site-main">
+<div data-elementor-type="wp-page" class="elementor elementor-45">
+  <section class="elementor-section elementor-top-section">
+    <div class="elementor-widget elementor-widget-slides">
+      <div class="elementor-swiper"><div class="elementor-main-swiper swiper-container"><div class="swiper-wrapper">
+        <div class="swiper-slide"><div class="swiper-slide-bg" style="background-image: url(https://rumicol.com/wp-content/uploads/2026/01/hero-1.jpg);"></div>
+          <div class="swiper-slide-contents"><div class="elementor-slide-heading">Uñas que hablan por ti</div><div class="elementor-slide-description">Esmaltes profesionales hechos en Colombia</div><a class="elementor-slide-button elementor-button" href="https://rumicol.com/product-category/esmaltes/">Ver esmaltes</a></div></div>
+        <div class="swiper-slide"><div class="swiper-slide-bg" style="background-image: url(https://rumicol.com/wp-content/uploads/2026/01/hero-2.jpg);"></div></div>
+      </div></div></div>
+    </div>
+  </section>
+  <section class="elementor-section elementor-top-section">
+    <div class="elementor-widget elementor-widget-heading"><h2 class="elementor-heading-title">Compra por categoría</h2></div>
+    <div class="elementor-widget elementor-widget-woocommerce-product-categories"><ul class="products columns-3">
+      <li class="product-category product"><a href="https://rumicol.com/product-category/esmaltes/"><img src="https://rumicol.com/wp-content/uploads/cat-esmaltes-300x300.jpg" srcset="https://rumicol.com/wp-content/uploads/cat-esmaltes-300x300.jpg 300w, https://rumicol.com/wp-content/uploads/cat-esmaltes.jpg 800w" width="300" height="300"><h2 class="woocommerce-loop-category__title">Esmaltes <mark class="count">(24)</mark></h2></a></li>
+      <li class="product-category product"><a href="https://rumicol.com/product-category/decoracion/"><img data-src="https://rumicol.com/wp-content/uploads/cat-deco.jpg" src="data:image/gif;base64,R0lGOD" width="300"><h2 class="woocommerce-loop-category__title">Decoración <mark class="count">(8)</mark></h2></a></li>
+    </ul></div>
+  </section>
+  <section class="elementor-section elementor-top-section">
+    <div class="elementor-widget elementor-widget-heading"><h2 class="elementor-heading-title">Lo más vendido</h2></div>
+    <div class="elementor-widget elementor-widget-woocommerce-products"><div class="woocommerce columns-4"><ul class="products columns-4">
+      <li class="product"><a href="https://rumicol.com/product/esmalte-rojo-pasion/" class="woocommerce-LoopProduct-link"><img src="https://rumicol.com/wp-content/uploads/rojo-300x300.jpg" width="300"><h2 class="woocommerce-loop-product__title">Esmalte Rojo Pasión</h2><span class="price">$18.000</span></a><a href="/?add-to-cart=12" class="button add_to_cart_button">Agregar al carrito</a></li>
+      <li class="product"><a href="https://rumicol.com/product/esmalte-nude/" class="woocommerce-LoopProduct-link"><h2 class="woocommerce-loop-product__title">Esmalte Nude</h2></a></li>
+    </ul></div></div>
+  </section>
+  <section class="elementor-section elementor-top-section" data-settings="{&quot;background_background&quot;:&quot;classic&quot;,&quot;background_image&quot;:{&quot;url&quot;:&quot;https:\\/\\/rumicol.com\\/wp-content\\/uploads\\/promo.jpg&quot;,&quot;id&quot;:99}}">
+    <div class="elementor-widget elementor-widget-heading"><h2 class="elementor-heading-title">Envío gratis desde $150.000</h2></div>
+    <div class="elementor-widget elementor-widget-button"><a class="elementor-button" href="https://rumicol.com/tienda/"><span class="elementor-button-text">Comprar ahora</span></a></div>
+  </section>
+  <section class="elementor-section elementor-top-section">
+    <div class="elementor-widget elementor-widget-heading"><h2>Nuestra historia</h2></div>
+    <div class="elementor-widget elementor-widget-text-editor"><p>Rumi nació en Bogotá en 2019 con la idea de hacer esmaltes de calidad para técnicas de uñas.</p><p>Hoy llegamos a todo el país.</p></div>
+  </section>
+  <section class="elementor-section elementor-top-section">
+    <div class="elementor-widget elementor-widget-heading"><h2>Mira cómo se aplica</h2></div>
+    <div class="elementor-widget elementor-widget-video" data-settings="{&quot;youtube_url&quot;:&quot;https:\\/\\/www.youtube.com\\/watch?v=abc123&quot;,&quot;video_type&quot;:&quot;youtube&quot;}"><div class="elementor-wrapper"></div></div>
+  </section>
+  <section class="elementor-section elementor-top-section">
+    <div class="elementor-column"><div class="elementor-widget elementor-widget-icon-box"><div class="elementor-icon-box-wrapper"><i class="fas fa-truck"></i><h3 class="elementor-icon-box-title">Envío a todo el país</h3><p class="elementor-icon-box-description">2 a 5 días hábiles</p></div></div></div>
+    <div class="elementor-column"><div class="elementor-widget elementor-widget-icon-box"><h3 class="elementor-icon-box-title">Pago seguro</h3><p>PSE, tarjetas y Nequi</p></div></div>
+    <div class="elementor-column"><div class="elementor-widget elementor-widget-icon-box"><h3 class="elementor-icon-box-title">Garantía</h3><p>Cambios hasta 30 días</p></div></div>
+  </section>
+  <section class="elementor-section elementor-top-section">
+    <div class="elementor-widget elementor-widget-heading"><h2>Suscríbete</h2></div>
+    <form class="elementor-form"><input type="email"><p>Te mandamos novedades y descuentos cada semana, sin spam ni cuentos.</p></form>
+  </section>
+</div>
+</main>
+<footer id="colophon" class="site-footer"><a href="https://rumicol.com/product-category/kits/">Kits</a><p>Rumi © 2026. Esmaltes hechos en Colombia con amor para técnicas de uñas de todo el país.</p></footer>
+</body></html>`;
+
+  it("reconoce slider, categorías, productos, banner con fondo, texto, video y columnas de Elementor", async () => {
+    const { extractHomeSections } = await import("@/lib/shopify-theme");
+    expect(extractHomeSections(ELEMENTOR, "https://rumicol.com")).toEqual([
+      {
+        type: "BANNER",
+        images: ["https://rumicol.com/wp-content/uploads/2026/01/hero-1.jpg", "https://rumicol.com/wp-content/uploads/2026/01/hero-2.jpg"],
+        title: "Uñas que hablan por ti",
+        subtitle: "Esmaltes profesionales hechos en Colombia",
+        buttonText: "Ver esmaltes",
+        buttonHref: "/collections/esmaltes",
+      },
+      {
+        type: "CATEGORY_GRID",
+        title: "Compra por categoría",
+        items: [
+          { collectionHandle: "esmaltes", imageUrl: "https://rumicol.com/wp-content/uploads/cat-esmaltes.jpg", label: "Esmaltes" },
+          { collectionHandle: "decoracion", imageUrl: "https://rumicol.com/wp-content/uploads/cat-deco.jpg", label: "Decoración" },
+        ],
+      },
+      { type: "FEATURED_PRODUCTS", productHandles: ["esmalte-rojo-pasion", "esmalte-nude"], title: "Lo más vendido" },
+      {
+        type: "BANNER",
+        images: ["https://rumicol.com/wp-content/uploads/promo.jpg"],
+        title: "Envío gratis desde $150.000",
+        subtitle: "",
+        buttonText: "Comprar ahora",
+        buttonHref: "/collections/all",
+      },
+      {
+        type: "TEXT",
+        heading: "Nuestra historia",
+        body: "Rumi nació en Bogotá en 2019 con la idea de hacer esmaltes de calidad para técnicas de uñas.\n\nHoy llegamos a todo el país.",
+      },
+      { type: "VIDEO", url: "https://www.youtube.com/watch?v=abc123", title: "Mira cómo se aplica" },
+      {
+        type: "INFO_COLUMNS",
+        items: [
+          { title: "Envío a todo el país", description: "2 a 5 días hábiles" },
+          { title: "Pago seguro", description: "PSE, tarjetas y Nequi" },
+          { title: "Garantía", description: "Cambios hasta 30 días" },
+        ],
+      },
+    ]);
+  });
+
+  const GUTENBERG = `<html><body>
+<header class="site-header"><a href="/"><img src="https://amglow.co/wp-content/uploads/logo.png" width="200"></a></header>
+<div id="content" class="site-content"><main id="main" class="site-main"><article class="post-2 page"><div class="entry-content">
+<div class="wp-block-cover alignfull"><img class="wp-block-cover__image-background" src="https://amglow.co/wp-content/uploads/portada-1536x1024.jpg" srcset="https://amglow.co/wp-content/uploads/portada-1536x1024.jpg 1536w, https://amglow.co/wp-content/uploads/portada-scaled.jpg 2048w" width="1536" height="1024"><div class="wp-block-cover__inner-container"><h1 class="has-text-align-center">Brilla con AM Glow</h1><p>Gel polish con fórmula vegana</p><div class="wp-block-buttons"><div class="wp-block-button"><a class="wp-block-button__link" href="https://amglow.co/tienda/">Comprar</a></div></div></div></div>
+<h2 class="has-text-align-center">Categorías</h2>
+<div class="wp-block-columns">
+  <div class="wp-block-column"><figure class="wp-block-image"><a href="https://amglow.co/categoria-producto/gel-polish/"><img src="https://amglow.co/wp-content/uploads/gel-768x768.jpg" width="768" height="768"></a></figure><p class="has-text-align-center"><a href="https://amglow.co/categoria-producto/gel-polish/">Gel polish</a></p></div>
+  <div class="wp-block-column"><figure class="wp-block-image"><a href="https://amglow.co/categoria-producto/bases-y-tops/"><img src="https://amglow.co/wp-content/uploads/bases-768x768.jpg" width="768"></a></figure><p><a href="https://amglow.co/categoria-producto/bases-y-tops/">Bases y tops</a></p></div>
+  <div class="wp-block-column"><figure class="wp-block-image"><a href="https://amglow.co/categoria-producto/accesorios/"><img alt="Accesorios" src="https://amglow.co/wp-content/uploads/acc-768x768.jpg" width="768"></a></figure></div>
+</div>
+<section class="storefront-product-section storefront-recent-products"><h2 class="section-title">Novedades</h2><ul class="products columns-4">
+  <li class="product"><a href="https://amglow.co/producto/gel-polish-rosa-01/"><img src="https://amglow.co/wp-content/uploads/rosa-300x300.jpg" width="300"><h2 class="woocommerce-loop-product__title">Gel polish Rosa 01</h2></a></li>
+  <li class="product"><a href="https://amglow.co/producto/top-coat-brillo/"><h2>Top coat brillo</h2></a></li>
+  <li class="product"><a href="https://amglow.co/producto/base-coat/"><h2>Base coat</h2></a></li>
+</ul></section>
+<figure class="wp-block-embed is-type-video is-provider-youtube wp-block-embed-youtube"><div class="wp-block-embed__wrapper"><iframe title="Tutorial" src="https://www.youtube.com/embed/xyz789?feature=oembed"></iframe></div></figure>
+<div class="wp-block-media-text alignwide"><figure class="wp-block-media-text__media"><img src="https://amglow.co/wp-content/uploads/lab-1024x683.jpg" width="1024" height="683"></figure><div class="wp-block-media-text__content"><h2>Hecho en Medellín</h2><p>Formulamos cada tono en nuestro laboratorio con pigmentos de alta pureza y sin ingredientes tóxicos.</p></div></div>
+<figure class="wp-block-image size-full"><a href="https://amglow.co/producto/kit-inicial/"><img src="https://amglow.co/wp-content/uploads/kit-banner.jpg" width="1600" height="600"></a></figure>
+</div></article></main></div>
+<footer class="site-footer"><p>AM Glow</p></footer>
+</body></html>`;
+
+  it("reconoce la portada de bloques de WordPress (cover, columnas con categorías, productos, video, imagen con texto)", async () => {
+    const { extractHomeSections } = await import("@/lib/shopify-theme");
+    expect(extractHomeSections(GUTENBERG, "https://www.amglow.co")).toEqual([
+      {
+        type: "BANNER",
+        images: ["https://amglow.co/wp-content/uploads/portada-scaled.jpg"],
+        title: "Brilla con AM Glow",
+        subtitle: "Gel polish con fórmula vegana",
+        buttonText: "Comprar",
+        buttonHref: "/collections/all",
+      },
+      {
+        type: "CATEGORY_GRID",
+        title: "Categorías",
+        items: [
+          { collectionHandle: "gel-polish", imageUrl: "https://amglow.co/wp-content/uploads/gel-768x768.jpg", label: "Gel polish" },
+          { collectionHandle: "bases-y-tops", imageUrl: "https://amglow.co/wp-content/uploads/bases-768x768.jpg", label: "Bases y tops" },
+          { collectionHandle: "accesorios", imageUrl: "https://amglow.co/wp-content/uploads/acc-768x768.jpg", label: "Accesorios" },
+        ],
+      },
+      { type: "FEATURED_PRODUCTS", productHandles: ["gel-polish-rosa-01", "top-coat-brillo", "base-coat"], title: "Novedades" },
+      { type: "VIDEO", url: "https://www.youtube.com/embed/xyz789?feature=oembed", title: "" },
+      {
+        type: "BANNER",
+        images: ["https://amglow.co/wp-content/uploads/lab-1024x683.jpg"],
+        title: "Hecho en Medellín",
+        subtitle: "Formulamos cada tono en nuestro laboratorio con pigmentos de alta pureza y sin ingredientes tóxicos.",
+        buttonText: "",
+        buttonHref: "",
+      },
+      { type: "BANNER", images: ["https://amglow.co/wp-content/uploads/kit-banner.jpg"], title: "", subtitle: "", buttonText: "", buttonHref: "/products/kit-inicial" },
+    ]);
+  });
+
+  it("una portada vacía o solo con menú y pie no inventa secciones", async () => {
+    const { extractHomeSections } = await import("@/lib/shopify-theme");
+    expect(extractHomeSections("<html><body><header><nav><a href='/product-category/x/'>X</a><a href='/product-category/y/'>Y</a></nav></header><main></main><footer><h2>Síguenos</h2><p>Instagram y TikTok, todos los días con novedades y descuentos para ti.</p></footer></body></html>", "https://rumicol.com")).toEqual([]);
+    expect(extractHomeSections("", "https://rumicol.com")).toEqual([]);
+  });
+});

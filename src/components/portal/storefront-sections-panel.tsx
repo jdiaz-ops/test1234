@@ -710,6 +710,7 @@ export function StorefrontSectionsPanel({ initialSections }: { initialSections: 
   const [collections, setCollections] = useState<CollectionOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [adding, setAdding] = useState(false);
+  const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -750,6 +751,24 @@ export function StorefrontSectionsPanel({ initialSections }: { initialSections: 
     setSections((prev) => [...prev, body.section]);
   }
 
+  /// Categorías, novedades y catálogo de una vez, para no arrancar de
+  /// cero (ver storefront-default-home-service.ts).
+  async function buildBasicHome() {
+    setBuilding(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/marca/tienda/secciones/armar", { method: "POST" });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "No se pudo armar la portada.");
+        return;
+      }
+      setSections(body.sections ?? []);
+    } finally {
+      setBuilding(false);
+    }
+  }
+
   async function move(index: number, dir: "up" | "down") {
     const target = dir === "up" ? index - 1 : index + 1;
     if (target < 0 || target >= sections.length) return;
@@ -776,7 +795,21 @@ export function StorefrontSectionsPanel({ initialSections }: { initialSections: 
       {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 
       {sections.length === 0 ? (
-        <p className="text-sm text-brand-ink-soft mb-4">Todavía no agregas ninguna sección.</p>
+        <div className="rounded-xl border border-dashed border-brand-line p-4 mb-4 space-y-2">
+          <p className="text-sm text-brand-ink">Todavía no agregas ninguna sección: tu página de inicio se ve vacía.</p>
+          <p className="text-xs text-brand-ink-soft max-w-lg">
+            Arma una portada básica de una vez — tus categorías, tus productos más recientes y el catálogo completo — y
+            después la ajustas acá: cambia fotos, agrega banners o quita lo que no quieras.
+          </p>
+          <button
+            type="button"
+            onClick={buildBasicHome}
+            disabled={building}
+            className="rounded-full bg-brand-ink text-brand-bg px-4 py-2 text-sm font-medium disabled:opacity-60"
+          >
+            {building ? "Armando…" : "Armar portada básica"}
+          </button>
+        </div>
       ) : (
         <div className="space-y-3 mb-4">
           {sections.map((s, i) => (
