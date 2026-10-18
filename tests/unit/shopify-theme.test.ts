@@ -90,6 +90,8 @@ describe("leer el diseño de la portada de Shopify", () => {
       bodyExact: false,
     });
     expect(closestFont("Montserrat", "heading")).toEqual({ value: "Montserrat", exact: true });
+    expect(closestFont("Nunito Sans", "body")).toEqual({ value: "Nunito Sans", exact: true });
+    expect(closestFont("Nunito", "body")).toEqual({ value: "Nunito Sans", exact: false });
     expect(closestFont("Cormorant Garamond", "body")).toEqual({ value: "Playfair Display", exact: false });
     expect(closestFont("Una Serif Rara", "body")).toEqual({ value: "Lora", exact: false });
     expect(closestFont("Fuente Desconocida", "heading")).toEqual({ value: "Montserrat", exact: false });

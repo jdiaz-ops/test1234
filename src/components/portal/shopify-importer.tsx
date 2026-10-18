@@ -17,6 +17,7 @@ import {
   type ShopifyPolicyKind,
   type ShopifyThemeInfo,
 } from "@/lib/shopify-theme";
+import { cleanCatalogTitles, cleanTitle } from "@/lib/store-titles";
 import {
   buildShippingZones,
   type ProposedShippingZone,
@@ -160,6 +161,15 @@ function textLength(html: string) {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().length;
 }
 
+function plural(n: number, one: string, many: string) {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/// Aviso cuando los títulos traían el nombre de la tienda (ver store-titles.ts).
+function suffixNote(suffix: string) {
+  return `Los títulos traían el nombre de la tienda al final («${suffix}»), como texto para Google: se quitó de los nombres.`;
+}
+
 function failed(product: ShopifyImportProduct, error: string): ImportResult {
   return { handle: product.handle, name: product.name, action: "error", error };
 }
@@ -265,7 +275,10 @@ export function ShopifyImporter({
     if (!file) return;
     try {
       const text = await file.text();
-      setParsed(parseShopifyProductsCsv(text));
+      const read = parseShopifyProductsCsv(text);
+      const cleaned = cleanCatalogTitles(read.products, []);
+      if (cleaned.suffix) read.warnings.push(suffixNote(cleaned.suffix));
+      setParsed({ ...read, products: cleaned.products });
     } catch (err) {
       setParseError(
         err instanceof ShopifyCsvError
@@ -443,8 +456,10 @@ export function ShopifyImporter({
       collections.length === 0
         ? await proposeCategories(products, notes, "La tienda no muestra categorías y no pudimos proponerlas: los productos entran sin colección.")
         : null;
-    setParsed({ products, warnings, stats });
-    setExtras({ storeUrl: origin, pages, collections, proposed, theme, shipping: null, notes });
+    const cleaned = cleanCatalogTitles(products, collections, theme?.storeName);
+    if (cleaned.suffix) notes.push(suffixNote(cleaned.suffix));
+    setParsed({ products: cleaned.products, warnings, stats });
+    setExtras({ storeUrl: origin, pages, collections: cleaned.collections, proposed, theme, shipping: null, notes });
     setOptions({
       products: true,
       pages: pages.length > 0,
@@ -635,8 +650,14 @@ export function ShopifyImporter({
         notes.push(`No se pudieron leer los fletes: ${message(err)}`);
       }
 
-      setParsed({ products, warnings, stats });
-      setExtras({ storeUrl: resolvedUrl, pages, collections, proposed, theme, shipping, notes });
+      // Nombres sin el "| Tienda" que muchas ponen para Google (ver store-titles.ts).
+      const cleaned = cleanCatalogTitles(products, collections, theme?.storeName);
+      if (cleaned.suffix) notes.push(suffixNote(cleaned.suffix));
+      if (shipping) {
+        shipping = { ...shipping, variant: { ...shipping.variant, productName: cleanTitle(shipping.variant.productName, cleaned.suffix) } };
+      }
+      setParsed({ products: cleaned.products, warnings, stats });
+      setExtras({ storeUrl: resolvedUrl, pages, collections: cleaned.collections, proposed, theme, shipping, notes });
       setOptions({
         products: true,
         pages: pages.length > 0,
@@ -1086,8 +1107,8 @@ export function ShopifyImporter({
                       className="mt-1"
                     />
                     <span>
-                      {extras.pages.filter((p) => p.kind === "page").length} páginas y{" "}
-                      {extras.pages.filter((p) => p.kind === "policy").length} políticas
+                      {plural(extras.pages.filter((p) => p.kind === "page").length, "página", "páginas")} y{" "}
+                      {plural(extras.pages.filter((p) => p.kind === "policy").length, "política", "políticas")}
                     </span>
                   </label>
                   <ul className="text-xs text-brand-ink-soft space-y-0.5">
@@ -1144,7 +1165,7 @@ export function ShopifyImporter({
                     {theme && theme.menu.length > 0
                       ? `Menú: ${theme.menu.map((m) => m.label).join(" · ")}.`
                       : "Menú: una entrada por colección."}{" "}
-                    Reemplaza el menú actual de tu tienda. Los enlaces a páginas o blogs de Shopify no se traen.
+                    Reemplaza el menú actual de tu tienda. Los enlaces a blogs de Shopify no se traen.
                   </p>
                 </div>
               )}

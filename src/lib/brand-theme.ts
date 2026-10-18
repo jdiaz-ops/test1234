@@ -77,6 +77,7 @@ export const GOOGLE_FONT_OPTIONS = [
   { value: "Karla", stack: "'Karla', -apple-system, sans-serif", weights: "400;500;600", builtin: true },
   { value: "Montserrat", stack: "'Montserrat', -apple-system, sans-serif", weights: "400;500;600;700", builtin: false },
   { value: "Poppins", stack: "'Poppins', -apple-system, sans-serif", weights: "400;500;600;700", builtin: false },
+  { value: "Nunito Sans", stack: "'Nunito Sans', -apple-system, sans-serif", weights: "400;500;600;700", builtin: false },
   { value: "Inter", stack: "'Inter', -apple-system, sans-serif", weights: "400;500;600;700", builtin: false },
   { value: "Raleway", stack: "'Raleway', -apple-system, sans-serif", weights: "400;500;600;700", builtin: false },
   { value: "Work Sans", stack: "'Work Sans', -apple-system, sans-serif", weights: "400;500;600;700", builtin: false },
