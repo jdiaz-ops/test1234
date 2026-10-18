@@ -25,6 +25,13 @@ import {
 } from "@/lib/shopify-shipping";
 import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
 import { rehostAllImages, type RehostSummary } from "@/lib/rehost-images-client";
+import {
+  categoriesToCollections,
+  toShopifyImport,
+  type ScrapedProduct,
+  type StorePlatform,
+} from "@/lib/store-scrape";
+import type { ScanResult, ScanStep } from "@/server/services/other-store-reader";
 
 type ImportResult = {
   handle: string;
@@ -99,6 +106,15 @@ const BATCH_SIZE = 10;
 const PROPOSE_BATCH = 150;
 const SHIPPING_BATCH = 11;
 const API_READ = "/api/marca/tienda/productos/leer-shopify";
+const API_READ_OTHER = "/api/marca/tienda/productos/leer-otra-tienda";
+/// Pasos de lectura de una tienda que no es Shopify que van a la vez.
+const OTHER_STORE_CONCURRENCY = 3;
+const PLATFORM_LABEL: Record<StorePlatform, string> = {
+  shopify: "Shopify",
+  woocommerce: "WooCommerce",
+  tiendanube: "Tiendanube",
+  generic: "otra plataforma",
+};
 const API_IMPORT = "/api/marca/tienda/productos/importar-shopify";
 const API_PROPOSE = "/api/marca/tienda/colecciones/proponer";
 const API_COLLECTIONS = "/api/marca/tienda/colecciones/importar-shopify";
@@ -257,6 +273,80 @@ export function ShopifyImporter({
     }
   }
 
+  /// Tienda que no es Shopify (WooCommerce, Tiendanube o cualquier otra,
+  /// ver other-store-reader.ts): se leen productos y categorías por pasos
+  /// y se convierten al mismo shape que lo de Shopify, así la importación
+  /// (productos, colecciones, fotos a Marcolini) es la misma. Diseño,
+  /// portada, páginas y fletes solo se leen de Shopify.
+  async function readOtherStore(first: ScanResult) {
+    const origin = first.origin;
+    const byHandle = new Map<string, ScrapedProduct>();
+    const warnings = [...first.warnings];
+    const queue: ScanStep[] = [...first.next];
+    let platform = first.platform;
+    let failedSteps = 0;
+    let done = 0;
+    let total = queue.length;
+    async function worker() {
+      while (queue.length > 0) {
+        const step = queue.shift()!;
+        try {
+          const r = (await postJson(API_READ_OTHER, { origin, step })) as ScanResult;
+          for (const p of r.products) if (!byHandle.has(p.handle)) byHandle.set(p.handle, p);
+          if (platform === "generic" && r.platform !== "generic") platform = r.platform;
+          warnings.push(...r.warnings);
+          queue.push(...r.next);
+          total += r.next.length;
+        } catch {
+          failedSteps++;
+        }
+        done++;
+        setReadingStep(
+          `Leyendo productos de ${PLATFORM_LABEL[platform]}… ${byHandle.size} encontrados (${done} de ${total})`,
+        );
+      }
+    }
+    // Un paso puede traer más pasos mientras los otros trabajan: se repite
+    // hasta que la cola quede vacía de verdad.
+    while (queue.length > 0) {
+      await Promise.all(Array.from({ length: OTHER_STORE_CONCURRENCY }, worker));
+    }
+
+    const scraped = Array.from(byHandle.values());
+    if (scraped.length === 0) throw new Error("No pudimos leer ningún producto de esa tienda.");
+    const products = scraped.map(toShopifyImport);
+    const stats = emptyStats();
+    for (const p of products) {
+      stats.products++;
+      stats.images += p.images.length;
+      if (p.hasVariants) stats.withVariants++;
+      if (p.status === "DRAFT") stats.draft++;
+    }
+    stats.unknownStock = products.filter((p) => p.stock == null || p.hasVariants).length;
+    const collections = categoriesToCollections(scraped);
+    const notes = [
+      `Esta tienda es ${PLATFORM_LABEL[platform]}: se leyeron los productos y sus categorías. El diseño, la portada, las páginas y los fletes solo se leen de tiendas Shopify.`,
+    ];
+    if (failedSteps > 0) notes.push(`${failedSteps} partes de la tienda no se pudieron leer.`);
+    const noWeight = products.filter((p) => !p.weight && !p.variants.some((v) => v.weight)).length;
+    if (noWeight > 0) notes.push(`${noWeight} productos sin peso (la tienda no lo publica): agrégalo desde Editar para que el envío se calcule bien.`);
+    const currencies = Array.from(new Set(scraped.map((p) => p.currency).filter((c): c is string => Boolean(c) && c !== "COP")));
+    if (currencies.length > 0) notes.push(`Los precios están en ${currencies.join(", ")}: se importan tal cual, sin convertir a pesos.`);
+    if (collections.length === 0) notes.push("La tienda no muestra categorías: los productos entran sin colección.");
+
+    setParsed({ products, warnings, stats });
+    setExtras({ storeUrl: origin, pages: [], collections, proposed: null, theme: null, shipping: null, notes });
+    setOptions({
+      products: true,
+      pages: false,
+      collections: collections.length > 0,
+      home: false,
+      design: false,
+      shipping: false,
+      photos: true,
+    });
+  }
+
   /// Lee toda la tienda por el link: productos, colecciones (o propone
   /// categorías), diseño y menú, y fletes. Cada pieza que falle después de
   /// los productos deja un aviso y no frena el resto.
@@ -271,6 +361,17 @@ export function ShopifyImporter({
     const stats = emptyStats();
     const url = storeUrl;
     try {
+      // ¿Es Shopify? Si no, va por el lector de otras plataformas. Si esta
+      // revisión falla, se sigue como Shopify (su lector explica el error).
+      setReadingStep("Revisando la tienda…");
+      const detected = (await postJson(API_READ_OTHER, { origin: null, step: { step: "detect", url } }).catch(
+        () => null,
+      )) as ScanResult | null;
+      if (detected && detected.platform !== "shopify") {
+        await readOtherStore(detected);
+        return;
+      }
+
       let resolvedUrl = "";
       for (let page = 1; page <= MAX_PAGES; page++) {
         setReadingStep(`Leyendo productos… página ${page}`);
@@ -733,6 +834,10 @@ export function ShopifyImporter({
                   el diseño (colores, letra, logo); la portada; tus páginas y políticas; los medios de
                   pago; y los fletes, probando un carrito por cada departamento. Las fotos se copian a
                   Marcolini.
+                </p>
+                <p>
+                  También funciona con WooCommerce, Tiendanube o cualquier otra tienda: de esas se
+                  traen los productos (precios, variantes, SKU, peso y fotos) y sus categorías.
                 </p>
                 <p>
                   No trae los productos en borrador ni el inventario. Si tu tienda tiene contraseña,
