@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBrandProfile } from "@/lib/current-brand";
+import { requireAdminActingAsBrand } from "@/lib/current-brand";
 import { importShopifyProductsSchema } from "@/lib/validation/brand";
 import { importShopifyProducts } from "@/server/services/shopify-csv-import-service";
 
@@ -10,9 +10,8 @@ import { importShopifyProducts } from "@/server/services/shopify-csv-import-serv
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const profile = await requireBrandProfile();
-  if (!profile)
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await requireAdminActingAsBrand();
+  if (!profile) return NextResponse.json({ error: "Solo el administrador de Marcolini puede usar esta herramienta." }, { status: 403 });
 
   const body = await req.json();
   const parsed = importShopifyProductsSchema.safeParse(body);

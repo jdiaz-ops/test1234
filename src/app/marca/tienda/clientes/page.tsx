@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireBrandProfile } from "@/lib/current-brand";
+import { isAdminActingAsBrand, requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { listStoreCustomers, type CustomerFilter } from "@/server/services/store-customer-service";
 import { ShopifyCustomersImporter } from "@/components/portal/shopify-customers-importer";
@@ -28,6 +28,8 @@ export default async function TiendaClientesPage({
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 
+  // Importar clientes desde Shopify: solo el admin con "Entrar como".
+  const importTools = await isAdminActingAsBrand();
   const params = await searchParams;
   const filter = (FILTERS.find((f) => f.key === params.filtro)?.key ?? "todos") as CustomerFilter;
   const { customers, total, page, totalPages, counts } = await listStoreCustomers(profile.id, {
@@ -52,16 +54,21 @@ export default async function TiendaClientesPage({
         <h1 className="font-display text-2xl font-semibold text-brand-ink">Clientes</h1>
       </div>
       <p className="text-sm text-brand-ink-soft mb-4 max-w-lg">
-        Los que te han comprado en tu tienda de Marcolini y los que traigas desde Shopify.
+        {importTools
+          ? "Los que te han comprado en tu tienda de Marcolini y los que traigas desde Shopify."
+          : "Los que te han comprado en tu tienda de Marcolini."}
       </p>
 
-      <div className="mb-6">
-        <ShopifyCustomersImporter />
-      </div>
+      {importTools && (
+        <div className="mb-6">
+          <ShopifyCustomersImporter />
+        </div>
+      )}
 
       {counts.todos === 0 ? (
         <p className="text-sm text-brand-ink-soft">
-          Todavía no tienes clientes. Aparecerán aquí apenas alguien te compre, o impórtalos desde Shopify.
+          Todavía no tienes clientes. Aparecerán aquí apenas alguien te compre
+          {importTools ? ", o impórtalos desde Shopify." : "."}
         </p>
       ) : (
         <>

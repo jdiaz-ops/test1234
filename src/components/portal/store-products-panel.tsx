@@ -115,11 +115,15 @@ function totalStock(p: ManualProduct): number | null {
 export function StoreProductsPanel({
   initialProducts,
   storeUrl,
+  importTools = false,
 }: {
   initialProducts: ManualProduct[];
   /// Dirección pública de la tienda para "Ver en la tienda" — null si la
   /// marca todavía no configuró su subdominio.
   storeUrl?: string | null;
+  /// Importar desde Shopify y guardar sus fotos: solo para el admin con
+  /// "Entrar como" (ver isAdminActingAsBrand). Ninguna marca lo ve.
+  importTools?: boolean;
 }) {
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
@@ -432,13 +436,15 @@ export function StoreProductsPanel({
         >
           + Agregar producto
         </button>
-        <button
-          type="button"
-          onClick={() => setMode({ kind: "shopify" })}
-          className="border border-brand-line rounded-full px-6 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft"
-        >
-          Importar desde Shopify
-        </button>
+        {importTools && (
+          <button
+            type="button"
+            onClick={() => setMode({ kind: "shopify" })}
+            className="border border-brand-line rounded-full px-6 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft"
+          >
+            Importar desde Shopify
+          </button>
+        )}
         {products.length > 0 && (
           <a
             href="/api/marca/tienda/productos/exportar"
@@ -449,7 +455,7 @@ export function StoreProductsPanel({
         )}
       </div>
 
-      <RehostImagesNotice />
+      {importTools && <RehostImagesNotice />}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {activatedNotice && <p className="text-sm text-green-700">{activatedNotice}</p>}

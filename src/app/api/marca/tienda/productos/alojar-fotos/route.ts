@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireBrandProfile } from "@/lib/current-brand";
+import { requireAdminActingAsBrand } from "@/lib/current-brand";
 import { limitOrReject } from "@/lib/rate-limit";
 import { countExternalImages, rehostImages } from "@/server/services/image-rehost-service";
 
@@ -17,15 +17,15 @@ const bodySchema = z.object({
 });
 
 export async function GET() {
-  const profile = await requireBrandProfile();
-  if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await requireAdminActingAsBrand();
+  if (!profile) return NextResponse.json({ error: "Solo el administrador de Marcolini puede usar esta herramienta." }, { status: 403 });
   const { total } = await countExternalImages(profile.id);
   return NextResponse.json({ ok: true, total });
 }
 
 export async function POST(req: Request) {
-  const profile = await requireBrandProfile();
-  if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await requireAdminActingAsBrand();
+  if (!profile) return NextResponse.json({ error: "Solo el administrador de Marcolini puede usar esta herramienta." }, { status: 403 });
   const limited = await limitOrReject(req, `alojar-fotos:${profile.id}`, 600, 3600);
   if (limited) return limited;
   const body = bodySchema.safeParse(await req.json().catch(() => ({})));

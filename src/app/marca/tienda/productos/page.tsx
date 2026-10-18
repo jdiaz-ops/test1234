@@ -1,4 +1,4 @@
-import { requireBrandProfile } from "@/lib/current-brand";
+import { isAdminActingAsBrand, requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import {
   listManualProducts,
@@ -12,6 +12,9 @@ export default async function TiendaProductosPage() {
   if (!profile) redirect("/login");
 
   const products = await listManualProducts(profile.id);
+  // La importación desde Shopify (y guardar sus fotos) es una herramienta
+  // del administrador: solo aparece cuando Juan entra con "Entrar como".
+  const importTools = await isAdminActingAsBrand();
 
   // Para el link "Ver en la tienda" de cada producto — mismo criterio que
   // en Colecciones (dominio propio verificado, si no el subdominio).
@@ -30,7 +33,11 @@ export default async function TiendaProductosPage() {
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         El catálogo de tu tienda en Marcolini.
       </p>
-      <StoreProductsPanel initialProducts={products.map(toManualProductSummary)} storeUrl={storeUrl} />
+      <StoreProductsPanel
+        initialProducts={products.map(toManualProductSummary)}
+        storeUrl={storeUrl}
+        importTools={importTools}
+      />
     </div>
   );
 }

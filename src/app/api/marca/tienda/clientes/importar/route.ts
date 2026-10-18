@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireBrandProfile } from "@/lib/current-brand";
+import { requireAdminActingAsBrand } from "@/lib/current-brand";
 import { limitOrReject } from "@/lib/rate-limit";
 import { importStoreCustomers } from "@/server/services/store-customer-service";
 
@@ -34,8 +34,8 @@ const rowSchema = z.object({
 const bodySchema = z.object({ customers: z.array(z.unknown()).min(1).max(MAX_BATCH) });
 
 export async function POST(req: Request) {
-  const profile = await requireBrandProfile();
-  if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await requireAdminActingAsBrand();
+  if (!profile) return NextResponse.json({ error: "Solo el administrador de Marcolini puede usar esta herramienta." }, { status: 403 });
   const limited = await limitOrReject(req, `clientes-importar:${profile.id}`, 400, 3600);
   if (limited) return limited;
 
