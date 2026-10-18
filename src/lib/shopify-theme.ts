@@ -32,6 +32,28 @@ export type ShopifyThemeFonts = {
 
 export type ShopifyMenuLink = { label: string; href: string };
 
+export type ShopifyPayments = {
+  /// Medios que la tienda muestra en el pie de página (Visa, PSE, Nequi…).
+  methods: string[];
+  /// Pasarelas detectadas por los scripts que carga (Wompi, Addi, PayU…).
+  gateways: string[];
+};
+
+export type ShopifyPixels = {
+  metaPixelId: string | null;
+  tiktokPixelId: string | null;
+  googleAnalyticsId: string | null;
+};
+
+export type ShopifySocial = {
+  instagram: string | null;
+  tiktok: string | null;
+  facebook: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
 export type ShopifyThemeInfo = {
   storeName: string | null;
   logoUrl: string | null;
@@ -39,6 +61,11 @@ export type ShopifyThemeInfo = {
   colors: ShopifyThemeColors | null;
   fonts: ShopifyThemeFonts | null;
   menu: ShopifyMenuLink[];
+  payments: ShopifyPayments;
+  pixels: ShopifyPixels;
+  social: ShopifySocial;
+  /// Textos de la barra de anuncio (hasta 4).
+  announcements: string[];
 };
 
 const MAX_MENU_LINKS = 12;
@@ -549,6 +576,162 @@ export function mapShopifyMenuHref(
   return null;
 }
 
+// ----------------------------------------------------------------------------
+// Pasarelas y medios de pago, píxeles, redes y barra de anuncio
+// ----------------------------------------------------------------------------
+
+/// Los íconos de pago del pie de página (payment_type_svg_tag de Shopify)
+/// traen un id "pi-visa", "pi-pse"… y casi siempre un <title> legible.
+const PAYMENT_ID_NAMES: Record<string, string> = {
+  visa: "Visa",
+  master: "Mastercard",
+  mastercard: "Mastercard",
+  american_express: "American Express",
+  diners_club: "Diners Club",
+  discover: "Discover",
+  jcb: "JCB",
+  unionpay: "UnionPay",
+  maestro: "Maestro",
+  paypal: "PayPal",
+  apple_pay: "Apple Pay",
+  google_pay: "Google Pay",
+  shop_pay: "Shop Pay",
+  shopify_pay: "Shop Pay",
+  pse: "PSE",
+  nequi: "Nequi",
+  bancolombia: "Bancolombia",
+  efecty: "Efecty",
+  baloto: "Baloto",
+  daviplata: "Daviplata",
+  addi: "Addi",
+  sistecredito: "Sistecrédito",
+  mercado_pago: "Mercado Pago",
+  payu: "PayU",
+  wompi: "Wompi",
+  rappipay: "RappiPay",
+  klarna: "Klarna",
+  bitcoin: "Bitcoin",
+};
+
+const GATEWAY_PATTERNS: [RegExp, string][] = [
+  [/wompi\.co/i, "Wompi"],
+  [/epayco/i, "ePayco"],
+  [/mercadopago|mercadolibre/i, "Mercado Pago"],
+  [/payu(latam)?\./i, "PayU"],
+  [/\baddi\.com|addi-widget|cdn\.addi/i, "Addi"],
+  [/\bbold\.co/i, "Bold"],
+  [/sistecredito/i, "Sistecrédito"],
+  [/placetopay|evertec/i, "PlacetoPay"],
+  [/paypal(objects)?\.com/i, "PayPal"],
+  [/kushki/i, "Kushki"],
+  [/openpay/i, "Openpay"],
+  [/\bcobru\b/i, "Cobru"],
+  [/shop\.app|shopify-pay|shop-pay|pay\.shopify\.com/i, "Shopify Payments / Shop Pay"],
+];
+
+function titleCase(value: string) {
+  return value
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+export function extractPayments(html: string): ShopifyPayments {
+  const methods: string[] = [];
+  const seen = new Set<string>();
+  const add = (name: string) => {
+    const key = name.trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    methods.push(name.trim());
+  };
+  for (const match of html.matchAll(/<title[^>]*id=["']pi-([a-z0-9_]+)["'][^>]*>([^<]*)<\/title>/gi)) {
+    add(match[2].trim() || PAYMENT_ID_NAMES[match[1].toLowerCase()] || titleCase(match[1]));
+  }
+  for (const match of html.matchAll(/aria-labelledby=["']pi-([a-z0-9_]+)["']/gi)) {
+    const id = match[1].toLowerCase();
+    if (!seen.has((PAYMENT_ID_NAMES[id] ?? titleCase(id)).toLowerCase())) add(PAYMENT_ID_NAMES[id] ?? titleCase(id));
+  }
+  for (const match of html.matchAll(/<img\b[^>]*payment[^>]*>/gi)) {
+    const alt = attr(match[0], "alt");
+    if (alt) add(alt);
+  }
+  // Pasarelas: por los scripts/links que carga la página.
+  const sources = [
+    ...Array.from(html.matchAll(/\b(?:src|href)=["']([^"']+)["']/gi)).map((m) => m[1]),
+    ...Array.from(html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)).map((m) => m[1].slice(0, 20_000)),
+  ].join("\n");
+  const gateways: string[] = [];
+  for (const [pattern, name] of GATEWAY_PATTERNS) {
+    if (pattern.test(sources) && !gateways.includes(name)) gateways.push(name);
+  }
+  return { methods, gateways };
+}
+
+export function extractPixels(html: string): ShopifyPixels {
+  const meta = html.match(/fbq\(\s*["']init["']\s*,\s*["'](\d{6,20})["']/)?.[1] ?? html.match(/facebook\.com\/tr\?id=(\d{6,20})/)?.[1] ?? null;
+  const tiktok = html.match(/ttq\.load\(\s*["']([A-Z0-9]{8,40})["']/)?.[1] ?? null;
+  const ga = html.match(/\bG-[A-Z0-9]{6,12}\b/)?.[0] ?? null;
+  return { metaPixelId: meta, tiktokPixelId: tiktok, googleAnalyticsId: ga };
+}
+
+const SOCIAL_SKIP = new Set(["p", "reel", "reels", "explore", "share", "sharer", "sharer.php", "share.php", "intent", "hashtag", "stories", "tag", "accounts"]);
+
+export function extractSocial(html: string): ShopifySocial {
+  const social: ShopifySocial = { instagram: null, tiktok: null, facebook: null, whatsapp: null, email: null, phone: null };
+  for (const match of html.matchAll(/href=["']([^"']+)["']/gi)) {
+    const href = decodeEntities(match[1].trim());
+    if (!social.email && /^mailto:/i.test(href)) {
+      const email = href.slice(7).split("?")[0].trim();
+      if (/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) social.email = email;
+      continue;
+    }
+    if (!social.phone && /^tel:/i.test(href)) {
+      const phone = href.slice(4).replace(/[^\d+]/g, "");
+      if (phone.replace(/\D/g, "").length >= 7) social.phone = phone;
+      continue;
+    }
+    let url: URL;
+    try {
+      url = new URL(href.startsWith("//") ? `https:${href}` : href);
+    } catch {
+      continue;
+    }
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+    const first = url.pathname.split("/").filter(Boolean)[0] ?? "";
+    if (!social.instagram && host === "instagram.com" && first && !SOCIAL_SKIP.has(first.toLowerCase())) {
+      social.instagram = first.replace(/^@/, "");
+    } else if (!social.tiktok && host === "tiktok.com" && first.startsWith("@")) {
+      social.tiktok = first.slice(1);
+    } else if (!social.facebook && (host === "facebook.com" || host === "fb.com") && first && !SOCIAL_SKIP.has(first.toLowerCase())) {
+      social.facebook = first;
+    } else if (!social.whatsapp && (host === "wa.me" || host === "api.whatsapp.com" || host === "whatsapp.com")) {
+      const digits = (host === "wa.me" ? first : (url.searchParams.get("phone") ?? "")).replace(/\D/g, "");
+      if (digits.length >= 10) social.whatsapp = digits;
+    }
+  }
+  return social;
+}
+
+export function extractAnnouncements(html: string): string[] {
+  const texts: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw: string) => {
+    const text = stripTags(raw);
+    if (text.length < 3 || text.length > 200) return;
+    const key = text.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    texts.push(text);
+  };
+  for (const match of html.matchAll(/<(span|p|a)\b[^>]*class=["'][^"']*announcement[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi)) push(match[2]);
+  if (texts.length === 0) {
+    for (const match of html.matchAll(/<div\b[^>]*class=["'][^"']*announcement[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi)) push(match[1]);
+  }
+  return texts.slice(0, 4);
+}
+
 export function parseShopifyStorefront(html: string, baseUrl: string): ShopifyThemeInfo {
   return {
     storeName: extractStoreName(html),
@@ -557,5 +740,9 @@ export function parseShopifyStorefront(html: string, baseUrl: string): ShopifyTh
     colors: extractColors(html),
     fonts: extractFonts(html),
     menu: extractMenu(html, baseUrl),
+    payments: extractPayments(html),
+    pixels: extractPixels(html),
+    social: extractSocial(html),
+    announcements: extractAnnouncements(html),
   };
 }

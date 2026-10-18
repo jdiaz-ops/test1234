@@ -138,7 +138,7 @@ describe.skipIf(!hasDb)("importar colecciones, menú y diseño desde Shopify", (
       { colors, fonts: { headingFont: "Playfair Display", bodyFont: "Karla" }, logoUrl: "https://cdn.shopify.com/logo.png", faviconUrl: null },
       fakeFetch,
     );
-    expect(result).toEqual({ colors: true, fonts: true, published: true, logo: "subido", favicon: "omitido" });
+    expect(result).toEqual({ colors: true, fonts: true, announcements: false, published: true, logo: "subido", favicon: "omitido", profileFields: [] });
     const published = await getPublishedTheme(brand.id);
     expect(published.colors).toMatchObject({ ...colors, usarAcento: false });
     expect(published.typography).toEqual({ headingFont: "Playfair Display", bodyFont: "Karla" });
@@ -154,7 +154,7 @@ describe.skipIf(!hasDb)("importar colecciones, menú y diseño desde Shopify", (
       { colors: { ...colors, botones: "#000000" }, fonts: { headingFont: "Comic Sans", bodyFont: "Karla" }, logoUrl: "https://cdn.shopify.com/logo.png", publish: false },
       fakeFetch,
     );
-    expect(second).toEqual({ colors: true, fonts: false, published: false, logo: "ya-tenia", favicon: "omitido" });
+    expect(second).toEqual({ colors: true, fonts: false, announcements: false, published: false, logo: "ya-tenia", favicon: "omitido", profileFields: [] });
     expect((await getPublishedTheme(brand.id)).colors.botones).toBe("#d1477b");
     expect((await getDraftTheme(brand.id)).colors.botones).toBe("#000000");
     expect(calls).toHaveLength(1);
@@ -169,5 +169,107 @@ describe.skipIf(!hasDb)("importar colecciones, menú y diseño desde Shopify", (
     };
     expect((await applyShopifyDesign(brand.id, { logoUrl: "https://10.0.0.5/logo.png" }, never)).logo).toBe("error");
     expect((await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id } })).logoUrl).toBeNull();
+  });
+});
+
+describe.skipIf(!hasDb)("fotos alojadas en Marcolini, zonas de envío y datos de la marca", () => {
+  it("copia las fotos externas de productos y colecciones y deja las URLs nuestras", async () => {
+    const { countExternalImages, rehostImages, isExternalImageUrl } = await import("@/server/services/image-rehost-service");
+    expect(isExternalImageUrl("https://cdn.shopify.com/s/files/a.png")).toBe(true);
+    expect(isExternalImageUrl("https://abc.public.blob.vercel-storage.com/x.webp")).toBe(false);
+    expect(isExternalImageUrl("/uploads/marcas/x/foto.webp")).toBe(false);
+    expect(isExternalImageUrl(null)).toBe(false);
+
+    const brand = await createBrand();
+    await importShopifyProducts(brand.id, [
+      { ...product("foto-01", "Foto 01"), images: ["https://cdn.shopify.com/s/files/a.png", "https://cdn.shopify.com/s/files/b.png"] },
+    ]);
+    await importShopifyCollections(brand.id, {
+      collections: [{ handle: "con-foto", name: "Con foto", imageUrl: "https://cdn.shopify.com/s/files/c.png", productHandles: ["foto-01"] }],
+    });
+    expect(await countExternalImages(brand.id)).toEqual({ total: 3 });
+
+    const fakeFetch = async (url: string) =>
+      url.endsWith("b.png")
+        ? new Response("no", { status: 404 })
+        : new Response(PNG, { status: 200, headers: { "content-type": "image/png" } });
+    const result = await rehostImages(brand.id, { limit: 10 }, fakeFetch);
+    expect(result.saved.map((s) => s.url)).toEqual(["https://cdn.shopify.com/s/files/a.png", "https://cdn.shopify.com/s/files/c.png"]);
+    expect(result.failed).toEqual([{ url: "https://cdn.shopify.com/s/files/b.png", error: "La imagen respondió 404." }]);
+    expect(result.remaining).toBe(0);
+
+    const saved = await prisma.product.findFirstOrThrow({
+      where: { brandId: brand.id },
+      include: { images: { orderBy: { position: "asc" } } },
+    });
+    expect(saved.imageUrl).toMatch(/^\/uploads\/marcas\/.+\/fotos\/[a-f0-9]+\.webp$/);
+    expect(saved.images.map((i) => i.url)).toEqual([saved.imageUrl, "https://cdn.shopify.com/s/files/b.png"]);
+    const collection = await prisma.brandCollection.findFirstOrThrow({ where: { brandId: brand.id } });
+    expect(collection.imageUrl).toMatch(/^\/uploads\/marcas\//);
+    // La que falló sigue contando como externa si no se la salta.
+    expect(await countExternalImages(brand.id)).toEqual({ total: 1 });
+    expect(await countExternalImages(brand.id, ["https://cdn.shopify.com/s/files/b.png"])).toEqual({ total: 0 });
+    for (const url of [saved.imageUrl!, collection.imageUrl!]) await rm(path.join(process.cwd(), "public", url), { force: true });
+  });
+
+  it("crea las zonas de envío leídas de Shopify y reemplaza las anteriores", async () => {
+    const { importShopifyShippingZones } = await import("@/server/services/shopify-shipping-import-service");
+    const { listShippingZones } = await import("@/server/services/shipping-zone-service");
+    const brand = await createBrand();
+    const zones = [
+      {
+        name: "Bogotá D.C. y Cundinamarca",
+        regions: ["Bogotá D.C.", "Cundinamarca"],
+        rates: [
+          { name: "Envío Bogotá", price: 8000, condition: "NONE" as const },
+          { name: "Envío gratis", price: 0, condition: "MIN_ORDER_AMOUNT" as const, conditionValue: 180000 },
+        ],
+        otherRates: [],
+      },
+      { name: "Resto de Colombia", regions: ["*"], rates: [{ name: "Nacional", price: 15000, condition: "NONE" as const }], otherRates: [] },
+    ];
+    const first = await importShopifyShippingZones(brand.id, zones, { replace: true });
+    expect(first).toEqual({ zones: [{ name: "Bogotá D.C. y Cundinamarca", action: "created", regions: 2 }, { name: "Resto de Colombia", action: "created", regions: 1 }], removed: 0 });
+    const stored = await listShippingZones(brand.id);
+    expect(stored.map((z) => z.name)).toEqual(["Bogotá D.C. y Cundinamarca", "Resto de Colombia"]);
+    expect(stored[0].rates.map((r) => [r.name, Number(r.price), r.condition, r.conditionValue ? Number(r.conditionValue) : null])).toEqual([
+      ["Envío Bogotá", 8000, "NONE", null],
+      ["Envío gratis", 0, "MIN_ORDER_AMOUNT", 180000],
+    ]);
+    const second = await importShopifyShippingZones(brand.id, zones.slice(1), { replace: true });
+    expect(second.removed).toBe(2);
+    expect((await listShippingZones(brand.id)).map((z) => z.name)).toEqual(["Resto de Colombia"]);
+    await expect(importShopifyShippingZones(brand.id, [{ ...zones[0], regions: ["Marte"] }], { replace: false })).resolves.toMatchObject({
+      zones: [{ action: "error" }],
+    });
+  });
+
+  it("llena píxeles, redes, teléfono y barra de anuncio solo cuando están vacíos", async () => {
+    const brand = await createBrand();
+    const never = async () => {
+      throw new Error("no debería pedir nada");
+    };
+    const first = await applyShopifyDesign(
+      brand.id,
+      {
+        pixels: { metaPixelId: "222817361457636", tiktokPixelId: "CABC123DEF456" },
+        social: { instagram: "@beauty", whatsapp: "573001234567", phone: "601 234 5678" },
+        announcements: ["Envío gratis desde $150.000", "   "],
+      },
+      never,
+    );
+    expect(first).toMatchObject({ colors: false, fonts: false, announcements: true, published: true, profileFields: ["metaPixelId", "tiktokPixelId", "instagramHandle", "phone"] });
+    const profile = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id } });
+    expect(profile).toMatchObject({ metaPixelId: "222817361457636", tiktokPixelId: "CABC123DEF456", instagramHandle: "beauty", tiktokHandle: null, phone: "+573001234567" });
+    expect((await getPublishedTheme(brand.id)).announcementBar).toMatchObject({ enabled: true, messages: [{ text: "Envío gratis desde $150.000", link: "" }] });
+
+    const second = await applyShopifyDesign(
+      brand.id,
+      { pixels: { metaPixelId: "999999999" }, social: { instagram: "otra", tiktok: "tt" }, announcements: ["Otro texto"] },
+      never,
+    );
+    expect(second).toMatchObject({ announcements: false, published: false, profileFields: ["tiktokHandle"] });
+    const again = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id } });
+    expect(again).toMatchObject({ metaPixelId: "222817361457636", instagramHandle: "beauty", tiktokHandle: "tt" });
   });
 });

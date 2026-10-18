@@ -145,3 +145,52 @@ describe("leer el diseño de la portada de Shopify", () => {
     expect(info.logoUrl).toContain("logo_400x");
   });
 });
+
+describe("pagos, píxeles, redes y barra de anuncio de la portada", () => {
+  const html = `<html><head>
+<script>!function(f,b,e,v,n,t,s){}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init', '222817361457636');fbq('track', 'PageView');</script>
+<script>ttq.load('CABC123DEF456');</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-ABC123XYZ"></script>
+<script src="https://cdn.addi.com/widget.js"></script>
+</head><body>
+<div class="announcement-bar"><span class="announcement-bar__message">Envío gratis desde $150.000</span></div>
+<div class="announcement-bar"><span class="announcement-bar__message">  Nuevos soft gel  </span></div>
+<header></header>
+<footer>
+  <a href="https://www.instagram.com/beautysolutionshop/">IG</a>
+  <a href="https://instagram.com/p/abc123/">post</a>
+  <a href="https://www.tiktok.com/@beautysolution">TT</a>
+  <a href="https://wa.me/573001234567?text=hola">WhatsApp</a>
+  <a href="mailto:hola@beautysolutionshop.com?subject=x">correo</a>
+  <ul class="list-payment">
+    <li class="list-payment__item"><svg class="icon icon--full-color" aria-labelledby="pi-visa"><title id="pi-visa">Visa</title></svg></li>
+    <li class="list-payment__item"><svg class="icon icon--full-color" aria-labelledby="pi-master"><title id="pi-master">Mastercard</title></svg></li>
+    <li class="list-payment__item"><svg class="icon icon--full-color" aria-labelledby="pi-pse"><title id="pi-pse">PSE</title></svg></li>
+    <li class="list-payment__item"><svg class="icon icon--full-color" aria-labelledby="pi-nequi"><title id="pi-nequi"></title></svg></li>
+  </ul>
+  <script src="https://checkout.wompi.co/widget.js"></script>
+</footer></body></html>`;
+
+  it("lista los medios de pago del pie y las pasarelas por sus scripts", async () => {
+    const { extractPayments } = await import("@/lib/shopify-theme");
+    expect(extractPayments(html)).toEqual({
+      methods: ["Visa", "Mastercard", "PSE", "Nequi"],
+      gateways: ["Wompi", "Addi"],
+    });
+  });
+
+  it("saca los píxeles y las redes", async () => {
+    const { extractPixels, extractSocial, extractAnnouncements } = await import("@/lib/shopify-theme");
+    expect(extractPixels(html)).toEqual({ metaPixelId: "222817361457636", tiktokPixelId: "CABC123DEF456", googleAnalyticsId: "G-ABC123XYZ" });
+    expect(extractSocial(html)).toEqual({
+      instagram: "beautysolutionshop",
+      tiktok: "beautysolution",
+      facebook: null,
+      whatsapp: "573001234567",
+      email: "hola@beautysolutionshop.com",
+      phone: null,
+    });
+    expect(extractAnnouncements(html)).toEqual(["Envío gratis desde $150.000", "Nuevos soft gel"]);
+    expect(extractPixels("<p>nada</p>")).toEqual({ metaPixelId: null, tiktokPixelId: null, googleAnalyticsId: null });
+  });
+});

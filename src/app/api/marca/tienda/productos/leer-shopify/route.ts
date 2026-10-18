@@ -6,29 +6,46 @@ import { MAX_PAGES, ShopifyStoreError } from "@/lib/shopify-products-json";
 import {
   readShopifyCollectionProducts,
   readShopifyCollections,
+  readShopifyFreeShippingThreshold,
+  readShopifyShippingRates,
   readShopifyStorefront,
   readShopifyStorePage,
 } from "@/server/services/shopify-store-reader";
 
 /// Lee una pieza de una tienda Shopify a partir de su link (ver
 /// shopify-store-reader.ts): una página del catálogo, la lista de
-/// colecciones, los productos de una colección, o la portada (colores,
-/// letra, logo y menú). Solo lee: la importación va aparte, por lotes
+/// colecciones, los productos de una colección, la portada (colores,
+/// letra, logo, menú, pagos, píxeles, redes) o los fletes probando
+/// carritos. Solo lee: la importación va aparte, por lotes
 /// (importar-shopify, colecciones/importar-shopify, diseno/importar-
-/// shopify). El navegador pide pieza por pieza.
+/// shopify, envios/importar-shopify). El navegador pide pieza por pieza.
 export const maxDuration = 60;
+
+const variantSchema = z.object({
+  variantId: z.number().int().positive(),
+  unitPrice: z.number().positive(),
+  productName: z.string().max(120),
+});
 
 const bodySchema = z.object({
   url: z.string().trim().min(4).max(500),
-  part: z.enum(["productos", "colecciones", "coleccion", "tema"]).default("productos"),
+  part: z.enum(["productos", "colecciones", "coleccion", "tema", "envios"]).default("productos"),
   page: z.number().int().min(1).max(MAX_PAGES).default(1),
   handle: z.string().trim().min(1).max(255).optional(),
+  /// Solo para part = "envios".
+  step: z.enum(["tarifas", "umbral"]).default("tarifas"),
+  regions: z.array(z.string().trim().min(1).max(60)).max(12).default([]),
+  region: z.string().trim().max(60).optional(),
+  variant: variantSchema.optional().nullable(),
+  quantity: z.number().int().min(1).max(100).default(1),
+  maxQuantity: z.number().int().min(1).max(100).default(40),
 });
 
 export async function POST(req: Request) {
   const profile = await requireBrandProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  // Una tienda con muchas colecciones pide una lectura por colección.
+  // Una tienda con muchas colecciones pide una lectura por colección, y
+  // los fletes van de a 12 departamentos.
   const limited = await limitOrReject(req, `leer-shopify:${profile.id}`, 400, 3600);
   if (limited) return limited;
 
@@ -46,6 +63,28 @@ export async function POST(req: Request) {
       }
       case "tema":
         return NextResponse.json({ ok: true, ...(await readShopifyStorefront(url)) });
+      case "envios": {
+        if (body.data.step === "umbral") {
+          if (!body.data.region || !body.data.variant) {
+            return NextResponse.json({ error: "Falta el departamento o el producto de prueba." }, { status: 400 });
+          }
+          const result = await readShopifyFreeShippingThreshold(url, {
+            region: body.data.region,
+            variant: body.data.variant,
+            maxQuantity: body.data.maxQuantity,
+          });
+          return NextResponse.json({ ok: true, ...result });
+        }
+        if (body.data.regions.length === 0) {
+          return NextResponse.json({ error: "Faltan los departamentos a probar." }, { status: 400 });
+        }
+        const result = await readShopifyShippingRates(url, {
+          regions: body.data.regions,
+          quantity: body.data.quantity,
+          variant: body.data.variant ?? null,
+        });
+        return NextResponse.json({ ok: true, ...result });
+      }
       default:
         return NextResponse.json({ ok: true, ...(await readShopifyStorePage(url, page)) });
     }

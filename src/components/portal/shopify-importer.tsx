@@ -12,6 +12,14 @@ import {
 import { MAX_PAGES, PAGE_SIZE, type ShopifyImportCollection } from "@/lib/shopify-products-json";
 import type { ProposedCollection } from "@/lib/shopify-categorize";
 import type { ShopifyThemeInfo } from "@/lib/shopify-theme";
+import {
+  buildShippingZones,
+  type ProposedShippingZone,
+  type RatesByRegion,
+  type ThresholdResult,
+} from "@/lib/shopify-shipping";
+import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
+import { rehostAllImages, type RehostSummary } from "@/lib/rehost-images-client";
 
 type ImportResult = {
   handle: string;
@@ -22,6 +30,19 @@ type ImportResult = {
 
 type Source = "link" | "csv";
 
+type ProbeVariant = { variantId: number; unitPrice: number; productName: string };
+
+/// Fletes leídos probando carritos (ver shopify-shipping.ts).
+type ShippingRead = {
+  variant: ProbeVariant;
+  subtotal: number;
+  rates: RatesByRegion;
+  errors: Record<string, string>;
+  thresholds: Record<string, ThresholdResult | null>;
+  zones: ProposedShippingZone[];
+  uncovered: string[];
+};
+
 /// Lo que se leyó de la tienda además de los productos (solo por link).
 type LinkExtras = {
   storeUrl: string;
@@ -29,26 +50,41 @@ type LinkExtras = {
   /// Categorías propuestas cuando Shopify no tiene colecciones.
   proposed: { collections: ProposedCollection[]; source: "ia" | "reglas" } | null;
   theme: ShopifyThemeInfo | null;
+  shipping: ShippingRead | null;
   /// Avisos de lectura (algo que no se pudo leer y se siguió sin eso).
   notes: string[];
 };
 
-type ImportOptions = { products: boolean; collections: boolean; design: boolean };
+type ImportOptions = { products: boolean; collections: boolean; design: boolean; shipping: boolean; photos: boolean };
+
+type DesignResult = {
+  colors: boolean;
+  fonts: boolean;
+  announcements: boolean;
+  published: boolean;
+  logo: string;
+  favicon: string;
+  profileFields: string[];
+};
 
 type ExtrasResult = {
   collections: { created: number; updated: number; errors: number; linked: number } | null;
   menu: { items: number; replaced: boolean } | null;
-  design: { colors: boolean; fonts: boolean; published: boolean; logo: string; favicon: string } | null;
+  design: DesignResult | null;
+  shipping: { created: number; errors: number; removed: number } | null;
+  photos: RehostSummary | null;
   errors: string[];
 };
 
 const BATCH_SIZE = 10;
 const PROPOSE_BATCH = 150;
+const SHIPPING_BATCH = 11;
 const API_READ = "/api/marca/tienda/productos/leer-shopify";
 const API_IMPORT = "/api/marca/tienda/productos/importar-shopify";
 const API_PROPOSE = "/api/marca/tienda/colecciones/proponer";
 const API_COLLECTIONS = "/api/marca/tienda/colecciones/importar-shopify";
 const API_DESIGN = "/api/marca/tienda/diseno/importar-shopify";
+const API_SHIPPING = "/api/marca/tienda/envios/importar-shopify";
 
 function failed(product: ShopifyImportProduct, error: string): ImportResult {
   return { handle: product.handle, name: product.name, action: "error", error };
@@ -56,6 +92,10 @@ function failed(product: ShopifyImportProduct, error: string): ImportResult {
 
 function message(err: unknown) {
   return err instanceof Error ? err.message : "Algo falló. Intenta de nuevo.";
+}
+
+function cop(value: number) {
+  return `$${Math.round(value).toLocaleString("es-CO")}`;
 }
 
 async function postJson(url: string, body: unknown) {
@@ -80,22 +120,32 @@ const IMAGE_OUTCOME: Record<string, string> = {
   error: "no se pudo subir",
 };
 
-/// Importar el catálogo completo desde Shopify — la marca no vuelve a
-/// escribir producto por producto. Dos caminos que terminan en la misma
-/// lista (ShopifyImportProduct) y el mismo envío por lotes a
+const PROFILE_FIELD_LABEL: Record<string, string> = {
+  metaPixelId: "píxel de Meta",
+  tiktokPixelId: "píxel de TikTok",
+  instagramHandle: "Instagram",
+  tiktokHandle: "TikTok",
+  phone: "teléfono",
+};
+
+/// Importar la tienda completa desde Shopify — la marca no vuelve a
+/// escribir nada. Dos caminos que terminan en la misma lista de productos
+/// (ShopifyImportProduct) y el mismo envío por lotes a
 /// /api/marca/tienda/productos/importar-shopify:
 ///   · Por el link de la tienda (2026-10-17): el servidor lee el catálogo
 ///     público página por página (ver shopify-store-reader.ts) y, de
-///     paso, las colecciones con sus productos, el menú y el diseño
-///     (colores, letra, logo) de la portada. Si la tienda no tiene
+///     paso, las colecciones con sus productos, el menú, el diseño
+///     (colores, letra, logo, píxeles, redes, barra de anuncio) y los
+///     fletes probando carritos (2026-10-18). Si la tienda no tiene
 ///     colecciones, se proponen categorías (ver
 ///     shopify-categorize-service.ts). Es el camino por defecto porque no
 ///     le pide nada a la marca: la tienda queda armada.
 ///   · Por el CSV exportado desde Shopify, leído acá en el navegador (ver
 ///     shopify-csv.ts). Sirve cuando la tienda tiene contraseña o hay
 ///     productos en borrador que el link no trae.
-/// Los dos usan el mismo id por handle, así repetir con cualquiera de los
-/// dos actualiza en vez de duplicar.
+/// En los dos, al final las fotos se copian a Marcolini (ver
+/// image-rehost-service.ts) para que nada dependa de Shopify. Los dos
+/// usan el mismo id por handle, así repetir actualiza en vez de duplicar.
 export function ShopifyImporter({
   onImported,
   onClose,
@@ -110,7 +160,13 @@ export function ShopifyImporter({
   const [fileName, setFileName] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ShopifyCsvParseResult | null>(null);
   const [extras, setExtras] = useState<LinkExtras | null>(null);
-  const [options, setOptions] = useState<ImportOptions>({ products: true, collections: true, design: true });
+  const [options, setOptions] = useState<ImportOptions>({
+    products: true,
+    collections: true,
+    design: true,
+    shipping: true,
+    photos: true,
+  });
   const [parseError, setParseError] = useState<string | null>(null);
   const [phase, setPhase] = useState<"pick" | "importing" | "done">("pick");
   const [progress, setProgress] = useState(0);
@@ -143,8 +199,8 @@ export function ShopifyImporter({
   }
 
   /// Lee toda la tienda por el link: productos, colecciones (o propone
-  /// categorías), diseño y menú. Cada pieza que falle después de los
-  /// productos deja un aviso y no frena el resto.
+  /// categorías), diseño y menú, y fletes. Cada pieza que falle después de
+  /// los productos deja un aviso y no frena el resto.
   async function readStore() {
     setParsed(null);
     setExtras(null);
@@ -239,18 +295,80 @@ export function ShopifyImporter({
 
       let theme: ShopifyThemeInfo | null = null;
       try {
-        setReadingStep("Leyendo diseño y menú…");
+        setReadingStep("Leyendo diseño, menú y pagos…");
         theme = (await postJson(API_READ, { url, part: "tema" })).theme as ShopifyThemeInfo;
       } catch (err) {
         notes.push(`No se pudo leer el diseño de la tienda: ${message(err)}`);
       }
 
+      let shipping: ShippingRead | null = null;
+      try {
+        const regions = [...COLOMBIA_REGIONS];
+        const rates: RatesByRegion = {};
+        const errors: Record<string, string> = {};
+        let variant: ProbeVariant | null = null;
+        let subtotal = 0;
+        for (let i = 0; i < regions.length; i += SHIPPING_BATCH) {
+          setReadingStep(
+            `Probando fletes con un carrito… ${Math.min(i + SHIPPING_BATCH, regions.length)} de ${regions.length} departamentos`,
+          );
+          const body = await postJson(API_READ, {
+            url,
+            part: "envios",
+            step: "tarifas",
+            regions: regions.slice(i, i + SHIPPING_BATCH),
+            variant,
+          });
+          variant = body.variant as ProbeVariant;
+          subtotal = body.subtotal as number;
+          Object.assign(rates, body.rates as RatesByRegion);
+          Object.assign(errors, body.errors as Record<string, string>);
+        }
+        // Envío gratis: se busca en un departamento por cada precio
+        // distinto (hasta 3), subiendo la cantidad del carrito.
+        const thresholds: Record<string, ThresholdResult | null> = {};
+        if (variant) {
+          const byPrice = new Map<number, string>();
+          for (const [region, list] of Object.entries(rates)) {
+            if (list.length > 0 && list[0].price > 0 && !byPrice.has(list[0].price)) byPrice.set(list[0].price, region);
+          }
+          const representatives = Array.from(byPrice.values()).slice(0, 3);
+          const maxQuantity = Math.max(1, Math.min(40, Math.ceil(600_000 / variant.unitPrice)));
+          for (const [k, region] of representatives.entries()) {
+            if (maxQuantity <= 1) break;
+            setReadingStep(`Buscando desde cuánto es gratis el envío… ${k + 1} de ${representatives.length}`);
+            try {
+              thresholds[region] = (await postJson(API_READ, {
+                url,
+                part: "envios",
+                step: "umbral",
+                region,
+                variant,
+                maxQuantity,
+              })) as ThresholdResult;
+            } catch (err) {
+              notes.push(`No se pudo probar el envío gratis en ${region}: ${message(err)}`);
+            }
+          }
+        }
+        const built = buildShippingZones(rates, thresholds);
+        if (variant && built.zones.length > 0) {
+          shipping = { variant, subtotal, rates, errors, thresholds, zones: built.zones, uncovered: built.uncovered };
+        } else {
+          notes.push("No se pudieron leer los fletes de Shopify: ningún departamento devolvió tarifa.");
+        }
+      } catch (err) {
+        notes.push(`No se pudieron leer los fletes: ${message(err)}`);
+      }
+
       setParsed({ products, warnings, stats });
-      setExtras({ storeUrl: resolvedUrl, collections, proposed, theme, notes });
+      setExtras({ storeUrl: resolvedUrl, collections, proposed, theme, shipping, notes });
       setOptions({
         products: true,
         collections: collections.length > 0 || Boolean(proposed),
         design: Boolean(theme && (theme.colors || theme.fonts || theme.logoUrl)),
+        shipping: Boolean(shipping),
+        photos: stats.images > 0,
       });
     } catch (err) {
       setParseError(message(err));
@@ -271,8 +389,9 @@ export function ShopifyImporter({
       byLink && options.collections && (extras.collections.length > 0 || extras.proposed !== null);
     // Con colecciones de verdad no se arma además una por Tipo de producto.
     const products = parsed.products.map((p) => (withCollections ? { ...p, collectionName: null } : p));
+    const importProducts = !byLink || options.products;
 
-    if (!byLink || options.products) {
+    if (importProducts) {
       for (let i = 0; i < products.length; i += BATCH_SIZE) {
         const batch = products.slice(i, i + BATCH_SIZE);
         try {
@@ -295,61 +414,95 @@ export function ShopifyImporter({
       }
     }
 
-    if (byLink) {
-      const result: ExtrasResult = { collections: null, menu: null, design: null, errors: [] };
-      if (withCollections) {
-        setExtraStep("Creando colecciones y menú…");
-        try {
-          const payload =
-            extras.collections.length > 0
-              ? extras.collections.map((c) => ({
-                  handle: c.handle,
-                  name: c.name,
-                  description: c.description || null,
-                  imageUrl: c.imageUrl,
-                  sortOrder: c.sortOrder,
-                  productHandles: c.productHandles,
-                }))
-              : extras.proposed!.collections.map((c) => ({
-                  handle: slugify(c.name) || "coleccion",
-                  name: c.name,
-                  productHandles: c.productHandles,
-                }));
-          const body = await postJson(API_COLLECTIONS, {
-            collections: payload,
-            menu: { links: extras.theme?.menu ?? [], replace: true },
-          });
-          const rows = body.collections as { action: string; linked: number }[];
-          result.collections = {
-            created: rows.filter((r) => r.action === "created").length,
-            updated: rows.filter((r) => r.action === "updated").length,
-            errors: rows.filter((r) => r.action === "error").length,
-            linked: rows.reduce((n, r) => n + r.linked, 0),
-          };
-          result.menu = body.menu;
-        } catch (err) {
-          result.errors.push(`Colecciones y menú: ${message(err)}`);
-        }
+    const result: ExtrasResult = { collections: null, menu: null, design: null, shipping: null, photos: null, errors: [] };
+
+    if (byLink && withCollections) {
+      setExtraStep("Creando colecciones y menú…");
+      try {
+        const payload =
+          extras.collections.length > 0
+            ? extras.collections.map((c) => ({
+                handle: c.handle,
+                name: c.name,
+                description: c.description || null,
+                imageUrl: c.imageUrl,
+                sortOrder: c.sortOrder,
+                productHandles: c.productHandles,
+              }))
+            : extras.proposed!.collections.map((c) => ({
+                handle: slugify(c.name) || "coleccion",
+                name: c.name,
+                productHandles: c.productHandles,
+              }));
+        const body = await postJson(API_COLLECTIONS, {
+          collections: payload,
+          menu: { links: extras.theme?.menu ?? [], replace: true },
+        });
+        const rows = body.collections as { action: string; linked: number }[];
+        result.collections = {
+          created: rows.filter((r) => r.action === "created").length,
+          updated: rows.filter((r) => r.action === "updated").length,
+          errors: rows.filter((r) => r.action === "error").length,
+          linked: rows.reduce((n, r) => n + r.linked, 0),
+        };
+        result.menu = body.menu;
+      } catch (err) {
+        result.errors.push(`Colecciones y menú: ${message(err)}`);
       }
-      if (options.design && extras.theme) {
-        setExtraStep("Aplicando el diseño…");
-        try {
-          const t = extras.theme;
-          result.design = await postJson(API_DESIGN, {
-            colors: t.colors,
-            fonts: t.fonts ? { headingFont: t.fonts.headingFont, bodyFont: t.fonts.bodyFont } : null,
-            logoUrl: t.logoUrl,
-            faviconUrl: t.faviconUrl,
-            publish: true,
-          });
-        } catch (err) {
-          result.errors.push(`Diseño: ${message(err)}`);
-        }
-      }
-      setExtrasResult(result);
-      setExtraStep(null);
     }
 
+    if (byLink && options.design && extras.theme) {
+      setExtraStep("Aplicando el diseño y los datos de la marca…");
+      try {
+        const t = extras.theme;
+        result.design = (await postJson(API_DESIGN, {
+          colors: t.colors,
+          fonts: t.fonts ? { headingFont: t.fonts.headingFont, bodyFont: t.fonts.bodyFont } : null,
+          logoUrl: t.logoUrl,
+          faviconUrl: t.faviconUrl,
+          pixels: { metaPixelId: t.pixels.metaPixelId, tiktokPixelId: t.pixels.tiktokPixelId },
+          social: {
+            instagram: t.social.instagram,
+            tiktok: t.social.tiktok,
+            whatsapp: t.social.whatsapp,
+            phone: t.social.phone,
+          },
+          announcements: t.announcements,
+          publish: true,
+        })) as DesignResult;
+      } catch (err) {
+        result.errors.push(`Diseño: ${message(err)}`);
+      }
+    }
+
+    if (byLink && options.shipping && extras.shipping) {
+      setExtraStep("Configurando las zonas de envío…");
+      try {
+        const body = await postJson(API_SHIPPING, { zones: extras.shipping.zones, replace: true });
+        const rows = body.zones as { action: string }[];
+        result.shipping = {
+          created: rows.filter((r) => r.action === "created").length,
+          errors: rows.filter((r) => r.action === "error").length,
+          removed: body.removed as number,
+        };
+      } catch (err) {
+        result.errors.push(`Envíos: ${message(err)}`);
+      }
+    }
+
+    if (importProducts && (!byLink || options.photos)) {
+      setExtraStep("Guardando las fotos en Marcolini…");
+      try {
+        result.photos = await rehostAllImages((p) =>
+          setExtraStep(`Guardando las fotos en Marcolini… ${p.done} de ${p.total}`),
+        );
+      } catch (err) {
+        result.errors.push(`Fotos: ${message(err)}`);
+      }
+    }
+
+    setExtrasResult(result);
+    setExtraStep(null);
     setPhase("done");
     onImported();
   }
@@ -359,9 +512,12 @@ export function ShopifyImporter({
   const errors = results.filter((r) => r.action === "error");
   const reading = readingStep !== null;
   const theme = extras?.theme ?? null;
+  const shipping = extras?.shipping ?? null;
   const canImport =
     parsed !== null &&
-    (source === "csv" ? parsed.products.length > 0 : options.products || options.collections || options.design);
+    (source === "csv"
+      ? parsed.products.length > 0
+      : options.products || options.collections || options.design || options.shipping);
 
   const importButtonLabel = (() => {
     if (!parsed) return "Importar";
@@ -370,6 +526,7 @@ export function ShopifyImporter({
     if (options.products) parts.push(`${parsed.stats.products} productos`);
     if (options.collections && (extras.collections.length > 0 || extras.proposed)) parts.push("colecciones y menú");
     if (options.design && theme) parts.push("diseño");
+    if (options.shipping && shipping) parts.push("envíos");
     return parts.length ? `Importar ${parts.join(" + ")}` : "Importar";
   })();
 
@@ -419,8 +576,9 @@ export function ShopifyImporter({
                 <p>
                   Pega el link de tu tienda Shopify, con tu dominio propio o el de Shopify
                   (tumarca.myshopify.com). Leemos tu catálogo público: productos con sus precios,
-                  variantes, SKU, peso y fotos; tus colecciones y en cuál va cada producto; el menú; y
-                  el diseño (colores, letra, logo).
+                  variantes, SKU, peso y fotos; tus colecciones y en cuál va cada producto; el menú;
+                  el diseño (colores, letra, logo); los medios de pago; y los fletes, probando un
+                  carrito por cada departamento. Las fotos se copian a Marcolini.
                 </p>
                 <p>
                   No trae los productos en borrador ni el inventario. Si tu tienda tiene contraseña,
@@ -466,7 +624,8 @@ export function ShopifyImporter({
                 <p>
                   Traemos nombre, descripción, precios, variantes, SKU, peso y fotos, y
                   armamos una colección por cada Tipo de producto. Si un producto ya se
-                  importó antes, se actualiza en vez de duplicarse.
+                  importó antes, se actualiza en vez de duplicarse. Las fotos se copian a
+                  Marcolini al terminar.
                 </p>
               </div>
 
@@ -534,6 +693,20 @@ export function ShopifyImporter({
                   fotos, inventario) pero conservan su estado actual: si están
                   activos, siguen activos.
                 </p>
+                {extras && parsed.stats.images > 0 && (
+                  <label className="flex items-start gap-2 text-xs text-brand-ink">
+                    <input
+                      type="checkbox"
+                      checked={options.photos}
+                      onChange={(e) => setOptions({ ...options, photos: e.target.checked })}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Guardar las {parsed.stats.images} fotos en Marcolini. Quedan en nuestro servidor
+                      para que nada se rompa si la marca cierra su Shopify.
+                    </span>
+                  </label>
+                )}
                 {parsed.warnings.length > 0 && (
                   <ul className="text-xs text-amber-700 list-disc pl-4 space-y-0.5">
                     {parsed.warnings.slice(0, 8).map((warning, i) => (
@@ -600,7 +773,7 @@ export function ShopifyImporter({
                       onChange={(e) => setOptions({ ...options, design: e.target.checked })}
                       className="mt-1"
                     />
-                    <span>Diseño: colores, letra y logo</span>
+                    <span>Diseño y datos de la marca</span>
                   </label>
                   {theme.colors ? (
                     <div className="flex flex-wrap gap-3 text-xs text-brand-ink-soft">
@@ -647,9 +820,119 @@ export function ShopifyImporter({
                   ) : (
                     <p className="text-xs text-brand-ink-soft">No encontramos el logo en la portada.</p>
                   )}
+                  {theme.announcements.length > 0 && (
+                    <p className="text-xs text-brand-ink-soft">
+                      Barra de anuncio: {theme.announcements.map((t) => `«${t}»`).join(" · ")}
+                    </p>
+                  )}
+                  {(theme.pixels.metaPixelId || theme.pixels.tiktokPixelId) && (
+                    <p className="text-xs text-brand-ink-soft">
+                      Píxeles:{" "}
+                      {[
+                        theme.pixels.metaPixelId ? `Meta ${theme.pixels.metaPixelId}` : null,
+                        theme.pixels.tiktokPixelId ? `TikTok ${theme.pixels.tiktokPixelId}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  )}
+                  {(theme.social.instagram || theme.social.tiktok || theme.social.whatsapp || theme.social.phone) && (
+                    <p className="text-xs text-brand-ink-soft">
+                      Redes y contacto:{" "}
+                      {[
+                        theme.social.instagram ? `Instagram @${theme.social.instagram}` : null,
+                        theme.social.tiktok ? `TikTok @${theme.social.tiktok}` : null,
+                        theme.social.whatsapp ? `WhatsApp +${theme.social.whatsapp}` : null,
+                        !theme.social.whatsapp && theme.social.phone ? `Teléfono ${theme.social.phone}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  )}
                   <p className="text-xs text-brand-ink-soft">
-                    Los colores y la letra se aplican en Diseño y se publican de una vez en tu tienda.
+                    Los colores, la letra y la barra de anuncio se aplican en Diseño y se publican de una vez.
+                    Píxeles, redes y teléfono se guardan solo si estaban vacíos.
                   </p>
+                </div>
+              )}
+
+              {extras && theme && (theme.payments.methods.length > 0 || theme.payments.gateways.length > 0) && (
+                <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-1.5">
+                  <p className="text-sm font-medium text-brand-ink">Pagos (solo informativo)</p>
+                  {theme.payments.methods.length > 0 && (
+                    <p className="text-xs text-brand-ink-soft">
+                      Medios que muestra hoy: {theme.payments.methods.join(", ")}.
+                    </p>
+                  )}
+                  {theme.payments.gateways.length > 0 && (
+                    <p className="text-xs text-brand-ink-soft">
+                      Pasarelas detectadas: {theme.payments.gateways.join(", ")}.
+                    </p>
+                  )}
+                  <p className="text-xs text-brand-ink-soft">
+                    En Marcolini la tienda cobra con Wompi (tarjetas, PSE, Nequi y Bancolombia). La marca
+                    pega sus llaves en Configuración → Pagos de la tienda.
+                  </p>
+                </div>
+              )}
+
+              {extras && shipping && (
+                <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-2">
+                  <label className="flex items-start gap-2 text-sm font-medium text-brand-ink">
+                    <input
+                      type="checkbox"
+                      checked={options.shipping}
+                      onChange={(e) => setOptions({ ...options, shipping: e.target.checked })}
+                      className="mt-1"
+                    />
+                    <span>
+                      {shipping.zones.length} {shipping.zones.length === 1 ? "zona de envío" : "zonas de envío"}
+                    </span>
+                  </label>
+                  <p className="text-xs text-brand-ink-soft">
+                    Probamos un carrito con «{shipping.variant.productName}» ({cop(shipping.subtotal)}) en los 33
+                    departamentos y Shopify respondió:
+                  </p>
+                  <ul className="text-xs text-brand-ink-soft space-y-0.5">
+                    {shipping.zones.map((zone) => {
+                      const base = zone.rates.find((r) => r.condition === "NONE");
+                      const free = zone.rates.find((r) => r.condition === "MIN_ORDER_AMOUNT");
+                      return (
+                        <li key={zone.name}>
+                          <strong className="font-medium text-brand-ink">{zone.name}:</strong>{" "}
+                          {base ? (base.price === 0 ? "envío gratis" : `${base.name} ${cop(base.price)}`) : ""}
+                          {free?.conditionValue ? ` · gratis desde ${cop(free.conditionValue)}` : ""}
+                          {zone.otherRates.length > 0 &&
+                            ` (también ofrecía ${zone.otherRates.map((r) => `${r.name} ${cop(r.price)}`).join(", ")})`}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {Object.values(shipping.thresholds).some((t) => t?.threshold != null && t.paidBelow != null) && (
+                    <p className="text-xs text-brand-ink-soft">
+                      El umbral exacto del envío gratis está entre el último carrito que pagó envío y el primero
+                      que salió gratis (
+                      {Object.entries(shipping.thresholds)
+                        .filter(([, t]) => t?.threshold != null && t.paidBelow != null)
+                        .map(([region, t]) => `${region}: ${cop(t!.paidBelow!)} a ${cop(t!.threshold!)}`)
+                        .join("; ")}
+                      ). Configuramos el valor seguro; ajústalo en Envíos si la marca te confirma otro.
+                    </p>
+                  )}
+                  {shipping.uncovered.length > 0 && (
+                    <p className="text-xs text-amber-700">
+                      Shopify no ofrece envío a: {shipping.uncovered.join(", ")}. Esos departamentos quedan sin zona.
+                    </p>
+                  )}
+                  {Object.keys(shipping.errors).length > 0 && (
+                    <p className="text-xs text-amber-700">
+                      No se pudo leer la tarifa de {Object.keys(shipping.errors).length}{" "}
+                      {Object.keys(shipping.errors).length === 1 ? "departamento" : "departamentos"} (
+                      {Object.keys(shipping.errors).slice(0, 5).join(", ")}
+                      {Object.keys(shipping.errors).length > 5 ? "…" : ""}).
+                    </p>
+                  )}
+                  <p className="text-xs text-brand-ink-soft">Reemplaza las zonas de envío actuales de tu tienda.</p>
                 </div>
               )}
 
@@ -703,7 +986,7 @@ export function ShopifyImporter({
 
       {phase === "done" && (
         <div className="space-y-3">
-          {(results.length > 0 || !extrasResult) && (
+          {results.length > 0 && (
             <p className="text-sm text-brand-ink">
               Productos: {created} creados · {updated} actualizados
               {errors.length > 0 && ` · ${errors.length} con error`}
@@ -736,13 +1019,30 @@ export function ShopifyImporter({
               {[
                 extrasResult.design.colors ? "colores" : null,
                 extrasResult.design.fonts ? "letra" : null,
+                extrasResult.design.announcements ? "barra de anuncio" : null,
               ]
                 .filter(Boolean)
-                .join(" y ") || "sin cambios"}
-              {extrasResult.design.published ? " publicados" : ""} · logo{" "}
+                .join(", ") || "sin cambios"}
+              {extrasResult.design.published ? " (publicado)" : ""} · logo{" "}
               {IMAGE_OUTCOME[extrasResult.design.logo] ?? extrasResult.design.logo}
               {extrasResult.design.favicon !== "omitido" &&
                 ` · favicon ${IMAGE_OUTCOME[extrasResult.design.favicon] ?? extrasResult.design.favicon}`}
+              {extrasResult.design.profileFields.length > 0 &&
+                ` · guardados: ${extrasResult.design.profileFields.map((f) => PROFILE_FIELD_LABEL[f] ?? f).join(", ")}`}
+            </p>
+          )}
+          {extrasResult?.shipping && (
+            <p className="text-sm text-brand-ink">
+              Envíos: {extrasResult.shipping.created} zonas creadas
+              {extrasResult.shipping.removed > 0 && ` (reemplazaron ${extrasResult.shipping.removed})`}
+              {extrasResult.shipping.errors > 0 && ` · ${extrasResult.shipping.errors} con error`}
+            </p>
+          )}
+          {extrasResult?.photos && (
+            <p className="text-sm text-brand-ink">
+              Fotos: {extrasResult.photos.saved} guardadas en Marcolini
+              {extrasResult.photos.failed.length > 0 &&
+                ` · ${extrasResult.photos.failed.length} no se pudieron copiar (esos productos quedaron sin esa foto)`}
             </p>
           )}
           {extrasResult && extrasResult.errors.length > 0 && (
@@ -768,6 +1068,11 @@ export function ShopifyImporter({
             {extrasResult?.design && (
               <a href="/marca/tienda/diseno" className="text-sm text-brand-ink-soft hover:underline">
                 Ver diseño
+              </a>
+            )}
+            {extrasResult?.shipping && (
+              <a href="/marca/tienda/envios" className="text-sm text-brand-ink-soft hover:underline">
+                Ver envíos
               </a>
             )}
           </div>

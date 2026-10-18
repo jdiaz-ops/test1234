@@ -21,6 +21,20 @@ const bodySchema = z.object({
   fonts: z.object({ headingFont: z.string().max(60), bodyFont: z.string().max(60) }).optional().nullable(),
   logoUrl: imageUrl,
   faviconUrl: imageUrl,
+  pixels: z
+    .object({ metaPixelId: z.string().max(40).optional().nullable(), tiktokPixelId: z.string().max(60).optional().nullable() })
+    .optional()
+    .nullable(),
+  social: z
+    .object({
+      instagram: z.string().max(80).optional().nullable(),
+      tiktok: z.string().max(80).optional().nullable(),
+      whatsapp: z.string().max(30).optional().nullable(),
+      phone: z.string().max(40).optional().nullable(),
+    })
+    .optional()
+    .nullable(),
+  announcements: z.array(z.string().max(200)).max(4).optional().nullable(),
   publish: z.boolean().default(true),
 });
 

@@ -8,6 +8,7 @@ import {
   type ProductStatusValue,
 } from "@/components/portal/store-product-form";
 import { ShopifyImporter } from "@/components/portal/shopify-importer";
+import { RehostImagesNotice } from "@/components/portal/rehost-images-notice";
 
 /// Lista de productos de "Mi tienda" con Agregar (a mano) e Importar desde
 /// Shopify (por el link de la tienda o el CSV). El viejo "Importar producto" — elegir uno ya
@@ -447,6 +448,8 @@ export function StoreProductsPanel({
           </a>
         )}
       </div>
+
+      <RehostImagesNotice />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {activatedNotice && <p className="text-sm text-green-700">{activatedNotice}</p>}

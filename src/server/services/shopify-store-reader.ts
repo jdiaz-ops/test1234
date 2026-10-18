@@ -10,6 +10,18 @@ import {
   type ShopifyImportCollection,
 } from "@/lib/shopify-products-json";
 import { parseShopifyStorefront, type ShopifyThemeInfo } from "@/lib/shopify-theme";
+import {
+  findFreeShippingThreshold,
+  isColombiaRegion,
+  isFreeRate,
+  parseShippingRates,
+  probeZip,
+  shopifyProvince,
+  type RatesByRegion,
+  type ShippingRateProbe,
+  type ThresholdProbe,
+  type ThresholdResult,
+} from "@/lib/shopify-shipping";
 
 /// Descarga lo público de una tienda Shopify a partir de su link: el
 /// catálogo por páginas (/products.json), las colecciones
@@ -293,4 +305,263 @@ export async function readShopifyStorefront(
     throw new ShopifyStoreError(PASSWORD_ERROR);
   }
   return { storeUrl, theme: parseShopifyStorefront(html, storeUrl) };
+}
+
+// ----------------------------------------------------------------------------
+// Fletes: carrito de prueba + /cart/shipping_rates.json por departamento
+// (ver shopify-shipping.ts). Shopify guarda el carrito en una cookie, así
+// que acá hay un mini jar de cookies para la sesión de la prueba.
+// ----------------------------------------------------------------------------
+
+/// La tienda no permite consultar fletes desde afuera: no vale la pena
+/// seguir probando departamentos.
+export class ShippingProbeUnavailable extends ShopifyStoreError {}
+
+type CartSession = { base: string; cookies: Map<string, string> };
+
+export type ProbeVariant = { variantId: number; unitPrice: number; productName: string };
+
+const RATES_RETRIES = 3;
+const RATES_RETRY_MS = 1500;
+
+function cookieHeader(session: CartSession) {
+  return Array.from(session.cookies.entries())
+    .map(([k, v]) => `${k}=${v}`)
+    .join("; ");
+}
+
+function absorbCookies(session: CartSession, response: Response) {
+  const list = typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
+  for (const raw of list) {
+    const pair = raw.split(";")[0];
+    const eq = pair.indexOf("=");
+    if (eq <= 0) continue;
+    session.cookies.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim());
+  }
+}
+
+/// GET o POST al carrito siguiendo redirects (de .myshopify.com al dominio
+/// propio) con el mismo método y cuerpo, y guardando las cookies.
+async function cartRequest(
+  fetchImpl: FetchLike,
+  session: CartSession,
+  path: string,
+  init: { method: "GET" | "POST"; body?: unknown } = { method: "GET" },
+) {
+  let url = `${session.base}${path}`;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const headers: Record<string, string> = { accept: "application/json", "user-agent": USER_AGENT };
+    const cookie = cookieHeader(session);
+    if (cookie) headers.cookie = cookie;
+    if (init.body !== undefined) headers["content-type"] = "application/json";
+    let response: Response;
+    try {
+      response = await fetchImpl(url, {
+        method: init.method,
+        redirect: "manual",
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+        headers,
+        body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      });
+    } catch {
+      throw new ShopifyStoreError("No pudimos conectar con esa tienda para probar el carrito.");
+    }
+    absorbCookies(session, response);
+    if (!isRedirect(response.status)) return response;
+    const location = response.headers.get("location");
+    if (!location) throw new ShopifyStoreError("La tienda redirigió a un destino desconocido.");
+    const next = new URL(location, url);
+    if (passwordProtected(next.pathname)) throw new ShopifyStoreError(PASSWORD_ERROR);
+    session.base = normalizeShopifyStoreUrl(next.origin).href;
+    url = `${session.base}${path}`;
+  }
+  throw new ShopifyStoreError("La tienda redirige demasiadas veces.");
+}
+
+async function readJsonBody(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (text.length > MAX_JSON_CHARS) throw new ShopifyStoreError("La respuesta de la tienda es demasiado grande.");
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+/// Los productos más baratos que están disponibles, para armar el carrito
+/// de prueba (barato = se puede subir la cantidad para buscar el envío
+/// gratis sin disparar el subtotal).
+export async function pickProbeVariants(fetchImpl: FetchLike, base: string): Promise<{ base: string; candidates: ProbeVariant[] }> {
+  const { json, base: resolved } = await fetchJson(fetchImpl, base, `products.json?limit=${PAGE_SIZE}&page=1`, "un catálogo");
+  const candidates: ProbeVariant[] = [];
+  for (const product of parseShopifyProductsPage(json)) {
+    if (product.published_at === null) continue;
+    for (const variant of product.variants ?? []) {
+      if (!variant || variant.available !== true) continue;
+      const id = typeof variant.id === "number" ? variant.id : Number(variant.id);
+      const price = typeof variant.price === "number" ? variant.price : Number(String(variant.price ?? "").replace(/[^0-9.]/g, ""));
+      if (!Number.isInteger(id) || id <= 0 || !Number.isFinite(price) || price <= 0) continue;
+      candidates.push({ variantId: id, unitPrice: price, productName: String(product.title ?? "").trim().slice(0, 120) });
+    }
+  }
+  candidates.sort((a, b) => a.unitPrice - b.unitPrice);
+  if (candidates.length === 0) {
+    throw new ShopifyStoreError("La tienda no tiene productos disponibles para probar el carrito.");
+  }
+  return { base: resolved, candidates: candidates.slice(0, 5) };
+}
+
+type CartState = { quantity: number; subtotal: number };
+
+/// Deja el carrito con exactamente `quantity` unidades del producto de
+/// prueba (Shopify recorta al stock disponible) y devuelve lo que quedó.
+async function setCartQuantity(fetchImpl: FetchLike, session: CartSession, variantId: number, quantity: number): Promise<CartState> {
+  const response = await cartRequest(fetchImpl, session, "cart/update.js", {
+    method: "POST",
+    body: { updates: { [String(variantId)]: quantity } },
+  });
+  const json = (await readJsonBody(response)) as {
+    items_subtotal_price?: unknown;
+    item_count?: unknown;
+    items?: { variant_id?: unknown; quantity?: unknown }[];
+  } | null;
+  if (!response.ok || !json) throw new ShopifyStoreError("No se pudo ajustar el carrito de prueba.");
+  const line = json.items?.find((i) => Number(i?.variant_id) === variantId);
+  const inCart = Number(line?.quantity ?? json.item_count ?? 0);
+  const cents = Number(json.items_subtotal_price ?? 0);
+  return { quantity: Number.isFinite(inCart) ? inCart : 0, subtotal: Number.isFinite(cents) ? Math.round(cents) / 100 : 0 };
+}
+
+/// Crea el carrito con el primer candidato que Shopify acepte.
+async function createProbeCart(fetchImpl: FetchLike, base: string, candidates: ProbeVariant[], quantity: number) {
+  let lastError = "Ninguno de los productos de prueba se pudo agregar al carrito.";
+  for (const candidate of candidates) {
+    const session: CartSession = { base, cookies: new Map() };
+    const response = await cartRequest(fetchImpl, session, "cart/add.js", {
+      method: "POST",
+      body: { items: [{ id: candidate.variantId, quantity: 1 }] },
+    });
+    if (response.status === 404 || response.status === 405) {
+      throw new ShippingProbeUnavailable("La tienda no deja armar carritos desde afuera: no se pueden probar los fletes.");
+    }
+    if (!response.ok) {
+      const json = (await readJsonBody(response)) as { description?: unknown; message?: unknown } | null;
+      lastError = String(json?.description ?? json?.message ?? `Shopify respondió ${response.status}`);
+      continue;
+    }
+    const cart = quantity > 1 ? await setCartQuantity(fetchImpl, session, candidate.variantId, quantity) : await setCartQuantity(fetchImpl, session, candidate.variantId, 1);
+    if (cart.quantity <= 0) {
+      lastError = "El producto de prueba se quedó sin stock al agregarlo.";
+      continue;
+    }
+    return { session, variant: candidate, cart };
+  }
+  throw new ShopifyStoreError(lastError);
+}
+
+/// Las tarifas que Shopify cobraría para un departamento con el carrito
+/// actual. Primero con el nombre de la provincia, si no con su código.
+async function ratesForRegion(fetchImpl: FetchLike, session: CartSession, region: string): Promise<ShippingRateProbe[]> {
+  const province = shopifyProvince(region);
+  const zip = probeZip(region);
+  const attempts = [province.name, province.code].filter(Boolean);
+  let lastError = "Shopify no devolvió tarifas para este departamento.";
+  for (const value of attempts) {
+    const query = new URLSearchParams({
+      "shipping_address[country]": "Colombia",
+      "shipping_address[province]": value,
+      "shipping_address[zip]": zip,
+    });
+    for (let attempt = 0; attempt < RATES_RETRIES; attempt++) {
+      const response = await cartRequest(fetchImpl, session, `cart/shipping_rates.json?${query.toString()}`);
+      if (response.status === 404 || response.status === 405) {
+        throw new ShippingProbeUnavailable("La tienda no permite consultar fletes desde afuera.");
+      }
+      const json = await readJsonBody(response);
+      if (response.status === 422 || response.status === 400) {
+        const err = json && typeof json === "object" ? (json as Record<string, unknown>) : {};
+        const detail = Object.values(err)
+          .flat()
+          .map((v) => (typeof v === "string" ? v : ""))
+          .filter(Boolean)
+          .join(" ");
+        lastError = detail || `Shopify respondió ${response.status}`;
+        break; // probar con el código
+      }
+      if (!response.ok) {
+        lastError = `Shopify respondió ${response.status}`;
+        break;
+      }
+      const rates = parseShippingRates(json);
+      // 202 o shipping_rates null: una transportadora está calculando.
+      if (rates) return rates;
+      if (attempt < RATES_RETRIES - 1) await new Promise((r) => setTimeout(r, RATES_RETRY_MS));
+      else lastError = "La tienda calcula los fletes con una transportadora y no respondió a tiempo.";
+    }
+  }
+  throw new ShopifyStoreError(lastError);
+}
+
+export type ShippingRatesRead = {
+  storeUrl: string;
+  variant: ProbeVariant;
+  quantity: number;
+  subtotal: number;
+  rates: RatesByRegion;
+  errors: Record<string, string>;
+};
+
+/// Tarifas por departamento con un carrito de `quantity` unidades del
+/// producto de prueba (el más barato disponible, o el que se pase).
+export async function readShopifyShippingRates(
+  input: string,
+  options: { regions: string[]; quantity?: number; variant?: ProbeVariant | null },
+  fetchImpl: FetchLike = defaultFetch,
+): Promise<ShippingRatesRead> {
+  let base = normalizeShopifyStoreUrl(input).href;
+  let candidates: ProbeVariant[];
+  if (options.variant) {
+    candidates = [options.variant];
+  } else {
+    const picked = await pickProbeVariants(fetchImpl, base);
+    base = picked.base;
+    candidates = picked.candidates;
+  }
+  const { session, variant, cart } = await createProbeCart(fetchImpl, base, candidates, Math.max(1, options.quantity ?? 1));
+  const rates: RatesByRegion = {};
+  const errors: Record<string, string> = {};
+  for (const region of options.regions) {
+    if (!isColombiaRegion(region)) continue;
+    try {
+      rates[region] = await ratesForRegion(fetchImpl, session, region);
+    } catch (err) {
+      if (err instanceof ShippingProbeUnavailable) throw err;
+      errors[region] = err instanceof Error ? err.message : "No se pudo leer.";
+    }
+  }
+  return { storeUrl: session.base, variant, quantity: cart.quantity, subtotal: cart.subtotal, rates, errors };
+}
+
+export type ThresholdRead = ThresholdResult & { storeUrl: string; region: string; probes: number };
+
+/// Desde qué subtotal el envío sale gratis en un departamento: sube la
+/// cantidad del producto de prueba y pregunta la tarifa cada vez (ver
+/// findFreeShippingThreshold).
+export async function readShopifyFreeShippingThreshold(
+  input: string,
+  options: { region: string; variant: ProbeVariant; maxQuantity: number },
+  fetchImpl: FetchLike = defaultFetch,
+): Promise<ThresholdRead> {
+  if (!isColombiaRegion(options.region)) throw new ShopifyStoreError("Departamento inválido.");
+  const base = normalizeShopifyStoreUrl(input).href;
+  const { session } = await createProbeCart(fetchImpl, base, [options.variant], 1);
+  let probes = 0;
+  const probe: ThresholdProbe = async (quantity) => {
+    probes++;
+    const state = await setCartQuantity(fetchImpl, session, options.variant.variantId, quantity);
+    const rates = await ratesForRegion(fetchImpl, session, options.region);
+    return { quantity: state.quantity, subtotal: state.subtotal, free: rates.some(isFreeRate) };
+  };
+  const result = await findFreeShippingThreshold(probe, Math.max(1, Math.min(100, options.maxQuantity)));
+  return { storeUrl: session.base, region: options.region, probes, ...result };
 }

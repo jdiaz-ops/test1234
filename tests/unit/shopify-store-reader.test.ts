@@ -188,3 +188,87 @@ describe("leer colecciones y portada", () => {
     await expect(readShopifyStorefront("tienda.com", locked.impl)).rejects.toThrow(/contraseña/);
   });
 });
+
+describe("fletes probando carritos", () => {
+  /// Una tienda Shopify de mentira con carrito por cookie: el producto
+  /// 333 está agotado, el 111 vale $45.000 y tiene 5 de stock; Bogotá
+  /// cuesta $8.000 y el resto $15.000, gratis desde $150.000. Antioquia
+  /// solo entiende el código de provincia.
+  function shopifyFake(opts: { noRates?: boolean } = {}) {
+    const calls: { url: string; cookie: string | null }[] = [];
+    let quantity = 0;
+    const impl = async (url: string, init: RequestInit) => {
+      const u = new URL(url);
+      const headers = (init.headers ?? {}) as Record<string, string>;
+      calls.push({ url, cookie: headers.cookie ?? null });
+      const json = (data: unknown, status = 200, extra: Record<string, string> = {}) =>
+        new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", ...extra } });
+      if (u.pathname === "/products.json") {
+        return json({
+          products: [
+            { title: "Caro", handle: "caro", published_at: "2026-01-01", variants: [{ id: 999, price: "90000.00", available: true }] },
+            { title: "Agotado", handle: "agotado", published_at: "2026-01-01", variants: [{ id: 333, price: "30000.00", available: true }] },
+            { title: "Placa", handle: "placa", published_at: "2026-01-01", variants: [{ id: 111, price: "45000.00", available: true }, { id: 222, price: "20000.00", available: false }] },
+          ],
+        });
+      }
+      if (u.pathname === "/cart/add.js") {
+        const body = JSON.parse(String(init.body)) as { items: { id: number }[] };
+        if (body.items[0].id === 333) return json({ status: 422, message: "Cart Error", description: "Agotado" }, 422);
+        quantity = 1;
+        return json({ items: [{ variant_id: body.items[0].id, quantity: 1 }] }, 200, { "set-cookie": "cart=tok123; path=/; secure" });
+      }
+      if (!headers.cookie?.includes("cart=tok123")) return json({ error: "sin carrito" }, 400);
+      if (u.pathname === "/cart/update.js") {
+        const body = JSON.parse(String(init.body)) as { updates: Record<string, number> };
+        quantity = Math.min(5, body.updates["111"]);
+        return json({ items: [{ variant_id: 111, quantity }], item_count: quantity, items_subtotal_price: quantity * 4500000 });
+      }
+      if (u.pathname === "/cart/shipping_rates.json") {
+        if (opts.noRates) return new Response("no", { status: 404 });
+        const province = u.searchParams.get("shipping_address[province]");
+        if (province === "Antioquia") return json({ province: ["no es válida"] }, 422);
+        if (quantity * 45000 >= 150000) return json({ shipping_rates: [{ name: "Envío gratis", price: "0.00" }] });
+        if (province === "Bogotá, D.C.") return json({ shipping_rates: [{ name: "Envío Bogotá", price: "8000.00" }] });
+        return json({ shipping_rates: [{ name: "Nacional", price: "15000.00" }] });
+      }
+      return new Response("x", { status: 500 });
+    };
+    return { impl, calls };
+  }
+
+  it("arma el carrito con el producto más barato disponible y lee la tarifa de cada departamento", async () => {
+    const { readShopifyShippingRates } = await import("@/server/services/shopify-store-reader");
+    const { impl, calls } = shopifyFake();
+    const result = await readShopifyShippingRates("tienda.com", { regions: ["Bogotá D.C.", "Antioquia", "Valle del Cauca"] }, impl);
+    expect(result.variant).toEqual({ variantId: 111, unitPrice: 45000, productName: "Placa" });
+    expect(result).toMatchObject({ storeUrl: "https://tienda.com/", quantity: 1, subtotal: 45000, errors: {} });
+    expect(result.rates).toEqual({
+      "Bogotá D.C.": [{ name: "Envío Bogotá", price: 8000 }],
+      Antioquia: [{ name: "Nacional", price: 15000 }],
+      "Valle del Cauca": [{ name: "Nacional", price: 15000 }],
+    });
+    // El 333 se intentó y Shopify lo rechazó; después todo va con la cookie del carrito.
+    expect(calls.filter((c) => c.url.includes("/cart/add.js"))).toHaveLength(2);
+    expect(calls.filter((c) => c.url.includes("shipping_rates")).every((c) => c.cookie === "cart=tok123")).toBe(true);
+    const antioquia = calls.filter((c) => c.url.includes("shipping_rates") && /province%5D=(Antioquia|ANT)/.test(c.url));
+    expect(antioquia.map((c) => decodeURIComponent(c.url).includes("province]=ANT"))).toEqual([false, true]);
+  });
+
+  it("busca el umbral del envío gratis respetando el stock", async () => {
+    const { readShopifyFreeShippingThreshold } = await import("@/server/services/shopify-store-reader");
+    const { impl } = shopifyFake();
+    const result = await readShopifyFreeShippingThreshold(
+      "tienda.com",
+      { region: "Bogotá D.C.", variant: { variantId: 111, unitPrice: 45000, productName: "Placa" }, maxQuantity: 14 },
+      impl,
+    );
+    expect(result).toMatchObject({ region: "Bogotá D.C.", threshold: 180000, paidBelow: 135000, maxSubtotal: 225000 });
+  });
+
+  it("si la tienda no deja consultar fletes, lo dice de una vez", async () => {
+    const { readShopifyShippingRates, ShippingProbeUnavailable } = await import("@/server/services/shopify-store-reader");
+    const { impl } = shopifyFake({ noRates: true });
+    await expect(readShopifyShippingRates("tienda.com", { regions: ["Bogotá D.C."] }, impl)).rejects.toThrow(ShippingProbeUnavailable);
+  });
+});

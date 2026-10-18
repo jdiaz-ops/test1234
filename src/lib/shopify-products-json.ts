@@ -37,6 +37,7 @@ export const PAGE_SIZE = 250;
 export const MAX_PAGES = Math.ceil(MAX_PRODUCTS / PAGE_SIZE);
 
 export type ShopifyJsonVariant = {
+  id?: number | string;
   title?: string | null;
   option1?: string | null;
   option2?: string | null;
