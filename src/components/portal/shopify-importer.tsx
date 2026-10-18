@@ -275,6 +275,50 @@ export function ShopifyImporter({
     }
   }
 
+  /// Propone categorías (con IA o con reglas, ver
+  /// shopify-categorize-service.ts) para una tienda que no tiene: en
+  /// Shopify, cuando no hay colecciones; en otras plataformas, cuando no
+  /// muestran categorías.
+  async function proposeCategories(
+    products: ShopifyImportProduct[],
+    notes: string[],
+    emptyNote: string,
+  ): Promise<LinkExtras["proposed"]> {
+    try {
+      setReadingStep("Organizando los productos en categorías…");
+      const catalogNames = products.map((p) => p.name);
+      const merged = new Map<string, ProposedCollection>();
+      let categories: string[] | undefined;
+      let aiSource: "ia" | "reglas" = "reglas";
+      for (let i = 0; i < products.length; i += PROPOSE_BATCH) {
+        const chunk = products.slice(i, i + PROPOSE_BATCH).map((p) => ({
+          handle: p.handle,
+          name: p.name,
+          type: p.collectionName,
+          tags: p.tags ?? [],
+        }));
+        const body = await postJson(API_PROPOSE, {
+          products: chunk,
+          ...(categories ? { categories } : { catalogNames }),
+        });
+        aiSource = body.source;
+        for (const c of body.collections as ProposedCollection[]) {
+          const key = c.name.trim().toLowerCase();
+          const group = merged.get(key) ?? { name: c.name, productHandles: [] };
+          group.productHandles.push(...c.productHandles);
+          merged.set(key, group);
+        }
+        categories = Array.from(merged.values()).map((c) => c.name);
+      }
+      const list = Array.from(merged.values()).filter((c) => c.productHandles.length > 0);
+      if (list.length > 0) return { collections: list, source: aiSource };
+      notes.push(emptyNote);
+    } catch (err) {
+      notes.push(`No pudimos proponer categorías: ${message(err)}`);
+    }
+    return null;
+  }
+
   /// Lo leído de los archivos de una marca sin web (catalog-files-reader.tsx)
   /// entra a la misma vista previa que el link.
   function handleFilesRead(read: FilesRead) {
@@ -395,13 +439,16 @@ export function ShopifyImporter({
     if (noWeight > 0) notes.push(`${noWeight} productos sin peso (la tienda no lo publica): agrégalo desde Editar para que el envío se calcule bien.`);
     const currencies = Array.from(new Set(scraped.map((p) => p.currency).filter((c): c is string => Boolean(c) && c !== "COP")));
     if (currencies.length > 0) notes.push(`Los precios están en ${currencies.join(", ")}: se importan tal cual, sin convertir a pesos.`);
-    if (collections.length === 0) notes.push("La tienda no muestra categorías: los productos entran sin colección.");
+    const proposed =
+      collections.length === 0
+        ? await proposeCategories(products, notes, "La tienda no muestra categorías y no pudimos proponerlas: los productos entran sin colección.")
+        : null;
     setParsed({ products, warnings, stats });
-    setExtras({ storeUrl: origin, pages, collections, proposed: null, theme, shipping: null, notes });
+    setExtras({ storeUrl: origin, pages, collections, proposed, theme, shipping: null, notes });
     setOptions({
       products: true,
       pages: pages.length > 0,
-      collections: collections.length > 0,
+      collections: collections.length > 0 || Boolean(proposed),
       home: Boolean(theme && theme.homeSections.length > 0),
       design: Boolean(theme && (theme.colors || theme.fonts || theme.logoUrl)),
       shipping: false,
@@ -479,41 +526,14 @@ export function ShopifyImporter({
         collections = [];
       }
 
-      let proposed: LinkExtras["proposed"] = null;
-      if (collections.length === 0 && products.length > 0) {
-        try {
-          setReadingStep("Organizando los productos en categorías…");
-          const catalogNames = products.map((p) => p.name);
-          const merged = new Map<string, ProposedCollection>();
-          let categories: string[] | undefined;
-          let aiSource: "ia" | "reglas" = "reglas";
-          for (let i = 0; i < products.length; i += PROPOSE_BATCH) {
-            const chunk = products.slice(i, i + PROPOSE_BATCH).map((p) => ({
-              handle: p.handle,
-              name: p.name,
-              type: p.collectionName,
-              tags: p.tags ?? [],
-            }));
-            const body = await postJson(API_PROPOSE, {
-              products: chunk,
-              ...(categories ? { categories } : { catalogNames }),
-            });
-            aiSource = body.source;
-            for (const c of body.collections as ProposedCollection[]) {
-              const key = c.name.trim().toLowerCase();
-              const group = merged.get(key) ?? { name: c.name, productHandles: [] };
-              group.productHandles.push(...c.productHandles);
-              merged.set(key, group);
-            }
-            categories = Array.from(merged.values()).map((c) => c.name);
-          }
-          const list = Array.from(merged.values()).filter((c) => c.productHandles.length > 0);
-          if (list.length > 0) proposed = { collections: list, source: aiSource };
-          else notes.push("Shopify no tiene colecciones y no pudimos proponer categorías: los productos entran sin colección.");
-        } catch (err) {
-          notes.push(`No pudimos proponer categorías: ${message(err)}`);
-        }
-      }
+      const proposed =
+        collections.length === 0 && products.length > 0
+          ? await proposeCategories(
+              products,
+              notes,
+              "Shopify no tiene colecciones y no pudimos proponer categorías: los productos entran sin colección.",
+            )
+          : null;
 
       let theme: ShopifyThemeInfo | null = null;
       try {

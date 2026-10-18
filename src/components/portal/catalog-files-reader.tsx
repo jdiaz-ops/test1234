@@ -14,12 +14,15 @@ import type { ShopifyCsvParseResult } from "@/lib/shopify-csv";
 import type { ShopifyImportCollection } from "@/lib/shopify-products-json";
 import type { ShopifyThemeInfo } from "@/lib/shopify-theme";
 import { prepareImageForUpload } from "@/lib/prepare-image-upload";
+import { downloadName, isReadableDriveEntry, type DriveEntry } from "@/lib/drive-folder";
 import type { ExtractResult, OrganizeResult } from "@/server/services/catalog-files-reader";
 
 const API_EXTRACT = "/api/marca/tienda/productos/leer-archivos";
 const API_ORGANIZE = "/api/marca/tienda/productos/leer-archivos/organizar";
 const API_EXCEL = "/api/marca/tienda/productos/leer-archivos/excel";
 const API_IMAGE = "/api/marca/tienda/productos/imagen";
+const API_DRIVE = "/api/marca/tienda/productos/leer-archivos/drive";
+const API_DRIVE_FILE = "/api/marca/tienda/productos/leer-archivos/drive/archivo";
 const READ_CONCURRENCY = 3;
 const UPLOAD_CONCURRENCY = 3;
 const MAX_PDF_PAGES = 60;
@@ -161,6 +164,7 @@ export function CatalogFilesReader({
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [pasted, setPasted] = useState("");
+  const [driveUrl, setDriveUrl] = useState("");
   const [phase, setPhase] = useState<"pick" | "reading" | "review" | "uploading">("pick");
   const [step, setStep] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -213,15 +217,43 @@ export function CatalogFilesReader({
     const all = new Map<string, Source>();
     const readNotes: string[] = [];
     try {
+      // 0. Los archivos de la carpeta de Drive se bajan y se tratan como
+      // si los hubieran subido.
+      const allFiles = [...files];
+      if (driveUrl.trim()) {
+        setStep("Abriendo la carpeta de Drive…");
+        const listing = await postJson<{ files: DriveEntry[]; truncated: boolean }>(API_DRIVE, { url: driveUrl.trim() });
+        const readable = listing.files.filter(isReadableDriveEntry);
+        const skipped = listing.files.length - readable.length;
+        if (skipped > 0) readNotes.push(`Drive: ${skipped} archivos de un tipo que no se puede leer (videos, HEIC…) se omitieron.`);
+        if (listing.truncated) readNotes.push("Drive: la carpeta tiene más de 150 archivos; se leyeron los primeros.");
+        let n = 0;
+        await pool(readable, READ_CONCURRENCY, async (entry) => {
+          try {
+            const res = await fetch(`${API_DRIVE_FILE}?id=${encodeURIComponent(entry.id)}&kind=${entry.kind}`);
+            if (!res.ok) {
+              const body = await res.json().catch(() => null);
+              throw new Error(body?.error ?? "no se pudo bajar");
+            }
+            const blob = await res.blob();
+            allFiles.push(new File([blob], downloadName(entry), { type: blob.type }));
+          } catch (err) {
+            readNotes.push(`Drive · ${entry.name}: ${err instanceof Error ? err.message : "no se pudo bajar"}`);
+          }
+          n++;
+          setStep(`Bajando archivos de Drive… ${n} de ${readable.length}`);
+        });
+      }
+
       // 1. Todo a imágenes o pedazos de texto.
-      for (const file of files) {
+      for (const file of allFiles) {
         setStep(`Preparando ${file.name}…`);
         const name = file.name.toLowerCase();
         try {
           if (file.type === "application/pdf" || name.endsWith(".pdf")) {
             const pages = await pdfToPages(file);
             for (const p of pages) all.set(p.id, p);
-          } else if (file.type.startsWith("image/")) {
+          } else if (file.type.startsWith("image/") || /\.(jpe?g|png|webp)$/.test(name)) {
             const id = newId("s");
             all.set(id, { id, label: file.name, blob: file });
           } else if (name.endsWith(".xlsx")) {
@@ -575,7 +607,8 @@ export function CatalogFilesReader({
         <p>
           Para marcas sin web que venden por WhatsApp. Sube todo lo que te mandó la marca, sin ordenar: catálogos en PDF,
           fotos de productos, pantallazos del catálogo de WhatsApp o Instagram, listas de precios en Excel o CSV, y el
-          logo. También puedes pegar mensajes o listas de precios.
+          logo. También puedes pegar el link de una carpeta de Google Drive compartida como «Cualquier persona con el
+          enlace» (con subcarpetas; los Docs, Sheets y Slides también se leen), o pegar mensajes o listas de precios.
         </p>
         <p>
           La IA saca los productos (nombre, precio, descripción, variantes, categoría), recorta las fotos de los catálogos,
@@ -604,6 +637,14 @@ export function CatalogFilesReader({
           ))}
         </ul>
       )}
+      <input
+        type="text"
+        inputMode="url"
+        value={driveUrl}
+        onChange={(e) => setDriveUrl(e.target.value)}
+        placeholder="Opcional: link de la carpeta de Google Drive"
+        className="input w-full text-sm"
+      />
       <textarea
         value={pasted}
         onChange={(e) => setPasted(e.target.value)}
@@ -622,7 +663,7 @@ export function CatalogFilesReader({
       <button
         type="button"
         onClick={() => void read()}
-        disabled={files.length === 0 && !pasted.trim()}
+        disabled={files.length === 0 && !pasted.trim() && !driveUrl.trim()}
         className="border border-brand-line rounded-full px-5 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft disabled:opacity-50"
       >
         Leer con IA
