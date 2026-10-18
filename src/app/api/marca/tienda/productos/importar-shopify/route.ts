@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminActingAsBrand } from "@/lib/current-brand";
 import { importShopifyProductsSchema } from "@/lib/validation/brand";
 import { importShopifyProducts } from "@/server/services/shopify-csv-import-service";
+import { applyProductFamilies } from "@/server/services/product-family-service";
 
 /// Un lote de hasta 25 productos por request — el navegador ya leyó el
 /// CSV completo (ver shopify-importer.tsx) y va mandando de a poco,
@@ -24,5 +25,13 @@ export async function POST(req: Request) {
   }
 
   const results = await importShopifyProducts(profile.id, parsed.data.products);
-  return NextResponse.json({ ok: true, results });
+  // Las familias (otros aromas, tonos, tamaños) se arman solas con lo que
+  // va entrando; si falla, la importación igual vale.
+  let families: { families: number; products: number } | null = null;
+  try {
+    families = await applyProductFamilies(profile.id);
+  } catch (err) {
+    console.error("[familias]", err);
+  }
+  return NextResponse.json({ ok: true, results, families });
 }

@@ -162,7 +162,13 @@ export default async function StorefrontProductPage({
               </div>
             )}
 
-            {siblings && <SiblingProducts siblings={siblings} basePath={basePath} />}
+            {siblings.length > 0 && (
+              <div className="space-y-3">
+                {siblings.map((group) => (
+                  <SiblingProducts key={group.axis} siblings={group} basePath={basePath} />
+                ))}
+              </div>
+            )}
 
             {isService && (
               <div className="rounded-xl border border-brand-line p-3 space-y-1.5 text-sm">

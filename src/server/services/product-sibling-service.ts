@@ -1,18 +1,25 @@
 import { prisma } from "@/lib/prisma";
 import { stockWhere, type StockOptions } from "@/lib/product-stock";
 import { GROUP_ATTRIBUTE, readProductAttributes, shortVariantName, variantAxisOf } from "@/lib/product-attributes";
+import { buildSiblingGroups, familyOf } from "@/lib/product-families";
 
-/// "Otros tonos" de un producto que salió de separar variantes: los demás
-/// productos activos de la marca con el mismo Grupo. Es la relación
-/// padre/hijo de Amazon pero dentro del producto: el comprador ve en qué
-/// tono está y salta a los otros sin volver a la colección. Ver
-/// conversación del 2026-10-18.
+/// "Otros tonos" / "otros aromas" / "otros tamaños" de un producto: los
+/// demás productos de su familia, como la relación padre/hijo de Amazon
+/// pero dentro del producto, para saltar entre opciones sin volver a la
+/// colección. La familia sale de dos lados:
+/// - el atributo Grupo que guardan "Separar variantes" y "Familias" (ver
+///   product-family-service.ts), o
+/// - si el producto no tiene grupo, el nombre: se arma al vuelo con los
+///   productos de sus mismas colecciones (ver product-families.ts). Así
+///   funciona en cualquier tienda, importada como sea — pedido el
+///   2026-10-18 con los aromas de amglow.
+/// Un producto con dos ejes (aroma y tamaño) devuelve dos grupos.
 
 export type SiblingItem = {
   id: string;
   slug: string;
   name: string;
-  /// El valor del eje ("Princesa") — para el cuadrito.
+  /// El valor del eje ("Princesa", "SANDIA", "500ML") — para el cuadrito.
   value: string;
   imageUrl: string | null;
   price: number;
@@ -21,54 +28,99 @@ export type SiblingItem = {
 };
 
 export type SiblingGroup = {
+  /// "Rosados", "VELOTERAPIA SANDIA" — el grupo más lo que comparte el
+  /// producto con los de este eje.
   group: string;
-  /// "Tono", "Talla"… o null si el producto solo tiene grupo.
-  axis: string | null;
+  /// "Tono", "Aroma", "Tamaño"…
+  axis: string;
   current: string;
   items: SiblingItem[];
 };
 
-export async function getSiblingProducts(
-  brandId: string,
-  product: { id: string; name: string; slug: string | null; imageUrl: string | null; price: unknown; stock: number | null; attributes: unknown },
-  options?: StockOptions,
-): Promise<SiblingGroup | null> {
+type ProductLike = {
+  id: string;
+  name: string;
+  slug: string | null;
+  imageUrl: string | null;
+  price: unknown;
+  stock: number | null;
+  attributes: unknown;
+};
+
+type Member = { id: string; name: string; slug: string; imageUrl: string | null; price: number; stock: number | null; attrs: Record<string, string> };
+
+const SELECT = { id: true, name: true, slug: true, imageUrl: true, price: true, stock: true, attributes: true } as const;
+/// Hasta cuántos productos se miran para armar la familia por el nombre.
+const MAX_CANDIDATES = 600;
+
+function toMember(p: ProductLike, attrs: Record<string, string>): Member {
+  return { id: p.id, name: p.name, slug: p.slug ?? "", imageUrl: p.imageUrl, price: Number(p.price), stock: p.stock, attrs };
+}
+
+function toGroups(group: string, current: Member, members: Member[]): SiblingGroup[] {
+  const toItem = (axis: string, m: Member): SiblingItem => ({
+    id: m.id,
+    slug: m.slug,
+    name: m.name,
+    value: m.attrs[axis] || shortVariantName(m.name),
+    imageUrl: m.imageUrl,
+    price: m.price,
+    soldOut: m.stock != null && m.stock <= 0,
+    current: m.id === current.id,
+  });
+  const groups = buildSiblingGroups(group, current, members).map((g) => ({
+    group: g.label,
+    axis: g.axis,
+    current: g.current,
+    items: g.items.map((m) => toItem(g.axis, m)),
+  }));
+  if (groups.length > 0 || members.length < 2) return groups;
+  // Grupo guardado sin eje (datos viejos): un solo grupo con el nombre corto.
+  const axis = variantAxisOf(current.attrs) ?? "Opción";
+  return [{ group, axis, current: shortVariantName(current.name), items: members.map((m) => toItem(axis, m)) }];
+}
+
+export async function getSiblingProducts(brandId: string, product: ProductLike, options?: StockOptions): Promise<SiblingGroup[]> {
   const attributes = readProductAttributes(product.attributes);
   const group = attributes[GROUP_ATTRIBUTE];
-  if (!group) return null;
-  const axis = variantAxisOf(attributes);
-  const siblings = await prisma.product.findMany({
+  const where = {
+    brandId,
+    manual: true,
+    status: "ACTIVE" as const,
+    available: true,
+    id: { not: product.id },
+    ...stockWhere(options),
+  };
+
+  if (group) {
+    const rows = await prisma.product.findMany({
+      where: { ...where, attributes: { path: [GROUP_ATTRIBUTE], equals: group } },
+      select: SELECT,
+      orderBy: { name: "asc" },
+    });
+    const current = toMember(product, attributes);
+    const members = [current, ...rows.filter((r) => r.slug).map((r) => toMember(r, readProductAttributes(r.attributes)))];
+    return toGroups(group, current, members);
+  }
+
+  // Sin grupo guardado: la familia se arma por los nombres, entre los
+  // productos de sus mismas colecciones (o de todo el catálogo si no
+  // está en ninguna).
+  const collections = await prisma.productBrandCollection.findMany({ where: { productId: product.id }, select: { collectionId: true } });
+  const collectionIds = collections.map((c) => c.collectionId);
+  const rows = await prisma.product.findMany({
     where: {
-      brandId,
-      manual: true,
-      status: "ACTIVE",
-      available: true,
-      id: { not: product.id },
-      attributes: { path: [GROUP_ATTRIBUTE], equals: group },
-      ...stockWhere(options),
+      ...where,
+      ...(collectionIds.length > 0 ? { brandCollections: { some: { collectionId: { in: collectionIds } } } } : {}),
     },
-    select: { id: true, name: true, slug: true, imageUrl: true, price: true, stock: true, attributes: true },
+    select: SELECT,
     orderBy: { name: "asc" },
+    take: MAX_CANDIDATES,
   });
-  if (siblings.length === 0) return null;
-  const valueOf = (p: { name: string; attributes: unknown }) => {
-    const attrs = readProductAttributes(p.attributes);
-    return (axis && attrs[axis]) || shortVariantName(p.name);
-  };
-  const toItem = (p: typeof siblings[number] | typeof product, current: boolean): SiblingItem => ({
-    id: p.id,
-    slug: p.slug ?? "",
-    name: p.name,
-    value: valueOf(p),
-    imageUrl: p.imageUrl,
-    price: Number(p.price),
-    soldOut: p.stock != null && p.stock <= 0,
-    current,
-  });
-  return {
-    group,
-    axis,
-    current: valueOf(product),
-    items: [toItem(product, true), ...siblings.filter((s) => s.slug).map((s) => toItem(s, false))],
-  };
+  const family = familyOf([{ id: product.id, name: product.name }, ...rows.map((r) => ({ id: r.id, name: r.name }))], product.id);
+  if (!family) return [];
+  const attrsById = new Map(family.members.map((m) => [m.id, m.attrs]));
+  const current = toMember(product, attrsById.get(product.id) ?? {});
+  const members = [current, ...rows.filter((r) => r.slug && attrsById.has(r.id)).map((r) => toMember(r, attrsById.get(r.id)!))];
+  return toGroups(family.group, current, members);
 }

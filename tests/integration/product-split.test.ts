@@ -103,14 +103,15 @@ describe.skipIf(!hasDb)("separar variantes en productos", () => {
 
     // Dentro del producto, los otros tonos del grupo (como las variaciones
     // de Amazon): el actual primero, los demás como links.
-    const siblings = await getSiblingProducts(brand.id, loca);
+    const [siblings, ...moreGroups] = await getSiblingProducts(brand.id, loca);
+    expect(moreGroups).toEqual([]);
     expect(siblings).toMatchObject({ group: "Rosados", axis: "Tono", current: "Loca" });
-    expect(siblings!.items.map((i) => [i.value, i.current, i.soldOut])).toEqual([
+    expect(siblings.items.map((i) => [i.value, i.current, i.soldOut])).toEqual([
       ["Loca", true, true],
       ["Princesa", false, false],
       ["Reina", false, false],
     ]);
-    expect(await getSiblingProducts(brand.id, sinVariantes)).toBeNull();
+    expect(await getSiblingProducts(brand.id, sinVariantes)).toEqual([]);
 
     const acida = await prisma.product.findFirstOrThrow({ where: { brandId: brand.id, name: "Gel Polish Verdes – Acida" } });
     expect(acida.attributes).toEqual({ Grupo: "Verdes", Tono: "Acida" });

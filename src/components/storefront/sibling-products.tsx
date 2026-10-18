@@ -5,17 +5,21 @@ import type { SiblingGroup } from "@/server/services/product-sibling-service";
 /// productos del mismo grupo como cuadritos con su foto, dentro de la
 /// página del producto (como las variaciones de Amazon), para saltar
 /// entre tonos sin volver a la colección. Ver conversación del 2026-10-18.
+/// "otro tono", "otra talla": el artículo según el eje.
+const FEMININE_AXES = new Set(["cantidad", "talla", "opción", "opcion", "referencia", "presentación", "presentacion", "fragancia", "medida"]);
+
 export function SiblingProducts({ siblings, basePath }: { siblings: SiblingGroup; basePath: string }) {
-  const axis = siblings.axis ?? "Opción";
+  const axis = siblings.axis || "Opción";
+  const feminine = FEMININE_AXES.has(axis.toLowerCase());
   return (
     <div className="space-y-2">
       <p className="text-sm text-brand-ink">
         {axis}: <span className="font-semibold">{siblings.current}</span>
       </p>
       <p className="text-xs text-brand-ink-soft">
-        ¿Buscas otro {axis.toLowerCase()} de {siblings.group}? Estas son las demás opciones:
+        ¿Buscas {feminine ? "otra" : "otro"} {axis.toLowerCase()} de {siblings.group}? Estas son las demás opciones:
       </p>
-      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="list" aria-label={`Otros ${axis.toLowerCase()}s de ${siblings.group}`}>
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="list" aria-label={`Otras opciones de ${siblings.group} (${axis.toLowerCase()})`}>
         {siblings.items.map((item) => {
           const box = item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- foto del producto hermano
