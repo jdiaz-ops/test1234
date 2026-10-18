@@ -179,7 +179,9 @@ async function main() {
     const res = await fetchWithWww(url);
     const text = await res.text();
     console.log(`Estado ${res.status} · ${res.headers.get("content-type") ?? "?"} · ${text.length} caracteres · URL final ${res.url}`);
-    console.log(text.slice(0, 3000));
+    // Completo (hasta 300 000 caracteres) para poder estudiar el HTML de
+    // una vitrina de Marcolini desde afuera.
+    console.log(text.slice(0, 300_000));
     console.log("---- fin ----");
     return;
   }
