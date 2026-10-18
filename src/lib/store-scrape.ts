@@ -753,20 +753,39 @@ export function categoriesToCollections(products: ScrapedProduct[]): ShopifyImpo
 // ---------------------------------------------------------------------------
 
 const POLICY_WORDS = /env[ií]o|despacho|cambio|devoluci|garant[ií]a|privacidad|datos personales|t[ée]rminos|condiciones|pol[ií]tica|shipping|refund|return|privacy|terms/i;
-const INFO_WORDS = /nosotros|qui[eé]nes somos|historia|preguntas|faq|about|c[oó]mo comprar|medios de pago/i;
+const INFO_WORDS = /nosotros|qui[eé]nes somos|historia|preguntas|faq|about|c[oó]mo comprar|medios de pago|contacto|contact/i;
 
 export type InfoPageLink = { url: string; label: string; handle: string; kind: "page" | "policy" };
 
-function sameSiteUrl(url: URL, origin: string) {
+export function sameSiteUrl(url: URL, origin: string) {
   const host = (h: string) => h.replace(/^www\./, "").toLowerCase();
   return host(url.hostname) === host(new URL(origin).hostname);
 }
 
-/// Los enlaces de la portada (menú y pie de página) a páginas
-/// informativas: políticas de envío, cambios, privacidad, términos,
-/// quiénes somos, preguntas frecuentes. Es lo que en Shopify serían
-/// /pages/x y /policies/x.
-export function extractInfoPageLinks(html: string, origin: string, max = 12): InfoPageLink[] {
+/// Rutas de la tienda vieja que no son páginas de contenido: carrito,
+/// cuenta, buscador, blog, catálogo (ese va a /collections/all), archivos.
+const NOT_A_PAGE_RE =
+  /^\/(?:cart|carrito|checkout|finalizar-compra|pagar|mi-cuenta|my-account|account|cuenta|login|ingresar|iniciar-sesion|registro|register|wp-admin|wp-login|wp-json|wp-content|feed|tag|etiqueta|author|autor|blog|noticias|news|search|buscar|wishlist|lista-de-deseos|favoritos|compare|comparar|tienda|shop|productos|products|catalogo|cat[aá]logo|collections|pages|policies|apps|password|challenge)(?:\/|$)/i;
+
+/// Una ruta de la tienda vieja que parece una página de contenido
+/// (quiénes somos, políticas, una página armada con el constructor): uno
+/// o dos tramos, sin archivo, y que no es producto, categoría ni nada de
+/// lo de arriba.
+export function isStorePagePath(url: URL): boolean {
+  const path = url.pathname;
+  if (path === "/" || NOT_A_PAGE_RE.test(path) || /\.[a-z0-9]{2,5}$/i.test(path)) return false;
+  if (isProductUrl(url.href) || isCategoryUrl(url.href)) return false;
+  const segments = path.split("/").filter(Boolean);
+  return segments.length >= 1 && segments.length <= 2 && !segments.some((s) => /^\d{4}$/.test(s));
+}
+
+/// Los enlaces de la portada (menú y pie de página) a páginas de
+/// contenido: políticas de envío, cambios, privacidad, términos, quiénes
+/// somos, preguntas frecuentes y también las páginas armadas con el
+/// constructor (una landing de "Semipermanentes", "Sé mayorista",
+/// "Tutoriales"…). Es lo que en Shopify serían /pages/x y /policies/x.
+/// Si hay más que `max`, las políticas e informativas van primero.
+export function extractInfoPageLinks(html: string, origin: string, max = 16): InfoPageLink[] {
   const out: InfoPageLink[] = [];
   const seen = new Set<string>();
   for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
@@ -776,20 +795,22 @@ export function extractInfoPageLinks(html: string, origin: string, max = 12): In
     } catch {
       continue;
     }
-    if (!/^https?:$/.test(url.protocol) || !sameSiteUrl(url, origin) || url.pathname === "/") continue;
+    if (!/^https?:$/.test(url.protocol) || !sameSiteUrl(url, origin)) continue;
     url.search = "";
     url.hash = "";
+    if (!isStorePagePath(url)) continue;
     const href = url.toString();
-    if (seen.has(href) || isProductUrl(href) || isCategoryUrl(href)) continue;
+    if (seen.has(href)) continue;
     const label = decodeHtmlEntities(m[2].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim().slice(0, 100);
+    if (label.length < 2) continue;
     const haystack = `${label} ${decodeURIComponent(url.pathname)}`;
-    const kind = POLICY_WORDS.test(haystack) ? "policy" : INFO_WORDS.test(haystack) ? "page" : null;
-    if (!kind || label.length < 2) continue;
     seen.add(href);
-    out.push({ url: href, label, handle: handleFromUrl(href) || "pagina", kind });
-    if (out.length >= max) break;
+    out.push({ url: href, label, handle: handleFromUrl(href) || "pagina", kind: POLICY_WORDS.test(haystack) ? "policy" : "page" });
   }
-  return out;
+  if (out.length <= max) return out;
+  const important = out.filter((p) => p.kind === "policy" || INFO_WORDS.test(`${p.label} ${p.handle}`));
+  const rest = out.filter((p) => !important.includes(p));
+  return [...important, ...rest].slice(0, max);
 }
 
 /// Un enlace del menú de otra plataforma traducido a la forma de Shopify

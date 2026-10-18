@@ -455,16 +455,17 @@ describe("portada de tiendas que no son Shopify (WooCommerce con Elementor, Gute
         buttonHref: "/collections/all",
         links: [""],
       },
+      // Tres categorías con foto grande: banners de categoría (no la
+      // cuadrícula chica). "Novedades" se arma sola acá.
       {
-        type: "CATEGORY_GRID",
-        title: "Categorías",
+        type: "CATEGORY_BANNERS",
         items: [
           { collectionHandle: "gel-polish", imageUrl: "https://amglow.co/wp-content/uploads/gel-768x768.jpg", label: "Gel polish" },
           { collectionHandle: "bases-y-tops", imageUrl: "https://amglow.co/wp-content/uploads/bases-768x768.jpg", label: "Bases y tops" },
           { collectionHandle: "accesorios", imageUrl: "https://amglow.co/wp-content/uploads/acc-768x768.jpg", label: "Accesorios" },
         ],
       },
-      { type: "FEATURED_PRODUCTS", productHandles: ["gel-polish-rosa-01", "top-coat-brillo", "base-coat"], title: "Novedades" },
+      { type: "NEW_PRODUCTS", title: "Novedades" },
       { type: "VIDEO", url: "https://www.youtube.com/embed/xyz789?feature=oembed", title: "" },
       {
         type: "BANNER",
@@ -543,13 +544,16 @@ describe("portada de tiendas que no son Shopify (WooCommerce con Elementor, Gute
         subtitle: "",
         buttonText: "",
         buttonHref: "",
-        links: ["", "/collections/colecciones"],
+        // El link de un slide a una página de la tienda vieja queda como
+        // /pages/x: se resuelve al importar si esa página también se trajo.
+        links: ["/pages/semipermanente", "/collections/colecciones"],
       },
       { type: "FEATURED_PRODUCTS", productHandles: ["linner-metallic-gel", "opal-gel", "diamond-powder"], title: "" },
       // Banners anchos: cada uno con su link; "/colecciones/" a secas no es
-      // una categoría. El botón "LO NUEVO" solo no arma una cuadrícula.
+      // una categoría sino una página. El botón "LO NUEVO" solo no arma una
+      // cuadrícula.
       { type: "BANNER", images: ["https://rumicol.com/wp-content/uploads/2025/10/Lanzamientos-profecioales.jpg"], title: "", subtitle: "", buttonText: "", buttonHref: "", links: ["/collections/herramientas"] },
-      { type: "BANNER", images: ["https://rumicol.com/wp-content/uploads/2026/04/Sin-titulo-2.jpg"], title: "", subtitle: "", buttonText: "", buttonHref: "", links: [""] },
+      { type: "BANNER", images: ["https://rumicol.com/wp-content/uploads/2026/04/Sin-titulo-2.jpg"], title: "", subtitle: "", buttonText: "", buttonHref: "", links: ["/pages/colecciones"] },
       { type: "BANNER", images: ["https://rumicol.com/wp-content/uploads/2025/10/Decoracion-rumi.jpg"], title: "", subtitle: "", buttonText: "", buttonHref: "", links: ["/collections/decoracion"] },
       {
         type: "INFO_COLUMNS",
@@ -562,6 +566,65 @@ describe("portada de tiendas que no son Shopify (WooCommerce con Elementor, Gute
       },
       // Una ancla ("#mapa") no es un link.
       { type: "BANNER", images: ["https://rumicol.com/wp-content/uploads/2026/06/Distribiodres-mapa-1.webp"], title: "", subtitle: "", buttonText: "", buttonHref: "", links: [""] },
+    ]);
+  });
+
+  it("una página armada con Elementor queda como contenido limpio: fotos con su URL real, sin menús, tarjetas de producto ni textos de lector de pantalla", async () => {
+    const { extractPageContent } = await import("@/lib/shopify-theme");
+    const page = `<html><body><header class="site-header"><nav><a href="/x/">Menú</a></nav></header><main id="content">
+<h1 class="entry-title">Semipermanentes</h1>
+<section class="elementor-section elementor-top-section elementor-hidden-mobile"><div class="elementor-widget elementor-widget-image"><a href="https://rumicol.com/categoria-producto/colecciones/"><img class="lazyload" src="data:image/gif;base64,R0lGOD" data-src="https://rumicol.com/wp-content/uploads/banner-semi.jpg" width="1000" height="400" alt="Colecciones"></a></div></section>
+<section class="elementor-section elementor-top-section elementor-hidden-desktop"><img src="https://rumicol.com/wp-content/uploads/banner-semi-300x120.jpg" width="300" height="120" alt=""></section>
+<section class="elementor-section"><div class="elementor-widget-text-editor"><h2>Esmaltes semipermanentes</h2><p>Fórmula de larga duración, <strong>hasta 21 días</strong>.</p></div></section>
+<div class="woocommerce"><ul class="products columns-4"><li class="product type-product post-1"><a href="https://rumicol.com/producto/rojo/"><img src="https://rumicol.com/wp-content/uploads/rojo.jpg" width="600" height="600" alt="Rojo"><h2>Rojo</h2></a><span class="screen-reader-text">Este producto tiene múltiples variantes.</span><a class="button add_to_cart_button" href="/?add-to-cart=1">Seleccionar opciones</a></li></ul></div>
+<form class="wpcf7"><input type="text"><button>Enviar</button></form>
+<div class="elementor-widget-video"><iframe src="https://www.youtube.com/embed/abc"></iframe></div>
+<footer class="site-footer"><p>pie</p></footer></main></body></html>`;
+    const content = extractPageContent(page, "https://rumicol.com/");
+    expect(content?.title).toBe("Semipermanentes");
+    const body = content!.bodyHtml;
+    expect(body).toContain('<img src="https://rumicol.com/wp-content/uploads/banner-semi.jpg" alt="Colecciones">');
+    expect(body).toContain("<h2>Esmaltes semipermanentes</h2>");
+    expect(body).toContain("<strong>hasta 21 días</strong>");
+    expect(body).toContain('<iframe src="https://www.youtube.com/embed/abc">');
+    for (const gone of ["banner-semi-300x120", "Seleccionar opciones", "múltiples variantes", "rojo.jpg", "wpcf7", "Menú", "<footer", "<nav"]) {
+      expect(body).not.toContain(gone);
+    }
+  });
+
+  it("la paleta por defecto de Elementor no cuenta como colores de la marca, y la barra superior cuenta como anuncio", async () => {
+    const { extractColors, extractAnnouncements } = await import("@/lib/shopify-theme");
+    const stock = `<style>.elementor-kit-7{--e-global-color-primary:#6EC1E4;--e-global-color-secondary:#54595F;--e-global-color-text:#7A7A7A;--e-global-color-accent:#61CE70}</style>`;
+    expect(extractColors(stock)).toBeNull();
+    const custom = `<style>.elementor-kit-7{--e-global-color-primary:#D81B60;--e-global-color-secondary:#54595F;--e-global-color-text:#222222;--e-global-color-accent:#D81B60}</style>`;
+    expect(extractColors(custom)).toMatchObject({ botones: "#d81b60" });
+    const bar = `<div class="top-bar"><span>Envío gratis desde $150.000</span></div><div class="promo-bar"><p>Contra entrega solo en Medellín</p></div>`;
+    expect(extractAnnouncements(bar)).toEqual(["Envío gratis desde $150.000", "Contra entrega solo en Medellín"]);
+  });
+
+  it("reconoce ofertas, catálogo, galería, marcas e Instagram", async () => {
+    const { extractHomeSections } = await import("@/lib/shopify-theme");
+    const many = Array.from({ length: 14 }, (_, i) => `<li class="product"><a href="https://amglow.co/producto/tono-${i}/"><h2>Tono ${i}</h2></a></li>`).join("");
+    const html = `<html><body><main>
+<div class="wp-block-woocommerce-product-on-sale"><h2>Ofertas de la semana</h2><ul class="wc-block-grid__products"><li class="wc-block-grid__product"><a href="https://amglow.co/producto/top-coat/">Top coat</a></li><li class="wc-block-grid__product"><a href="https://amglow.co/producto/base/">Base</a></li></ul></div>
+<section class="catalogo"><h2>Todos los productos</h2><ul class="products">${many}</ul></section>
+<figure class="wp-block-gallery"><img src="https://amglow.co/wp-content/uploads/g1.jpg" width="600" height="600"><img src="https://amglow.co/wp-content/uploads/g2.jpg" width="600" height="600"><img src="https://amglow.co/wp-content/uploads/g3.jpg" width="600" height="600"></figure>
+<div class="brands-carousel"><a href="https://marca1.com"><img src="https://amglow.co/wp-content/uploads/m1.png" width="200" height="100"></a><img src="https://amglow.co/wp-content/uploads/m2.png" width="200" height="100"><img src="https://amglow.co/wp-content/uploads/m3.png" width="200" height="100"></div>
+<section><h2>Síguenos en Instagram</h2><p>@amglow.co</p></section>
+</main></body></html>`;
+    expect(extractHomeSections(html, "https://amglow.co/")).toEqual([
+      { type: "ON_SALE_PRODUCTS", title: "Ofertas de la semana" },
+      { type: "PRODUCT_CATALOG", title: "Todos los productos" },
+      { type: "IMAGE_CAROUSEL", images: ["https://amglow.co/wp-content/uploads/g1.jpg", "https://amglow.co/wp-content/uploads/g2.jpg", "https://amglow.co/wp-content/uploads/g3.jpg"] },
+      {
+        type: "BRAND_CAROUSEL",
+        items: [
+          { imageUrl: "https://amglow.co/wp-content/uploads/m1.png", link: "https://marca1.com/" },
+          { imageUrl: "https://amglow.co/wp-content/uploads/m2.png", link: "" },
+          { imageUrl: "https://amglow.co/wp-content/uploads/m3.png", link: "" },
+        ],
+      },
+      { type: "INSTAGRAM_CTA", title: "Síguenos en Instagram", description: "" },
     ]);
   });
 

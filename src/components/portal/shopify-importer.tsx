@@ -153,8 +153,15 @@ const SECTION_LABEL: Record<ShopifyHomeSection["type"], string> = {
   FEATURED_COLLECTION: "Colección destacada",
   TEXT: "Texto",
   CATEGORY_GRID: "Categorías",
+  CATEGORY_BANNERS: "Banners de categorías",
   VIDEO: "Video",
   FEATURED_PRODUCTS: "Productos destacados",
+  NEW_PRODUCTS: "Productos nuevos",
+  ON_SALE_PRODUCTS: "Productos en oferta",
+  PRODUCT_CATALOG: "Catálogo de productos",
+  IMAGE_CAROUSEL: "Galería de fotos",
+  BRAND_CAROUSEL: "Marcas",
+  INSTAGRAM_CTA: "Instagram",
   INFO_COLUMNS: "Columnas informativas",
 };
 
@@ -174,6 +181,18 @@ function sectionSummary(section: ShopifyHomeSection) {
       return `${SECTION_LABEL.FEATURED_PRODUCTS} (${section.productHandles.length})`;
     case "INFO_COLUMNS":
       return `${SECTION_LABEL.INFO_COLUMNS} (${section.items.length})`;
+    case "CATEGORY_BANNERS":
+      return `${SECTION_LABEL.CATEGORY_BANNERS} (${section.items.length})`;
+    case "NEW_PRODUCTS":
+    case "ON_SALE_PRODUCTS":
+    case "PRODUCT_CATALOG":
+      return `${SECTION_LABEL[section.type]}${section.title ? ` «${section.title}»` : ""}`;
+    case "IMAGE_CAROUSEL":
+      return `${SECTION_LABEL.IMAGE_CAROUSEL} (${section.images.length} fotos)`;
+    case "BRAND_CAROUSEL":
+      return `${SECTION_LABEL.BRAND_CAROUSEL} (${section.items.length})`;
+    case "INSTAGRAM_CTA":
+      return SECTION_LABEL.INSTAGRAM_CTA;
   }
 }
 
@@ -533,7 +552,7 @@ export function ShopifyImporter({
     }
 
     notes.unshift(
-      `Esta tienda es ${PLATFORM_LABEL[platform]}: se leyeron los productos, sus categorías${pages.length > 0 ? ", las páginas informativas" : ""}${theme ? ", el diseño y el menú" : ""}. Los fletes solo se pueden leer de tiendas Shopify: configúralos en Envíos.`,
+      `Esta tienda es ${PLATFORM_LABEL[platform]}: se leyeron los productos, sus categorías${pages.length > 0 ? `, ${pages.length} páginas (políticas, informativas y las armadas con el constructor)` : ""}${theme ? ", el diseño, el menú y la portada" : ""}. Los fletes solo se pueden leer de tiendas Shopify: configúralos en Envíos.`,
     );
     if (theme && !theme.colors) notes.push("No reconocimos los colores del tema: ajústalos en Diseño.");
     if (failedSteps > 0) notes.push(`${failedSteps} partes de la tienda no se pudieron leer.`);
@@ -930,6 +949,11 @@ export function ShopifyImporter({
           fillGaps: true,
           collectionSlugByHandle,
           pageSlugByHandle: Object.fromEntries(pageLinks.map((l) => [l.handle, l.slug])),
+          // Los links de las páginas recién creadas que apuntaban a la
+          // tienda vieja se reescriben hacia acá (ya existen productos,
+          // colecciones y páginas).
+          storeUrl: extras.storeUrl,
+          relinkPages: pageLinks.length > 0,
         });
         const rows = body.sections as { action: string }[];
         result.home = {

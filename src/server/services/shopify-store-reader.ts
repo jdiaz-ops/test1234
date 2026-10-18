@@ -309,15 +309,21 @@ export async function readShopifyStorefront(
   if (/<form[^>]+action=["'][^"']*\/password["']/i.test(html) && /name=["']password["']/i.test(html)) {
     throw new ShopifyStoreError(PASSWORD_ERROR);
   }
-  let theme = parseShopifyStorefront(html, storeUrl);
+  const fromHtml = parseShopifyStorefront(html, storeUrl);
+  let theme = fromHtml;
   // Las fotos de un slider de Elementor viven en su CSS (".elementor-
   // repeater-item-x .swiper-slide-bg{background-image:…}"), no en el HTML.
   const slideId = html.match(/elementor-repeater-item-([a-z0-9]+)\s+swiper-slide\b/i)?.[1];
-  if (!theme.colors || !theme.fonts || slideId) {
+  if (!fromHtml.colors || !fromHtml.fonts || slideId) {
     // Temas de WordPress (Elementor, Astra…) guardan colores y letra en
-    // sus propios .css: se bajan unas pocas hojas y se vuelve a leer.
+    // sus propios .css: se bajan unas pocas hojas y se vuelve a leer. Lo
+    // que ya se leyó del HTML (la letra del link de Google Fonts, por
+    // ejemplo) manda sobre lo que digan las hojas.
     const css = await readStylesheets(fetchImpl, storeUrl, html, slideId ? { until: `elementor-repeater-item-${slideId}`, max: 10 } : undefined);
-    if (css) theme = parseShopifyStorefront(html, storeUrl, css);
+    if (css) {
+      const withCss = parseShopifyStorefront(html, storeUrl, css);
+      theme = { ...withCss, colors: fromHtml.colors ?? withCss.colors, fonts: fromHtml.fonts ?? withCss.fonts };
+    }
   }
   return { storeUrl, theme };
 }

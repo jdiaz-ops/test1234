@@ -443,6 +443,93 @@ describe.skipIf(!hasDb)("páginas, portada, fotos de variante y Google Analytics
     ]);
   });
 
+  it("crea novedades, ofertas, catálogo, galería, marcas, Instagram y banners de categoría, y reescribe los links de las páginas importadas", async () => {
+    const { importShopifySections } = await import("@/server/services/shopify-sections-import-service");
+    const { importShopifyPages } = await import("@/server/services/shopify-pages-import-service");
+    const { listStorefrontSections } = await import("@/server/services/storefront-section-service");
+    const brand = await createBrand();
+    await importShopifyProducts(brand.id, [product("rojo", "Rojo"), product("nude", "Nude")]);
+    await importShopifyCollections(brand.id, {
+      collections: [
+        { handle: "esmaltes", name: "Esmaltes", productHandles: ["rojo", "nude"] },
+        { handle: "decoracion", name: "Decoración", productHandles: ["rojo"] },
+      ],
+    });
+    const pages = await importShopifyPages(brand.id, [
+      {
+        handle: "semipermanente",
+        title: "Semipermanentes",
+        body: `<p><a href="https://rumicol.com/producto/rojo/">Rojo</a> <a href="https://rumicol.com/categoria-producto/decoracion/">Decoración</a> <a href="https://rumicol.com/se-mayorista/">Mayorista</a> <a href="https://rumicol.com/tutoriales/">Tutoriales</a> <a href="https://wa.link/abc">WhatsApp</a></p>`,
+        kind: "page",
+      },
+      { handle: "tutoriales", title: "Tutoriales", body: "<p>Videos</p>", kind: "page" },
+    ]);
+    const pageSlugByHandle = Object.fromEntries(pages.pages.map((p) => [p.handle, p.slug]));
+
+    const result = await importShopifySections(brand.id, {
+      sections: [
+        { type: "BANNER", images: ["https://rumicol.com/wp-content/uploads/slide.jpg"], title: "", subtitle: "", buttonText: "", buttonHref: "", links: ["/pages/semipermanente"] },
+        { type: "NEW_PRODUCTS", title: "Lo nuevo" },
+        { type: "ON_SALE_PRODUCTS", title: "" },
+        { type: "PRODUCT_CATALOG", title: "Todos los productos" },
+        { type: "IMAGE_CAROUSEL", images: ["https://rumicol.com/wp-content/uploads/g1.jpg", "https://rumicol.com/wp-content/uploads/g2.jpg"] },
+        { type: "BRAND_CAROUSEL", items: [{ imageUrl: "https://rumicol.com/wp-content/uploads/m1.png", link: "https://marca1.com/" }] },
+        { type: "INSTAGRAM_CTA", title: "Síguenos", description: "@rumi" },
+        {
+          type: "CATEGORY_BANNERS",
+          items: [
+            { collectionHandle: "esmaltes", imageUrl: "https://rumicol.com/wp-content/uploads/c1.jpg", label: "Esmaltes" },
+            { collectionHandle: "nada", imageUrl: null, label: "No existe" },
+            { collectionHandle: "decoracion", imageUrl: null, label: "" },
+          ],
+        },
+      ],
+      replace: true,
+      collectionSlugByHandle: { esmaltes: "esmaltes", decoracion: "decoracion" },
+      pageSlugByHandle,
+      fillGaps: true,
+      storeUrl: "https://rumicol.com/",
+      relinkPages: true,
+    });
+    expect(result.sections.map((s) => [s.type, s.action])).toEqual([
+      ["BANNER", "created"],
+      ["NEW_PRODUCTS", "created"],
+      ["ON_SALE_PRODUCTS", "created"],
+      ["PRODUCT_CATALOG", "created"],
+      ["IMAGE_CAROUSEL", "created"],
+      ["BRAND_CAROUSEL", "created"],
+      ["INSTAGRAM_CTA", "created"],
+      ["CATEGORY_BANNERS", "created"],
+    ]);
+    expect(result.basic).toBe(0);
+    expect(result.relinked).toBe(1);
+    const sections = await listStorefrontSections(brand.id);
+    const esmaltes = await prisma.brandCollection.findFirstOrThrow({ where: { brandId: brand.id, slug: "esmaltes" } });
+    const deco = await prisma.brandCollection.findFirstOrThrow({ where: { brandId: brand.id, slug: "decoracion" } });
+    expect(sections[0].config).toMatchObject({ slides: [{ imageUrl: "https://rumicol.com/wp-content/uploads/slide.jpg", link: `/pagina/${pageSlugByHandle.semipermanente}` }] });
+    expect(sections[1].config).toMatchObject({ title: "Lo nuevo", display: "carousel" });
+    expect(sections[2].config).toMatchObject({ title: "Ofertas", source: "auto" });
+    expect(sections[3].config).toMatchObject({ title: "Todos los productos" });
+    expect(sections[4].config).toMatchObject({ images: ["https://rumicol.com/wp-content/uploads/g1.jpg", "https://rumicol.com/wp-content/uploads/g2.jpg"] });
+    expect(sections[5].config).toMatchObject({ items: [{ imageUrl: "https://rumicol.com/wp-content/uploads/m1.png", link: "https://marca1.com/" }] });
+    expect(sections[6].config).toMatchObject({ title: "Síguenos", description: "@rumi" });
+    expect((sections[7].config as { items: { show: boolean; collectionId: string | null }[] }).items.map((i) => [i.show, i.collectionId])).toEqual([
+      [true, esmaltes.id],
+      [true, deco.id],
+      [false, null],
+    ]);
+    // La página quedó con links de Marcolini: producto, colección y la
+    // otra página importada; "Sé mayorista" no se importó y pierde el link;
+    // WhatsApp se queda.
+    const semi = await prisma.storePage.findFirstOrThrow({ where: { brandId: brand.id, slug: pageSlugByHandle.semipermanente } });
+    const rojo = await prisma.product.findFirstOrThrow({ where: { brandId: brand.id, externalId: "shopify-csv-rojo" } });
+    expect(semi.body).toContain(`href="/${rojo.slug}"`);
+    expect(semi.body).toContain('href="/coleccion/decoracion"');
+    expect(semi.body).toContain(`href="/pagina/${pageSlugByHandle.tutoriales}"`);
+    expect(semi.body).not.toContain("se-mayorista");
+    expect(semi.body).toContain('href="https://wa.link/abc"');
+  });
+
   it("las fotos de la portada y de las páginas también se copian a Marcolini", async () => {
     const { rehostImages, countExternalImages, imageUrlsInConfig } = await import("@/server/services/image-rehost-service");
     const { createStorefrontSection, listStorefrontSections } = await import("@/server/services/storefront-section-service");

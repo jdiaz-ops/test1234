@@ -157,18 +157,49 @@ describe("al shape del importador de Shopify", () => {
 });
 
 describe("páginas y menú de otras plataformas", () => {
-  it("encuentra las páginas informativas de la portada", () => {
-    const html = `<footer>
+  it("encuentra las páginas de contenido de la portada: políticas, informativas y las armadas con el constructor", () => {
+    const html = `<nav><a href="/semipermanente/">Semipermanentes</a><a href="/product-category/gorras/">Gorras</a><a href="/tienda/">Tienda</a><a href="/blog/">Blog</a><a href="/carrito/">Carrito</a><a href="/mi-cuenta/">Mi cuenta</a></nav>
+    <footer>
       <a href="/politica-de-envios/">Política de envíos</a>
       <a href="https://tienda.example.com/quienes-somos">Quiénes somos</a>
       <a href="/productos/gorra/">Gorra</a>
       <a href="https://instagram.com/x">Instagram</a>
       <a href="/contacto">Contacto</a>
+      <a href="/catalogo.pdf">Catálogo PDF</a>
+      <a href="/2024/05/entrada-del-blog/">Entrada</a>
+      <a href="/semipermanente/#top">Repetida</a>
     </footer>`;
     expect(extractInfoPageLinks(html, ORIGIN)).toEqual([
+      { url: `${ORIGIN}/semipermanente/`, label: "Semipermanentes", handle: "semipermanente", kind: "page" },
       { url: `${ORIGIN}/politica-de-envios/`, label: "Política de envíos", handle: "politica-de-envios", kind: "policy" },
       { url: `${ORIGIN}/quienes-somos`, label: "Quiénes somos", handle: "quienes-somos", kind: "page" },
+      { url: `${ORIGIN}/contacto`, label: "Contacto", handle: "contacto", kind: "page" },
     ]);
+    // Con más de las que caben, las políticas e informativas van primero.
+    const many = Array.from({ length: 20 }, (_, i) => `<a href="/landing-${i}/">Landing ${i}</a>`).join("") + `<a href="/politica-de-privacidad/">Privacidad</a>`;
+    expect(extractInfoPageLinks(many, ORIGIN, 5).map((p) => p.handle)).toEqual(["politica-de-privacidad", "landing-0", "landing-1", "landing-2", "landing-3"]);
+  });
+
+  it("reescribe los links de la tienda vieja hacia Marcolini y quita los que no existen acá", async () => {
+    const { remapStoreLinks } = await import("@/lib/store-link-map");
+    const resolvers = {
+      storeUrl: ORIGIN,
+      product: (h: string) => (h === "gorra" ? "gorra-negra" : null),
+      collection: (h: string) => (h === "gorras" ? "gorras" : null),
+      page: (h: string) => (h === "quienes-somos" ? "nosotros" : h === "shipping-policy" ? "envios" : null),
+    };
+    const html = `<p><a href="/productos/gorra/">Gorra</a> <a href="https://tienda.example.com/producto/otra/">Otra</a>
+<a href="/product-category/gorras/">Gorras</a> <a href="/categoria-producto/no-existe/">No existe</a> <a href="/collections/all">Todo</a>
+<a href="/quienes-somos">Nosotros</a> <a href="/pages/quienes-somos">Nosotros 2</a> <a href="/policies/shipping-policy">Envíos</a> <a href="/se-mayorista/">Mayorista</a>
+<a href="/tienda/">Tienda</a> <a href='/'>Inicio</a> <a href="/?add-to-cart=12">Agregar</a> <a href="/carrito/">Carrito</a>
+<a href="https://wa.me/573001234567">WhatsApp</a> <a href="#arriba">Arriba</a> <a href="mailto:hola@x.com">Correo</a></p>`;
+    const { html: out, changed } = remapStoreLinks(html, resolvers);
+    expect(out).toBe(`<p><a href="/gorra-negra">Gorra</a> <a>Otra</a>
+<a href="/coleccion/gorras">Gorras</a> <a href="/coleccion">No existe</a> <a href="/coleccion">Todo</a>
+<a href="/pagina/nosotros">Nosotros</a> <a href="/pagina/nosotros">Nosotros 2</a> <a href="/pagina/envios">Envíos</a> <a>Mayorista</a>
+<a href="/coleccion">Tienda</a> <a href='/'>Inicio</a> <a>Agregar</a> <a>Carrito</a>
+<a href="https://wa.me/573001234567">WhatsApp</a> <a href="#arriba">Arriba</a> <a href="mailto:hola@x.com">Correo</a></p>`);
+    expect(changed).toBe(13);
   });
 
   it("traduce el menú a la forma de Shopify y no deja enlaces a la tienda vieja", () => {

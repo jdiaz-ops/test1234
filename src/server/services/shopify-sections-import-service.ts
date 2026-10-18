@@ -5,6 +5,8 @@ import { createStorefrontSection, StorefrontSectionError } from "@/server/servic
 import { EXTERNAL_ID_PREFIX } from "@/server/services/shopify-csv-import-service";
 import { completeHomeSections } from "@/server/services/storefront-default-home-service";
 import { slugify } from "@/lib/shopify-csv";
+import { remapStoreLinks } from "@/lib/store-link-map";
+import { sanitizeProductDescription } from "@/lib/sanitize-html";
 
 /// Arma la página de inicio de Mi tienda con las secciones leídas de la
 /// portada de Shopify (ver extractHomeSections en shopify-theme.ts):
@@ -35,6 +37,11 @@ export async function importShopifySections(
     collectionSlugByHandle: Record<string, string>;
     pageSlugByHandle?: Record<string, string>;
     fillGaps?: boolean;
+    /// Con `storeUrl`, los links de las páginas recién importadas que
+    /// apuntaban a la tienda vieja se reescriben hacia acá (ver
+    /// store-link-map.ts).
+    storeUrl?: string;
+    relinkPages?: boolean;
   },
 ) {
   const [products, collections] = await Promise.all([
@@ -56,13 +63,18 @@ export async function importShopifySections(
   // Por handle; si no, por el nombre que mostraba la tienda vieja (en una
   // tienda WooCommerce el slug de la URL y el nombre de la categoría
   // pueden no coincidir).
-  const collectionId = (handle: string, label = "") => {
+  const collectionSlug = (handle: string, label = "") => {
     const slug = collectionSlugByHandle.get(handle.toLowerCase());
-    const byHandle = slug ? collectionIdBySlug.get(slug) : null;
-    if (byHandle) return byHandle;
+    if (slug && collectionIdBySlug.has(slug)) return slug;
     const name = label.trim();
     if (!name) return null;
-    return collectionIdBySlug.get(slugify(name)) ?? collectionIdByName.get(nameKey(name)) ?? null;
+    if (collectionIdBySlug.has(slugify(name))) return slugify(name);
+    const id = collectionIdByName.get(nameKey(name));
+    return id ? (collections.find((c) => c.id === id)?.slug ?? null) : null;
+  };
+  const collectionId = (handle: string, label = "") => {
+    const slug = collectionSlug(handle, label);
+    return slug ? (collectionIdBySlug.get(slug) ?? null) : null;
   };
   const link = (href: string) => (href ? (mapShopifyMenuHref(href, { collectionSlugByHandle, productSlugByHandle, pageSlugByHandle }) ?? "") : "");
 
@@ -123,6 +135,45 @@ export async function importShopifySections(
           created = { type: "FEATURED_PRODUCTS", config: { title: section.title.slice(0, 80) || "Destacados", display: "carousel", productIds } };
           break;
         }
+        case "CATEGORY_BANNERS": {
+          const items = section.items
+            .map((item) => ({ id: collectionId(item.collectionHandle, item.label), imageUrl: item.imageUrl }))
+            .filter((item): item is { id: string; imageUrl: string | null } => Boolean(item.id))
+            .filter((item, i, list) => list.findIndex((other) => other.id === item.id) === i)
+            .slice(0, 3);
+          if (items.length === 0) break;
+          const padded = Array.from({ length: 3 }, (_, i) =>
+            items[i] ? { show: true, collectionId: items[i].id, imageUrl: items[i].imageUrl } : { show: false, collectionId: null, imageUrl: null },
+          );
+          created = { type: "CATEGORY_BANNERS", config: { extendFullWidth: false, items: padded } };
+          break;
+        }
+        case "NEW_PRODUCTS":
+          created = { type: "NEW_PRODUCTS", config: { title: section.title.slice(0, 80) || "Novedades", display: "carousel" } };
+          break;
+        case "ON_SALE_PRODUCTS":
+          created = {
+            type: "ON_SALE_PRODUCTS",
+            config: { title: section.title.slice(0, 80) || "Ofertas", display: "carousel", source: "auto", collectionId: null, productIds: [] },
+          };
+          break;
+        case "PRODUCT_CATALOG":
+          created = { type: "PRODUCT_CATALOG", config: { title: section.title.slice(0, 120) } };
+          break;
+        case "IMAGE_CAROUSEL":
+          if (section.images.length === 0) break;
+          created = { type: "IMAGE_CAROUSEL", config: { images: section.images.slice(0, 8) } };
+          break;
+        case "BRAND_CAROUSEL":
+          if (section.items.length === 0) break;
+          created = { type: "BRAND_CAROUSEL", config: { items: section.items.slice(0, 12).map((item) => ({ imageUrl: item.imageUrl, link: link(item.link) })) } };
+          break;
+        case "INSTAGRAM_CTA":
+          created = {
+            type: "INSTAGRAM_CTA",
+            config: { title: section.title.slice(0, 80) || "Síguenos en Instagram", description: section.description.slice(0, 160) },
+          };
+          break;
         case "INFO_COLUMNS": {
           const items = Array.from({ length: 4 }, (_, i) => {
             const column = section.items[i];
@@ -157,6 +208,29 @@ export async function importShopifySections(
     }
   }
 
+  // Los links de las páginas importadas que apuntaban a la tienda vieja
+  // (productos, categorías, otras páginas) se reescriben hacia acá.
+  let relinked = 0;
+  if (data.relinkPages && data.storeUrl && pageSlugByHandle.size > 0) {
+    const resolvers = {
+      storeUrl: data.storeUrl,
+      product: (handle: string) => productSlugByHandle.get(handle) ?? null,
+      collection: (handle: string) => collectionSlug(handle),
+      page: (handle: string) => pageSlugByHandle.get(handle) ?? null,
+    };
+    const pages = await prisma.storePage.findMany({
+      where: { brandId, slug: { in: Array.from(new Set(pageSlugByHandle.values())) } },
+      select: { id: true, body: true },
+    });
+    for (const page of pages) {
+      if (!page.body) continue;
+      const { html, changed } = remapStoreLinks(page.body, resolvers);
+      if (changed === 0) continue;
+      await prisma.storePage.update({ where: { id: page.id }, data: { body: sanitizeProductDescription(html) } });
+      relinked++;
+    }
+  }
+
   // Que la portada nunca quede vacía ni sin productos.
   let basic = 0;
   if (data.fillGaps) {
@@ -167,5 +241,5 @@ export async function importShopifySections(
       basic = home.created.length;
     }
   }
-  return { sections: results, removed, basic };
+  return { sections: results, removed, basic, relinked };
 }

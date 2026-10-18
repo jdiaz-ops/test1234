@@ -38,6 +38,16 @@ const sectionSchema = z.discriminatedUnion("type", [
       .array(z.object({ title: z.string().max(120), description: z.string().max(300), imageUrl: url.nullable().optional(), link: z.string().max(500).optional() }))
       .max(4),
   }),
+  z.object({ type: z.literal("NEW_PRODUCTS"), title: z.string().max(200) }),
+  z.object({ type: z.literal("ON_SALE_PRODUCTS"), title: z.string().max(200) }),
+  z.object({ type: z.literal("PRODUCT_CATALOG"), title: z.string().max(200) }),
+  z.object({ type: z.literal("IMAGE_CAROUSEL"), images: z.array(url).max(8) }),
+  z.object({ type: z.literal("BRAND_CAROUSEL"), items: z.array(z.object({ imageUrl: url, link: z.string().max(500) })).max(12) }),
+  z.object({ type: z.literal("INSTAGRAM_CTA"), title: z.string().max(200), description: z.string().max(500) }),
+  z.object({
+    type: z.literal("CATEGORY_BANNERS"),
+    items: z.array(z.object({ collectionHandle: handle, imageUrl: url.nullable(), label: z.string().max(80) })).max(3),
+  }),
 ]);
 
 const bodySchema = z.object({
@@ -47,6 +57,10 @@ const bodySchema = z.object({
   collectionSlugByHandle: z.record(z.string().max(255), z.string().max(120)).default({}),
   pageSlugByHandle: z.record(z.string().max(255), z.string().max(120)).optional(),
   fillGaps: z.boolean().default(false),
+  /// Con `storeUrl`, los links de las páginas recién importadas que
+  /// apuntaban a la tienda vieja se reescriben hacia acá.
+  storeUrl: z.string().max(500).optional(),
+  relinkPages: z.boolean().default(false),
 });
 
 export async function POST(req: Request) {

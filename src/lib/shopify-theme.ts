@@ -1,6 +1,6 @@
 import { GOOGLE_FONT_OPTIONS } from "@/lib/brand-theme";
 import { decodeHtmlEntities } from "@/lib/html-entities";
-import { categoryNameFromUrl, handleFromUrl, isCategoryUrl, isProductUrl, menuHrefToShopify } from "@/lib/store-scrape";
+import { categoryNameFromUrl, handleFromUrl, isCategoryUrl, isProductUrl, isStorePagePath, menuHrefToShopify } from "@/lib/store-scrape";
 
 /// Lee el HTML público de la portada de una tienda Shopify y saca lo que
 /// sirve para dejar "Diseño" y el menú armados sin que la marca mande
@@ -109,8 +109,17 @@ export type ShopifyHomeSection =
   | { type: "FEATURED_COLLECTION"; collectionHandle: string; title: string }
   | { type: "TEXT"; heading: string; body: string }
   | { type: "CATEGORY_GRID"; title: string; items: { collectionHandle: string; imageUrl: string | null; label: string }[] }
+  /// Dos o tres categorías con foto grande (formato banner).
+  | { type: "CATEGORY_BANNERS"; items: { collectionHandle: string; imageUrl: string | null; label: string }[] }
   | { type: "VIDEO"; url: string; title: string }
   | { type: "FEATURED_PRODUCTS"; productHandles: string[]; title: string }
+  /// Listas que acá se arman solas: novedades, ofertas, todo el catálogo.
+  | { type: "NEW_PRODUCTS"; title: string }
+  | { type: "ON_SALE_PRODUCTS"; title: string }
+  | { type: "PRODUCT_CATALOG"; title: string }
+  | { type: "IMAGE_CAROUSEL"; images: string[] }
+  | { type: "BRAND_CAROUSEL"; items: { imageUrl: string; link: string }[] }
+  | { type: "INSTAGRAM_CTA"; title: string; description: string }
   /// `imageUrl`: cajitas que son una imagen (ícono con el texto adentro).
   | { type: "INFO_COLUMNS"; items: { title: string; description: string; imageUrl?: string | null; link?: string }[] };
 
@@ -304,6 +313,8 @@ function luminance(hex: string) {
   return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
 }
 
+const ELEMENTOR_STOCK_COLORS = new Set(["#6ec1e4", "#61ce70", "#54595f"]);
+
 export function extractColors(html: string): ShopifyThemeColors | null {
   const props = collectCustomProps(html);
   let fondo = firstColor(props, BACKGROUND_PROPS);
@@ -326,6 +337,10 @@ export function extractColors(html: string): ShopifyThemeColors | null {
   botones = botones ?? principal ?? texto;
   principal = principal ?? botones;
   const secundario = fondo2 && fondo2 !== fondo ? fondo2 : tintHex(principal, 0.86);
+  // La paleta por defecto de Elementor (azul #6ec1e4, verde #61ce70, gris
+  // #7a7a7a) sale en cualquier sitio que no la cambió: no es la de la
+  // marca, y es mejor no traer colores que traer esos.
+  if (ELEMENTOR_STOCK_COLORS.has((botones ?? "").toLowerCase()) || ELEMENTOR_STOCK_COLORS.has((principal ?? "").toLowerCase())) return null;
   return { fondo, texto, botones, principal, secundario };
 }
 
@@ -868,9 +883,12 @@ export function extractAnnouncements(html: string): string[] {
     seen.add(key);
     texts.push(text);
   };
-  for (const match of html.matchAll(/<(span|p|a)\b[^>]*class=["'][^"']*announcement[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi)) push(match[2]);
+  // Shopify la llama "announcement"; en WordPress y otras suele ser una
+  // barra superior (topbar, promo-bar, marquee, ticker).
+  const bar = "(?:announcement|topbar|top-bar|promo-bar|header-top|ticker|notice-bar|site-notice|marquee)";
+  for (const match of html.matchAll(new RegExp(`<(span|p|a)\\b[^>]*class=["'][^"']*${bar}[^"']*["'][^>]*>([\\s\\S]*?)<\\/\\1>`, "gi"))) push(match[2]);
   if (texts.length === 0) {
-    for (const match of html.matchAll(/<div\b[^>]*class=["'][^"']*announcement[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi)) push(match[1]);
+    for (const match of html.matchAll(new RegExp(`<div\\b[^>]*class=["'][^"']*${bar}[^"']*["'][^>]*>([\\s\\S]*?)<\\/div>`, "gi"))) push(match[1]);
   }
   return texts.slice(0, 4);
 }
@@ -989,7 +1007,10 @@ export function extractPageContent(html: string, baseUrl: string): ShopifyPageCo
       if (body) break;
     }
   }
-  if (body == null) body = scope.replace(/<h1\b[\s\S]*?<\/h1>/i, "");
+  // Sin bloque de texto enriquecido (una página armada con Elementor u
+  // otro constructor): se limpia como la portada — sin menús, formularios,
+  // duplicados para celular ni avisos — y las fotos quedan con su URL real.
+  if (body == null) body = cleanBuilderContent(scope.replace(/<h1\b[\s\S]*?<\/h1>/i, ""), baseUrl);
   body = absolutizeUrls(
     body
       .replace(/<script\b[\s\S]*?<\/script>/gi, "")
@@ -1333,6 +1354,14 @@ const BANNER_TOKEN_RE =
 const SECTION_TOKEN_RE = /\b(?:elementor-top-section|elementor-section|e-con|e-container|et_pb_section|wp-block-group|vc_row|section|row)\b/i;
 const PRODUCT_LIST_RE =
   /\b(?:products|wc-block-grid|wc-block-product-template|wp-block-woocommerce-product-collection|wp-block-woocommerce-product-new|wp-block-woocommerce-product-best-sellers|wp-block-woocommerce-product-on-sale|wp-block-woocommerce-product-top-rated|wp-block-woocommerce-handpicked-products|wp-block-woocommerce-products-by-attribute|wp-block-woocommerce-product-category|wp-block-woocommerce-product-categories|wc-block-product-categories|elementor-widget-woocommerce-products|elementor-widget-wc-products|elementor-widget-woocommerce-product-categories|et_pb_shop|products?-(?:grid|carousel|slider|list)|woocommerce-products|js-product-table|product-table|item-product-list)\b/i;
+const INSTAGRAM_RE = /\b(?:instagram|insta-feed|instagram-feed|sbi_|sb_instagram|elfsight-app|elementor-widget-instagram|wp-block-instagram)\b/i;
+const BRAND_ROW_RE = /\b(?:brands?|logos?|marcas|clients?|clientes|partners?|aliados|logo-carousel|brand-carousel|client-logos)\b/i;
+const GALLERY_RE =
+  /\b(?:gallery|galeria|wp-block-gallery|elementor-widget-gallery|elementor-widget-image-gallery|elementor-widget-image-carousel|elementor-widget-media-carousel|photo-gallery|lookbook)\b/i;
+const NEW_PRODUCTS_RE = /\bnuevo|novedad|new arrival|reci[eé]n llegad|lanzamiento|\bnew\b|lo [úu]ltimo/i;
+const ON_SALE_RE = /oferta|descuento|promoci|\bsale\b|rebaja|outlet|liquidaci/i;
+const CATALOG_TITLE_RE = /todos|tienda|shop|cat[aá]logo|productos|products/i;
+
 /// Tarjetas de producto o categoría (WooCommerce, sus bloques, Essential
 /// Addons): aunque vivan en un swiper no son banners.
 const PRODUCT_CARD_RE = /\b(?:product|type-product|product-category|product-item|product-card|wc-block-grid__product|item-product)\b/i;
@@ -1412,7 +1441,37 @@ function looksLikeText(alt: string) {
 function mapHref(href: string | null, baseUrl: string) {
   if (!href || href.trim().startsWith("#")) return "";
   const mapped = menuHrefToShopify(href, baseUrl, new Set());
-  return mapped && mapped !== "/" ? mapped.slice(0, 300) : "";
+  if (mapped && mapped !== "/") return mapped.slice(0, 300);
+  // Una página de la tienda vieja: queda enlazada si también se importa
+  // (ver pageSlugByHandle en shopify-sections-import-service.ts).
+  const url = sameSite(href, baseUrl);
+  return url && isStorePagePath(url) ? `/pages/${handleFromUrl(url.href)}`.slice(0, 300) : "";
+}
+
+/// El contenido de una página armada con un constructor, listo para
+/// guardarse como página de Marcolini (el saneador quita los <div> y deja
+/// títulos, párrafos, listas, links, fotos y videos).
+function cleanBuilderContent(scope: string, baseUrl: string) {
+  let out = scope.replace(/<!--[\s\S]*?-->/g, "");
+  out = removeElements(out, /<(?:script|style|noscript|template|svg|form|nav|aside|header|footer|button|select|input|textarea)\b/);
+  out = removeElements(out, HIDDEN_ON_DESKTOP_RE);
+  out = removeElements(out, NOISE_BLOCK_RE);
+  // Las tarjetas de producto de WooCommerce (foto, "Seleccionar
+  // opciones", precio) no son contenido de la página: los productos ya
+  // viven en las colecciones de acá. Tampoco los textos solo para lector
+  // de pantalla ni los botones de carrito.
+  out = removeElements(out, /<(?:li|div|article)\b[^>]*\bclass=["'][^"']*\b(?:type-product|wc-block-grid__product|product-category)\b[^"']*["']/);
+  out = removeElements(out, /<(?:ul|div)\b[^>]*\bclass=["'][^"']*\b(?:products|wc-block-grid)\b[^"']*["']/);
+  out = removeElements(out, /<(?:span|p|div|a)\b[^>]*\bclass=["'][^"']*\b(?:screen-reader-text|sr-only|visually-hidden|add_to_cart_button|added_to_cart|wc-forward)\b[^"']*["']/);
+  out = out.replace(/<(?:picture|source)\b[^>]*>|<\/picture>/gi, "");
+  out = out.replace(/<img\b[^>]*>/gi, (tag) => {
+    if (tinyImageTag(tag)) return "";
+    const url = imageUrlOf(tag, baseUrl);
+    if (!url || !/^https?:/.test(url) || IMAGE_NOISE_RE.test(url)) return "";
+    const alt = (attr(tag, "alt") ?? "").replace(/"/g, "&quot;");
+    return `<img src="${url}" alt="${alt}">`;
+  });
+  return out;
 }
 
 function headingText(part: string, max = 120) {
@@ -1436,8 +1495,8 @@ function genericButton(part: string, baseUrl: string) {
     const href = attr(`<a ${m[1]}>`, "href");
     const text = stripTags(m[2]).slice(0, 40);
     if (!href || !text) continue;
-    const mapped = menuHrefToShopify(href, baseUrl, new Set());
-    if (mapped) return { text, href: mapped.slice(0, 300) };
+    const mapped = mapHref(href, baseUrl);
+    if (mapped) return { text, href: mapped };
   }
   return { text: "", href: "" };
 }
@@ -1490,6 +1549,17 @@ function picturesOf(scope: string, baseUrl: string, allLinks: LinkMatch[]): Pict
   return out;
 }
 
+/// Qué sección es una lista de productos: por lo que dice su título o por
+/// el bloque que la arma. "Novedades" y "Ofertas" acá se arman solas (y la
+/// marca puede cambiarlas); una lista larga de "todos los productos" es
+/// el catálogo; lo demás, productos elegidos a mano.
+function productListSection(classAttr: string, title: string, productHandles: string[]): ShopifyHomeSection {
+  if (/product-new|\bnew-products\b|recent-products/i.test(classAttr) || NEW_PRODUCTS_RE.test(title)) return { type: "NEW_PRODUCTS", title };
+  if (/product-on-sale|\bon-sale\b|sale-products/i.test(classAttr) || ON_SALE_RE.test(title)) return { type: "ON_SALE_PRODUCTS", title };
+  if (productHandles.length >= 12 && (!title || CATALOG_TITLE_RE.test(title))) return { type: "PRODUCT_CATALOG", title };
+  return { type: "FEATURED_PRODUCTS", productHandles: productHandles.slice(0, 8), title };
+}
+
 export function extractGenericHomeSections(html: string, baseUrl: string, extraCss = ""): ShopifyHomeSection[] {
   const backgrounds = parseCssBackgrounds(`${inlineStyles(html)}\n${extraCss}`);
   const scope = homeScope(html);
@@ -1511,14 +1581,44 @@ export function extractGenericHomeSections(html: string, baseUrl: string, extraC
     const tag = m[0];
     const classAttr = attr(tag, "class") ?? "";
     const key = `${classAttr} ${attr(tag, "id") ?? ""}`;
+    const isInstagram = INSTAGRAM_RE.test(key);
+    const isBrands = BRAND_ROW_RE.test(key);
+    const isGallery = GALLERY_RE.test(key);
     const isBanner =
       BANNER_TOKEN_RE.test(key) ||
       (SECTION_TOKEN_RE.test(key) && (tagHasBackgroundImage(tag) || cssBackgroundFor(classAttr, backgrounds, baseUrl) != null));
-    if (!isBanner || PRODUCT_CARD_RE.test(classAttr)) continue;
+    if ((!isBanner && !isInstagram && !isBrands && !isGallery) || PRODUCT_CARD_RE.test(classAttr)) continue;
     const end = elementEndAt(scope, m.index);
     if (end == null) continue;
     const whole = scope.slice(m.index, end);
     const inner = whole.slice(tag.length);
+    // Un feed de Instagram (plugin, widget o bloque): acá es la invitación
+    // a seguir la cuenta de la marca.
+    if (isInstagram) {
+      if (!placed.some((p) => p.section.type === "INSTAGRAM_CTA")) {
+        placed.push({ at: m.index, section: { type: "INSTAGRAM_CTA", title: headingText(inner, 80), description: subtitleText(inner, 160) } });
+        take(m.index, end);
+      }
+      continue;
+    }
+    // Una fila de logos (marcas, clientes, aliados).
+    if (isBrands) {
+      const innerLinks = links(inner);
+      const items: { imageUrl: string; link: string }[] = [];
+      for (const img of inner.matchAll(/<img\b[^>]*>/gi)) {
+        if (img.index == null || items.length >= 12) continue;
+        const url = imageUrlOf(img[0], baseUrl);
+        if (!url || !/^https?:/.test(url) || items.some((i) => imageKey(i.imageUrl) === imageKey(url))) continue;
+        const wrapping = innerLinks.find((l) => img.index! >= l.at && img.index! < l.end);
+        items.push({ imageUrl: url, link: mapHref(wrapping?.href ?? null, baseUrl) });
+      }
+      if (items.length >= 3) {
+        placed.push({ at: m.index, section: { type: "BRAND_CAROUSEL", items } });
+        take(m.index, end);
+        continue;
+      }
+      if (!isBanner && !isGallery) continue;
+    }
     const wrapperLike =
       inner.length > 80_000 ||
       PRODUCT_LIST_RE.test(inner) ||
@@ -1545,6 +1645,21 @@ export function extractGenericHomeSections(html: string, baseUrl: string, extraC
     }
     const title = headingText(inner);
     if (images.length === 0 && !title) continue;
+    // Una galería (fotos cuadradas, sin título ni slides apaisadas) es un
+    // carrusel de fotos; con fotos apaisadas o texto encima es un banner.
+    if (isGallery && !title && images.length >= 2) {
+      const imgTags = inner.match(/<img\b[^>]*>/gi) ?? [];
+      const wide = imgTags.filter((t) => {
+        const w = parseInt(attr(t, "width") ?? "", 10);
+        const h = parseInt(attr(t, "height") ?? "", 10);
+        return w > 0 && h > 0 && w / h >= 1.6;
+      }).length;
+      if (imgTags.length > 0 && wide < imgTags.length / 2) {
+        placed.push({ at: m.index, section: { type: "IMAGE_CAROUSEL", images: images.slice(0, 8) } });
+        take(m.index, end);
+        continue;
+      }
+    }
     const button = genericButton(inner, baseUrl);
     placed.push({
       at: m.index,
@@ -1599,7 +1714,7 @@ export function extractGenericHomeSections(html: string, baseUrl: string, extraC
     const own = inner.slice(0, firstLinkAt).match(/<(h[1-3])\b[^>]*>([\s\S]*?)<\/\1>/i);
     const title = own ? stripTags(own[2]).slice(0, 120) : titleBefore(m.index);
     if (productHandles.length >= categories.length) {
-      placed.push({ at: m.index, section: { type: "FEATURED_PRODUCTS", productHandles: productHandles.slice(0, 8), title } });
+      placed.push({ at: m.index, section: productListSection(attr(tag, "class") ?? "", title, productHandles) });
     } else {
       const items = categories.slice(0, 6).map(({ collectionHandle, imageUrl, label }) => ({ collectionHandle, imageUrl, label }));
       placed.push({ at: m.index, section: { type: "CATEGORY_GRID", title, items } });
@@ -1648,27 +1763,39 @@ export function extractGenericHomeSections(html: string, baseUrl: string, extraC
   // de Gutenberg): una sola cuadrícula con los primeros seis. Si alguna
   // trae foto, las que no traen (un botón "ver más") se dejan.
   const loose = allLinks.filter((l) => !inRanges(l.at, ranges));
-  const looseCategories: { at: number; end: number; collectionHandle: string; imageUrl: string | null; label: string; fromText: boolean }[] = [];
+  const looseCategories: { at: number; end: number; collectionHandle: string; imageUrl: string | null; imageWidth: number; label: string; fromText: boolean }[] = [];
   for (const link of loose) {
     const category = genericCategoryHandle(link.href, baseUrl);
     if (!category) continue;
     const imageUrl = genericImages(link.inner, baseUrl, 1)[0] ?? null;
+    const imageWidth = parseInt(attr(link.inner.match(/<img\b[^>]*>/i)?.[0] ?? "", "width") ?? "", 10) || 0;
     const label = categoryLabel(link);
     const existing = looseCategories.find((c) => c.collectionHandle === category);
     if (existing) {
-      if (!existing.imageUrl && imageUrl) existing.imageUrl = imageUrl;
+      if (!existing.imageUrl && imageUrl) {
+        existing.imageUrl = imageUrl;
+        existing.imageWidth = imageWidth;
+      }
       if (label.fromText && !existing.fromText) Object.assign(existing, label);
       existing.end = link.end;
     } else {
-      looseCategories.push({ at: link.at, end: link.end, collectionHandle: category, imageUrl, label: label.label, fromText: label.fromText });
+      looseCategories.push({ at: link.at, end: link.end, collectionHandle: category, imageUrl, imageWidth, label: label.label, fromText: label.fromText });
     }
   }
   const gridCategories = looseCategories.some((c) => c.imageUrl) ? looseCategories.filter((c) => c.imageUrl) : looseCategories;
   if (gridCategories.length >= 2) {
     const first = gridCategories[0];
-    const items = gridCategories.slice(0, 6).map(({ collectionHandle, imageUrl, label }) => ({ collectionHandle, imageUrl, label }));
     for (const c of looseCategories) take(c.at, c.end);
-    placed.push({ at: first.at, section: { type: "CATEGORY_GRID", title: titleBefore(first.at), items } });
+    // Dos o tres categorías con foto grande: banners de categoría; más, o
+    // con fotos chicas: la cuadrícula.
+    if (gridCategories.length <= 3 && gridCategories.every((c) => c.imageWidth >= 500)) {
+      const items = gridCategories.map(({ collectionHandle, imageUrl, label }) => ({ collectionHandle, imageUrl, label }));
+      titleBefore(first.at);
+      placed.push({ at: first.at, section: { type: "CATEGORY_BANNERS", items } });
+    } else {
+      const items = gridCategories.slice(0, 6).map(({ collectionHandle, imageUrl, label }) => ({ collectionHandle, imageUrl, label }));
+      placed.push({ at: first.at, section: { type: "CATEGORY_GRID", title: titleBefore(first.at), items } });
+    }
   }
 
   // 6) Links sueltos a productos: desde tres, una lista de destacados.
@@ -1759,7 +1886,15 @@ export function extractGenericHomeSections(html: string, baseUrl: string, extraC
   for (const m of scope.matchAll(/<(h[1-3])\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
     if (m.index == null || texts >= 3 || inRanges(m.index, ranges)) continue;
     const heading = stripTags(m[2]).slice(0, 120);
-    if (!heading || NOISE_HEADING_RE.test(heading)) continue;
+    if (!heading) continue;
+    if (/instagram/i.test(heading)) {
+      if (!placed.some((p) => p.section.type === "INSTAGRAM_CTA")) {
+        placed.push({ at: m.index, section: { type: "INSTAGRAM_CTA", title: heading.slice(0, 80), description: "" } });
+        take(m.index, m.index + m[0].length);
+      }
+      continue;
+    }
+    if (NOISE_HEADING_RE.test(heading)) continue;
     const bodyStart = m.index + m[0].length;
     let bodyEnd = Math.min(scope.length, bodyStart + 8000);
     const next = scope.slice(bodyStart, bodyEnd).search(/<h[1-3]\b/i);
