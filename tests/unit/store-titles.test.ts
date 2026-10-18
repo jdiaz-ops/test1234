@@ -114,6 +114,12 @@ describe("cleanCatalogTitles", () => {
     expect(cleaned.collections.map((c) => c.name)).toEqual(["Bases", "Tops", "Kits"]);
   });
 
+  it("pone mayúscula inicial a los nombres todo en minúscula", () => {
+    const cleaned = cleanCatalogTitles([{ name: "gel polish rosado" }, { name: "AcrySoft tips" }], [{ name: "limas" }, { name: "BUILDER GEL" }]);
+    expect(cleaned.products.map((p) => p.name)).toEqual(["Gel polish rosado", "AcrySoft tips"]);
+    expect(cleaned.collections.map((c) => c.name)).toEqual(["Limas", "BUILDER GEL"]);
+  });
+
   it("sin remate deja todo igual, salvo la primera parte de colecciones con |", () => {
     const cleaned = cleanCatalogTitles([{ name: "Base Coat" }], [{ name: "Kits | Promociones" }]);
     expect(cleaned.suffix).toBeNull();

@@ -111,6 +111,14 @@ export function cleanTitle(title: string, suffix: string | null, options: { firs
   return out || original;
 }
 
+/// "limas" → "Limas": un nombre todo en minúscula se ve descuidado en la
+/// tienda. Si ya trae alguna mayúscula se respeta tal cual.
+export function capitalizeFirst(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed !== trimmed.toLowerCase()) return trimmed;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
 /// Limpia de una vez los productos y las colecciones leídos de una
 /// tienda. Devuelve copias y el remate que se quitó (para avisarlo).
 export function cleanCatalogTitles<P extends { name: string }, C extends { name: string }>(
@@ -128,8 +136,8 @@ export function cleanCatalogTitles<P extends { name: string }, C extends { name:
       storeName,
     );
   return {
-    products: products.map((p) => ({ ...p, name: cleanTitle(p.name, suffix) })),
-    collections: collections.map((c) => ({ ...c, name: cleanTitle(c.name, suffix, { firstSegment: true }) })),
+    products: products.map((p) => ({ ...p, name: capitalizeFirst(cleanTitle(p.name, suffix)) })),
+    collections: collections.map((c) => ({ ...c, name: capitalizeFirst(cleanTitle(c.name, suffix, { firstSegment: true })) })),
     suffix,
   };
 }

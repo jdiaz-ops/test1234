@@ -53,6 +53,8 @@ describe("legal-extract: reglas", () => {
     expect(short.length).toBeLessThanOrEqual(150);
     expect(short.endsWith("…")).toBe(true);
     expect(shortDescription("Corta")).toBeNull();
+    expect(shortDescription("Seleccionar opciones Este producto tiene múltiples variantes. Las opciones se pueden elegir en la página de producto Bases para frances 2026 $22,000")).toBeNull();
+    expect(shortDescription("Añadir al carrito Gel polish rosado $18.900 Añadir al carrito Top coat")).toBeNull();
     expect(shortDescription("<p>Productos para uñas hechos de manicurista a manicurista</p>")).toBe("Productos para uñas hechos de manicurista a manicurista");
   });
 

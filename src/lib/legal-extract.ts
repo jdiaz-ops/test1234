@@ -135,9 +135,15 @@ export function findCity(text: string): string | null {
   return best ? cityDisplay(best.name) : null;
 }
 
+/// Texto de la propia tienda (botones, listas de productos, precios) que
+/// WooCommerce suele poner como descripción de la página: no sirve de
+/// descripción de la marca.
+const STORE_UI_TEXT =
+  /seleccionar opciones|a[ñn]adir al carrito|agregar al carrito|add to cart|leer m[aá]s|read more|m[uú]ltiples variantes|comprar ahora|ver producto|ver m[aá]s|\$\s?\d|\d[\d.,]*\s?(?:cop|usd)\b|en stock|agotado|iniciar sesi[oó]n|mi cuenta|carrito|checkout|env[ií]o gratis por compras/i;
+
 export function shortDescription(text: string | null | undefined): string | null {
   const clean = squash((text ?? "").replace(/<[^>]+>/g, " "));
-  if (clean.length < 20) return null;
+  if (clean.length < 20 || STORE_UI_TEXT.test(clean)) return null;
   if (clean.length <= MAX_DESCRIPTION) return clean;
   const cut = clean.slice(0, MAX_DESCRIPTION - 1);
   const atWord = cut.lastIndexOf(" ");

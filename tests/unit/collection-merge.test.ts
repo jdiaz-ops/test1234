@@ -71,6 +71,21 @@ describe("proposeMergeByRules", () => {
     expect(proposal?.collections[0].productHandles).toEqual(["x1", "x2", "x3", "x4", "x5", "a", "r"]);
   });
 
+  it("une colecciones con exactamente los mismos productos, con el nombre en mayúscula", () => {
+    const proposal = proposeMergeByRules([
+      c("colecciones-solas", "colecciones solas", ["a", "b", "c", "d", "e"]),
+      c("herramientas", "Herramientas", ["h1", "h2", "h3", "h4"]),
+      c("colecciones", "Colecciones", ["e", "d", "c", "b", "a"]),
+      c("pinceles", "Pinceles", ["h1", "h2"]),
+    ]);
+    expect(proposal?.collections.map((m) => [m.name, m.sourceHandles])).toEqual([
+      ["Colecciones", ["colecciones-solas", "colecciones"]],
+      ["Herramientas", ["herramientas"]],
+      ["Pinceles", ["pinceles"]],
+    ]);
+    expect(proposal?.collections[0].handle).toBe("colecciones");
+  });
+
   it("une las repetidas y no deja un nombre terminado en 'de'", () => {
     const proposal = proposeMergeByRules([
       c("kit-de-unas", "Kit de uñas", ["a"]),

@@ -148,6 +148,23 @@ export function proposeMergeByRules(collections: MergeSourceCollection[]): Merge
     for (const c of list) grouped.add(c.handle);
   }
 
+  // 1b. Mismos productos: dos colecciones con exactamente los mismos
+  // productos son una sola (WooCommerce las repite con otro nombre o
+  // como categoría y etiqueta). Se queda con el nombre que empieza en
+  // mayúscula, o el primero.
+  const bySet = new Map<string, MergeSourceCollection[]>();
+  for (const c of collections) {
+    if (grouped.has(c.handle) || c.productHandles.length === 0) continue;
+    const key = Array.from(new Set(c.productHandles)).sort().join("|");
+    bySet.set(key, [...(bySet.get(key) ?? []), c]);
+  }
+  for (const [key, list] of bySet) {
+    if (list.length < 2) continue;
+    const name = list.find((c) => /^[A-ZÁÉÍÓÚÑ]/.test(c.name))?.name ?? list[0].name;
+    groups.set(`set:${key}`, { name, sourceHandles: list.map((c) => c.handle) });
+    for (const c of list) grouped.add(c.handle);
+  }
+
   // 2. Pequeñas con el mismo comienzo.
   const byPrefix = new Map<string, MergeSourceCollection[]>();
   for (const c of collections) {

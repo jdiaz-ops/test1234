@@ -187,6 +187,35 @@ describe("leer colecciones y portada", () => {
     );
     await expect(readShopifyStorefront("tienda.com", locked.impl)).rejects.toThrow(/contraseña/);
   });
+
+  it("si la portada no trae colores ni letra, baja las hojas de estilo del mismo dominio (Elementor primero)", async () => {
+    const { readShopifyStorefront } = await import("@/server/services/shopify-store-reader");
+    const html = `<html><head><title>Rumi</title>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins&display=swap">
+      <link rel="stylesheet" href="https://cdn.otro.com/lib.css">
+      <link rel="stylesheet" id="theme" href="/wp-content/themes/astra/style.css?ver=1">
+      <link href="/wp-content/uploads/elementor/css/post-7.css?ver=2" rel="stylesheet">
+      </head><body><h1>Rumi</h1></body></html>`;
+    const css: Record<string, string> = {
+      "https://rumicol.com/wp-content/uploads/elementor/css/post-7.css?ver=2": `.elementor-kit-7{--e-global-color-primary:#D81B60;--e-global-color-text:#222222;--e-global-typography-text-font-family:"Poppins"}`,
+      "https://rumicol.com/wp-content/themes/astra/style.css?ver=1": `body{color:#000}`,
+    };
+    const { impl, calls } = fakeFetch((url) =>
+      url.href === "https://rumicol.com/"
+        ? new Response(html, { status: 200, headers: { "content-type": "text/html" } })
+        : css[url.href]
+          ? new Response(css[url.href], { status: 200, headers: { "content-type": "text/css" } })
+          : new Response("", { status: 404 }),
+    );
+    const result = await readShopifyStorefront("https://rumicol.com", impl);
+    expect(calls).toEqual([
+      "https://rumicol.com/",
+      "https://rumicol.com/wp-content/uploads/elementor/css/post-7.css?ver=2",
+      "https://rumicol.com/wp-content/themes/astra/style.css?ver=1",
+    ]);
+    expect(result.theme.colors).toMatchObject({ botones: "#d81b60", texto: "#222222" });
+    expect(result.theme.fonts?.bodyFont).toBe("Poppins");
+  });
 });
 
 describe("fletes probando carritos", () => {

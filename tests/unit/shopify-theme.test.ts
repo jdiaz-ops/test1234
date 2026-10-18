@@ -290,3 +290,32 @@ describe("páginas, políticas y portada de Shopify", () => {
     expect(mapShopifyMenuHref("/pages/otra", maps)).toBeNull();
   });
 });
+
+describe("diseño de tiendas WordPress (WooCommerce)", () => {
+  it("lee los colores de las variables de WordPress, Astra y Elementor", async () => {
+    const { extractColors, parseShopifyStorefront } = await import("@/lib/shopify-theme");
+    const wp = `<html><head><style id="global-styles-inline-css">:root{--wp--preset--color--base:#fdfdfd;--wp--preset--color--contrast:#1f1f1f;--wp--preset--color--primary:#c2185b}</style></head><body></body></html>`;
+    expect(extractColors(wp)).toMatchObject({ fondo: "#fdfdfd", texto: "#1f1f1f", botones: "#c2185b", principal: "#c2185b" });
+    const astra = `<html><head><style>:root{--ast-global-color-0:#e91e63;--ast-global-color-3:#333333;--ast-global-color-5:#ffffff}</style></head></html>`;
+    expect(extractColors(astra)).toMatchObject({ fondo: "#ffffff", texto: "#333333", botones: "#e91e63" });
+    // Elementor guarda todo en su propio .css: entra como extraCss.
+    const html = `<html><head><title>Rumi</title></head><body><h1>Hola</h1></body></html>`;
+    const css = `.elementor-kit-7{--e-global-color-primary:#D81B60;--e-global-color-text:#222222;--e-global-typography-primary-font-family:"Playfair Display";--e-global-typography-text-font-family:"Poppins"}`;
+    const theme = parseShopifyStorefront(html, "https://rumicol.com", css);
+    expect(theme.colors).toMatchObject({ botones: "#d81b60", principal: "#d81b60", texto: "#222222" });
+    expect(theme.fonts).toMatchObject({ headingFont: "Playfair Display", bodyFont: "Poppins" });
+    expect(parseShopifyStorefront(html, "https://rumicol.com").colors).toBeNull();
+  });
+
+  it("saca las letras por selector (body y h1) y, si no, del link de Google Fonts", async () => {
+    const { extractFonts, googleFontFamilies } = await import("@/lib/shopify-theme");
+    const astra = `<html><head><style>body,button,input{font-family:'Poppins',sans-serif;font-size:16px}h1,.entry-title,h2{font-family:'Playfair Display',serif}</style></head></html>`;
+    expect(extractFonts(astra)).toMatchObject({ bodyFamily: "Poppins", headingFamily: "Playfair Display", headingFont: "Playfair Display", bodyFont: "Poppins" });
+    const linked = `<html><head><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600&amp;family=Playfair+Display:wght@700&amp;display=swap"></head></html>`;
+    expect(googleFontFamilies(linked)).toEqual(["Nunito Sans", "Playfair Display"]);
+    expect(extractFonts(linked)).toMatchObject({ bodyFont: "Nunito Sans", headingFont: "Playfair Display" });
+    const old = `<link href="//fonts.googleapis.com/css?family=Montserrat:400,700%7CLora:400&subset=latin" rel="stylesheet">`;
+    expect(googleFontFamilies(old)).toEqual(["Montserrat", "Lora"]);
+    expect(extractFonts("<html><head></head></html>")).toBeNull();
+  });
+});

@@ -309,7 +309,53 @@ export async function readShopifyStorefront(
   if (/<form[^>]+action=["'][^"']*\/password["']/i.test(html) && /name=["']password["']/i.test(html)) {
     throw new ShopifyStoreError(PASSWORD_ERROR);
   }
-  return { storeUrl, theme: parseShopifyStorefront(html, storeUrl) };
+  let theme = parseShopifyStorefront(html, storeUrl);
+  if (!theme.colors || !theme.fonts) {
+    // Temas de WordPress (Elementor, Astra…) guardan colores y letra en
+    // sus propios .css: se bajan unas pocas hojas y se vuelve a leer.
+    const css = await readStylesheets(fetchImpl, storeUrl, html);
+    if (css) theme = parseShopifyStorefront(html, storeUrl, css);
+  }
+  return { storeUrl, theme };
+}
+
+const MAX_STYLESHEETS = 4;
+const MAX_CSS_CHARS = 400_000;
+
+/// Las hojas de estilo enlazadas en la portada que más probablemente
+/// traen los colores y la letra del tema (Elementor, Astra, el tema
+/// activo), bajadas y pegadas. Vacío si ninguna se pudo leer.
+export async function readStylesheets(fetchImpl: FetchLike, baseUrl: string, html: string): Promise<string> {
+  const base = new URL(baseUrl);
+  const host = (h: string) => h.replace(/^www\./, "").toLowerCase();
+  const candidates: { url: string; score: number }[] = [];
+  for (const tag of html.match(/<link\b[^>]*>/gi) ?? []) {
+    if (!/rel=["']?[^"'>]*stylesheet/i.test(tag)) continue;
+    const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1];
+    if (!href) continue;
+    let url: URL;
+    try {
+      url = new URL(href.replace(/&amp;/g, "&"), base);
+    } catch {
+      continue;
+    }
+    if (!/^https?:$/.test(url.protocol) || host(url.hostname) !== host(base.hostname)) continue;
+    const path = url.pathname.toLowerCase();
+    const score = /elementor\/css\/(post|global)/.test(path) ? 3 : /astra|kit|global|theme|style\.css|custom/.test(path) ? 2 : 1;
+    if (!candidates.some((c) => c.url === url.href)) candidates.push({ url: url.href, score });
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  const parts: string[] = [];
+  for (const { url } of candidates.slice(0, MAX_STYLESHEETS)) {
+    try {
+      const response = await doFetch(fetchImpl, url, "text/css,*/*;q=0.1");
+      if (response.status !== 200) continue;
+      parts.push((await response.text()).slice(0, MAX_CSS_CHARS));
+    } catch {
+      // Una hoja que no se pudo leer no frena el resto.
+    }
+  }
+  return parts.join("\n");
 }
 
 // ----------------------------------------------------------------------------

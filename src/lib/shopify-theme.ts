@@ -163,6 +163,10 @@ const BACKGROUND_PROPS = [
   "--body-bg",
   "--color-background-1",
   "--background",
+  // WordPress (bloques), Astra.
+  "--wp--preset--color--base",
+  "--ast-global-color-5",
+  "--ast-global-color-4",
 ];
 const TEXT_PROPS = [
   "--color-foreground",
@@ -174,6 +178,11 @@ const TEXT_PROPS = [
   "--color-text-body",
   "--body-color",
   "--foreground",
+  // WordPress (bloques), Elementor, Astra.
+  "--wp--preset--color--contrast",
+  "--e-global-color-text",
+  "--ast-global-color-3",
+  "--ast-global-color-2",
 ];
 const BUTTON_PROPS = [
   "--color-button",
@@ -188,10 +197,18 @@ const BUTTON_PROPS = [
   "--color-btn-bg",
   "--btn-primary-bg",
   "--button-color",
+  // Elementor, Astra, WordPress (bloques).
+  "--e-global-color-primary",
+  "--ast-global-color-0",
+  "--wp--preset--color--primary",
 ];
 const ACCENT_PROPS = [
   "--color-base-accent-1",
   "--color-accent",
+  "--e-global-color-accent",
+  "--e-global-color-primary",
+  "--ast-global-color-0",
+  "--wp--preset--color--primary",
   "--accent-color",
   "--color-link",
   "--colorlink",
@@ -324,6 +341,9 @@ const HEADING_FONT_PROPS = [
   "--heading-font",
   "--font-header",
   "--headings-font-family",
+  // Elementor y WordPress (bloques).
+  "--e-global-typography-primary-font-family",
+  "--wp--preset--font-family--heading",
 ];
 const BODY_FONT_PROPS = [
   "--font-body-family",
@@ -336,6 +356,9 @@ const BODY_FONT_PROPS = [
   "--body-font",
   "--font-text",
   "--font-family",
+  // Elementor y WordPress (bloques).
+  "--e-global-typography-text-font-family",
+  "--wp--preset--font-family--body",
 ];
 const GENERIC_FAMILIES = new Set([
   "sans-serif",
@@ -450,10 +473,61 @@ export function closestFont(family: string | null, role: "heading" | "body"): { 
   return { value: role === "heading" ? "Montserrat" : "Inter", exact: false };
 }
 
+/// Las letras por los selectores de siempre en el CSS del HTML: `body {
+/// font-family }` para el cuerpo y `h1, h2… { font-family }` para los
+/// títulos. Así las declaran Astra, Elementor y la mayoría de temas de
+/// WordPress, que no usan variables con nombre.
+function fontsBySelector(html: string, props: Map<string, string[]>): { body: string | null; heading: string | null } {
+  let body: string | null = null;
+  let heading: string | null = null;
+  const styles = html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) ?? [];
+  for (const block of styles) {
+    const css = block.replace(/^<style[^>]*>/i, "").replace(/<\/style>$/i, "");
+    for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const declarations = rule[2];
+      const family = declarations.match(/(?:^|[;\s])font-family\s*:\s*([^;}]+)/i)?.[1];
+      if (!family) continue;
+      const selectors = rule[1].split(",").map((s) => s.trim().toLowerCase());
+      const isBody = selectors.some((s) => /^(html|body|p|\.ast-body|\.elementor-widget-text-editor)$/.test(s));
+      const isHeading = selectors.some((s) => /^(h1|h2|h3|\.entry-title|\.elementor-heading-title|\.wp-block-heading)(\s.*)?$/.test(s));
+      if (!isBody && !isHeading) continue;
+      const resolved = firstFamily(family, props);
+      if (!resolved) continue;
+      if (isBody && !body) body = resolved;
+      if (isHeading && !heading) heading = resolved;
+    }
+  }
+  return { body, heading };
+}
+
+/// Las familias que la página carga de Google Fonts (<link> o @import),
+/// en orden: "css2?family=Poppins:wght@400&family=Playfair+Display…" o
+/// "css?family=Poppins:400|Playfair+Display:700".
+export function googleFontFamilies(html: string): string[] {
+  const out: string[] = [];
+  for (const match of html.matchAll(/fonts\.googleapis\.com\/css2?\?([^"'\s)>]+)/gi)) {
+    const query = match[1].replace(/&amp;/g, "&");
+    for (const param of query.split("&")) {
+      const [key, value] = param.split("=");
+      if (key !== "family" || !value) continue;
+      for (const item of decodeURIComponent(value.replace(/\+/g, " ")).split("|")) {
+        const name = item.split(":")[0].trim();
+        if (name && !out.includes(name)) out.push(name);
+      }
+    }
+  }
+  return out.slice(0, 6);
+}
+
 export function extractFonts(html: string): ShopifyThemeFonts | null {
   const props = collectCustomProps(html);
   let headingFamily = firstFont(props, HEADING_FONT_PROPS, "heading");
   let bodyFamily = firstFont(props, BODY_FONT_PROPS, "body");
+  if (!headingFamily && !bodyFamily) {
+    const bySelector = fontsBySelector(html, props);
+    bodyFamily = bySelector.body;
+    headingFamily = bySelector.heading;
+  }
   if (!headingFamily && !bodyFamily) {
     // Los @font-face que el tema carga, en orden: la primera suele ser la
     // del cuerpo y la siguiente distinta, la de los títulos.
@@ -464,6 +538,12 @@ export function extractFonts(html: string): ShopifyThemeFonts | null {
     }
     bodyFamily = faces[0] ?? null;
     headingFamily = faces[1] ?? faces[0] ?? null;
+  }
+  if (!headingFamily && !bodyFamily) {
+    // Lo que carga de Google Fonts: la serif o de display va a títulos.
+    const linked = googleFontFamilies(html);
+    bodyFamily = linked.find((f) => !SERIF_HINT.test(f.toLowerCase())) ?? linked[0] ?? null;
+    headingFamily = linked.find((f) => f !== bodyFamily && SERIF_HINT.test(f.toLowerCase())) ?? linked.find((f) => f !== bodyFamily) ?? bodyFamily;
   }
   if (!headingFamily && !bodyFamily) return null;
   headingFamily = headingFamily ?? bodyFamily;
@@ -791,14 +871,19 @@ export function extractAnnouncements(html: string): string[] {
   return texts.slice(0, 4);
 }
 
-export function parseShopifyStorefront(html: string, baseUrl: string): ShopifyThemeInfo {
+/// `extraCss`: hojas de estilo enlazadas que el lector bajó aparte cuando
+/// la portada no trae colores ni letra en línea (Elementor guarda sus
+/// colores y letras globales en un .css propio). Solo cuentan para
+/// colores y letra.
+export function parseShopifyStorefront(html: string, baseUrl: string, extraCss?: string): ShopifyThemeInfo {
+  const styled = extraCss ? `${html}<style>${extraCss}</style>` : html;
   return {
     storeName: extractStoreName(html),
     metaDescription: extractMetaDescription(html),
     logoUrl: extractLogoUrl(html, baseUrl),
     faviconUrl: extractFaviconUrl(html, baseUrl),
-    colors: extractColors(html),
-    fonts: extractFonts(html),
+    colors: extractColors(styled),
+    fonts: extractFonts(styled),
     menu: extractMenu(html, baseUrl),
     payments: extractPayments(html),
     pixels: extractPixels(html),
