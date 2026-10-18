@@ -26,7 +26,8 @@ export type ScrapedVariant = {
   price: number | null;
   sku: string;
   barcode: string;
-  stock: number;
+  /// null = sin control de inventario.
+  stock: number | null;
   weight: number | null;
   weightUnit: "KG" | "G";
 };
@@ -545,7 +546,7 @@ export function parseProductPage(html: string, pageUrl: string): ScrapedProduct 
           price: positiveOrNull(money(v.price_number ?? null)),
           sku: code(v.sku),
           barcode: code(v.barcode),
-          stock: typeof v.stock === "number" ? Math.max(0, Math.floor(v.stock)) : 0,
+          stock: typeof v.stock === "number" ? Math.max(0, Math.floor(v.stock)) : null,
           weight: w.weight,
           weightUnit: w.weightUnit,
         });

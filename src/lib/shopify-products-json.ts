@@ -203,9 +203,9 @@ export function convertShopifyProducts(raw: ShopifyJsonProduct[]): ShopifyCsvPar
           sku: cleanCode(v.sku),
           barcode: "",
           // El link solo dice si la variante está disponible, no cuántas
-          // hay: queda en 0 (agotada) hasta que la marca le ponga stock,
-          // igual que con el CSV.
-          stock: 0,
+          // hay: la que está disponible se vende sin control (null) hasta
+          // que la marca le ponga inventario; la agotada queda en 0.
+          stock: v.available === false ? 0 : null,
           weight: gramsToKg(v.grams),
           weightUnit: weightUnitFor(v.grams),
           imageUrl: imageSrc(v.featured_image?.src),

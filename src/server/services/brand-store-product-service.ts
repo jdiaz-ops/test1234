@@ -13,7 +13,8 @@ type VariantInput = {
   price: number | null;
   sku?: string;
   barcode?: string;
-  stock: number;
+  /// null = sin control de inventario.
+  stock: number | null;
   weight?: number | null;
   weightUnit?: "KG" | "G";
   /// undefined = conservar la foto que tenía la variante (el formulario de

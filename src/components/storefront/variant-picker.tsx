@@ -11,7 +11,8 @@ export type StorefrontVariant = {
   option3Value: string | null;
   price: number | null; // null = usa el precio base del producto
   imageUrl: string | null;
-  stock: number;
+  /// null = sin control de inventario.
+  stock: number | null;
 };
 
 function formatCOP(amount: number) {
@@ -96,7 +97,7 @@ export function VariantPicker({
   const displayPrice = matchedVariant
     ? (matchedVariant.price ?? basePrice)
     : basePrice;
-  const outOfStock = matchedVariant != null && matchedVariant.stock <= 0;
+  const outOfStock = matchedVariant != null && matchedVariant.stock != null && matchedVariant.stock <= 0;
 
   return (
     <div className="space-y-4">
@@ -184,7 +185,7 @@ export function VariantPicker({
           name: productName,
           price: displayPrice,
           imageUrl: matchedVariant?.imageUrl ?? baseImageUrl,
-          stock: matchedVariant?.stock ?? 0,
+          stock: matchedVariant ? matchedVariant.stock : 0,
           variantId: matchedVariant?.id ?? null,
           variantLabel: matchedVariant
             ? optionNames.map((n, idx) => `${n}: ${selected[idx]}`).join(" · ")

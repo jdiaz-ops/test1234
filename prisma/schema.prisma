@@ -2378,7 +2378,11 @@ model ProductVariant {
   sku        String?
   barcode    String?
   imageUrl   String?
-  stock      Int        @default(0)
+  /// null = sin control de inventario (se vende sin límite), igual que
+  /// Product.stock. Así quedan las variantes que llegan por link o CSV
+  /// sin cantidades: antes quedaban en 0 (agotadas) hasta que la marca
+  /// escribiera cada una. Ver conversación del 2026-10-18.
+  stock      Int?       @default(0)
   /// null = usa Product.weight — mismo criterio que price. Siempre en
   /// kilogramos, igual que Product.weight.
   weight     Decimal?   @db.Decimal(8, 3)

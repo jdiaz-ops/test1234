@@ -50,6 +50,31 @@ describe.skipIf(!hasDb)("pago aprobado e inventario", () => {
     expect((await prisma.product.findUniqueOrThrow({ where: { id: libre.id } })).stock).toBeNull();
   });
 
+  it("no toca variantes sin control de inventario", async () => {
+    const brand = await createBrand();
+    const esmalte = await createProduct(brand.id, {
+      name: "Esmalte",
+      price: 5000,
+      stock: null,
+      variants: [
+        { label: "Plateado", stock: null },
+        { label: "Dorado", stock: 2 },
+      ],
+    });
+    const plateado = esmalte.variants.find((v) => v.option1Value === "Plateado")!;
+    const dorado = esmalte.variants.find((v) => v.option1Value === "Dorado")!;
+    const order = await createPendingOrder(brand.id, [
+      { productId: esmalte.id, variantId: plateado.id, quantity: 25, unitPrice: 5000 },
+      { productId: esmalte.id, variantId: dorado.id, quantity: 1, unitPrice: 5000 },
+    ]);
+    await applyWompiTransactionStatus({ reference: order.reference, wompiTransactionId: "w3v", wompiStatus: "APPROVED" });
+    expect((await prisma.productVariant.findUniqueOrThrow({ where: { id: plateado.id } })).stock).toBeNull();
+    expect((await prisma.productVariant.findUniqueOrThrow({ where: { id: dorado.id } })).stock).toBe(1);
+    await refundStoreOrder(brand.id, { orderId: order.id, restock: true });
+    expect((await prisma.productVariant.findUniqueOrThrow({ where: { id: plateado.id } })).stock).toBeNull();
+    expect((await prisma.productVariant.findUniqueOrThrow({ where: { id: dorado.id } })).stock).toBe(2);
+  });
+
   it("un pago rechazado no descuenta nada", async () => {
     const brand = await createBrand();
     const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });

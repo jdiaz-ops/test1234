@@ -16,7 +16,7 @@ export async function createBrand() {
 
 export async function createProduct(
   brandId: string,
-  data: { name: string; price: number; stock: number | null; variants?: { label: string; stock: number }[] },
+  data: { name: string; price: number; stock: number | null; variants?: { label: string; stock: number | null }[] },
 ) {
   const suffix = randomUUID().slice(0, 8);
   return prisma.product.create({

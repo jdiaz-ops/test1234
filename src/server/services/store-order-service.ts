@@ -346,7 +346,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
           `Elige una combinación válida de "${product.name}".`,
         );
       }
-      if (variant.stock < item.quantity) {
+      if (variant.stock != null && variant.stock < item.quantity) {
         throw new StoreOrderError(
           `No hay suficiente stock de "${product.name}" en esa combinación.`,
         );
@@ -519,9 +519,9 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     for (const move of stockMovements(itemsData)) {
       const product = fresh.find((p) => p.id === move.productId);
       if (!product) throw new StoreOrderError("Uno de los productos ya no está disponible.");
-      const stock = move.variantId
-        ? (product.variants.find((v) => v.id === move.variantId)?.stock ?? 0)
-        : product.stock;
+      const variant = move.variantId ? product.variants.find((v) => v.id === move.variantId) : null;
+      // Variante que ya no existe: 0; sin control (null): sin límite.
+      const stock = move.variantId ? (variant ? variant.stock : 0) : product.stock;
       const reserved =
         reservedRows.find((r) => r.productId === move.productId && (r.variantId ?? null) === move.variantId)?._sum
           .quantity ?? 0;

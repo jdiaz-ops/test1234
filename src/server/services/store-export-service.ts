@@ -78,7 +78,8 @@ export async function buildProductsWorkbook(brandId: string): Promise<Buffer> {
       type: TYPE_LABEL[p.type] ?? p.type,
       price: p.hasVariants ? null : Number(p.price),
       compareAt: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
-      stock: p.hasVariants ? p.variants.reduce((sum, v) => sum + v.stock, 0) : p.stock,
+      // Con alguna variante sin control de inventario, el total queda vacío.
+      stock: p.hasVariants ? p.variants.reduce<number | null>((sum, v) => (sum == null || v.stock == null ? null : sum + v.stock), 0) : p.stock,
       sku: p.sku ?? "",
       barcode: p.barcode ?? "",
       collections,

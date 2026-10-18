@@ -61,7 +61,11 @@ const variantInputSchema = z.object({
   price: z.number().positive().nullable(),
   sku: z.string().max(120).optional().or(z.literal("")),
   barcode: z.string().max(120).optional().or(z.literal("")),
-  stock: z.coerce.number().int().min(0, "No puede ser negativo"),
+  /// null = sin control de inventario (ver ProductVariant.stock).
+  stock: z.preprocess(
+    (value) => (value === "" || value === null || value === undefined ? null : value),
+    z.coerce.number().int().min(0, "No puede ser negativo").nullable(),
+  ),
   weight: z.number().min(0, "No puede ser negativo").nullable(),
   weightUnit: z.enum(["KG", "G"]).default("KG"),
   /// Foto propia de la variante. Si no viene (el formulario de editar no

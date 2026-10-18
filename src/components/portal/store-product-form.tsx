@@ -46,7 +46,7 @@ export type ManualProductVariant = {
   price: number | null;
   sku: string | null;
   barcode: string | null;
-  stock: number;
+  stock: number | null;
   weight: number | null;
   weightUnit: WeightUnit;
 };

@@ -16,7 +16,8 @@ export type VariantRowInput = {
   price: number | null;
   sku: string;
   barcode: string;
-  stock: number;
+  /// null = sin control de inventario (se vende sin límite).
+  stock: number | null;
   /// null = usa el peso del producto — mismo criterio que price. Siempre
   /// en kilogramos — weightUnit es solo cómo se escribe/muestra.
   weight: number | null;
@@ -267,11 +268,12 @@ export function ProductVariantsEditor({
                         type="number"
                         min="0"
                         step="1"
-                        required
-                        value={v.stock}
+                        value={v.stock ?? ""}
+                        placeholder="Sin control"
+                        title="Vacío = se vende sin control de inventario"
                         onChange={(e) =>
                           updateVariant(v.key, {
-                            stock: Number(e.target.value) || 0,
+                            stock: e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value) || 0)),
                           })
                         }
                         className="input text-sm"

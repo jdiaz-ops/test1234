@@ -94,12 +94,12 @@ describe("importar productos desde el link de la tienda Shopify", () => {
     expect(placa.status).toBe("ACTIVE");
   });
 
-  it("arma las variantes sin repetir y las deja en 0 hasta que la marca ponga stock", () => {
+  it("arma las variantes sin repetir: la disponible se vende sin control y la agotada queda en 0", () => {
     const esmalte = byHandle["esmalte-stamping"];
     expect(esmalte.hasVariants).toBe(true);
     expect(esmalte.optionNames).toEqual(["Color"]);
     expect(esmalte.variants.map((v) => v.option1Value)).toEqual(["Plateado", "Dorado"]);
-    expect(esmalte.variants.map((v) => v.stock)).toEqual([0, 0]);
+    expect(esmalte.variants.map((v) => v.stock)).toEqual([null, 0]);
     expect(esmalte.variants[0]).toMatchObject({ price: 5000, sku: "ES-PL", weight: 0.02, weightUnit: "G" });
     expect(esmalte.price).toBe(0);
     expect(esmalte.collectionName).toBe("Esmaltes");

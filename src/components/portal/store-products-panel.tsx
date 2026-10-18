@@ -69,10 +69,21 @@ function StockCell({
 /// no". Ver conversación del 2026-09-30.
 type Visibility = "visible" | "soldout" | "unlisted" | "hidden";
 
+/// Suma del inventario de las variantes; null si alguna se vende sin
+/// control (ver ProductVariant.stock).
+function variantsStock(variants: { stock: number | null }[]): number | null {
+  let total = 0;
+  for (const v of variants) {
+    if (v.stock == null) return null;
+    total += v.stock;
+  }
+  return total;
+}
+
 function visibilityOf(p: ManualProduct): Visibility {
   if (p.status === "DRAFT") return "hidden";
   if (p.status === "UNLISTED") return "unlisted";
-  const stock = p.hasVariants ? p.variants.reduce((sum, v) => sum + v.stock, 0) : p.stock;
+  const stock = p.hasVariants ? variantsStock(p.variants) : p.stock;
   if (stock != null && stock <= 0) return "soldout";
   return "visible";
 }
@@ -109,7 +120,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 ];
 
 function totalStock(p: ManualProduct): number | null {
-  return p.hasVariants ? p.variants.reduce((sum, v) => sum + v.stock, 0) : p.stock;
+  return p.hasVariants ? variantsStock(p.variants) : p.stock;
 }
 
 export function StoreProductsPanel({
@@ -725,7 +736,7 @@ export function StoreProductsPanel({
                           className="text-xs text-brand-ink-soft hover:underline text-left"
                           title="Con variantes el inventario se ajusta por variante"
                         >
-                          {product.variants.reduce((sum, va) => sum + va.stock, 0)} en {product.variants.length} variantes
+                          {variantsStock(product.variants) ?? "Sin control"} en {product.variants.length} variantes
                         </button>
                       ) : (
                         <StockCell

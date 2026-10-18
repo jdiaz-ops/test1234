@@ -134,6 +134,34 @@ describe.skipIf(!hasDb)("checkout: inventario apartado", () => {
     ).rejects.toThrow(/alguien más lo está pagando/);
   });
 
+  it("una variante sin control de inventario se compra en cualquier cantidad", async () => {
+    const brand = await createSellingBrand();
+    const esmalte = await createProduct(brand.id, {
+      name: "Esmalte",
+      price: 5000,
+      stock: null,
+      variants: [
+        { label: "Plateado", stock: null },
+        { label: "Dorado", stock: 0 },
+      ],
+    });
+    const [plateado, dorado] = esmalte.variants;
+    await expect(
+      createStoreOrder(brand.storefrontSlug!, {
+        ...BUYER,
+        buyerEmail: email("libre-a"),
+        items: [{ productId: esmalte.id, variantId: plateado.id, quantity: 40 }],
+      }),
+    ).resolves.toBeTruthy();
+    await expect(
+      createStoreOrder(brand.storefrontSlug!, {
+        ...BUYER,
+        buyerEmail: email("libre-b"),
+        items: [{ productId: esmalte.id, variantId: dorado.id, quantity: 1 }],
+      }),
+    ).rejects.toThrow(/No hay suficiente stock/);
+  });
+
   it("productos sin control de inventario nunca se bloquean", async () => {
     const brand = await createSellingBrand();
     const libre = await createProduct(brand.id, { name: "Libre", price: 9000, stock: null });

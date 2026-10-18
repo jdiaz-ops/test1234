@@ -21,7 +21,8 @@ export type ShopifyImportVariant = {
   price: number | null;
   sku: string;
   barcode: string;
-  stock: number;
+  /// null = sin control de inventario.
+  stock: number | null;
   weight: number | null;
   weightUnit: "KG" | "G";
   /// Foto propia de la variante ("Variant Image" en el CSV,
@@ -313,7 +314,9 @@ export function parseShopifyProductsCsv(text: string): ShopifyCsvParseResult {
           price: positiveOrNull(parseMoney(cell(row, "Variant Price"))),
           sku: cleanCode(cell(row, "Variant SKU")),
           barcode: cleanCode(cell(row, "Variant Barcode", "Variant Barcodes")),
-          stock: stock ?? 0,
+          // Sin cantidad en el CSV: se vende sin control hasta que la marca
+          // ponga inventario (antes quedaba en 0, agotada).
+          stock: stock ?? null,
           weight: gramsToKg(cell(row, "Variant Grams")),
           weightUnit: mapWeightUnit(cell(row, "Variant Weight Unit")),
           imageUrl: /^https?:\/\//i.test(cell(row, "Variant Image")) ? cell(row, "Variant Image") : null,

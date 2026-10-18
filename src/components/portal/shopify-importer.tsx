@@ -1148,7 +1148,7 @@ export function ShopifyImporter({
                         ? "Los archivos no dicen cuántas unidades hay, así que el stock queda sin definir: "
                         : "La exportación de Shopify no trae cantidades de inventario, así que el stock queda sin definir: "}
                     los productos sin variantes se venden sin control de stock, y las variantes
-                    aparecen agotadas hasta que les pongas stock desde Editar.
+                    también se venden sin control hasta que les pongas inventario desde Editar.
                   </p>
                 )}
                 {parsed.stats.draft > 0 && (

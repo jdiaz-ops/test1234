@@ -14,7 +14,7 @@ export async function applyStockMovements(
   for (const m of movements) {
     const change = sign === -1 ? { decrement: m.quantity } : { increment: m.quantity };
     if (m.variantId) {
-      await tx.productVariant.updateMany({ where: { id: m.variantId }, data: { stock: change } });
+      await tx.productVariant.updateMany({ where: { id: m.variantId, stock: { not: null } }, data: { stock: change } });
       if (sign === -1) {
         await tx.productVariant.updateMany({ where: { id: m.variantId, stock: { lt: 0 } }, data: { stock: 0 } });
       }
