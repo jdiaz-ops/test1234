@@ -174,3 +174,20 @@ describe("colecciones de /collections.json", () => {
     expect(fromString.tags).toEqual(["rojo", "gel"]);
   });
 });
+
+describe("fotos de variante", () => {
+  it("trae la foto propia de cada variante por link", () => {
+    const [product] = convertShopifyProducts([
+      {
+        title: "Esmalte",
+        handle: "esmalte",
+        variants: [
+          { option1: "Rojo", price: "5000.00", featured_image: { src: "//cdn.shopify.com/s/files/rojo.jpg" } },
+          { option1: "Azul", price: "5000.00", featured_image: null },
+        ],
+        options: [{ name: "Color", values: ["Rojo", "Azul"] }],
+      },
+    ]).products;
+    expect(product.variants.map((v) => v.imageUrl)).toEqual(["https://cdn.shopify.com/s/files/rojo.jpg", null]);
+  });
+});

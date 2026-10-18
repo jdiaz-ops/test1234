@@ -30,6 +30,24 @@ export function parseTiktokPixelId(input: string): string | null {
   return TIKTOK_ID.test(id) ? id : null;
 }
 
+const GA_ID = /^G-[A-Z0-9]{4,20}$/;
+
+/// Acepta el ID de medición de Google Analytics 4 ("G-XXXXXXXX") solo o el
+/// código completo (lo saca de gtag('config', '…') o de ?id=…). "" = sin
+/// Analytics. null = no se reconoce.
+export function parseGoogleAnalyticsId(input: string): string | null {
+  const raw = input.trim();
+  if (!raw) return "";
+  const fromSnippet =
+    raw.match(/gtag\(\s*['"]config['"]\s*,\s*['"](G-[A-Za-z0-9]+)['"]/)?.[1] ?? raw.match(/[?&]id=(G-[A-Za-z0-9]+)/)?.[1];
+  const id = (fromSnippet ?? raw).replace(/\s+/g, "").toUpperCase();
+  return GA_ID.test(id) ? id : null;
+}
+
+export function isValidGoogleAnalyticsId(id: string | null | undefined): id is string {
+  return !!id && GA_ID.test(id);
+}
+
 export function isValidMetaPixelId(id: string | null | undefined): id is string {
   return !!id && META_ID.test(id);
 }

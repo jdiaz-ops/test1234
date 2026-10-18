@@ -549,6 +549,8 @@ model BrandProfile {
   /// compras (ver components/storefront/ad-pixels.tsx). 2026-10-03.
   metaPixelId       String?
   tiktokPixelId     String?
+  /// ID de medición de Google Analytics 4 ("G-…"), 2026-10-18.
+  googleAnalyticsId String?
   rutDocumentUrl    String? // PDF/imagen del RUT
   camaraComercioUrl String? // PDF/imagen de Cámara de Comercio
 

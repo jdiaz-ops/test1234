@@ -47,6 +47,7 @@ export type ShopifyJsonVariant = {
   compare_at_price?: string | number | null;
   grams?: number | string | null;
   available?: boolean | null;
+  featured_image?: { src?: string | null } | null;
 };
 
 export type ShopifyJsonProduct = {
@@ -207,6 +208,7 @@ export function convertShopifyProducts(raw: ShopifyJsonProduct[]): ShopifyCsvPar
           stock: 0,
           weight: gramsToKg(v.grams),
           weightUnit: weightUnitFor(v.grams),
+          imageUrl: imageSrc(v.featured_image?.src),
         });
       }
       stats.withVariants++;

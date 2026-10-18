@@ -30,6 +30,10 @@ const bodySchema = z.object({
     .object({ links: z.array(linkSchema).max(40), replace: z.boolean().default(true) })
     .optional()
     .nullable(),
+  pageLinks: z
+    .array(z.object({ handle: z.string().trim().min(1).max(255), slug: z.string().trim().min(1).max(120) }))
+    .max(50)
+    .optional(),
 });
 
 export async function POST(req: Request) {

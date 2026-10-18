@@ -66,7 +66,46 @@ export type ShopifyThemeInfo = {
   social: ShopifySocial;
   /// Textos de la barra de anuncio (hasta 4).
   announcements: string[];
+  /// Páginas propias enlazadas en la portada (/pages/{handle}).
+  pageLinks: ShopifyPageLink[];
+  /// Políticas enlazadas en la portada (/policies/{kind}).
+  policyLinks: ShopifyPolicyKind[];
+  /// Secciones de la portada reconocidas, en orden.
+  homeSections: ShopifyHomeSection[];
 };
+
+export type ShopifyPageLink = { handle: string; label: string };
+
+export const SHOPIFY_POLICY_KINDS = [
+  "shipping-policy",
+  "refund-policy",
+  "privacy-policy",
+  "terms-of-service",
+  "contact-information",
+  "legal-notice",
+] as const;
+export type ShopifyPolicyKind = (typeof SHOPIFY_POLICY_KINDS)[number];
+
+/// Título en español por si la página de la política no trae uno.
+export const POLICY_TITLES: Record<ShopifyPolicyKind, string> = {
+  "shipping-policy": "Política de envíos",
+  "refund-policy": "Política de cambios y devoluciones",
+  "privacy-policy": "Política de privacidad",
+  "terms-of-service": "Términos y condiciones",
+  "contact-information": "Información de contacto",
+  "legal-notice": "Aviso legal",
+};
+
+export type ShopifyPageContent = { title: string | null; bodyHtml: string };
+
+export type ShopifyHomeSection =
+  | { type: "BANNER"; images: string[]; title: string; subtitle: string; buttonText: string; buttonHref: string }
+  | { type: "FEATURED_COLLECTION"; collectionHandle: string; title: string }
+  | { type: "TEXT"; heading: string; body: string }
+  | { type: "CATEGORY_GRID"; title: string; items: { collectionHandle: string; imageUrl: string | null; label: string }[] }
+  | { type: "VIDEO"; url: string; title: string }
+  | { type: "FEATURED_PRODUCTS"; productHandles: string[]; title: string }
+  | { type: "INFO_COLUMNS"; items: { title: string; description: string }[] };
 
 const MAX_MENU_LINKS = 12;
 
@@ -558,11 +597,20 @@ export function extractMenu(html: string, baseUrl: string): ShopifyMenuLink[] {
 /// importan, una colección que no existe acá).
 export function mapShopifyMenuHref(
   href: string,
-  maps: { collectionSlugByHandle: Map<string, string>; productSlugByHandle: Map<string, string> },
+  maps: {
+    collectionSlugByHandle: Map<string, string>;
+    productSlugByHandle: Map<string, string>;
+    pageSlugByHandle?: Map<string, string>;
+  },
 ): string | null {
   if (/^https?:\/\//i.test(href)) return href;
   if (href === "/") return "/";
   if (/^\/collections(\/all)?$/i.test(href)) return "/coleccion";
+  const page = href.match(/^\/pages\/([^/?#]+)/i);
+  if (page) {
+    const slug = maps.pageSlugByHandle?.get(decodeURIComponent(page[1]).toLowerCase());
+    return slug ? `/pagina/${slug}` : null;
+  }
   const product = href.match(/^\/(?:collections\/[^/]+\/)?products\/([^/?#]+)/i);
   if (product) {
     const slug = maps.productSlugByHandle.get(decodeURIComponent(product[1]).toLowerCase());
@@ -744,5 +792,254 @@ export function parseShopifyStorefront(html: string, baseUrl: string): ShopifyTh
     pixels: extractPixels(html),
     social: extractSocial(html),
     announcements: extractAnnouncements(html),
+    pageLinks: extractPageLinks(html, baseUrl),
+    policyLinks: extractPolicyLinks(html),
+    homeSections: extractHomeSections(html, baseUrl),
   };
+}
+
+// ----------------------------------------------------------------------------
+// Páginas, políticas y portada (2026-10-18)
+// ----------------------------------------------------------------------------
+
+/// El HTML interno del elemento que abre en `start` (índice de su "<tag"),
+/// contando aperturas y cierres del mismo tag para no cortarse en el
+/// primer cierre anidado.
+function innerHtmlAt(html: string, start: number): string | null {
+  const tagMatch = html.slice(start, start + 40).match(/^<([a-zA-Z][a-zA-Z0-9-]*)/);
+  if (!tagMatch) return null;
+  const tag = tagMatch[1].toLowerCase();
+  const openEnd = html.indexOf(">", start);
+  if (openEnd < 0) return null;
+  if (html[openEnd - 1] === "/") return "";
+  const re = new RegExp(`<(/?)${tag}\\b[^>]*>`, "gi");
+  re.lastIndex = openEnd + 1;
+  let depth = 1;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    if (m[1] === "/") {
+      depth--;
+      if (depth === 0) return html.slice(openEnd + 1, m.index);
+    } else if (!m[0].endsWith("/>")) {
+      depth++;
+    }
+  }
+  return null;
+}
+
+/// Páginas propias enlazadas en cualquier parte de la portada
+/// (encabezado, pie): /pages/{handle}.
+export function extractPageLinks(html: string, baseUrl: string): ShopifyPageLink[] {
+  const links: ShopifyPageLink[] = [];
+  const seen = new Set<string>();
+  for (const match of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+    const href = attr(`<a ${match[1]}>`, "href");
+    if (!href) continue;
+    const clean = cleanHref(href, baseUrl);
+    const page = clean?.match(/^\/pages\/([^/?#]+)$/i);
+    if (!page) continue;
+    const handle = decodeURIComponent(page[1]).toLowerCase();
+    if (seen.has(handle)) continue;
+    const label = stripTags(match[2]).slice(0, 60) || handle;
+    seen.add(handle);
+    links.push({ handle, label });
+    if (links.length >= 15) break;
+  }
+  return links;
+}
+
+export function extractPolicyLinks(html: string): ShopifyPolicyKind[] {
+  const found: ShopifyPolicyKind[] = [];
+  for (const match of html.matchAll(/\/policies\/([a-z-]+)/gi)) {
+    const kind = match[1].toLowerCase() as ShopifyPolicyKind;
+    if ((SHOPIFY_POLICY_KINDS as readonly string[]).includes(kind) && !found.includes(kind)) found.push(kind);
+  }
+  return found;
+}
+
+/// Deja absolutos los src/href relativos del contenido (Shopify usa
+/// "//cdn.shopify.com/…" y rutas internas).
+function absolutizeUrls(html: string, baseUrl: string) {
+  return html.replace(/\b(src|href)=(["'])([^"']+)\2/gi, (whole, name: string, quote: string, value: string) => {
+    const absolute = absoluteUrl(value, baseUrl);
+    return absolute ? `${name}=${quote}${absolute}${quote}` : whole;
+  });
+}
+
+const PAGE_BODY_PATTERNS = [
+  /<div\b[^>]*class=["'][^"']*shopify-policy__body[^"']*["'][^>]*>/i,
+  /<(?:div|section)\b[^>]*class=["'][^"']*\brte\b[^"']*["'][^>]*>/i,
+  /<(?:div|section)\b[^>]*class=["'][^"']*page(?:__|-)content[^"']*["'][^>]*>/i,
+  /<article\b[^>]*>/i,
+];
+
+/// El título y el cuerpo (HTML) de una página o política de Shopify: lo
+/// que está dentro de <main>, buscando el bloque de texto enriquecido
+/// (.rte) que usa el editor de Shopify.
+export function extractPageContent(html: string, baseUrl: string): ShopifyPageContent | null {
+  const mainStart = html.search(/<main\b/i);
+  const scope = (mainStart >= 0 ? innerHtmlAt(html, mainStart) : null) ?? html.replace(/^[\s\S]*<body\b[^>]*>/i, "");
+  const title = stripTags(scope.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? "").slice(0, 100) || null;
+  let body: string | null = null;
+  for (const pattern of PAGE_BODY_PATTERNS) {
+    const match = scope.match(pattern);
+    if (match?.index != null) {
+      body = innerHtmlAt(scope, match.index);
+      if (body) break;
+    }
+  }
+  if (body == null) body = scope.replace(/<h1\b[\s\S]*?<\/h1>/i, "");
+  body = absolutizeUrls(
+    body
+      .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+      .replace(/<style\b[\s\S]*?<\/style>/gi, "")
+      .replace(/<!--[\s\S]*?-->/g, ""),
+    baseUrl,
+  ).trim();
+  if (!body && !title) return null;
+  return { title, bodyHtml: body.slice(0, 50_000) };
+}
+
+function sectionImages(inner: string, baseUrl: string, max = 6): string[] {
+  const urls: string[] = [];
+  for (const tag of inner.match(/<img\b[^>]*>/gi) ?? []) {
+    const srcset = largestFromSrcset(attr(tag, "srcset") ?? attr(tag, "data-srcset"));
+    const src = attr(tag, "src") ?? attr(tag, "data-src");
+    const url = absoluteUrl(srcset ?? src, baseUrl) ?? absoluteUrl(src, baseUrl);
+    if (!url || !/^https?:/.test(url) || /\.svg(\?|$)|placeholder|\/icons?\/|data:image/i.test(url)) continue;
+    if (!urls.includes(url)) urls.push(url);
+    if (urls.length >= max) break;
+  }
+  return urls;
+}
+
+function firstText(inner: string, tags: string, max: number) {
+  const match = inner.match(new RegExp(`<(${tags})\\b[^>]*>([\\s\\S]*?)</\\1>`, "i"));
+  return match ? stripTags(match[2]).slice(0, max) : "";
+}
+
+function allParagraphs(inner: string, max: number) {
+  const texts: string[] = [];
+  for (const match of inner.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)) {
+    const text = stripTags(match[1]);
+    if (text) texts.push(text);
+  }
+  return texts.join("\n\n").slice(0, max);
+}
+
+function firstButton(inner: string, baseUrl: string) {
+  const match = inner.match(/<a\b([^>]*class=["'][^"']*(?:button|btn)[^"']*["'][^>]*)>([\s\S]*?)<\/a>/i);
+  if (!match) return { text: "", href: "" };
+  const href = attr(`<a ${match[1]}>`, "href");
+  return { text: stripTags(match[2]).slice(0, 40), href: (href && cleanHref(href, baseUrl)) || "" };
+}
+
+function collectionHandles(inner: string, max: number) {
+  const handles: string[] = [];
+  for (const match of inner.matchAll(/href=["'][^"']*\/collections\/([^"'/?#]+)/gi)) {
+    const handle = decodeURIComponent(match[1]).toLowerCase();
+    if (handle === "all" || handles.includes(handle)) continue;
+    handles.push(handle);
+    if (handles.length >= max) break;
+  }
+  return handles;
+}
+
+function productHandles(inner: string, max: number) {
+  const handles: string[] = [];
+  for (const match of inner.matchAll(/href=["'][^"']*\/products\/([^"'/?#]+)/gi)) {
+    const handle = decodeURIComponent(match[1]).toLowerCase();
+    if (handles.includes(handle)) continue;
+    handles.push(handle);
+    if (handles.length >= max) break;
+  }
+  return handles;
+}
+
+/// Las secciones de la portada que sabemos traducir a la home de Marcolini
+/// (ver storefront-sections.ts): banners y slideshows, colección
+/// destacada, texto, imagen con texto, lista de colecciones, video,
+/// producto destacado y columnas informativas. Está pensado para los
+/// temas tipo Dawn (los ids "shopify-section-…__image_banner"); en otros
+/// temas se reconoce por las clases.
+export function extractHomeSections(html: string, baseUrl: string): ShopifyHomeSection[] {
+  const sections: ShopifyHomeSection[] = [];
+  for (const match of html.matchAll(/<(?:div|section)\b[^>]*id=["']shopify-section-[^"']*["'][^>]*>/gi)) {
+    if (match.index == null) continue;
+    const tag = match[0];
+    const id = (attr(tag, "id") ?? "").toLowerCase();
+    const cls = (attr(tag, "class") ?? "").toLowerCase();
+    if (/header|footer|announcement|newsletter|email|cart|popup|apps|custom[-_]liquid/.test(`${id} ${cls}`)) continue;
+    const inner = innerHtmlAt(html, match.index);
+    if (!inner) continue;
+    const innerClasses = (inner.slice(0, 1500).match(/class=["']([^"']+)["']/gi) ?? []).join(" ").toLowerCase();
+    const key = `${id} ${cls} ${innerClasses}`;
+
+    if (/slideshow|image[-_]banner|\bhero\b|\bbanner\b/.test(key)) {
+      const images = sectionImages(inner, baseUrl);
+      const title = firstText(inner, "h1|h2|h3", 120);
+      const subtitle = allParagraphs(inner, 240);
+      const button = firstButton(inner, baseUrl);
+      if (images.length > 0 || title) {
+        sections.push({ type: "BANNER", images, title, subtitle, buttonText: button.text, buttonHref: button.href });
+      }
+      continue;
+    }
+    if (/featured[-_]collection/.test(key)) {
+      const [collectionHandle] = collectionHandles(inner, 1);
+      if (collectionHandle) sections.push({ type: "FEATURED_COLLECTION", collectionHandle, title: firstText(inner, "h2|h3", 120) });
+      continue;
+    }
+    if (/collection[-_]list/.test(key)) {
+      const items: { collectionHandle: string; imageUrl: string | null; label: string }[] = [];
+      for (const link of inner.matchAll(/<a\b([^>]*href=["'][^"']*\/collections\/([^"'/?#]+)[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi)) {
+        const collectionHandle = decodeURIComponent(link[2]).toLowerCase();
+        if (collectionHandle === "all" || items.some((i) => i.collectionHandle === collectionHandle)) continue;
+        items.push({ collectionHandle, imageUrl: sectionImages(link[3], baseUrl, 1)[0] ?? null, label: stripTags(link[3]).slice(0, 40) });
+        if (items.length >= 6) break;
+      }
+      if (items.length > 0) sections.push({ type: "CATEGORY_GRID", title: firstText(inner, "h2|h3", 120), items });
+      continue;
+    }
+    if (/image[-_]with[-_]text|multirow/.test(key)) {
+      const images = sectionImages(inner, baseUrl, 1);
+      const title = firstText(inner, "h2|h3", 120);
+      const button = firstButton(inner, baseUrl);
+      if (images.length > 0 || title) {
+        sections.push({ type: "BANNER", images, title, subtitle: allParagraphs(inner, 240), buttonText: button.text, buttonHref: button.href });
+      }
+      continue;
+    }
+    if (/rich[-_]text/.test(key)) {
+      const heading = firstText(inner, "h1|h2|h3", 120);
+      const body = allParagraphs(inner, 2000);
+      if (heading || body) sections.push({ type: "TEXT", heading, body });
+      continue;
+    }
+    if (/\bvideo\b/.test(key)) {
+      const url =
+        inner.match(/<iframe\b[^>]*src=["']([^"']*(?:youtube|youtu\.be|vimeo)[^"']*)["']/i)?.[1] ??
+        inner.match(/href=["']([^"']*(?:youtube\.com\/watch|youtu\.be\/|vimeo\.com\/)[^"']*)["']/i)?.[1] ??
+        "";
+      if (url) sections.push({ type: "VIDEO", url: decodeEntities(url).slice(0, 300), title: firstText(inner, "h2|h3", 120) });
+      continue;
+    }
+    if (/featured[-_]product/.test(key)) {
+      const handles = productHandles(inner, 8);
+      if (handles.length > 0) sections.push({ type: "FEATURED_PRODUCTS", productHandles: handles, title: firstText(inner, "h2|h3", 120) });
+      continue;
+    }
+    if (/multicolumn/.test(key)) {
+      const items: { title: string; description: string }[] = [];
+      for (const card of inner.matchAll(/<(li|div)\b[^>]*class=["'][^"']*multicolumn(?:-list__item|-card)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi)) {
+        const title = firstText(card[2], "h3|h2|h4", 60);
+        const description = allParagraphs(card[2], 120);
+        if (title || description) items.push({ title, description });
+        if (items.length >= 4) break;
+      }
+      if (items.length > 0) sections.push({ type: "INFO_COLUMNS", items });
+      continue;
+    }
+  }
+  return sections.slice(0, 12);
 }

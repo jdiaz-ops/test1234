@@ -14,7 +14,7 @@ import { ROOT_DOMAIN } from "@/lib/subdomain";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { listStorefrontMenuItems } from "@/server/services/store-page-service";
+import { listStorefrontMenuItems, listStorePages } from "@/server/services/store-page-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import {
@@ -74,12 +74,16 @@ export default async function StorefrontLayout({
     );
   }
 
-  const [theme, menuItemsRaw, basePath] = await Promise.all([
+  const [theme, menuItemsRaw, basePath, pagesRaw] = await Promise.all([
     getStorefrontTheme(brand.id),
     listStorefrontMenuItems(brand.id),
     getStoreBasePath(slug),
+    listStorePages(brand.id),
   ]);
   const menuItems = menuItemsRaw.map((i) => ({ id: i.id, label: i.label, url: i.url }));
+  // Las páginas propias (políticas, quiénes somos) van en la segunda
+  // columna del pie de página — ver StoreFooter.
+  const pages = pagesRaw.map((p) => ({ title: p.title, slug: p.slug }));
 
   const cssVars = themeToCssVars(theme);
   const fontsUrl = buildGoogleFontsUrl([
@@ -95,7 +99,11 @@ export default async function StorefrontLayout({
       {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
       {/* Píxeles de Meta/TikTok de la marca, si los configuró (Configuración
           → Píxeles de anuncios). */}
-      <AdPixels metaPixelId={brand.metaPixelId} tiktokPixelId={brand.tiktokPixelId} />
+      <AdPixels
+        metaPixelId={brand.metaPixelId}
+        tiktokPixelId={brand.tiktokPixelId}
+        googleAnalyticsId={brand.googleAnalyticsId}
+      />
       <StorefrontThemeProvider theme={theme}>
         {/* Un solo CartProvider para toda la vitrina — antes cada página
             armaba el suyo, duplicado; acá arriba lo pueden usar tanto el
@@ -126,6 +134,7 @@ export default async function StorefrontLayout({
                 instagramHandle={brand.instagramHandle}
                 tiktokHandle={brand.tiktokHandle}
                 menuItems={menuItems}
+                pages={pages}
                 basePath={basePath}
               />
             </HideInCheckout>

@@ -16,6 +16,9 @@ type VariantInput = {
   stock: number;
   weight?: number | null;
   weightUnit?: "KG" | "G";
+  /// undefined = conservar la foto que tenía la variante (el formulario de
+  /// editar no la maneja); null = sin foto.
+  imageUrl?: string | null;
 };
 
 export type ManualProductInput = {
@@ -117,6 +120,7 @@ export function toManualProductSummary(
       stock: v.stock,
       weight: v.weight != null ? Number(v.weight) : null,
       weightUnit: v.weightUnit,
+      imageUrl: v.imageUrl,
     })),
   };
 }
@@ -213,7 +217,18 @@ async function replaceImages(db: Prisma.TransactionClient, productId: string, im
   }
 }
 
+function variantKey(v: { option1Value: string | null; option2Value: string | null; option3Value: string | null }) {
+  return [v.option1Value, v.option2Value, v.option3Value].map((x) => (x ?? "").toLowerCase()).join("|");
+}
+
 async function replaceVariants(db: Prisma.TransactionClient, productId: string, variants: VariantInput[]) {
+  // Las fotos de variante que ya había se conservan cuando el que guarda
+  // no las manda (importadas de Shopify, ver shopify-csv.ts).
+  const previous = await db.productVariant.findMany({
+    where: { productId },
+    select: { option1Value: true, option2Value: true, option3Value: true, imageUrl: true },
+  });
+  const previousImage = new Map(previous.map((v) => [variantKey(v), v.imageUrl]));
   await db.productVariant.deleteMany({ where: { productId } });
   if (variants.length > 0) {
     await db.productVariant.createMany({
@@ -228,6 +243,7 @@ async function replaceVariants(db: Prisma.TransactionClient, productId: string, 
         stock: v.stock,
         weight: v.weight ?? null,
         weightUnit: v.weightUnit ?? "KG",
+        imageUrl: v.imageUrl !== undefined ? v.imageUrl : (previousImage.get(variantKey(v)) ?? null),
         position,
       })),
     });
@@ -299,6 +315,7 @@ export async function createManualProduct(
           stock: v.stock,
           weight: v.weight ?? null,
           weightUnit: v.weightUnit ?? "KG",
+          imageUrl: v.imageUrl ?? null,
           position,
         })),
       });

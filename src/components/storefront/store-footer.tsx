@@ -19,6 +19,7 @@ export function StoreFooter({
   instagramHandle,
   tiktokHandle,
   menuItems,
+  pages = [],
   basePath,
 }: {
   config: ThemeConfig["footer"];
@@ -28,6 +29,9 @@ export function StoreFooter({
   instagramHandle: string | null;
   tiktokHandle: string | null;
   menuItems: MenuItem[];
+  /// Páginas propias de la marca (políticas, quiénes somos…): van en la
+  /// segunda columna; si no hay, esa columna repite el menú como antes.
+  pages?: { title: string; slug: string }[];
   basePath: string;
 }) {
   const bg = config.useCustomColors ? resolveColorRef(colors, config.bgColorRef) : "var(--brand-ink)";
@@ -36,10 +40,11 @@ export function StoreFooter({
   const hasSocial = instagramHandle || tiktokHandle;
   const hasContact = config.contact.show && (phone || websiteUrl);
   const hasMenu = config.menuPrimary.show && menuItems.length > 0;
+  const hasPages = pages.length > 0;
   const hasAnything =
     config.aboutUs.show ||
     hasMenu ||
-    (config.menuSecondary.show && menuItems.length > 0) ||
+    (config.menuSecondary.show && (hasPages || menuItems.length > 0)) ||
     hasContact ||
     hasSocial ||
     config.seals.length > 0;
@@ -78,7 +83,22 @@ export function StoreFooter({
           </div>
         )}
 
-        {config.menuSecondary.show && menuItems.length > 0 && (
+        {config.menuSecondary.show && hasPages && (
+          <div>
+            <p className="font-display font-semibold mb-2">{config.menuSecondary.title || "Información"}</p>
+            <ul className="space-y-1.5">
+              {pages.map((page) => (
+                <li key={`page-${page.slug}`}>
+                  <Link href={`${basePath}/pagina/${page.slug}`} className="opacity-80 hover:opacity-100">
+                    {page.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {config.menuSecondary.show && !hasPages && menuItems.length > 0 && (
           <div>
             <p className="font-display font-semibold mb-2">{config.menuSecondary.title || "Menú"}</p>
             <ul className="space-y-1.5">

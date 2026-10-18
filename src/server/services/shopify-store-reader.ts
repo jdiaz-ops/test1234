@@ -9,7 +9,12 @@ import {
   ShopifyStoreError,
   type ShopifyImportCollection,
 } from "@/lib/shopify-products-json";
-import { parseShopifyStorefront, type ShopifyThemeInfo } from "@/lib/shopify-theme";
+import {
+  extractPageContent,
+  parseShopifyStorefront,
+  type ShopifyPolicyKind,
+  type ShopifyThemeInfo,
+} from "@/lib/shopify-theme";
 import {
   findFreeShippingThreshold,
   isColombiaRegion,
@@ -564,4 +569,40 @@ export async function readShopifyFreeShippingThreshold(
   };
   const result = await findFreeShippingThreshold(probe, Math.max(1, Math.min(100, options.maxQuantity)));
   return { storeUrl: session.base, region: options.region, probes, ...result };
+}
+
+// ----------------------------------------------------------------------------
+// Páginas propias (/pages/{handle}) y políticas (/policies/{kind})
+// ----------------------------------------------------------------------------
+
+export type ShopifyPageRead = {
+  storeUrl: string;
+  /// false = la tienda no tiene esa página o política (404).
+  found: boolean;
+  title: string | null;
+  bodyHtml: string;
+};
+
+export async function readShopifyPage(
+  input: string,
+  target: { handle: string } | { policy: ShopifyPolicyKind },
+  fetchImpl: FetchLike = defaultFetch,
+): Promise<ShopifyPageRead> {
+  const base = normalizeShopifyStoreUrl(input).href;
+  let path: string;
+  if ("handle" in target) {
+    const handle = target.handle.trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9._-]{0,254}$/.test(handle)) throw new ShopifyStoreError("Esa página no tiene un handle válido.");
+    path = `pages/${encodeURIComponent(handle)}`;
+  } else {
+    path = `policies/${target.policy}`;
+  }
+  const { response, base: storeUrl } = await getPath(fetchImpl, base, path, "text/html,application/xhtml+xml");
+  if (response.status === 404) return { storeUrl, found: false, title: null, bodyHtml: "" };
+  explainStatus(response, "una página");
+  const html = await response.text();
+  if (html.length > MAX_HTML_CHARS) throw new ShopifyStoreError("Esa página es demasiado pesada para leerla.");
+  const content = extractPageContent(html, storeUrl);
+  if (!content) return { storeUrl, found: false, title: null, bodyHtml: "" };
+  return { storeUrl, found: true, ...content };
 }

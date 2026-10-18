@@ -51,7 +51,13 @@ function nameKey(name: string) {
 
 export async function importShopifyCollections(
   brandId: string,
-  data: { collections: ImportCollectionInput[]; menu?: ImportMenuInput | null },
+  data: {
+    collections: ImportCollectionInput[];
+    menu?: ImportMenuInput | null;
+    /// Páginas ya importadas (handle de Shopify → slug acá), para que los
+    /// links "/pages/x" del menú apunten a /pagina/{slug}.
+    pageLinks?: { handle: string; slug: string }[];
+  },
 ) {
   const products = await prisma.product.findMany({
     where: { brandId, externalId: { startsWith: EXTERNAL_ID_PREFIX } },
@@ -155,10 +161,11 @@ export async function importShopifyCollections(
     for (const c of existing) if (!collectionSlugByHandle.has(c.slug)) collectionSlugByHandle.set(c.slug, c.slug);
     const productSlugByHandle = new Map<string, string>();
     for (const p of products) if (p.slug) productSlugByHandle.set(handleOf(p.externalId), p.slug);
+    const pageSlugByHandle = new Map((data.pageLinks ?? []).map((l) => [l.handle.trim().toLowerCase(), l.slug]));
     const items: { label: string; url: string }[] = [];
     const seenUrl = new Set<string>();
     for (const link of data.menu.links) {
-      const url = mapShopifyMenuHref(link.href, { collectionSlugByHandle, productSlugByHandle });
+      const url = mapShopifyMenuHref(link.href, { collectionSlugByHandle, productSlugByHandle, pageSlugByHandle });
       const label = link.label.trim().slice(0, 60);
       if (!url || !label || seenUrl.has(url)) continue;
       seenUrl.add(url);

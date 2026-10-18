@@ -11,7 +11,12 @@ import {
 } from "@/lib/shopify-csv";
 import { MAX_PAGES, PAGE_SIZE, type ShopifyImportCollection } from "@/lib/shopify-products-json";
 import type { ProposedCollection } from "@/lib/shopify-categorize";
-import type { ShopifyThemeInfo } from "@/lib/shopify-theme";
+import {
+  POLICY_TITLES,
+  type ShopifyHomeSection,
+  type ShopifyPolicyKind,
+  type ShopifyThemeInfo,
+} from "@/lib/shopify-theme";
 import {
   buildShippingZones,
   type ProposedShippingZone,
@@ -43,9 +48,13 @@ type ShippingRead = {
   uncovered: string[];
 };
 
+/// Una página o política leída de Shopify, lista para crearse.
+type PageRead = { handle: string; title: string; body: string; kind: "page" | "policy"; chars: number };
+
 /// Lo que se leyó de la tienda además de los productos (solo por link).
 type LinkExtras = {
   storeUrl: string;
+  pages: PageRead[];
   collections: ShopifyImportCollection[];
   /// Categorías propuestas cuando Shopify no tiene colecciones.
   proposed: { collections: ProposedCollection[]; source: "ia" | "reglas" } | null;
@@ -55,7 +64,15 @@ type LinkExtras = {
   notes: string[];
 };
 
-type ImportOptions = { products: boolean; collections: boolean; design: boolean; shipping: boolean; photos: boolean };
+type ImportOptions = {
+  products: boolean;
+  pages: boolean;
+  collections: boolean;
+  home: boolean;
+  design: boolean;
+  shipping: boolean;
+  photos: boolean;
+};
 
 type DesignResult = {
   colors: boolean;
@@ -68,8 +85,10 @@ type DesignResult = {
 };
 
 type ExtrasResult = {
+  pages: { created: number; existing: number; errors: number; footerEnabled: boolean } | null;
   collections: { created: number; updated: number; errors: number; linked: number } | null;
   menu: { items: number; replaced: boolean } | null;
+  home: { created: number; skipped: number; errors: number; removed: number } | null;
   design: DesignResult | null;
   shipping: { created: number; errors: number; removed: number } | null;
   photos: RehostSummary | null;
@@ -85,6 +104,43 @@ const API_PROPOSE = "/api/marca/tienda/colecciones/proponer";
 const API_COLLECTIONS = "/api/marca/tienda/colecciones/importar-shopify";
 const API_DESIGN = "/api/marca/tienda/diseno/importar-shopify";
 const API_SHIPPING = "/api/marca/tienda/envios/importar-shopify";
+const API_PAGES = "/api/marca/tienda/paginas/importar-shopify";
+const API_SECTIONS = "/api/marca/tienda/secciones/importar-shopify";
+/// Políticas que se buscan siempre, aunque la portada no las enlace.
+const DEFAULT_POLICIES: ShopifyPolicyKind[] = ["shipping-policy", "refund-policy", "privacy-policy", "terms-of-service"];
+
+const SECTION_LABEL: Record<ShopifyHomeSection["type"], string> = {
+  BANNER: "Banner",
+  FEATURED_COLLECTION: "Colección destacada",
+  TEXT: "Texto",
+  CATEGORY_GRID: "Categorías",
+  VIDEO: "Video",
+  FEATURED_PRODUCTS: "Productos destacados",
+  INFO_COLUMNS: "Columnas informativas",
+};
+
+function sectionSummary(section: ShopifyHomeSection) {
+  switch (section.type) {
+    case "BANNER":
+      return `${SECTION_LABEL.BANNER}${section.title ? ` «${section.title}»` : ""} (${section.images.length} ${section.images.length === 1 ? "foto" : "fotos"})`;
+    case "FEATURED_COLLECTION":
+      return `${SECTION_LABEL.FEATURED_COLLECTION}: ${section.title || section.collectionHandle}`;
+    case "TEXT":
+      return `${SECTION_LABEL.TEXT}${section.heading ? ` «${section.heading}»` : ""}`;
+    case "CATEGORY_GRID":
+      return `${SECTION_LABEL.CATEGORY_GRID} (${section.items.length})`;
+    case "VIDEO":
+      return SECTION_LABEL.VIDEO;
+    case "FEATURED_PRODUCTS":
+      return `${SECTION_LABEL.FEATURED_PRODUCTS} (${section.productHandles.length})`;
+    case "INFO_COLUMNS":
+      return `${SECTION_LABEL.INFO_COLUMNS} (${section.items.length})`;
+  }
+}
+
+function textLength(html: string) {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().length;
+}
 
 function failed(product: ShopifyImportProduct, error: string): ImportResult {
   return { handle: product.handle, name: product.name, action: "error", error };
@@ -123,6 +179,7 @@ const IMAGE_OUTCOME: Record<string, string> = {
 const PROFILE_FIELD_LABEL: Record<string, string> = {
   metaPixelId: "píxel de Meta",
   tiktokPixelId: "píxel de TikTok",
+  googleAnalyticsId: "Google Analytics",
   instagramHandle: "Instagram",
   tiktokHandle: "TikTok",
   phone: "teléfono",
@@ -162,7 +219,9 @@ export function ShopifyImporter({
   const [extras, setExtras] = useState<LinkExtras | null>(null);
   const [options, setOptions] = useState<ImportOptions>({
     products: true,
+    pages: true,
     collections: true,
+    home: true,
     design: true,
     shipping: true,
     photos: true,
@@ -301,6 +360,38 @@ export function ShopifyImporter({
         notes.push(`No se pudo leer el diseño de la tienda: ${message(err)}`);
       }
 
+      // Páginas enlazadas en la portada y políticas (las de siempre se
+      // buscan aunque no estén enlazadas; Shopify responde 404 si no hay).
+      const pages: PageRead[] = [];
+      if (theme) {
+        try {
+          const links = theme.pageLinks.slice(0, 15);
+          const policies = Array.from(new Set<ShopifyPolicyKind>([...theme.policyLinks, ...DEFAULT_POLICIES]));
+          const total = links.length + policies.length;
+          let n = 0;
+          for (const pageLink of links) {
+            n++;
+            setReadingStep(`Leyendo páginas y políticas… ${n} de ${total}`);
+            const body = await postJson(API_READ, { url, part: "pagina", handle: pageLink.handle });
+            const html = String(body.bodyHtml ?? "");
+            if (body.found && textLength(html) > 0) {
+              pages.push({ handle: pageLink.handle, title: String(body.title || pageLink.label), body: html, kind: "page", chars: textLength(html) });
+            }
+          }
+          for (const policy of policies) {
+            n++;
+            setReadingStep(`Leyendo páginas y políticas… ${n} de ${total}`);
+            const body = await postJson(API_READ, { url, part: "politica", policy });
+            const html = String(body.bodyHtml ?? "");
+            if (body.found && textLength(html) > 0) {
+              pages.push({ handle: policy, title: String(body.title || POLICY_TITLES[policy]), body: html, kind: "policy", chars: textLength(html) });
+            }
+          }
+        } catch (err) {
+          notes.push(`No se pudieron leer las páginas: ${message(err)}`);
+        }
+      }
+
       let shipping: ShippingRead | null = null;
       try {
         const regions = [...COLOMBIA_REGIONS];
@@ -362,13 +453,16 @@ export function ShopifyImporter({
       }
 
       setParsed({ products, warnings, stats });
-      setExtras({ storeUrl: resolvedUrl, collections, proposed, theme, shipping, notes });
+      setExtras({ storeUrl: resolvedUrl, pages, collections, proposed, theme, shipping, notes });
       setOptions({
         products: true,
+        pages: pages.length > 0,
         collections: collections.length > 0 || Boolean(proposed),
+        home: Boolean(theme && theme.homeSections.length > 0),
         design: Boolean(theme && (theme.colors || theme.fonts || theme.logoUrl)),
         shipping: Boolean(shipping),
-        photos: stats.images > 0,
+        // Siempre: también hay fotos en la portada y en las páginas.
+        photos: true,
       });
     } catch (err) {
       setParseError(message(err));
@@ -414,7 +508,37 @@ export function ShopifyImporter({
       }
     }
 
-    const result: ExtrasResult = { collections: null, menu: null, design: null, shipping: null, photos: null, errors: [] };
+    const result: ExtrasResult = {
+      pages: null,
+      collections: null,
+      menu: null,
+      home: null,
+      design: null,
+      shipping: null,
+      photos: null,
+      errors: [],
+    };
+    const pageLinks: { handle: string; slug: string }[] = [];
+    const collectionSlugByHandle: Record<string, string> = {};
+
+    if (byLink && options.pages && extras.pages.length > 0) {
+      setExtraStep("Creando páginas y políticas…");
+      try {
+        const body = await postJson(API_PAGES, {
+          pages: extras.pages.map((p) => ({ handle: p.handle, title: p.title.slice(0, 100), body: p.body, kind: p.kind })),
+        });
+        const rows = body.pages as { handle: string; slug: string; action: string }[];
+        for (const row of rows) if (row.action !== "error" && row.slug) pageLinks.push({ handle: row.handle, slug: row.slug });
+        result.pages = {
+          created: rows.filter((r) => r.action === "created").length,
+          existing: rows.filter((r) => r.action === "existing").length,
+          errors: rows.filter((r) => r.action === "error").length,
+          footerEnabled: Boolean(body.footerEnabled),
+        };
+      } catch (err) {
+        result.errors.push(`Páginas: ${message(err)}`);
+      }
+    }
 
     if (byLink && withCollections) {
       setExtraStep("Creando colecciones y menú…");
@@ -437,8 +561,10 @@ export function ShopifyImporter({
         const body = await postJson(API_COLLECTIONS, {
           collections: payload,
           menu: { links: extras.theme?.menu ?? [], replace: true },
+          pageLinks,
         });
-        const rows = body.collections as { action: string; linked: number }[];
+        const rows = body.collections as { handle: string; slug: string; action: string; linked: number }[];
+        for (const row of rows) if (row.action !== "error" && row.slug) collectionSlugByHandle[row.handle] = row.slug;
         result.collections = {
           created: rows.filter((r) => r.action === "created").length,
           updated: rows.filter((r) => r.action === "updated").length,
@@ -451,6 +577,27 @@ export function ShopifyImporter({
       }
     }
 
+    if (byLink && options.home && extras.theme && extras.theme.homeSections.length > 0) {
+      setExtraStep("Armando la página de inicio…");
+      try {
+        const body = await postJson(API_SECTIONS, {
+          sections: extras.theme.homeSections,
+          replace: true,
+          collectionSlugByHandle,
+          pageSlugByHandle: Object.fromEntries(pageLinks.map((l) => [l.handle, l.slug])),
+        });
+        const rows = body.sections as { action: string }[];
+        result.home = {
+          created: rows.filter((r) => r.action === "created").length,
+          skipped: rows.filter((r) => r.action === "skipped").length,
+          errors: rows.filter((r) => r.action === "error").length,
+          removed: body.removed as number,
+        };
+      } catch (err) {
+        result.errors.push(`Portada: ${message(err)}`);
+      }
+    }
+
     if (byLink && options.design && extras.theme) {
       setExtraStep("Aplicando el diseño y los datos de la marca…");
       try {
@@ -460,7 +607,11 @@ export function ShopifyImporter({
           fonts: t.fonts ? { headingFont: t.fonts.headingFont, bodyFont: t.fonts.bodyFont } : null,
           logoUrl: t.logoUrl,
           faviconUrl: t.faviconUrl,
-          pixels: { metaPixelId: t.pixels.metaPixelId, tiktokPixelId: t.pixels.tiktokPixelId },
+          pixels: {
+            metaPixelId: t.pixels.metaPixelId,
+            tiktokPixelId: t.pixels.tiktokPixelId,
+            googleAnalyticsId: t.pixels.googleAnalyticsId,
+          },
           social: {
             instagram: t.social.instagram,
             tiktok: t.social.tiktok,
@@ -490,7 +641,7 @@ export function ShopifyImporter({
       }
     }
 
-    if (importProducts && (!byLink || options.photos)) {
+    if (!byLink || options.photos) {
       setExtraStep("Guardando las fotos en Marcolini…");
       try {
         result.photos = await rehostAllImages((p) =>
@@ -517,14 +668,16 @@ export function ShopifyImporter({
     parsed !== null &&
     (source === "csv"
       ? parsed.products.length > 0
-      : options.products || options.collections || options.design || options.shipping);
+      : options.products || options.pages || options.collections || options.home || options.design || options.shipping);
 
   const importButtonLabel = (() => {
     if (!parsed) return "Importar";
     if (source === "csv" || !extras) return `Importar ${parsed.stats.products} productos`;
     const parts: string[] = [];
     if (options.products) parts.push(`${parsed.stats.products} productos`);
+    if (options.pages && extras.pages.length > 0) parts.push("páginas");
     if (options.collections && (extras.collections.length > 0 || extras.proposed)) parts.push("colecciones y menú");
+    if (options.home && theme && theme.homeSections.length > 0) parts.push("portada");
     if (options.design && theme) parts.push("diseño");
     if (options.shipping && shipping) parts.push("envíos");
     return parts.length ? `Importar ${parts.join(" + ")}` : "Importar";
@@ -577,8 +730,9 @@ export function ShopifyImporter({
                   Pega el link de tu tienda Shopify, con tu dominio propio o el de Shopify
                   (tumarca.myshopify.com). Leemos tu catálogo público: productos con sus precios,
                   variantes, SKU, peso y fotos; tus colecciones y en cuál va cada producto; el menú;
-                  el diseño (colores, letra, logo); los medios de pago; y los fletes, probando un
-                  carrito por cada departamento. Las fotos se copian a Marcolini.
+                  el diseño (colores, letra, logo); la portada; tus páginas y políticas; los medios de
+                  pago; y los fletes, probando un carrito por cada departamento. Las fotos se copian a
+                  Marcolini.
                 </p>
                 <p>
                   No trae los productos en borrador ni el inventario. Si tu tienda tiene contraseña,
@@ -693,7 +847,7 @@ export function ShopifyImporter({
                   fotos, inventario) pero conservan su estado actual: si están
                   activos, siguen activos.
                 </p>
-                {extras && parsed.stats.images > 0 && (
+                {extras && (
                   <label className="flex items-start gap-2 text-xs text-brand-ink">
                     <input
                       type="checkbox"
@@ -702,8 +856,9 @@ export function ShopifyImporter({
                       className="mt-0.5"
                     />
                     <span>
-                      Guardar las {parsed.stats.images} fotos en Marcolini. Quedan en nuestro servidor
-                      para que nada se rompa si la marca cierra su Shopify.
+                      Guardar en Marcolini las fotos de productos
+                      {parsed.stats.images > 0 ? ` (${parsed.stats.images})` : ""}, portada y páginas. Quedan en
+                      nuestro servidor para que nada se rompa si la marca cierra su Shopify.
                     </span>
                   </label>
                 )}
@@ -718,6 +873,34 @@ export function ShopifyImporter({
                   </ul>
                 )}
               </div>
+
+              {extras && extras.pages.length > 0 && (
+                <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-2">
+                  <label className="flex items-start gap-2 text-sm font-medium text-brand-ink">
+                    <input
+                      type="checkbox"
+                      checked={options.pages}
+                      onChange={(e) => setOptions({ ...options, pages: e.target.checked })}
+                      className="mt-1"
+                    />
+                    <span>
+                      {extras.pages.filter((p) => p.kind === "page").length} páginas y{" "}
+                      {extras.pages.filter((p) => p.kind === "policy").length} políticas
+                    </span>
+                  </label>
+                  <ul className="text-xs text-brand-ink-soft space-y-0.5">
+                    {extras.pages.slice(0, 20).map((p) => (
+                      <li key={`${p.kind}-${p.handle}`}>
+                        {p.title} <span className="font-mono opacity-70">{p.chars.toLocaleString("es-CO")} caracteres</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-brand-ink-soft">
+                    Entran como Páginas y se enlazan en la columna «Información» del pie de página. Las que ya
+                    existan no se tocan.
+                  </p>
+                </div>
+              )}
 
               {extras && (extras.collections.length > 0 || extras.proposed) && (
                 <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-2">
@@ -760,6 +943,31 @@ export function ShopifyImporter({
                       ? `Menú: ${theme.menu.map((m) => m.label).join(" · ")}.`
                       : "Menú: una entrada por colección."}{" "}
                     Reemplaza el menú actual de tu tienda. Los enlaces a páginas o blogs de Shopify no se traen.
+                  </p>
+                </div>
+              )}
+
+              {extras && theme && theme.homeSections.length > 0 && (
+                <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-2">
+                  <label className="flex items-start gap-2 text-sm font-medium text-brand-ink">
+                    <input
+                      type="checkbox"
+                      checked={options.home}
+                      onChange={(e) => setOptions({ ...options, home: e.target.checked })}
+                      className="mt-1"
+                    />
+                    <span>
+                      {theme.homeSections.length} {theme.homeSections.length === 1 ? "sección" : "secciones"} de la portada
+                    </span>
+                  </label>
+                  <ul className="text-xs text-brand-ink-soft space-y-0.5">
+                    {theme.homeSections.map((section, i) => (
+                      <li key={i}>{sectionSummary(section)}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-brand-ink-soft">
+                    Se arman en Diseño → Página de inicio con tus colecciones y productos ya importados. Reemplaza
+                    las secciones actuales de tu página de inicio.
                   </p>
                 </div>
               )}
@@ -825,12 +1033,13 @@ export function ShopifyImporter({
                       Barra de anuncio: {theme.announcements.map((t) => `«${t}»`).join(" · ")}
                     </p>
                   )}
-                  {(theme.pixels.metaPixelId || theme.pixels.tiktokPixelId) && (
+                  {(theme.pixels.metaPixelId || theme.pixels.tiktokPixelId || theme.pixels.googleAnalyticsId) && (
                     <p className="text-xs text-brand-ink-soft">
                       Píxeles:{" "}
                       {[
                         theme.pixels.metaPixelId ? `Meta ${theme.pixels.metaPixelId}` : null,
                         theme.pixels.tiktokPixelId ? `TikTok ${theme.pixels.tiktokPixelId}` : null,
+                        theme.pixels.googleAnalyticsId ? `Google Analytics ${theme.pixels.googleAnalyticsId}` : null,
                       ]
                         .filter(Boolean)
                         .join(" · ")}
@@ -1001,6 +1210,13 @@ export function ShopifyImporter({
               ))}
             </ul>
           )}
+          {extrasResult?.pages && (
+            <p className="text-sm text-brand-ink">
+              Páginas: {extrasResult.pages.created} nuevas · {extrasResult.pages.existing} ya existían
+              {extrasResult.pages.errors > 0 && ` · ${extrasResult.pages.errors} con error`}
+              {extrasResult.pages.footerEnabled && " · enlazadas en el pie de página"}
+            </p>
+          )}
           {extrasResult?.collections && (
             <p className="text-sm text-brand-ink">
               Colecciones: {extrasResult.collections.created} nuevas · {extrasResult.collections.updated} ya
@@ -1011,6 +1227,14 @@ export function ShopifyImporter({
           {extrasResult?.menu && (
             <p className="text-sm text-brand-ink">
               Menú: {extrasResult.menu.items} enlaces{extrasResult.menu.replaced ? " (reemplazó el anterior)" : ""}
+            </p>
+          )}
+          {extrasResult?.home && (
+            <p className="text-sm text-brand-ink">
+              Portada: {extrasResult.home.created} secciones creadas
+              {extrasResult.home.removed > 0 && ` (reemplazaron ${extrasResult.home.removed})`}
+              {extrasResult.home.skipped > 0 && ` · ${extrasResult.home.skipped} sin su colección o producto`}
+              {extrasResult.home.errors > 0 && ` · ${extrasResult.home.errors} con error`}
             </p>
           )}
           {extrasResult?.design && (
@@ -1065,7 +1289,12 @@ export function ShopifyImporter({
                 Ver colecciones
               </a>
             )}
-            {extrasResult?.design && (
+            {extrasResult?.pages && (
+              <a href="/marca/tienda/paginas" className="text-sm text-brand-ink-soft hover:underline">
+                Ver páginas
+              </a>
+            )}
+            {(extrasResult?.design || extrasResult?.home) && (
               <a href="/marca/tienda/diseno" className="text-sm text-brand-ink-soft hover:underline">
                 Ver diseño
               </a>

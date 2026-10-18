@@ -1,38 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { isValidMetaPixelId, isValidTiktokPixelId, parseMetaPixelId, parseTiktokPixelId } from "@/lib/ad-pixels";
+import { isValidGoogleAnalyticsId, parseGoogleAnalyticsId } from "@/lib/ad-pixels";
 
-describe("Pixel ID de Meta", () => {
-  it("acepta el número solo, con espacios alrededor", () => {
-    expect(parseMetaPixelId("  1234567890123456 ")).toBe("1234567890123456");
-  });
-  it("lo saca del código completo que da Meta", () => {
-    const snippet = `<script>!function(f,b,e,v,n,t,s){...}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '987654321098765');
-fbq('track', 'PageView');</script>`;
-    expect(parseMetaPixelId(snippet)).toBe("987654321098765");
-  });
-  it("vacío = quitar el pixel", () => {
-    expect(parseMetaPixelId("   ")).toBe("");
-  });
-  it("rechaza lo que no son solo números (no puede colarse código)", () => {
-    expect(parseMetaPixelId("123'); alert(1);//")).toBeNull();
-    expect(parseMetaPixelId("abc123")).toBeNull();
-    expect(parseMetaPixelId("123")).toBeNull();
-    expect(isValidMetaPixelId("1234567890');x")).toBe(false);
-  });
-});
-
-describe("Pixel ID de TikTok", () => {
-  it("acepta el código solo", () => {
-    expect(parseTiktokPixelId("CABC123DEF456GHI789J0")).toBe("CABC123DEF456GHI789J0");
-  });
-  it("lo saca del código completo que da TikTok", () => {
-    const snippet = `ttq.load('CXYZ987LMN654OPQ321R0');\n  ttq.page();`;
-    expect(parseTiktokPixelId(snippet)).toBe("CXYZ987LMN654OPQ321R0");
-  });
-  it("rechaza símbolos (no puede colarse código)", () => {
-    expect(parseTiktokPixelId("CABC123\"</script>")).toBeNull();
-    expect(parseTiktokPixelId("short")).toBeNull();
-    expect(isValidTiktokPixelId("CABC123DEF456');x")).toBe(false);
+describe("Google Analytics en la tienda", () => {
+  it("acepta el ID de medición solo o dentro del código de gtag", () => {
+    expect(parseGoogleAnalyticsId("G-ABC123XYZ")).toBe("G-ABC123XYZ");
+    expect(parseGoogleAnalyticsId(" g-abc123xyz ")).toBe("G-ABC123XYZ");
+    expect(parseGoogleAnalyticsId(`<script async src="https://www.googletagmanager.com/gtag/js?id=G-ABC123XYZ"></script><script>gtag('config', 'G-ABC123XYZ');</script>`)).toBe("G-ABC123XYZ");
+    expect(parseGoogleAnalyticsId("")).toBe("");
+    expect(parseGoogleAnalyticsId("UA-12345-1")).toBeNull();
+    expect(parseGoogleAnalyticsId("G-<script>")).toBeNull();
+    expect(isValidGoogleAnalyticsId("G-ABC123XYZ")).toBe(true);
+    expect(isValidGoogleAnalyticsId("g-abc")).toBe(false);
+    expect(isValidGoogleAnalyticsId(null)).toBe(false);
   });
 });

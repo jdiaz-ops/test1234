@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { GOOGLE_FONT_OPTIONS } from "@/lib/brand-theme";
+import { isValidGoogleAnalyticsId } from "@/lib/ad-pixels";
 import { FileUploadError, MAX_UPLOAD_BYTES, uploadFile } from "@/lib/file-upload";
 import { ShopifyStoreError } from "@/lib/shopify-products-json";
 import type { ShopifyThemeColors } from "@/lib/shopify-theme";
@@ -21,7 +22,7 @@ export type ShopifyDesignInput = {
   /// Píxeles, redes y teléfono leídos de la portada: se guardan solo en
   /// los campos del perfil que estén vacíos (nunca pisan lo que la marca
   /// ya configuró).
-  pixels?: { metaPixelId?: string | null; tiktokPixelId?: string | null } | null;
+  pixels?: { metaPixelId?: string | null; tiktokPixelId?: string | null; googleAnalyticsId?: string | null } | null;
   social?: { instagram?: string | null; tiktok?: string | null; whatsapp?: string | null; phone?: string | null } | null;
   /// Textos de la barra de anuncio; solo si la marca no tiene ninguno.
   announcements?: string[] | null;
@@ -88,6 +89,7 @@ export async function applyShopifyDesign(
       faviconUrl: true,
       metaPixelId: true,
       tiktokPixelId: true,
+      googleAnalyticsId: true,
       instagramHandle: true,
       tiktokHandle: true,
       phone: true,
@@ -101,6 +103,8 @@ export async function applyShopifyDesign(
   const clean = (v: string | null | undefined, max: number) => (v ?? "").trim().replace(/^@/, "").slice(0, max);
   if (!profile.metaPixelId && /^\d{6,20}$/.test(clean(input.pixels?.metaPixelId, 20))) fill.metaPixelId = clean(input.pixels?.metaPixelId, 20);
   if (!profile.tiktokPixelId && /^[A-Z0-9]{8,40}$/.test(clean(input.pixels?.tiktokPixelId, 40))) fill.tiktokPixelId = clean(input.pixels?.tiktokPixelId, 40);
+  const ga = clean(input.pixels?.googleAnalyticsId, 40).toUpperCase();
+  if (!profile.googleAnalyticsId && isValidGoogleAnalyticsId(ga)) fill.googleAnalyticsId = ga;
   if (!profile.instagramHandle && clean(input.social?.instagram, 60)) fill.instagramHandle = clean(input.social?.instagram, 60);
   if (!profile.tiktokHandle && clean(input.social?.tiktok, 60)) fill.tiktokHandle = clean(input.social?.tiktok, 60);
   if (!profile.phone) {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { prisma } from "@/lib/prisma";
-import { parseMetaPixelId, parseTiktokPixelId } from "@/lib/ad-pixels";
+import { parseGoogleAnalyticsId, parseMetaPixelId, parseTiktokPixelId } from "@/lib/ad-pixels";
 
 /// Guarda los Pixel ID de Meta y TikTok de la marca (Configuración →
 /// Píxeles de anuncios). Vacío = quitar ese pixel.
@@ -25,10 +25,18 @@ export async function PUT(req: Request) {
     );
   }
 
+  const ga = parseGoogleAnalyticsId(String(body?.googleAnalyticsId ?? ""));
+  if (ga === null) {
+    return NextResponse.json(
+      { error: "El ID de Google Analytics empieza por G- seguido de letras y números (ej. G-ABC123XYZ)." },
+      { status: 400 },
+    );
+  }
+
   const brand = await prisma.brandProfile.update({
     where: { id: profile.id },
-    data: { metaPixelId: meta || null, tiktokPixelId: tiktok || null },
-    select: { metaPixelId: true, tiktokPixelId: true },
+    data: { metaPixelId: meta || null, tiktokPixelId: tiktok || null, googleAnalyticsId: ga || null },
+    select: { metaPixelId: true, tiktokPixelId: true, googleAnalyticsId: true },
   });
   return NextResponse.json({ ok: true, ...brand });
 }

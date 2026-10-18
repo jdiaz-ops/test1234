@@ -24,6 +24,9 @@ export type ShopifyImportVariant = {
   stock: number;
   weight: number | null;
   weightUnit: "KG" | "G";
+  /// Foto propia de la variante ("Variant Image" en el CSV,
+  /// featured_image por link); la vitrina la muestra al elegirla.
+  imageUrl?: string | null;
 };
 
 export type ShopifyImportProduct = {
@@ -313,6 +316,7 @@ export function parseShopifyProductsCsv(text: string): ShopifyCsvParseResult {
           stock: stock ?? 0,
           weight: gramsToKg(cell(row, "Variant Grams")),
           weightUnit: mapWeightUnit(cell(row, "Variant Weight Unit")),
+          imageUrl: /^https?:\/\//i.test(cell(row, "Variant Image")) ? cell(row, "Variant Image") : null,
         });
       }
       stats.withVariants++;

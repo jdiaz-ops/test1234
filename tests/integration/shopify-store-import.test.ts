@@ -273,3 +273,141 @@ describe.skipIf(!hasDb)("fotos alojadas en Marcolini, zonas de envío y datos de
     expect(again).toMatchObject({ metaPixelId: "222817361457636", instagramHandle: "beauty", tiktokHandle: "tt" });
   });
 });
+
+describe.skipIf(!hasDb)("páginas, portada, fotos de variante y Google Analytics", () => {
+  it("crea las páginas y políticas, deja las que ya existían y prende la columna del pie", async () => {
+    const { importShopifyPages } = await import("@/server/services/shopify-pages-import-service");
+    const { createStorePage, listStorePages } = await import("@/server/services/store-page-service");
+    const brand = await createBrand();
+    await createStorePage(brand.id, { title: "Contacto", body: "<p>Escríbenos</p>" });
+    const result = await importShopifyPages(brand.id, [
+      { handle: "contacto", title: "Contacto", body: "<p>Otro</p>", kind: "page" },
+      { handle: "shipping-policy", title: "Política de envío", body: "<p>Enviamos</p><script>x</script>", kind: "policy" },
+      { handle: "x", title: "Q", body: "", kind: "page" },
+    ]);
+    expect(result.pages).toEqual([
+      { handle: "contacto", title: "Contacto", slug: "contacto", action: "existing" },
+      { handle: "shipping-policy", title: "Política de envío", slug: "politica-de-envio", action: "created" },
+      { handle: "x", title: "Q", slug: "", action: "error", error: "Ingresa un título para la página." },
+    ]);
+    expect(result.footerEnabled).toBe(true);
+    const pages = await listStorePages(brand.id);
+    expect(pages.map((p) => [p.slug, p.body])).toEqual([
+      ["contacto", "<p>Escríbenos</p>"],
+      ["politica-de-envio", "<p>Enviamos</p>"],
+    ]);
+    expect((await getPublishedTheme(brand.id)).footer.menuSecondary).toMatchObject({ show: true, title: "Información" });
+    expect((await importShopifyPages(brand.id, [{ handle: "shipping-policy", title: "Política de envío", body: "<p>x</p>", kind: "policy" }])).footerEnabled).toBe(false);
+  });
+
+  it("arma la portada con las colecciones y productos importados y salta lo que no encuentra", async () => {
+    const { importShopifySections } = await import("@/server/services/shopify-sections-import-service");
+    const { listStorefrontSections, createStorefrontSection } = await import("@/server/services/storefront-section-service");
+    const brand = await createBrand();
+    await importShopifyProducts(brand.id, [product("placa-01", "Placa 01")]);
+    await importShopifyCollections(brand.id, { collections: [{ handle: "soft-gel", name: "Soft Gel", productHandles: ["placa-01"] }] });
+    await createStorefrontSection(brand.id, { type: "TEXT", config: { heading: "Vieja", body: "" } });
+
+    const result = await importShopifySections(brand.id, {
+      sections: [
+        { type: "BANNER", images: ["https://cdn.shopify.com/s/files/hero.jpg"], title: "Hola", subtitle: "Sub", buttonText: "Ver", buttonHref: "/collections/soft-gel" },
+        { type: "FEATURED_COLLECTION", collectionHandle: "soft-gel", title: "Lo mejor" },
+        { type: "FEATURED_COLLECTION", collectionHandle: "no-existe", title: "" },
+        { type: "FEATURED_PRODUCTS", productHandles: ["placa-01", "otro"], title: "" },
+        { type: "CATEGORY_GRID", title: "Categorías", items: [{ collectionHandle: "soft-gel", imageUrl: null, label: "Soft Gel" }] },
+        { type: "INFO_COLUMNS", items: [{ title: "Envío gratis", description: "Desde $150.000" }] },
+      ],
+      replace: true,
+      collectionSlugByHandle: { "soft-gel": "soft-gel" },
+    });
+    expect(result.removed).toBe(1);
+    expect(result.sections.map((s) => [s.type, s.action])).toEqual([
+      ["BANNER", "created"],
+      ["FEATURED_COLLECTION", "created"],
+      ["FEATURED_COLLECTION", "skipped"],
+      ["FEATURED_PRODUCTS", "created"],
+      ["CATEGORY_GRID", "created"],
+      ["SHIPPING_INFO_BANNERS", "created"],
+    ]);
+    const sections = await listStorefrontSections(brand.id);
+    const collection = await prisma.brandCollection.findFirstOrThrow({ where: { brandId: brand.id } });
+    const placa = await prisma.product.findFirstOrThrow({ where: { brandId: brand.id } });
+    expect(sections.map((s) => s.type)).toEqual(["BANNER", "FEATURED_COLLECTION", "FEATURED_PRODUCTS", "CATEGORY_GRID", "SHIPPING_INFO_BANNERS"]);
+    expect(sections[0].config).toMatchObject({ slides: [{ imageUrl: "https://cdn.shopify.com/s/files/hero.jpg", link: "" }], title: "Hola", buttonLink: "/coleccion/soft-gel" });
+    expect(sections[1].config).toMatchObject({ collectionId: collection.id, title: "Lo mejor" });
+    expect(sections[2].config).toMatchObject({ productIds: [placa.id], title: "Destacados" });
+    expect((sections[3].config as { items: { show: boolean; collectionId: string | null }[] }).items.map((i) => [i.show, i.collectionId])).toEqual([
+      [true, collection.id],
+      [false, null],
+      [false, null],
+      [false, null],
+      [false, null],
+      [false, null],
+    ]);
+  });
+
+  it("las fotos de la portada y de las páginas también se copian a Marcolini", async () => {
+    const { rehostImages, countExternalImages, imageUrlsInConfig } = await import("@/server/services/image-rehost-service");
+    const { createStorefrontSection, listStorefrontSections } = await import("@/server/services/storefront-section-service");
+    const { createStorePage, listStorePages } = await import("@/server/services/store-page-service");
+    expect(imageUrlsInConfig({ slides: [{ imageUrl: "a" }], items: [{ imageUrl: "b", link: "c" }], images: ["d"], buttonLink: "e" })).toEqual(["a", "b", "d"]);
+    const brand = await createBrand();
+    await createStorefrontSection(brand.id, { type: "BANNER", config: { slides: [{ imageUrl: "https://cdn.shopify.com/s/files/hero.jpg", link: "" }] } });
+    await createStorePage(brand.id, { title: "Nosotros", body: `<p>Hola</p><img src="https://cdn.shopify.com/s/files/equipo.jpg" alt="x">` });
+    expect(await countExternalImages(brand.id)).toEqual({ total: 2 });
+    const fakeFetch = async () => new Response(PNG, { status: 200, headers: { "content-type": "image/png" } });
+    const result = await rehostImages(brand.id, { limit: 10 }, fakeFetch);
+    expect(result.saved).toHaveLength(2);
+    expect(result.remaining).toBe(0);
+    const [section] = await listStorefrontSections(brand.id);
+    const [page] = await listStorePages(brand.id);
+    const sectionUrl = (section.config as { slides: { imageUrl: string }[] }).slides[0].imageUrl;
+    expect(sectionUrl).toMatch(/^\/uploads\/marcas\//);
+    expect(page.body).toMatch(/<img src="\/uploads\/marcas\/[^"]+\.webp"/);
+    for (const url of [sectionUrl, page.body.match(/src="([^"]+)"/)![1]]) await rm(path.join(process.cwd(), "public", url), { force: true });
+  });
+
+  it("guarda la foto de cada variante y la conserva cuando se vuelve a guardar sin ella", async () => {
+    const { updateManualProduct } = await import("@/server/services/brand-store-product-service");
+    const brand = await createBrand();
+    const variant = (color: string, imageUrl?: string | null) => ({
+      option1Value: color,
+      option2Value: null,
+      option3Value: null,
+      price: 5000,
+      sku: "",
+      barcode: "",
+      stock: 0,
+      weight: null,
+      weightUnit: "G" as const,
+      ...(imageUrl === undefined ? {} : { imageUrl }),
+    });
+    await importShopifyProducts(brand.id, [
+      { ...product("esmalte", "Esmalte"), price: 0, hasVariants: true, optionNames: ["Color"], variants: [variant("Rojo", "https://cdn.shopify.com/s/files/rojo.jpg"), variant("Azul", null)] },
+    ]);
+    const saved = await prisma.product.findFirstOrThrow({ where: { brandId: brand.id }, include: { variants: { orderBy: { position: "asc" } } } });
+    expect(saved.variants.map((v) => v.imageUrl)).toEqual(["https://cdn.shopify.com/s/files/rojo.jpg", null]);
+    // Editar el producto sin mandar fotos de variante (como hace el formulario) no las borra.
+    await updateManualProduct(brand.id, saved.id, {
+      name: "Esmalte",
+      price: 0,
+      slug: saved.slug!,
+      hasVariants: true,
+      optionNames: ["Color"],
+      variants: [variant("Rojo"), variant("Azul")],
+    });
+    const again = await prisma.product.findFirstOrThrow({ where: { id: saved.id }, include: { variants: { orderBy: { position: "asc" } } } });
+    expect(again.variants.map((v) => v.imageUrl)).toEqual(["https://cdn.shopify.com/s/files/rojo.jpg", null]);
+  });
+
+  it("guarda el ID de Google Analytics leído de la portada si estaba vacío", async () => {
+    const brand = await createBrand();
+    const never = async () => {
+      throw new Error("no debería pedir nada");
+    };
+    const result = await applyShopifyDesign(brand.id, { pixels: { googleAnalyticsId: "g-abc123xyz" } }, never);
+    expect(result.profileFields).toEqual(["googleAnalyticsId"]);
+    expect((await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id } })).googleAnalyticsId).toBe("G-ABC123XYZ");
+    expect((await applyShopifyDesign(brand.id, { pixels: { googleAnalyticsId: "G-OTRO" } }, never)).profileFields).toEqual([]);
+  });
+});

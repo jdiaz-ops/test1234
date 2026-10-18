@@ -194,3 +194,97 @@ describe("pagos, píxeles, redes y barra de anuncio de la portada", () => {
     expect(extractPixels("<p>nada</p>")).toEqual({ metaPixelId: null, tiktokPixelId: null, googleAnalyticsId: null });
   });
 });
+
+describe("páginas, políticas y portada de Shopify", () => {
+  const HOME = `<html><body>
+<div id="shopify-section-sections--1__header" class="shopify-section shopify-section-group-header-group"><header><nav><a href="/pages/quienes-somos">Quiénes somos</a></nav></header></div>
+<main id="MainContent">
+<div id="shopify-section-template--1__image_banner" class="shopify-section section">
+  <div class="banner banner--medium">
+    <div class="banner__media"><img src="//cdn.shopify.com/s/files/hero_600x.jpg" srcset="//cdn.shopify.com/s/files/hero_600x.jpg 600w, //cdn.shopify.com/s/files/hero_1500x.jpg 1500w" alt=""></div>
+    <div class="banner__box"><h2 class="banner__heading">Soft gel para profesionales</h2><p>Envíos a todo el país</p><a href="/collections/soft-gel" class="button button--primary">Ver colección</a></div>
+  </div>
+</div>
+<div id="shopify-section-template--1__featured_collection" class="shopify-section section">
+  <div class="collection"><h2 class="title">Lo más vendido</h2><ul><li><a href="/products/placa-01">Placa</a></li></ul><a href="/collections/mas-vendidos" class="button">Ver todo</a></div>
+</div>
+<div id="shopify-section-template--1__rich_text" class="shopify-section section">
+  <div class="rich-text"><h2>Hecho para técnicas de uñas</h2><p>Productos probados.</p><p>Calidad garantizada.</p></div>
+</div>
+<div id="shopify-section-template--1__collection_list" class="shopify-section section">
+  <div class="collection-list-wrapper"><h2>Compra por categoría</h2>
+    <ul><li><a href="/collections/soft-gel"><img src="//cdn.shopify.com/s/files/c1.jpg"><span>Soft Gel</span></a></li>
+    <li><a href="/collections/esmaltes"><img src="//cdn.shopify.com/s/files/c2.jpg"><span>Esmaltes</span></a></li>
+    <li><a href="/collections/all">Todo</a></li></ul>
+  </div>
+</div>
+<div id="shopify-section-template--1__video" class="shopify-section section"><div class="video-section"><h2>Mira cómo se aplica</h2><iframe src="https://www.youtube.com/embed/abc123?rel=0"></iframe></div></div>
+<div id="shopify-section-template--1__multicolumn" class="shopify-section section"><div class="multicolumn"><ul class="multicolumn-list">
+  <li class="multicolumn-list__item"><div class="multicolumn-card"><h3>Envío gratis</h3><p>Desde $150.000</p></div></li>
+  <li class="multicolumn-list__item"><div class="multicolumn-card"><h3>Pago seguro</h3><p>PSE y tarjetas</p></div></li>
+</ul></div></div>
+<div id="shopify-section-template--1__newsletter" class="shopify-section section"><h2>Suscríbete</h2></div>
+</main>
+<footer><a href="/pages/contacto">Contacto</a><a href="/policies/shipping-policy">Envíos</a><a href="/policies/refund-policy">Cambios</a><a href="/pages/quienes-somos">Nosotros</a></footer>
+</body></html>`;
+
+  it("encuentra las páginas y políticas enlazadas", async () => {
+    const { extractPageLinks, extractPolicyLinks } = await import("@/lib/shopify-theme");
+    expect(extractPageLinks(HOME, BASE)).toEqual([
+      { handle: "quienes-somos", label: "Quiénes somos" },
+      { handle: "contacto", label: "Contacto" },
+    ]);
+    expect(extractPolicyLinks(HOME)).toEqual(["shipping-policy", "refund-policy"]);
+  });
+
+  it("saca el título y el cuerpo de una página o política", async () => {
+    const { extractPageContent } = await import("@/lib/shopify-theme");
+    const policy = `<html><body><header>x</header><main><div class="shopify-policy__container"><div class="shopify-policy__title"><h1>Política de envío</h1></div><div class="shopify-policy__body"><div class="rte"><p>Enviamos a <strong>todo</strong> el país.</p><div><p>Anidado</p></div><img src="//cdn.shopify.com/s/files/mapa.jpg"></div></div></div></main><footer>y</footer></body></html>`;
+    expect(extractPageContent(policy, BASE)).toEqual({
+      title: "Política de envío",
+      bodyHtml: `<div class="rte"><p>Enviamos a <strong>todo</strong> el país.</p><div><p>Anidado</p></div><img src="https://cdn.shopify.com/s/files/mapa.jpg"></div>`,
+    });
+    const page = `<html><body><main id="MainContent"><h1 class="page-title">Quiénes somos</h1><div class="rte"><p>Somos una marca.</p><script>alert(1)</script></div></main></body></html>`;
+    expect(extractPageContent(page, BASE)).toEqual({ title: "Quiénes somos", bodyHtml: "<p>Somos una marca.</p>" });
+    expect(extractPageContent("<html><body><main></main></body></html>", BASE)).toBeNull();
+  });
+
+  it("reconoce las secciones de la portada en orden", async () => {
+    const { extractHomeSections } = await import("@/lib/shopify-theme");
+    expect(extractHomeSections(HOME, BASE)).toEqual([
+      {
+        type: "BANNER",
+        images: ["https://cdn.shopify.com/s/files/hero_1500x.jpg"],
+        title: "Soft gel para profesionales",
+        subtitle: "Envíos a todo el país",
+        buttonText: "Ver colección",
+        buttonHref: "/collections/soft-gel",
+      },
+      { type: "FEATURED_COLLECTION", collectionHandle: "mas-vendidos", title: "Lo más vendido" },
+      { type: "TEXT", heading: "Hecho para técnicas de uñas", body: "Productos probados.\n\nCalidad garantizada." },
+      {
+        type: "CATEGORY_GRID",
+        title: "Compra por categoría",
+        items: [
+          { collectionHandle: "soft-gel", imageUrl: "https://cdn.shopify.com/s/files/c1.jpg", label: "Soft Gel" },
+          { collectionHandle: "esmaltes", imageUrl: "https://cdn.shopify.com/s/files/c2.jpg", label: "Esmaltes" },
+        ],
+      },
+      { type: "VIDEO", url: "https://www.youtube.com/embed/abc123?rel=0", title: "Mira cómo se aplica" },
+      {
+        type: "INFO_COLUMNS",
+        items: [
+          { title: "Envío gratis", description: "Desde $150.000" },
+          { title: "Pago seguro", description: "PSE y tarjetas" },
+        ],
+      },
+    ]);
+  });
+
+  it("traduce los links a páginas cuando ya existen acá", async () => {
+    const { mapShopifyMenuHref } = await import("@/lib/shopify-theme");
+    const maps = { collectionSlugByHandle: new Map(), productSlugByHandle: new Map(), pageSlugByHandle: new Map([["contacto", "contactanos"]]) };
+    expect(mapShopifyMenuHref("/pages/contacto", maps)).toBe("/pagina/contactanos");
+    expect(mapShopifyMenuHref("/pages/otra", maps)).toBeNull();
+  });
+});

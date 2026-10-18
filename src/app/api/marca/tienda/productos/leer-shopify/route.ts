@@ -3,10 +3,12 @@ import { z } from "zod";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { limitOrReject } from "@/lib/rate-limit";
 import { MAX_PAGES, ShopifyStoreError } from "@/lib/shopify-products-json";
+import { SHOPIFY_POLICY_KINDS } from "@/lib/shopify-theme";
 import {
   readShopifyCollectionProducts,
   readShopifyCollections,
   readShopifyFreeShippingThreshold,
+  readShopifyPage,
   readShopifyShippingRates,
   readShopifyStorefront,
   readShopifyStorePage,
@@ -29,9 +31,10 @@ const variantSchema = z.object({
 
 const bodySchema = z.object({
   url: z.string().trim().min(4).max(500),
-  part: z.enum(["productos", "colecciones", "coleccion", "tema", "envios"]).default("productos"),
+  part: z.enum(["productos", "colecciones", "coleccion", "tema", "envios", "pagina", "politica"]).default("productos"),
   page: z.number().int().min(1).max(MAX_PAGES).default(1),
   handle: z.string().trim().min(1).max(255).optional(),
+  policy: z.enum(SHOPIFY_POLICY_KINDS).optional(),
   /// Solo para part = "envios".
   step: z.enum(["tarifas", "umbral"]).default("tarifas"),
   regions: z.array(z.string().trim().min(1).max(60)).max(12).default([]),
@@ -63,6 +66,14 @@ export async function POST(req: Request) {
       }
       case "tema":
         return NextResponse.json({ ok: true, ...(await readShopifyStorefront(url)) });
+      case "pagina": {
+        if (!handle) return NextResponse.json({ error: "Falta la página." }, { status: 400 });
+        return NextResponse.json({ ok: true, ...(await readShopifyPage(url, { handle })) });
+      }
+      case "politica": {
+        if (!body.data.policy) return NextResponse.json({ error: "Falta la política." }, { status: 400 });
+        return NextResponse.json({ ok: true, ...(await readShopifyPage(url, { policy: body.data.policy })) });
+      }
       case "envios": {
         if (body.data.step === "umbral") {
           if (!body.data.region || !body.data.variant) {

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { optimizeImageUpload } from "@/lib/image-optimize";
 import { uploadFile } from "@/lib/file-upload";
@@ -5,7 +6,8 @@ import { downloadImage } from "@/server/services/shopify-design-import-service";
 import type { FetchLike } from "@/server/services/shopify-store-reader";
 
 /// Copia a Marcolini las fotos que todavía viven en otro servidor (las
-/// importadas de Shopify quedan enlazadas a cdn.shopify.com): se
+/// importadas de Shopify quedan enlazadas a cdn.shopify.com) — de
+/// productos, variantes, colecciones, secciones de la home y páginas: se
 /// descargan, se comprimen como cualquier foto subida (ver
 /// image-optimize.ts) y se suben al almacenamiento de Marcolini, y todas
 /// las filas que apuntaban a la URL vieja pasan a la nueva. Así el día que
@@ -31,10 +33,36 @@ export function isExternalImageUrl(url: string | null | undefined): url is strin
   }
 }
 
+const CONFIG_IMAGE_KEYS = new Set(["imageUrl", "mobileImageUrl", "iconUrl"]);
+
+/// Las URLs de imagen dentro del config (JSON) de una sección de la home:
+/// slides[].imageUrl, items[].imageUrl, images[]…
+export function imageUrlsInConfig(value: unknown, out: string[] = []): string[] {
+  if (Array.isArray(value)) {
+    for (const item of value) if (item && typeof item === "object") imageUrlsInConfig(item, out);
+    return out;
+  }
+  if (!value || typeof value !== "object") return out;
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (CONFIG_IMAGE_KEYS.has(key)) {
+      if (typeof item === "string") out.push(item);
+    } else if (key === "images" && Array.isArray(item)) {
+      for (const url of item) if (typeof url === "string") out.push(url);
+    } else if (item && typeof item === "object") {
+      imageUrlsInConfig(item, out);
+    }
+  }
+  return out;
+}
+
+export function imageUrlsInHtml(html: string): string[] {
+  return Array.from(html.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["']/gi)).map((m) => m[1]);
+}
+
 /// URLs externas distintas, de más antigua a más nueva, sin las que ya se
 /// intentaron y fallaron en esta pasada.
 async function findExternalImages(brandId: string, exclude: Set<string>) {
-  const [images, products, variants, collections] = await Promise.all([
+  const [images, products, variants, collections, sections, pages] = await Promise.all([
     prisma.productImage.findMany({
       where: { product: { brandId }, url: { startsWith: "http" } },
       select: { url: true },
@@ -55,6 +83,8 @@ async function findExternalImages(brandId: string, exclude: Set<string>) {
       where: { brandId },
       select: { imageUrl: true, bannerUrl: true, bannerMobileUrl: true },
     }),
+    prisma.storefrontSection.findMany({ where: { brandId }, select: { config: true } }),
+    prisma.storePage.findMany({ where: { brandId }, select: { body: true } }),
   ]);
   const urls: string[] = [];
   const seen = new Set<string>();
@@ -71,7 +101,27 @@ async function findExternalImages(brandId: string, exclude: Set<string>) {
     add(c.bannerUrl);
     add(c.bannerMobileUrl);
   }
+  for (const s of sections) for (const url of imageUrlsInConfig(s.config)) add(url);
+  for (const p of pages) for (const url of imageUrlsInHtml(p.body)) add(url);
   return urls;
+}
+
+/// Reemplaza la URL vieja por la nueva en las secciones de la home y en
+/// el cuerpo de las páginas que la usen (JSON y HTML, respectivamente).
+async function replaceInSectionsAndPages(brandId: string, url: string, newUrl: string) {
+  const sections = await prisma.storefrontSection.findMany({ where: { brandId }, select: { id: true, config: true } });
+  for (const section of sections) {
+    const json = JSON.stringify(section.config);
+    if (!json.includes(url)) continue;
+    await prisma.storefrontSection.update({
+      where: { id: section.id },
+      data: { config: JSON.parse(json.split(url).join(newUrl)) as Prisma.InputJsonValue },
+    });
+  }
+  const pages = await prisma.storePage.findMany({ where: { brandId, body: { contains: url } }, select: { id: true, body: true } });
+  for (const page of pages) {
+    await prisma.storePage.update({ where: { id: page.id }, data: { body: page.body.split(url).join(newUrl) } });
+  }
 }
 
 export async function countExternalImages(brandId: string, exclude: string[] = []) {
@@ -111,6 +161,7 @@ export async function rehostImages(
         prisma.brandCollection.updateMany({ where: { brandId, bannerUrl: url }, data: { bannerUrl: newUrl } }),
         prisma.brandCollection.updateMany({ where: { brandId, bannerMobileUrl: url }, data: { bannerMobileUrl: newUrl } }),
       ]);
+      await replaceInSectionsAndPages(brandId, url, newUrl);
       saved.push({ url, newUrl });
     } catch (err) {
       const error = err instanceof Error ? err.message : "No se pudo copiar esta foto.";

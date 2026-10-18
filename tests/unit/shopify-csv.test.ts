@@ -63,3 +63,15 @@ describe("importar CSV de productos de Shopify", () => {
     expect(slugFromHandle("", "Placa Ñandú Básica")).toBe("placa-nandu-basica");
   });
 });
+
+describe("foto de variante en el CSV", () => {
+  it("lee la columna Variant Image", () => {
+    const csv = [
+      "Handle,Title,Variant Price,Option1 Name,Option1 Value,Variant Image,Status",
+      "esmalte,Esmalte,5000,Color,Rojo,https://cdn.shopify.com/s/files/rojo.jpg,active",
+      "esmalte,,5000,,Azul,,",
+    ].join("\n");
+    const [product] = parseShopifyProductsCsv(csv).products;
+    expect(product.variants.map((v) => v.imageUrl)).toEqual(["https://cdn.shopify.com/s/files/rojo.jpg", null]);
+  });
+});

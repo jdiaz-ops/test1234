@@ -22,7 +22,11 @@ const bodySchema = z.object({
   logoUrl: imageUrl,
   faviconUrl: imageUrl,
   pixels: z
-    .object({ metaPixelId: z.string().max(40).optional().nullable(), tiktokPixelId: z.string().max(60).optional().nullable() })
+    .object({
+      metaPixelId: z.string().max(40).optional().nullable(),
+      tiktokPixelId: z.string().max(60).optional().nullable(),
+      googleAnalyticsId: z.string().max(40).optional().nullable(),
+    })
     .optional()
     .nullable(),
   social: z

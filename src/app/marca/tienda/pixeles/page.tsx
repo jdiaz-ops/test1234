@@ -12,6 +12,7 @@ export default async function TiendaPixelesPage() {
     <SettingsShell active="pixeles">
       <AdPixelsForm
         initialMetaPixelId={profile.metaPixelId ?? ""}
+        initialGoogleAnalyticsId={profile.googleAnalyticsId ?? ""}
         initialTiktokPixelId={profile.tiktokPixelId ?? ""}
         storeUrl={publicStoreUrl(profile)}
       />

@@ -64,6 +64,9 @@ const variantInputSchema = z.object({
   stock: z.coerce.number().int().min(0, "No puede ser negativo"),
   weight: z.number().min(0, "No puede ser negativo").nullable(),
   weightUnit: z.enum(["KG", "G"]).default("KG"),
+  /// Foto propia de la variante. Si no viene (el formulario de editar no
+  /// la maneja todavía), se conserva la que tenía.
+  imageUrl: z.string().max(1000).regex(/^https?:\/\//, "URL de imagen inválida").optional().nullable(),
 });
 
 const productBaseSchema = z.object({

@@ -8,20 +8,23 @@ import { useState } from "react";
 export function AdPixelsForm({
   initialMetaPixelId,
   initialTiktokPixelId,
+  initialGoogleAnalyticsId = "",
   storeUrl,
 }: {
   initialMetaPixelId: string;
   initialTiktokPixelId: string;
+  initialGoogleAnalyticsId?: string;
   storeUrl: string | null;
 }) {
   const [meta, setMeta] = useState(initialMetaPixelId);
   const [tiktok, setTiktok] = useState(initialTiktokPixelId);
-  const [saved, setSaved] = useState({ meta: initialMetaPixelId, tiktok: initialTiktokPixelId });
+  const [ga, setGa] = useState(initialGoogleAnalyticsId);
+  const [saved, setSaved] = useState({ meta: initialMetaPixelId, tiktok: initialTiktokPixelId, ga: initialGoogleAnalyticsId });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
 
-  const dirty = meta.trim() !== saved.meta || tiktok.trim() !== saved.tiktok;
+  const dirty = meta.trim() !== saved.meta || tiktok.trim() !== saved.tiktok || ga.trim() !== saved.ga;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -32,17 +35,18 @@ export function AdPixelsForm({
       const res = await fetch("/api/marca/tienda/pixeles", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ metaPixelId: meta, tiktokPixelId: tiktok }),
+        body: JSON.stringify({ metaPixelId: meta, tiktokPixelId: tiktok, googleAnalyticsId: ga }),
       });
       const body = await res.json();
       if (!res.ok) {
         setError(body?.error ?? "No se pudo guardar.");
         return;
       }
-      const next = { meta: body.metaPixelId ?? "", tiktok: body.tiktokPixelId ?? "" };
+      const next = { meta: body.metaPixelId ?? "", tiktok: body.tiktokPixelId ?? "", ga: body.googleAnalyticsId ?? "" };
       setSaved(next);
       setMeta(next.meta);
       setTiktok(next.tiktok);
+      setGa(next.ga);
       setJustSaved(true);
     } catch {
       setError("No se pudo guardar — revisa tu conexión.");
@@ -74,6 +78,15 @@ export function AdPixelsForm({
         active={!!saved.tiktok}
         placeholder="Ej. CABC123DEF456GHI789J0"
         help="En TikTok Ads Manager: Herramientas → Eventos → Eventos web → tu pixel. Es el código que aparece debajo del nombre (ID del pixel)."
+      />
+
+      <PixelField
+        label="Google Analytics 4"
+        value={ga}
+        onChange={setGa}
+        active={!!saved.ga}
+        placeholder="Ej. G-ABC123XYZ"
+        help="En Google Analytics: Administrar → Flujos de datos → tu sitio web. Es el ID de medición, que empieza por G-. Solo mide visitas."
       />
 
       <div className="rounded-xl border border-brand-line bg-brand-bg p-4 text-xs text-brand-ink-soft space-y-1.5">

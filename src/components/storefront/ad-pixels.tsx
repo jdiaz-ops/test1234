@@ -1,4 +1,4 @@
-import { isValidMetaPixelId, isValidTiktokPixelId } from "@/lib/ad-pixels";
+import { isValidGoogleAnalyticsId, isValidMetaPixelId, isValidTiktokPixelId } from "@/lib/ad-pixels";
 import { PixelPageViews } from "@/components/storefront/pixel-events";
 
 /// Código base de Meta y TikTok con el Pixel ID de la marca (ver
@@ -10,16 +10,29 @@ import { PixelPageViews } from "@/components/storefront/pixel-events";
 export function AdPixels({
   metaPixelId,
   tiktokPixelId,
+  googleAnalyticsId = null,
 }: {
   metaPixelId: string | null;
   tiktokPixelId: string | null;
+  /// Google Analytics 4 (solo visitas; los eventos de compra siguen
+  /// siendo de Meta y TikTok). 2026-10-18.
+  googleAnalyticsId?: string | null;
 }) {
   const meta = isValidMetaPixelId(metaPixelId) ? metaPixelId : null;
   const tiktok = isValidTiktokPixelId(tiktokPixelId) ? tiktokPixelId : null;
-  if (!meta && !tiktok) return null;
+  const ga = isValidGoogleAnalyticsId(googleAnalyticsId) ? googleAnalyticsId : null;
+  if (!meta && !tiktok && !ga) return null;
 
   return (
     <>
+      {ga && (
+        <script
+          id="mc-google-analytics"
+          dangerouslySetInnerHTML={{
+            __html: `(function(){if(window.top!==window.self)return;var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id=${ga}';document.head.appendChild(s);window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config',${JSON.stringify(ga)});})();`,
+          }}
+        />
+      )}
       {meta && (
         <script
           id="mc-meta-pixel"
