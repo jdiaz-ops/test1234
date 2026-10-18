@@ -2,12 +2,15 @@ import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { SettingsShell } from "@/components/portal/settings-shell";
 import { StorePaymentForm } from "@/components/portal/store-payment-form";
+import { OtherGatewayForm } from "@/components/portal/other-gateway-form";
+import { listGatewayRequests } from "@/server/services/payment-gateway-request-service";
 import { maskSecret, wompiStatus } from "@/server/services/brand-payment-service";
 import { portalUrl } from "@/lib/store-url";
 
 export default async function TiendaPagosPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
+  const gatewayRequests = (await listGatewayRequests(profile.id)).map((r) => r.gateway);
 
   return (
     <SettingsShell active="pagos">
@@ -32,6 +35,7 @@ export default async function TiendaPagosPage() {
           eventsUrl: `${portalUrl()}/api/webhooks/wompi`,
         }}
       />
+      <OtherGatewayForm initialRequests={gatewayRequests} />
     </SettingsShell>
   );
 }

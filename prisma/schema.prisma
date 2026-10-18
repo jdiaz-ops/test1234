@@ -393,6 +393,26 @@ enum StorefrontSectionType {
 /// resuelven por su handle (ver src/app/t/[slug]/products). Las rutas
 /// viejas viven en src/app/t/[slug]/{collections,pages,policies,…}. Ver
 /// conversación del 2026-10-18.
+/// Pasarela de pago con la que cobra una marca y Marcolini no tiene (hoy
+/// solo hay Wompi). Se registra al duplicar su tienda (las pasarelas que
+/// se detectan) o cuando la marca la pide en Pagos, y avisa al admin para
+/// construir la integración. Ver payment-gateway-request-service.ts
+/// (2026-10-18).
+model PaymentGatewayRequest {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  gateway String
+  /// "DUPLICAR" (detectada en la tienda anterior) o "MARCA" (la pidió ella).
+  source  String
+  note    String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([brandId, gateway])
+}
+
 model StorefrontRedirect {
   id      String       @id @default(cuid())
   brandId String
@@ -635,6 +655,7 @@ model BrandProfile {
   storeCustomers      StoreCustomer[]
   storePages          StorePage[]
   storefrontRedirects StorefrontRedirect[]
+  paymentGatewayRequests PaymentGatewayRequest[]
 
   /// Pasos de "lo que falta para vender" que la marca marcó a mano (ver
   /// go-live-service.ts); los demás se calculan solos.

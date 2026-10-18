@@ -140,6 +140,8 @@ export async function listBrands(status?: string) {
       user: { select: { email: true } },
       vertical: true,
       _count: { select: { offers: true } },
+      // Pasarelas que usa y no tenemos (ver payment-gateway-request-service.ts).
+      paymentGatewayRequests: { select: { gateway: true } },
       // Solo el corte abierto (si hay uno) — para mostrar en Marcas si se
       // puede "simular corte vencido" o hay que ofrecer "quitarlo" (ver
       // createTestOverdueCharge/removeTestCharge en payment-service.ts).

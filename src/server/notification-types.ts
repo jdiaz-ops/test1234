@@ -421,6 +421,15 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "referidor,referido,monto",
   },
   {
+    key: "PAYMENT_GATEWAY_REQUEST_ADMIN",
+    label: "Pasarela de pago que no tenemos",
+    audience: "ADMIN",
+    channelEmail: true,
+    messageTemplate:
+      "{marca} cobra con {pasarela} y Marcolini no la tiene ({fuente}). Hay que construir esa integración para que pueda vender.",
+    placeholders: "marca,pasarela,fuente",
+  },
+  {
     key: "BRAND_PENDING_ADMIN",
     label: "Marca nueva pendiente de revisar",
     audience: "ADMIN",

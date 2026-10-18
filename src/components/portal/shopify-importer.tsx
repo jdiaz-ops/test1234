@@ -11,6 +11,7 @@ import {
 } from "@/lib/shopify-csv";
 import { htmlToText, MAX_PAGES, PAGE_SIZE, type ShopifyImportCollection } from "@/lib/shopify-products-json";
 import { PROFILE_FIELD_LABELS, type ExtractedProfile } from "@/lib/legal-extract";
+import { needsIntegration } from "@/lib/payment-gateways";
 import type { ProposedCollection } from "@/lib/shopify-categorize";
 import {
   POLICY_TITLES,
@@ -115,6 +116,8 @@ type ExtrasResult = {
   shipping: { created: number; errors: number; removed: number } | null;
   photos: RehostSummary | null;
   profile: { filled: string[] } | null;
+  /// Pasarelas que Marcolini no tiene y por las que se avisó al equipo.
+  gateways: string[] | null;
   errors: string[];
 };
 
@@ -141,6 +144,7 @@ const API_PAGES = "/api/marca/tienda/paginas/importar-shopify";
 const API_SECTIONS = "/api/marca/tienda/secciones/importar-shopify";
 const API_PROFILE_READ = "/api/marca/tienda/perfil/leer";
 const API_PROFILE_IMPORT = "/api/marca/tienda/perfil/importar";
+const API_GATEWAYS = "/api/marca/tienda/pagos/pasarelas";
 /// Políticas que se buscan siempre, aunque la portada no las enlace.
 const DEFAULT_POLICIES: ShopifyPolicyKind[] = ["shipping-policy", "refund-policy", "privacy-policy", "terms-of-service"];
 
@@ -819,6 +823,7 @@ export function ShopifyImporter({
       shipping: null,
       photos: null,
       profile: null,
+      gateways: null,
       errors: [],
     };
     const pageLinks: { handle: string; slug: string }[] = [];
@@ -969,6 +974,19 @@ export function ShopifyImporter({
         result.profile = { filled: body.filled as string[] };
       } catch (err) {
         result.errors.push(`Datos de la marca: ${message(err)}`);
+      }
+    }
+
+    // Pasarela que no tenemos: se registra y se avisa al equipo de
+    // Marcolini para construir la integración (ver
+    // payment-gateway-request-service.ts). No depende de ninguna opción.
+    const missingGateways = (extras?.theme?.payments.gateways ?? []).filter(needsIntegration);
+    if (byLink && missingGateways.length > 0) {
+      try {
+        const body = await postJson(API_GATEWAYS, { gateways: missingGateways, source: "DUPLICAR" });
+        result.gateways = body.recorded as string[];
+      } catch (err) {
+        result.errors.push(`Pasarelas: ${message(err)}`);
       }
     }
 
@@ -1520,6 +1538,12 @@ export function ShopifyImporter({
                       Pasarelas detectadas: {theme.payments.gateways.join(", ")}.
                     </p>
                   )}
+                  {theme.payments.gateways.some(needsIntegration) && (
+                    <p className="text-xs text-amber-700">
+                      Marcolini no tiene {theme.payments.gateways.filter(needsIntegration).join(" ni ")}: al importar se le avisa al
+                      equipo para construir la integración.
+                    </p>
+                  )}
                   <p className="text-xs text-brand-ink-soft">
                     En Marcolini la tienda cobra con Wompi (tarjetas, PSE, Nequi y Bancolombia). La marca
                     pega sus llaves en Configuración → Pagos de la tienda.
@@ -1708,6 +1732,11 @@ export function ShopifyImporter({
                     .map((f) => PROFILE_FIELD_LABELS[f as keyof ExtractedProfile] ?? (f === "websiteUrl" ? "sitio web" : f))
                     .join(", ")}`
                 : "el perfil ya tenía todo, no se cambió nada"}
+            </p>
+          )}
+          {extrasResult?.gateways && extrasResult.gateways.length > 0 && (
+            <p className="text-sm text-brand-ink">
+              Pasarelas: avisamos al equipo de Marcolini que la marca cobra con {extrasResult.gateways.join(" y ")}.
             </p>
           )}
           {extrasResult?.shipping && (

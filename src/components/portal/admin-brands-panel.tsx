@@ -24,6 +24,8 @@ type Brand = {
   marketplaceMissing: string[];
   /// "Lo que falta para vender" (ver go-live-service.ts); null sin tienda.
   goLive: { done: number; total: number; missing: string[] } | null;
+  /// Pasarelas con las que cobra y Marcolini no tiene.
+  gatewayRequests: string[];
   _count: { offers: number };
   // El query que llena esto ya filtra status != PAID — el tipo incluye PAID
   // solo porque así lo infiere Prisma, nunca llega ese valor en la práctica.
@@ -501,6 +503,11 @@ export function AdminBrandsPanel({
                     </span>
                   ) : (
                     <span className="text-xs text-brand-ink-soft">—</span>
+                  )}
+                  {b.gatewayRequests.length > 0 && (
+                    <p className="text-[11px] text-amber-700 mt-0.5" title="Pasarela que usa y Marcolini no tiene">
+                      Cobra con {b.gatewayRequests.join(", ")}
+                    </p>
                   )}
                 </td>
                 <td className="px-5 py-3 font-mono text-brand-ink-soft">

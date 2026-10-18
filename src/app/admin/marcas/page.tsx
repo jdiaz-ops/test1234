@@ -32,9 +32,10 @@ export default async function AdminMarcasPage() {
 
       {isOwner(session!.user.adminRole) && <DeleteTestProfilesButton />}
       <AdminBrandsPanel
-        brands={brands.map(({ charges, user, ...b }) => ({
+        brands={brands.map(({ charges, user, paymentGatewayRequests, ...b }) => ({
           ...b,
           email: user.email,
+          gatewayRequests: paymentGatewayRequests.map((g) => g.gateway),
           accessTokenExpiresAt: b.accessTokenExpiresAt?.toISOString() ?? null,
           accessLinkCreatedAt: b.accessLinkCreatedAt?.toISOString() ?? null,
           claimedAt: b.claimedAt?.toISOString() ?? null,
