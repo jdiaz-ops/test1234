@@ -1,3 +1,4 @@
+import { toCardProduct } from "@/components/storefront/product-card";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
@@ -91,16 +92,7 @@ export default async function StorefrontCollectionPage({
         ) : (
           <CollectionProductGrid
             basePath={basePath}
-            products={products.map((p) => ({
-              id: p.id,
-              slug: p.slug,
-              name: p.name,
-              price: Number(p.price),
-              compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
-              imageUrl: p.imageUrl,
-              stock: p.stock,
-              type: p.type,
-            }))}
+            products={products.map((p) => toCardProduct(p))}
           />
         )}
       </div>

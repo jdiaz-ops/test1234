@@ -1,3 +1,4 @@
+import { basePriceFor } from "@/lib/product-price";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
@@ -276,7 +277,8 @@ export async function createManualProduct(
           ? sanitizeProductDescription(data.description)
           : null,
         imageUrl: images[0] ?? null,
-        price: hasVariants ? 0 : data.price,
+        // Con variantes, el base es el menor precio de ellas (ver product-price.ts).
+        price: hasVariants ? basePriceFor(variants, data.price) : data.price,
         compareAtPrice: hasVariants ? null : (data.compareAtPrice ?? null),
         url,
         slug,
@@ -355,7 +357,8 @@ export async function updateManualProduct(
           ? sanitizeProductDescription(data.description)
           : null,
         imageUrl: images[0] ?? null,
-        price: hasVariants ? 0 : data.price,
+        // Con variantes, el base es el menor precio de ellas (ver product-price.ts).
+        price: hasVariants ? basePriceFor(variants, data.price) : data.price,
         compareAtPrice: hasVariants ? null : (data.compareAtPrice ?? null),
         slug,
         url,

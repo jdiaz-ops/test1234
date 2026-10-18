@@ -35,6 +35,8 @@ const CARD_SELECT = {
   compareAtPrice: true,
   stock: true,
   type: true,
+  // Para "Desde $X" (ver toCardProduct).
+  variants: { select: { price: true } },
 } as const;
 
 function trustIconEmoji(icon: string) {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { StoreImage } from "@/components/storefront/store-image";
 import { formatCOP } from "@/components/storefront/catalog-templates/types";
+import { priceRange } from "@/lib/product-price";
 
 export type CardProduct = {
   id: string;
@@ -9,13 +10,16 @@ export type CardProduct = {
   name: string;
   price: number;
   compareAtPrice: number | null;
+  /// Hay variantes más caras que `price`: se muestra "Desde".
+  priceFrom?: boolean;
   imageUrl: string | null;
   stock: number | null;
   type: "PHYSICAL" | "SERVICE" | "DIGITAL";
 };
 
 /// Las consultas de Prisma traen Decimal — la tarjeta espera números
-/// planos.
+/// planos. Con los precios de las variantes (si la consulta los trae) se
+/// sabe si hay que decir "Desde".
 export function toCardProduct(p: {
   id: string;
   name: string;
@@ -25,13 +29,17 @@ export function toCardProduct(p: {
   compareAtPrice: unknown;
   stock: number | null;
   type: "PHYSICAL" | "SERVICE" | "DIGITAL";
+  variants?: { price: unknown }[] | null;
 }): CardProduct {
+  const price = Number(p.price);
+  const range = priceRange(price, p.variants);
   return {
     id: p.id,
     name: p.name,
     slug: p.slug,
     imageUrl: p.imageUrl,
-    price: Number(p.price),
+    price: range.min,
+    priceFrom: range.from,
     compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
     stock: p.stock,
     type: p.type,
@@ -67,15 +75,19 @@ export function discountPercent(price: number, compareAtPrice: number | null | u
 export function ProductPrice({
   price,
   compareAtPrice,
+  from = false,
   className = "text-base",
 }: {
   price: number;
   compareAtPrice: number | null;
+  /// "Desde": el producto tiene variantes más caras que este precio.
+  from?: boolean;
   className?: string;
 }) {
   const onSale = discountPercent(price, compareAtPrice) != null;
   return (
     <p className={`${className} flex items-baseline gap-1.5 flex-wrap`}>
+      {from && <span className="text-[0.75em] text-brand-ink-soft">Desde</span>}
       {onSale && (
         <span className="text-[0.85em] line-through text-brand-ink-soft">
           {formatCOP(compareAtPrice!)}
@@ -154,7 +166,7 @@ export function ProductCard({
           )}
           <p className="text-sm font-semibold text-brand-ink leading-snug line-clamp-2">{product.name}</p>
         </Link>
-        <ProductPrice price={product.price} compareAtPrice={product.compareAtPrice} className="text-lg" />
+        <ProductPrice price={product.price} compareAtPrice={product.compareAtPrice} from={product.priceFrom} className="text-lg" />
         <div className="mt-auto pt-1">
           <AddToCartButton
             basePath={basePath}

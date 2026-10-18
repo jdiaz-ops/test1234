@@ -65,6 +65,8 @@ const collectionProductSelect = {
   status: true,
   available: true,
   createdAt: true,
+  // Para "Desde $X" en la tarjeta (ver priceRange en product-price.ts).
+  variants: { select: { price: true } },
 } satisfies Prisma.ProductSelect;
 
 /// Orden manual guardado (position); en empate, el de entrada.
