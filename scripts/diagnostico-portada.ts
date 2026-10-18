@@ -7,7 +7,7 @@
 ///
 /// Uso: npx tsx scripts/diagnostico-portada.ts https://tienda.com [productos]
 /// Con "productos" baja el catálogo (products.json / Store API) en vez de
-/// la portada.
+/// la portada; con "url" solo muestra lo que responde esa dirección.
 import { gzipSync } from "node:zlib";
 import { parseShopifyStorefront } from "@/lib/shopify-theme";
 import { readShopifyStorefront } from "@/server/services/shopify-store-reader";
@@ -170,6 +170,16 @@ async function main() {
   }
   if (process.argv[3] === "productos") {
     await diagnoseProducts(url);
+    console.log("---- fin ----");
+    return;
+  }
+  if (process.argv[3] === "url") {
+    // Modo "url": muestra lo que responde una dirección cualquiera (por
+    // ejemplo /api/salud de la plataforma), sin interpretar nada.
+    const res = await fetchWithWww(url);
+    const text = await res.text();
+    console.log(`Estado ${res.status} · ${res.headers.get("content-type") ?? "?"} · ${text.length} caracteres · URL final ${res.url}`);
+    console.log(text.slice(0, 3000));
     console.log("---- fin ----");
     return;
   }

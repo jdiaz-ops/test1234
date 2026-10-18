@@ -4,6 +4,7 @@ import { isOwner } from "@/lib/current-admin";
 import { PlatformConfigForm } from "@/components/portal/platform-config-form";
 import { PlatformQrUpload } from "@/components/portal/platform-qr-upload";
 import { LegalContentForm } from "@/components/portal/legal-content-form";
+import { AiStatusCard } from "@/components/portal/ai-status-card";
 
 export default async function AdminConfiguracionPage() {
   const session = await auth();
@@ -18,6 +19,11 @@ export default async function AdminConfiguracionPage() {
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CONFIGURACIÓN</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-8">Configuración global</h1>
+
+      <h2 className="font-display font-semibold text-brand-ink mb-4">Inteligencia artificial</h2>
+      <div className="mb-10">
+        <AiStatusCard configured={Boolean(process.env.ANTHROPIC_API_KEY)} />
+      </div>
 
       <h2 className="font-display font-semibold text-brand-ink mb-4">Tarifas, fechas y cobro a marcas</h2>
       <div className="mb-10">

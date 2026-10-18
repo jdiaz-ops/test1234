@@ -21,6 +21,7 @@ on:
         options:
           - portada
           - productos
+          - url
 
 jobs:
   leer:
