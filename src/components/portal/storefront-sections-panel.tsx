@@ -23,6 +23,7 @@ import {
   type InstagramCtaConfig,
   type ProductCatalogConfig,
   normalizeBannerConfig,
+  showsProducts,
 } from "@/lib/storefront-sections";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 import { prepareImageForUpload } from "@/lib/prepare-image-upload";
@@ -810,7 +811,25 @@ export function StorefrontSectionsPanel({ initialSections }: { initialSections: 
             {building ? "Armando…" : "Armar portada básica"}
           </button>
         </div>
-      ) : (
+      ) : !showsProducts(sections) ? (
+        // Solo banners o texto: la tienda no vende nada desde la portada.
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 mb-4 space-y-2">
+          <p className="text-sm text-brand-ink">Tu página de inicio todavía no muestra productos.</p>
+          <p className="text-xs text-brand-ink-soft max-w-lg">
+            Agrega de una vez, debajo de lo que ya tienes, tus categorías, tus productos más recientes y el catálogo
+            completo. Después reordenas o quitas lo que no quieras.
+          </p>
+          <button
+            type="button"
+            onClick={buildBasicHome}
+            disabled={building}
+            className="rounded-full bg-brand-ink text-brand-bg px-4 py-2 text-sm font-medium disabled:opacity-60"
+          >
+            {building ? "Agregando…" : "Agregar categorías, novedades y catálogo"}
+          </button>
+        </div>
+      ) : null}
+      {sections.length > 0 && (
         <div className="space-y-3 mb-4">
           {sections.map((s, i) => (
             <SectionCard

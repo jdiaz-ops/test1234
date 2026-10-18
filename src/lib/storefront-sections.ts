@@ -281,6 +281,23 @@ export const SECTION_CONFIG_SCHEMA: Record<SectionType, z.ZodTypeAny> = {
   PRODUCT_CATALOG: productCatalogConfigSchema,
 };
 
+/// Tipos de sección que muestran productos: una portada sin ninguno de
+/// estos (solo banners o texto) no vende nada. Ver
+/// storefront-default-home-service.ts.
+export const PRODUCT_SECTION_TYPES: ReadonlySet<SectionType> = new Set<SectionType>([
+  "FEATURED_COLLECTION",
+  "CATEGORY_GRID",
+  "CATEGORY_BANNERS",
+  "FEATURED_PRODUCTS",
+  "NEW_PRODUCTS",
+  "ON_SALE_PRODUCTS",
+  "PRODUCT_CATALOG",
+]);
+
+export function showsProducts(sections: { type: string; enabled?: boolean }[]) {
+  return sections.some((s) => s.enabled !== false && PRODUCT_SECTION_TYPES.has(s.type as SectionType));
+}
+
 export const DEFAULT_SECTION_CONFIG: Record<SectionType, unknown> = Object.fromEntries(
   SECTION_TYPES.map((t) => [t, SECTION_CONFIG_SCHEMA[t].parse({})]),
 ) as Record<SectionType, unknown>;

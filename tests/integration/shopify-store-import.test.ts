@@ -352,7 +352,7 @@ describe.skipIf(!hasDb)("páginas, portada, fotos de variante y Google Analytics
 
   it("sin secciones reconocidas arma la portada básica, y si ninguna muestra productos agrega el catálogo", async () => {
     const { importShopifySections } = await import("@/server/services/shopify-sections-import-service");
-    const { buildDefaultHomeSections } = await import("@/server/services/storefront-default-home-service");
+    const { completeHomeSections } = await import("@/server/services/storefront-default-home-service");
     const { listStorefrontSections } = await import("@/server/services/storefront-section-service");
     const brand = await createBrand();
     await importShopifyProducts(brand.id, [product("a", "A"), product("b", "B"), product("c", "C"), product("d", "D")]);
@@ -387,19 +387,23 @@ describe.skipIf(!hasDb)("páginas, portada, fotos de variante y Google Analytics
       [false, null],
       [false, null],
     ]);
-    // Con secciones puestas, el botón de Diseño no duplica nada.
-    expect(await buildDefaultHomeSections(brand.id)).toEqual({ created: [], skipped: "HAS_SECTIONS" });
+    // Con la portada completa, el botón de Diseño no duplica nada.
+    expect(await completeHomeSections(brand.id)).toEqual({ created: [], skipped: "COMPLETE" });
 
-    // Solo un banner reconocido: el catálogo va al final.
+    // Solo un banner reconocido (no muestra productos): categorías,
+    // novedades y catálogo van debajo del banner.
     const banner = { type: "BANNER" as const, images: ["https://rumicol.com/wp-content/uploads/hero.jpg"], title: "Hola", subtitle: "", buttonText: "", buttonHref: "" };
     const partial = await importShopifySections(brand.id, { sections: [banner], replace: true, collectionSlugByHandle: {}, fillGaps: true });
     expect(partial.removed).toBe(3);
-    expect(partial.basic).toBe(1);
-    expect((await listStorefrontSections(brand.id)).map((s) => s.type)).toEqual(["BANNER", "PRODUCT_CATALOG"]);
+    expect(partial.basic).toBe(3);
+    expect((await listStorefrontSections(brand.id)).map((s) => s.type)).toEqual(["BANNER", "CATEGORY_GRID", "NEW_PRODUCTS", "PRODUCT_CATALOG"]);
+    // El botón de Diseño con un banner suelto hace lo mismo.
+    await prisma.storefrontSection.deleteMany({ where: { brandId: brand.id, type: { not: "BANNER" } } });
+    expect((await completeHomeSections(brand.id)).created).toEqual(["CATEGORY_GRID", "NEW_PRODUCTS", "PRODUCT_CATALOG"]);
 
     // Una cuadrícula cuyos handles no calzan con nada se resuelve por el
     // nombre que mostraba la tienda vieja; ya muestra productos, así que
-    // no se agrega el catálogo.
+    // no se agrega nada más.
     const withGrid = await importShopifySections(brand.id, {
       sections: [
         banner,

@@ -1,0 +1,35 @@
+# Diagnóstico de la lectura de una portada: baja el HTML de la tienda desde
+# un runner con internet (el entorno donde se programa no tiene salida) y
+# muestra qué secciones reconoce el importador, más el HTML comprimido para
+# reproducir la lectura. Se corre a mano: Actions → "Diagnóstico de
+# portada" → Run workflow, con el link de la tienda. Ver
+# scripts/diagnostico-portada.ts y conversación del 2026-10-18.
+name: Diagnóstico de portada
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Link de la tienda (su portada)
+        required: true
+        type: string
+
+jobs:
+  leer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Leer la portada
+        env:
+          TIENDA_URL: ${{ inputs.url }}
+        run: npx tsx scripts/diagnostico-portada.ts "$TIENDA_URL"

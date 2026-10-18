@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import type { SectionType } from "@/lib/storefront-sections";
+import { showsProducts, type SectionType } from "@/lib/storefront-sections";
 import { mapShopifyMenuHref, type ShopifyHomeSection } from "@/lib/shopify-theme";
 import { createStorefrontSection, StorefrontSectionError } from "@/server/services/storefront-section-service";
 import { EXTERNAL_ID_PREFIX } from "@/server/services/shopify-csv-import-service";
-import { buildDefaultHomeSections, ensureProductsSection } from "@/server/services/storefront-default-home-service";
+import { completeHomeSections } from "@/server/services/storefront-default-home-service";
 import { slugify } from "@/lib/shopify-csv";
 
 /// Arma la página de inicio de Mi tienda con las secciones leídas de la
@@ -14,11 +14,11 @@ import { slugify } from "@/lib/shopify-csv";
 /// antes). Las fotos quedan apuntando a Shopify y las copia el paso de
 /// fotos (ver image-rehost-service.ts). Ver conversación del 2026-10-18.
 ///
-/// Con `fillGaps` (la importación por link): si no quedó ninguna sección
-/// se arma la portada básica (categorías, novedades y catálogo, ver
-/// storefront-default-home-service.ts), y si las que quedaron no muestran
-/// productos se agrega el catálogo al final. Así una tienda importada
-/// nunca queda con la página de inicio vacía (Rumi, amglow).
+/// Con `fillGaps` (la importación por link): si al final ninguna sección
+/// muestra productos (no se reconoció nada, o solo banners y texto) se
+/// agregan las de la portada básica — categorías, novedades y catálogo,
+/// ver storefront-default-home-service.ts. Así una tienda importada nunca
+/// queda con la página de inicio vacía (Rumi, amglow).
 
 export type ImportSectionResult = { type: SectionType | ShopifyHomeSection["type"]; action: "created" | "skipped" | "error"; reason?: string };
 
@@ -153,13 +153,11 @@ export async function importShopifySections(
   // Que la portada nunca quede vacía ni sin productos.
   let basic = 0;
   if (data.fillGaps) {
-    if (!results.some((r) => r.action === "created")) {
-      const home = await buildDefaultHomeSections(brandId);
+    const enabled = await prisma.storefrontSection.findMany({ where: { brandId, enabled: true }, select: { type: true } });
+    if (!showsProducts(enabled)) {
+      const home = await completeHomeSections(brandId);
       for (const type of home.created) results.push({ type, action: "created" });
       basic = home.created.length;
-    } else if (await ensureProductsSection(brandId)) {
-      results.push({ type: "PRODUCT_CATALOG", action: "created" });
-      basic = 1;
     }
   }
   return { sections: results, removed, basic };
