@@ -306,7 +306,7 @@ export function ConnectionsPanel({
         <div className="px-5 pt-4 pb-3">
           <p className="text-sm font-medium text-brand-ink">Webhooks</p>
           <p className="text-xs text-brand-ink-soft mt-0.5">
-            Los pedidos hechos en modo de prueba de Wompi no se envían, para que nunca se facture algo que no fue una venta.
+            Los pedidos hechos en modo de prueba de la pasarela no se envían, para que nunca se facture algo que no fue una venta.
           </p>
         </div>
         <ul className="border-t border-brand-line divide-y divide-brand-line">

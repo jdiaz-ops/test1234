@@ -1,4 +1,7 @@
+import type { PaymentMode, PaymentProvider, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { PAYMENT_PROVIDERS, isPaymentProviderId } from "@/lib/payment-providers";
+import { credentialsFor, hasProductionCredentials } from "@/server/payments/credentials";
 import { publicStoreUrl } from "@/lib/store-url";
 import { countExternalImages, isExternalImageUrl } from "@/server/services/image-rehost-service";
 
@@ -40,9 +43,15 @@ type BrandFields = {
   goLiveChecks: string[];
   paymentProvider: string;
   paymentMode: string;
+  gatewayCredentials: unknown;
   wompiPublicKeyProd: string | null;
   wompiPrivateKeyProd: string | null;
+  wompiEventsKeyProd: string | null;
+  wompiIntegrityKeyProd: string | null;
   wompiPublicKeyTest: string | null;
+  wompiPrivateKeyTest: string | null;
+  wompiEventsKeyTest: string | null;
+  wompiIntegrityKeyTest: string | null;
   legalName: string | null;
   taxId: string | null;
 };
@@ -56,9 +65,15 @@ const BRAND_SELECT = {
   goLiveChecks: true,
   paymentProvider: true,
   paymentMode: true,
+  gatewayCredentials: true,
   wompiPublicKeyProd: true,
   wompiPrivateKeyProd: true,
+  wompiEventsKeyProd: true,
+  wompiIntegrityKeyProd: true,
   wompiPublicKeyTest: true,
+  wompiPrivateKeyTest: true,
+  wompiEventsKeyTest: true,
+  wompiIntegrityKeyTest: true,
   legalName: true,
   taxId: true,
 } as const;
@@ -74,8 +89,14 @@ const NO_STOCK_WHERE = {
 function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
   const manual = new Set(brand.goLiveChecks);
   const storeUrl = publicStoreUrl(brand);
-  const prodKeys = Boolean(brand.wompiPublicKeyProd?.trim() && brand.wompiPrivateKeyProd?.trim());
-  const live = brand.paymentProvider === "WOMPI" && prodKeys && brand.paymentMode === "PRODUCTION";
+  // Pasarela elegida (Wompi, Mercado Pago, PayU, ePayco o Bold), con sus
+  // llaves de producción y en modo real — ver src/server/payments.
+  const provider = isPaymentProviderId(brand.paymentProvider) ? brand.paymentProvider : null;
+  const gatewayFields = brand as BrandFields & { gatewayCredentials: Prisma.JsonValue; paymentProvider: PaymentProvider; paymentMode: PaymentMode };
+  const prodKeys = provider ? hasProductionCredentials(gatewayFields, provider) : false;
+  const anyKeys = provider ? credentialsFor(gatewayFields, provider, "TEST") !== null || prodKeys : false;
+  const live = Boolean(provider) && prodKeys && brand.paymentMode === "PRODUCTION";
+  const providerName = provider ? PAYMENT_PROVIDERS[provider].name : null;
   const { products, noStock, zones, orders, photos } = counts;
 
   const items: GoLiveItem[] = [
@@ -100,14 +121,14 @@ function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
     },
     {
       key: "pagos",
-      label: "Conecta tus pagos con Wompi",
+      label: providerName ? `Conecta tus pagos con ${providerName}` : "Conecta tus pagos",
       detail: live
         ? "Llaves de producción y modo real: ya cobras de verdad."
         : prodKeys
           ? "Tienes las llaves de producción; pasa a modo real para cobrar de verdad."
-          : brand.wompiPublicKeyTest
+          : anyKeys
             ? "Solo tienes llaves de prueba: pega las de producción."
-            : "Pega las llaves de tu cuenta de Wompi.",
+            : "Pega las llaves de tu pasarela: Wompi, Mercado Pago, PayU, ePayco o Bold.",
       done: live,
       manual: false,
       href: "/marca/tienda/pagos",

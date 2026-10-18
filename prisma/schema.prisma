@@ -407,6 +407,10 @@ model PaymentGatewayRequest {
   /// "DUPLICAR" (detectada en la tienda anterior) o "MARCA" (la pidió ella).
   source  String
   note    String?
+  /// Cuándo se le avisó a la marca que esa pasarela ya está integrada
+  /// (ver notifyGatewayReady, corre en el cron diario). Null = pendiente
+  /// de avisar o la pasarela todavía no existe.
+  notifiedReadyAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -535,13 +539,18 @@ enum StoreConnectionStatus {
 /// Pasarela de pago que la marca conectó para cobrar en su propia tienda
 /// Marcolini ("Mi tienda") — a diferencia de storeType (que es sobre DETECTAR
 /// ventas de una tienda externa), esto es sobre COBRAR de verdad dentro de
-/// Marcolini. Por ahora solo Wompi — ePayco, Mercado Pago y Addi quedan para
-/// después (ver conversación del 2026-09-06: cada marca trae su propia
-/// cuenta, el cobro se hace con SUS credenciales, la plata nunca pasa por
-/// Marcolini).
+/// Marcolini. Cada marca trae su propia cuenta: el cobro se hace con SUS
+/// credenciales y la plata nunca pasa por Marcolini (2026-09-06). Wompi
+/// guarda sus llaves en las columnas wompi*; Mercado Pago, PayU, ePayco y
+/// Bold en gatewayCredentials (2026-10-18, "no puedo obligar a que abra
+/// Wompi"). Ver src/lib/payment-providers.ts.
 enum PaymentProvider {
   NONE
   WOMPI
+  MERCADO_PAGO
+  PAYU
+  EPAYCO
+  BOLD
 }
 
 /// TEST usa las llaves de sandbox de la marca (para probar sin cobrar de
@@ -744,6 +753,13 @@ model BrandProfile {
   wompiPrivateKeyProd   String?
   wompiEventsKeyProd    String?
   wompiIntegrityKeyProd String?
+  /// Llaves de las demás pasarelas, por pasarela y entorno:
+  /// { MERCADO_PAGO: { TEST: { accessToken }, PRODUCTION: {...} }, PAYU:
+  /// {...}, EPAYCO: { SHARED: {...} }, BOLD: {...} } — ver
+  /// src/server/payments/credentials.ts. Se conservan al cambiar de
+  /// pasarela, así la marca puede volver sin pegar nada de nuevo. Mismo
+  /// criterio que las llaves de Wompi: en producción real, cifradas.
+  gatewayCredentials    Json            @default("{}")
 
   storeOrders         StoreOrder[]
   storeSaleFees       StoreSaleFee[]
@@ -1213,6 +1229,11 @@ model StoreOrder {
   shippingPostalCode String?
   /// Nombre de la tarifa de envío que aplicó (ej. "Envío a domicilio").
   shippingMethod     String?
+  /// true cuando la tarifa elegida era "se paga al recibir" (contraentrega,
+  /// ver ShippingZoneRate.payOnDelivery): el envío no va en el total y el
+  /// checkout, la página del pedido y los correos lo dicen en vez de
+  /// "Gratis". Ver conversación del 2026-10-18.
+  shippingPayOnDelivery Boolean @default(false)
   /// "Enviarme novedades y ofertas por correo" en el checkout.
   acceptsMarketing   Boolean         @default(false)
   /// Archivado por la marca (como "Archivar" en Shopify): sale de la lista
@@ -1305,6 +1326,20 @@ model StoreOrder {
   wompiTransactionId String? // id que devuelve Wompi — para consultarla por API
   wompiStatus        String? // estado crudo que mandó Wompi (APPROVED/DECLINED/...)
 
+  /// Pasarela con la que se cobró este pedido (la de la marca al crearlo —
+  /// puede cambiarla después y el pedido sigue apuntando a la suya). Los
+  /// pedidos de antes de 2026-10-18 eran todos de Wompi.
+  paymentProvider      PaymentProvider @default(WOMPI)
+  /// Lo que la pasarela devolvió al crear el cobro y hace falta para
+  /// volver a consultarlo: id de la preferencia (Mercado Pago), id del
+  /// link (Bold, LNK_…), ref_payco (ePayco). Null en Wompi y PayU, que se
+  /// consultan por nuestra referencia.
+  gatewayReference     String?
+  /// Id y estado crudo del pago en la pasarela, cualquiera que sea
+  /// (en Wompi se copian también en wompiTransactionId/wompiStatus).
+  gatewayTransactionId String?
+  gatewayStatus        String?
+
   /// Se llena solo si status = PAID y el pedido logró atribuirse (o no —
   /// ver TransactionSource.MARCOLINI arriba). Null en ventas sin código.
   transactionId String?       @unique
@@ -1336,6 +1371,7 @@ model StoreOrder {
   dataConsentAt DateTime?
 
   @@index([brandId, status])
+  @@index([gatewayReference])
 }
 
 model StoreOrderItem {
@@ -2275,6 +2311,12 @@ model Product {
   hasVariants Boolean          @default(false)
   optionNames String[]         @default([])
   variants    ProductVariant[]
+  /// Atributos para filtrar en la página de colección, como texto plano
+  /// { "Tono": "Princesa", "Grupo": "Gel Polish Rosados", "Tamaño": "10 ml" }.
+  /// Los llena "Separar variantes en productos" (cada eje de la variante
+  /// y el producto del que salió) — ver splitProductVariants. Ver
+  /// conversación del 2026-10-18 ("filtrar por tonos, por precio, por ml").
+  attributes  Json             @default("{}")
 
   /// Los tres siguientes solo aplican cuando type = SERVICE — null en
   /// cualquier producto PHYSICAL.
@@ -2568,6 +2610,12 @@ model ShippingZoneRate {
 
   name  String
   price Decimal @db.Decimal(12, 2)
+  /// "El envío lo pagas contraentrega": la tarifa va en $0 pero el envío
+  /// no es gratis — el comprador se lo paga a la transportadora al
+  /// recibir. Se detecta al importar fletes de Shopify por el nombre de
+  /// la tarifa y la marca lo puede marcar en Envíos. Ver conversación
+  /// del 2026-10-18 ("porque dice esto en el checkout?").
+  payOnDelivery Boolean @default(false)
 
   condition          ShippingRateCondition @default(NONE)
   /// Null cuando condition = NONE. Ambos son opcionales — al menos uno

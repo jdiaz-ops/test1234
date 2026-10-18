@@ -1,3 +1,4 @@
+import { paymentProviderName } from "@/lib/payment-providers";
 import { prisma } from "@/lib/prisma";
 import {
   sendOrderConfirmationEmail,
@@ -82,6 +83,8 @@ function toEmailData(order: LoadedOrder): OrderEmailData {
     shippingNotes: order.shippingNotes,
     orderedAt: order.paidAt ?? order.createdAt,
     shippingMethod: order.shippingMethod,
+    shippingPayOnDelivery: order.shippingPayOnDelivery,
+    paymentProviderName: paymentProviderName(order.paymentProvider),
     buyerDocument: order.billingIdNumber
       ? `${order.billingIdType ? `${order.billingIdType} ` : ""}${order.billingIdNumber}`
       : null,

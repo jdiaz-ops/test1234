@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { ProposedShippingZone } from "@/lib/shopify-shipping";
+import { isPayOnDeliveryRate, type ProposedShippingZone } from "@/lib/shopify-shipping";
 import {
   createShippingZone,
   ShippingZoneError,
@@ -30,6 +30,7 @@ export async function importShopifyShippingZones(
       const rates: ShippingRateInput[] = zone.rates.map((r) => ({
         name: r.name,
         price: r.price,
+        payOnDelivery: r.payOnDelivery ?? isPayOnDeliveryRate(r.name, r.price),
         condition: r.condition,
         conditionValue: r.condition === "MIN_ORDER_AMOUNT" ? (r.conditionValue ?? null) : null,
       }));

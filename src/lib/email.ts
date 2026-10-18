@@ -315,10 +315,22 @@ export type OrderEmailData = {
   // Para el aviso a la marca (estilo Shopify, ver sendNewOrderBrandEmail).
   orderedAt?: Date;
   shippingMethod?: string | null;
+  /// Tarifa "se paga al recibir" (contraentrega): el envío no va en el
+  /// total y se dice así en vez de "Gratis".
+  shippingPayOnDelivery?: boolean;
+  /// Con qué pasarela se cobró (Wompi, Mercado Pago…).
+  paymentProviderName?: string | null;
   buyerDocument?: string | null;
   // Creador al que se le atribuye la venta (por su código), si hay.
   creatorName?: string | null;
 };
+
+/// Cómo se muestra el envío en los correos: el valor, "Gratis" o "Se paga
+/// al recibir" cuando la tarifa es contraentrega.
+function shippingLabel(data: Pick<OrderEmailData, "shippingCents" | "shippingPayOnDelivery">) {
+  if (data.shippingCents > 0) return formatCOPCents(data.shippingCents);
+  return data.shippingPayOnDelivery ? "Se paga al recibir" : "Gratis";
+}
 
 function emailLayout(brandName: string, logoUrl: string | null, inner: string) {
   const header = logoUrl
@@ -349,7 +361,7 @@ function itemsTable(data: OrderEmailData) {
 ${rows}
 ${line("Subtotal", formatCOPCents(data.subtotalCents))}
 ${data.discountCents > 0 ? line(`Descuento${data.discountCode ? ` (${escapeHtml(data.discountCode)})` : ""}`, `-${formatCOPCents(data.discountCents)}`) : ""}
-${line("Envío", data.shippingCents > 0 ? formatCOPCents(data.shippingCents) : "Gratis")}
+${line("Envío", shippingLabel(data))}
 ${line("Total", formatCOPCents(data.totalCents), true)}
 ${data.taxCents > 0 ? line("Incluye IVA", formatCOPCents(data.taxCents)) : ""}
 </table>`;
@@ -461,14 +473,14 @@ export async function sendNewOrderBrandEmail(to: string, data: OrderEmailData, p
           )
         : ""
     }
-    ${line("Envío", data.shippingCents > 0 ? formatCOPCents(data.shippingCents) : "Gratis", data.shippingMethod ? escapeHtml(data.shippingMethod) : undefined)}
+    ${line("Envío", shippingLabel(data), data.shippingMethod ? escapeHtml(data.shippingMethod) : undefined)}
     ${data.taxCents > 0 ? line("Impuesto", formatCOPCents(data.taxCents), "IVA incluido") : ""}
     <tr><td style="padding:12px 0 0;font-size:15px;border-top:1px solid #e3e3e3"><strong>Total</strong></td><td style="padding:12px 0 0;font-size:15px;text-align:right;border-top:1px solid #e3e3e3"><strong>${formatCOPCents(
       data.totalCents,
     )} COP</strong></td></tr>
   </table>
   <hr style="border:none;border-top:1px solid #e3e3e3;margin:20px 0 4px">
-  ${section("Método de procesamiento de pagos", "Wompi")}
+  ${section("Método de procesamiento de pagos", escapeHtml(data.paymentProviderName || "Pasarela de pagos"))}
   ${data.shippingAddress ? section("Forma de entrega", escapeHtml(data.shippingMethod || "Envío a domicilio")) : ""}
   ${
     data.shippingAddress

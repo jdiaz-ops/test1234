@@ -1,3 +1,4 @@
+import { CARD_VARIANT_SELECT } from "@/lib/card-product-select";
 import { prisma } from "@/lib/prisma";
 import type { CollectionSortOrder, Prisma } from "@prisma/client";
 
@@ -65,8 +66,12 @@ const collectionProductSelect = {
   status: true,
   available: true,
   createdAt: true,
-  // Para "Desde $X" en la tarjeta (ver priceRange en product-price.ts).
-  variants: { select: { price: true } },
+  hasVariants: true,
+  optionNames: true,
+  attributes: true,
+  // Para "Desde $X", elegir la variante en la tarjeta y los filtros de la
+  // colección (ver toCardProduct y collection-filters.ts).
+  variants: { select: CARD_VARIANT_SELECT, orderBy: { position: "asc" } },
 } satisfies Prisma.ProductSelect;
 
 /// Orden manual guardado (position); en empate, el de entrada.

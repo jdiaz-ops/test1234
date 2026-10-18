@@ -1545,8 +1545,8 @@ export function ShopifyImporter({
                     </p>
                   )}
                   <p className="text-xs text-brand-ink-soft">
-                    En Marcolini la tienda cobra con Wompi (tarjetas, PSE, Nequi y Bancolombia). La marca
-                    pega sus llaves en Configuración → Pagos de la tienda.
+                    En Marcolini la tienda cobra con la cuenta propia de la marca en Wompi, Mercado Pago, PayU,
+                    ePayco o Bold. La marca pega sus llaves en Configuración → Pagos de la tienda.
                   </p>
                 </div>
               )}

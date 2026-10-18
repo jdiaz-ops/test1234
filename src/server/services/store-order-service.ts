@@ -1,14 +1,23 @@
+import { cardProductSelect } from "@/lib/card-product-select";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { portalUrl, publicStoreUrl } from "@/lib/store-url";
 import { emitCustomerEvent, emitOrderEvent } from "@/server/services/webhook-service";
 import { issueInvoiceAfterPayment } from "@/server/services/dataico-service";
+import { getActivePaymentGateway, gatewayForOrder } from "@/server/payments/credentials";
 import {
-  getActiveWompiKeys,
-  findWompiTransactionByReference,
-  buildIntegritySignature,
-} from "@/server/integrations/wompi-client";
+  buyerFromOrder,
+  lookupPayment,
+  mapWompiStatus,
+  paymentDescription,
+  paymentReturnUrl,
+  startPayment,
+  webhookUrlFor,
+  wompiCheckoutUrl,
+  wompiCustomerData,
+} from "@/server/payments/gateway-service";
+import type { PaymentOutcome } from "@/server/payments/types";
+import { PAYMENT_PROVIDERS, type PaymentProviderId } from "@/lib/payment-providers";
 import {
   findEnrollmentByDiscountCode,
   recordOrderFromWebhook,
@@ -40,10 +49,15 @@ import { recordRefundFromWebhook } from "@/server/services/attribution-service";
 /// marca en marcolini.lat/t/{storefrontSlug}. El carrito vive en el
 /// navegador (localStorage); este servicio solo entra en juego al pasar al
 /// checkout: valida productos y código, calcula totales, y arma lo que
-/// necesita el botón de Wompi para cobrar con las llaves propias de la
-/// marca.
+/// necesita el checkout para cobrar con la pasarela y las llaves propias
+/// de la marca (Wompi, Mercado Pago, PayU, ePayco o Bold — ver
+/// src/server/payments).
 
 export class StoreOrderError extends Error {}
+
+// Los usaban el checkout y las pruebas desde acá; ahora viven con el
+// resto de las pasarelas en gateway-service.ts.
+export { wompiCheckoutUrl, wompiCustomerData };
 
 export async function getStorefrontBrand(slug: string) {
   return prisma.brandProfile.findUnique({
@@ -59,6 +73,7 @@ export async function listStorefrontProducts(brandId: string) {
   return prisma.product.findMany({
     where: { brandId, manual: true, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
+    select: cardProductSelect,
   });
 }
 
@@ -80,6 +95,7 @@ export async function searchStorefrontProducts(brandId: string, query: string) {
     },
     orderBy: { createdAt: "desc" },
     take: 60,
+    select: cardProductSelect,
   });
 }
 
@@ -126,16 +142,7 @@ export async function getRelatedProducts(brandId: string, productId: string, lim
       id: { not: productId },
       brandCollections: { some: { collectionId: { in: collectionIds } } },
     },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      imageUrl: true,
-      price: true,
-      compareAtPrice: true,
-      stock: true,
-      type: true,
-    },
+    select: cardProductSelect,
     take: limit,
   });
   return related;
@@ -208,7 +215,12 @@ export async function quoteShipping(
     weightKg: params.weightKg,
   });
   if (!rate) return { ok: false as const, reason: "NO_RATE_MATCH" as const };
-  return { ok: true as const, shippingCents: Math.round(Number(rate.price) * 100), rateName: rate.name };
+  return {
+    ok: true as const,
+    shippingCents: Math.round(Number(rate.price) * 100),
+    rateName: rate.name,
+    payOnDelivery: rate.payOnDelivery,
+  };
 }
 
 /// Valida un código de creador sin crear nada — se usa para mostrar el
@@ -264,20 +276,6 @@ type CreateOrderInput = {
   acceptsMarketing?: boolean;
 };
 
-/// A dónde vuelve el comprador después de pagar en Wompi: la página del
-/// pedido en el link real de la tienda ({slug}.marcolini.lat o su dominio
-/// propio). Antes salía de NEXT_PUBLIC_APP_URL, que no está configurada en
-/// producción, y quedaba "http://localhost:3000/..." — el firewall de
-/// Wompi rechazaba el pago (403 en el link, ventana de pago cargando para
-/// siempre). Ver conversación del 2026-10-01.
-function paymentReturnUrl(
-  brand: { customDomain: string | null; customDomainVerifiedAt: Date | null; storefrontSlug: string | null },
-  orderId: string,
-) {
-  const store = publicStoreUrl(brand);
-  return store ? `${store}/pedido/${orderId}` : `${portalUrl()}/t/${brand.storefrontSlug}/pedido/${orderId}`;
-}
-
 export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   if (input.items.length === 0) {
     throw new StoreOrderError("El carrito está vacío.");
@@ -291,8 +289,8 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   });
   if (!brand) throw new StoreOrderError("Tienda no encontrada.");
 
-  const keys = getActiveWompiKeys(brand);
-  if (!keys) {
+  const gateway = getActivePaymentGateway(brand);
+  if (!gateway) {
     throw new StoreOrderError(
       "Esta tienda todavía no activó los pagos — vuelve más tarde.",
     );
@@ -447,6 +445,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   // obligatorio".
   let shippingCents = 0;
   let shippingMethod: string | null = null;
+  let shippingPayOnDelivery = false;
   if (!isServiceOrder && !isDigitalOrder) {
     const zones = await listShippingZones(brand.id);
     if (zones.length === 0) {
@@ -471,6 +470,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     }
     shippingCents = Math.round(Number(rate.price) * 100);
     shippingMethod = rate.name;
+    shippingPayOnDelivery = rate.payOnDelivery;
   }
 
   // Los precios ya traen el IVA (precio al público). taxCents es la parte
@@ -558,7 +558,8 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
         shippingCents,
         taxCents,
         totalCents,
-        paymentMode: keys.mode,
+        paymentMode: gateway.mode,
+        paymentProvider: gateway.provider,
         dataConsentAt: new Date(),
         ...(input.billingIdType && input.billingIdNumber?.trim()
           ? {
@@ -578,6 +579,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
         buyerLastName: input.buyerLastName?.trim() || null,
         shippingPostalCode: isServiceOrder || isDigitalOrder ? null : input.shippingPostalCode?.trim() || null,
         shippingMethod,
+        shippingPayOnDelivery,
         acceptsMarketing: input.acceptsMarketing ?? false,
         items: { create: itemsData },
       },
@@ -585,24 +587,34 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     return created;
   });
 
-  const signature = buildIntegritySignature({
-    reference,
-    amountInCents: totalCents,
-    currency: order.currency,
-    integrityKey: keys.integrityKey,
-  });
-
-  return {
-    order,
-    wompi: {
-      publicKey: keys.publicKey,
-      currency: order.currency,
-      amountInCents: totalCents,
+  // Con el pedido creado se arma el cobro en la pasarela de la marca.
+  // Mercado Pago y Bold lo crean en su API acá mismo; si eso falla, el
+  // pedido queda Fallido (libera lo apartado) y el comprador puede volver
+  // a intentar.
+  let started: Awaited<ReturnType<typeof startPayment>>;
+  try {
+    started = await startPayment(gateway, {
+      orderId: order.id,
       reference,
-      signature,
-      redirectUrl: paymentReturnUrl(brand, order.id),
-    },
-  };
+      amountCents: totalCents,
+      currency: order.currency,
+      description: paymentDescription(reference, brand.companyName),
+      brandName: brand.companyName,
+      buyer: buyerFromOrder(order),
+      returnUrl: paymentReturnUrl(brand, order.id),
+      webhookUrl: webhookUrlFor(gateway.provider, brand.id),
+    });
+  } catch (err) {
+    await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "FAILED", gatewayStatus: "START_ERROR" } });
+    console.error(`[mi-tienda] No se pudo iniciar el pago del pedido ${order.id} en ${gateway.provider}:`, err);
+    throw new StoreOrderError(
+      `No se pudo iniciar el pago con ${PAYMENT_PROVIDERS[gateway.provider].name}. Intenta de nuevo en un momento.`,
+    );
+  }
+  const final = started.gatewayReference
+    ? await prisma.storeOrder.update({ where: { id: order.id }, data: { gatewayReference: started.gatewayReference } })
+    : order;
+  return { order: final, payment: started.launch };
 }
 
 export async function getStoreOrder(orderId: string) {
@@ -826,34 +838,57 @@ export async function updateOrderNotes(
   });
 }
 
-/// Idempotente — puede llamarse desde el webhook y desde el respaldo por
-/// consulta directa a la API de Wompi sin duplicar nada: si el pedido ya
-/// no está PENDING, no vuelve a procesarlo.
-export async function applyWompiTransactionStatus(params: {
+/// Lo que dijo la pasarela, aplicado al pedido. Idempotente — puede
+/// llamarse desde el webhook, desde la vuelta del comprador y desde la
+/// conciliación sin duplicar nada: un pedido que ya no está pendiente no
+/// se vuelve a procesar. La excepción es un pedido Vencido que la pasarela
+/// confirma como pagado después (PSE o efectivo que entró tarde): pasa a
+/// Pagado igual, para no perder una venta real.
+export async function applyPaymentResult(params: {
   reference: string;
-  wompiTransactionId: string;
-  wompiStatus: string;
+  /// La pasarela que lo dice (por defecto, la del pedido).
+  provider?: PaymentProviderId;
+  transactionId: string | null;
+  rawStatus: string;
+  outcome: PaymentOutcome;
+  gatewayReference?: string;
 }) {
   const order = await prisma.storeOrder.findUnique({
     where: { reference: params.reference },
   });
   if (!order) return { order: null };
-  if (order.status !== "PENDING") return { order };
+  const revivable = order.status === "EXPIRED" && params.outcome === "APPROVED";
+  if (order.status !== "PENDING" && !revivable) return { order };
 
-  if (params.wompiStatus === "APPROVED") {
+  const isWompi = (params.provider ?? order.paymentProvider) === "WOMPI";
+  const gatewayFields = {
+    gatewayTransactionId: params.transactionId,
+    gatewayStatus: params.rawStatus,
+    ...(params.gatewayReference ? { gatewayReference: params.gatewayReference } : {}),
+    ...(isWompi ? { wompiTransactionId: params.transactionId, wompiStatus: params.rawStatus } : {}),
+  };
+
+  if (params.outcome === "PENDING") {
+    // Sigue esperando (PSE, efectivo, revisión): solo se anota lo que
+    // dijo la pasarela. Antes un PENDING de Wompi marcaba el pedido como
+    // Fallido.
+    const updated = await prisma.storeOrder.update({ where: { id: order.id }, data: gatewayFields });
+    return { order: updated };
+  }
+
+  if (params.outcome === "APPROVED") {
     // Marca pagado y descuenta el inventario en una sola transacción. El
-    // updateMany condicionado a PENDING hace que, si el webhook y la
-    // consulta directa a Wompi llegan al mismo tiempo, solo uno de los dos
-    // "gane" y el inventario se descuente una sola vez. Antes el pago se
-    // registraba pero el inventario nunca bajaba. Ver conversación del
-    // 2026-09-30.
+    // updateMany condicionado al estado hace que, si el webhook y la
+    // consulta directa a la pasarela llegan al mismo tiempo, solo uno de
+    // los dos "gane" y el inventario se descuente una sola vez. Antes el
+    // pago se registraba pero el inventario nunca bajaba. Ver conversación
+    // del 2026-09-30.
     const updated = await prisma.$transaction(async (tx) => {
       const claimed = await tx.storeOrder.updateMany({
-        where: { id: order.id, status: "PENDING" },
+        where: { id: order.id, status: { in: ["PENDING", "EXPIRED"] } },
         data: {
           status: "PAID",
-          wompiTransactionId: params.wompiTransactionId,
-          wompiStatus: params.wompiStatus,
+          ...gatewayFields,
           paidAt: new Date(),
         },
       });
@@ -940,73 +975,38 @@ export async function applyWompiTransactionStatus(params: {
     return { order: updated };
   }
 
-  // DECLINED / VOIDED / ERROR
+  // DECLINED / VOIDED / ERROR / rechazada / expirada
   const updated = await prisma.storeOrder.update({
     where: { id: order.id },
-    data: {
-      status: "FAILED",
-      wompiTransactionId: params.wompiTransactionId,
-      wompiStatus: params.wompiStatus,
-    },
+    data: { status: "FAILED", ...gatewayFields },
   });
   return { order: updated };
 }
 
-/// Datos del comprador para precargar la ventana de pago de Wompi
-/// (WidgetCheckout, customerData). Solo lo que Wompi acepta: el celular en
-/// 10 dígitos y el documento si es CC, CE, NIT o pasaporte.
-const WOMPI_LEGAL_ID_TYPES: Record<string, string> = { CC: "CC", CE: "CE", NIT: "NIT", PASAPORTE: "PP" };
-
-export function wompiCustomerData(order: {
-  buyerEmail: string;
-  buyerName: string;
-  buyerPhone: string;
-  billingIdType: string | null;
-  billingIdNumber: string | null;
-}) {
-  const data: Record<string, string> = { email: order.buyerEmail, fullName: order.buyerName };
-  const phone = order.buyerPhone.replace(/\D/g, "").replace(/^57(?=3\d{9}$)/, "");
-  if (/^3\d{9}$/.test(phone)) {
-    data.phoneNumber = phone;
-    data.phoneNumberPrefix = "+57";
-  }
-  const legalType = order.billingIdType ? WOMPI_LEGAL_ID_TYPES[order.billingIdType] : undefined;
-  if (legalType && order.billingIdNumber) {
-    data.legalId = order.billingIdNumber.replace(/-\d$/, "").replace(/[^0-9A-Za-z]/g, "");
-    data.legalIdType = legalType;
-  }
-  return data;
-}
-
-/// Respaldo si la ventana de Wompi no carga: la página de pago de Wompi
-/// (Web Checkout) solo con lo indispensable. Antes llevaba también los
-/// datos del comprador y el firewall de Wompi (CloudFront) respondía 403.
-/// Ver conversación del 2026-10-01.
-export function wompiCheckoutUrl(wompi: {
-  publicKey: string;
-  currency: string;
-  amountInCents: number;
+/// Lo que llamaban el webhook de Wompi y las pruebas: el estado crudo de
+/// Wompi traducido al resultado común.
+export async function applyWompiTransactionStatus(params: {
   reference: string;
-  signature: string;
-  redirectUrl: string;
+  wompiTransactionId: string;
+  wompiStatus: string;
 }) {
-  const params = new URLSearchParams({
-    "public-key": wompi.publicKey,
-    currency: wompi.currency,
-    "amount-in-cents": String(wompi.amountInCents),
-    reference: wompi.reference,
-    "signature:integrity": wompi.signature,
-    "redirect-url": wompi.redirectUrl,
+  return applyPaymentResult({
+    reference: params.reference,
+    provider: "WOMPI",
+    transactionId: params.wompiTransactionId,
+    rawStatus: params.wompiStatus,
+    outcome: mapWompiStatus(params.wompiStatus),
   });
-  return `https://checkout.wompi.co/p/?${params.toString()}`;
 }
 
-/// Pone al día los pedidos que siguen "Pendiente": le pregunta a Wompi por
-/// cada uno (por su referencia) y aplica lo que diga — así un pago
-/// aprobado queda Pagado aunque el comprador no haya vuelto a la tienda ni
-/// llegado el aviso de Wompi. Los que nunca se pagaron y llevan más de un
-/// día pasan a Vencido (dejan de verse como pedidos). Se llama al abrir
-/// Pedidos y en el cron diario. Ver conversación del 2026-10-01.
+/// Pone al día los pedidos que siguen "Pendiente": le pregunta a la
+/// pasarela de cada uno (por su referencia o por el id del cobro) y aplica
+/// lo que diga — así un pago aprobado queda Pagado aunque el comprador no
+/// haya vuelto a la tienda ni llegado el aviso. Los que no registran
+/// ningún pago y llevan más de un día pasan a Vencido (dejan de verse como
+/// pedidos; si la pasarela confirma un pago después, vuelven a Pagado —
+/// ver applyPaymentResult). Se llama al abrir Pedidos y en el cron diario.
+/// Ver conversación del 2026-10-01.
 export async function reconcilePendingOrders(brandId?: string) {
   const since = new Date(Date.now() - 7 * 24 * 3600 * 1000);
   const pending = await prisma.storeOrder.findMany({
@@ -1019,19 +1019,19 @@ export async function reconcilePendingOrders(brandId?: string) {
   let updated = 0;
   await Promise.all(
     pending.map(async (order) => {
-      const keys = getActiveWompiKeys({ ...order.brand, paymentMode: order.paymentMode });
-      if (!keys) return;
+      const gateway = gatewayForOrder(order.brand, order);
+      if (!gateway) return;
       try {
-        const tx = await findWompiTransactionByReference(order.paymentMode, keys.privateKey, order.reference);
-        if (tx && tx.status !== "PENDING") {
-          await applyWompiTransactionStatus({ reference: order.reference, wompiTransactionId: tx.id, wompiStatus: tx.status });
+        const result = await lookupPayment(gateway, order);
+        if (result && result.outcome !== "PENDING") {
+          await applyPaymentResult({ reference: order.reference, ...result });
           updated++;
-        } else if (!tx && order.createdAt.getTime() < dayAgo) {
+        } else if (!result && order.createdAt.getTime() < dayAgo) {
           await prisma.storeOrder.updateMany({ where: { id: order.id, status: "PENDING" }, data: { status: "EXPIRED" } });
           updated++;
         }
       } catch (err) {
-        console.error(`[mi-tienda] No se pudo consultar en Wompi el pedido ${order.id}:`, err);
+        console.error(`[mi-tienda] No se pudo consultar en ${PAYMENT_PROVIDERS[gateway.provider].name} el pedido ${order.id}:`, err);
       }
     }),
   );

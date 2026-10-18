@@ -1,6 +1,79 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  PAYMENT_PROVIDERS,
+  credentialScopeFor,
+  isCredentialSetComplete,
+  type CredentialScope,
+  type PaymentProviderId,
+} from "@/lib/payment-providers";
+import { mergeCredentials, readCredentialStore, storedCredentials } from "@/server/payments/credentials";
 
 export class BrandPaymentError extends Error {}
+
+/// Guarda las llaves de una pasarela (Wompi va por saveWompiCredentials,
+/// con sus columnas; las demás, en BrandProfile.gatewayCredentials) y la
+/// deja como la pasarela con la que cobra la marca. Solo toca los campos
+/// que vienen: undefined conserva, "" borra. No deja pasar a "cobro real"
+/// sin las llaves de producción completas de esa pasarela.
+export async function saveGatewayCredentials(
+  userId: string,
+  data: {
+    provider: PaymentProviderId;
+    paymentMode: "TEST" | "PRODUCTION";
+    credentials: Partial<Record<CredentialScope, Record<string, string | undefined>>>;
+  },
+) {
+  if (data.provider === "WOMPI") {
+    const wompi: Partial<Record<WompiKeyField, string>> = {};
+    const map = (scope: "TEST" | "PRODUCTION", suffix: "Test" | "Prod") => {
+      const values = data.credentials[scope] ?? {};
+      for (const [key, field] of [
+        ["publicKey", `wompiPublicKey${suffix}`],
+        ["privateKey", `wompiPrivateKey${suffix}`],
+        ["eventsKey", `wompiEventsKey${suffix}`],
+        ["integrityKey", `wompiIntegrityKey${suffix}`],
+      ] as const) {
+        if (values[key] !== undefined) wompi[field] = values[key];
+      }
+    };
+    map("TEST", "Test");
+    map("PRODUCTION", "Prod");
+    return saveWompiCredentials(userId, { paymentMode: data.paymentMode, ...wompi });
+  }
+
+  const current = await prisma.brandProfile.findUniqueOrThrow({ where: { userId } });
+  let store = readCredentialStore(current.gatewayCredentials);
+  const spec = PAYMENT_PROVIDERS[data.provider];
+  const scopes: CredentialScope[] = spec.scopes === "SHARED" ? ["SHARED"] : ["TEST", "PRODUCTION"];
+  for (const scope of scopes) {
+    const patch = data.credentials[scope];
+    if (patch) store = mergeCredentials(store, data.provider, scope, patch);
+  }
+  const prodScope = credentialScopeFor(data.provider, "PRODUCTION");
+  if (data.paymentMode === "PRODUCTION" && !isCredentialSetComplete(data.provider, store[data.provider]?.[prodScope])) {
+    throw new BrandPaymentError(
+      `Para cobrar de verdad faltan datos de producción de ${spec.name}. Complétalos o deja activo el modo de prueba.`,
+    );
+  }
+  return prisma.brandProfile.update({
+    where: { userId },
+    data: {
+      paymentProvider: data.provider,
+      paymentMode: data.paymentMode,
+      gatewayCredentials: store as unknown as Prisma.InputJsonValue,
+    },
+  });
+}
+
+/// Las llaves guardadas de cualquier pasarela, para la página de Pagos.
+export function savedCredentials(
+  profile: Parameters<typeof storedCredentials>[0],
+  provider: PaymentProviderId,
+  mode: "TEST" | "PRODUCTION",
+) {
+  return storedCredentials(profile, provider, mode);
+}
 
 const WOMPI_KEY_FIELDS = [
   "wompiPublicKeyTest",
@@ -56,7 +129,7 @@ export function maskSecret(value: string | null) {
 
 /// Estado de la pasarela para la página de Pagos.
 export function wompiStatus(profile: Parameters<typeof isWompiModeComplete>[0] & {
-  paymentProvider: "NONE" | "WOMPI";
+  paymentProvider: string;
 }): "NOT_CONNECTED" | "ACTIVE" | "TEST" | "INCOMPLETE" {
   const anyKey = WOMPI_KEY_FIELDS.some((f) => Boolean(profile[f]));
   if (profile.paymentProvider !== "WOMPI" || !anyKey) return "NOT_CONNECTED";

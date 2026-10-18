@@ -1,3 +1,4 @@
+import { cardProductSelect } from "@/lib/card-product-select";
 import Link from "next/link";
 import { StoreImage } from "@/components/storefront/store-image";
 import type {
@@ -26,18 +27,6 @@ import { CatalogTemplate } from "@/components/storefront/catalog-templates";
 import { ProductCard, toCardProduct, type CardProduct } from "@/components/storefront/product-card";
 import { prisma } from "@/lib/prisma";
 
-const CARD_SELECT = {
-  id: true,
-  name: true,
-  slug: true,
-  imageUrl: true,
-  price: true,
-  compareAtPrice: true,
-  stock: true,
-  type: true,
-  // Para "Desde $X" (ver toCardProduct).
-  variants: { select: { price: true } },
-} as const;
 
 function trustIconEmoji(icon: string) {
   return TRUST_ICON_OPTIONS.find((i) => i.value === icon)?.emoji ?? null;
@@ -468,7 +457,7 @@ async function listPickedProducts(brandId: string, productIds: string[]) {
   if (productIds.length === 0) return [];
   const products = await prisma.product.findMany({
     where: { id: { in: productIds }, brandId, manual: true, status: "ACTIVE" },
-    select: CARD_SELECT,
+    select: cardProductSelect,
   });
   const byId = new Map(products.map((p) => [p.id, p]));
   return productIds
@@ -503,7 +492,7 @@ async function NewProductsSection({
     where: { brandId, manual: true, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
     take: 8,
-    select: CARD_SELECT,
+    select: cardProductSelect,
   });
   return (
     <ProductGrid
@@ -552,7 +541,7 @@ async function OnSaleProductsSection({
     where: { brandId, manual: true, status: "ACTIVE", compareAtPrice: { not: null } },
     orderBy: { createdAt: "desc" },
     take: 50,
-    select: CARD_SELECT,
+    select: cardProductSelect,
   });
   const onSale = candidates
     .filter((p) => p.compareAtPrice != null && Number(p.compareAtPrice) > Number(p.price))

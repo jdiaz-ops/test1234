@@ -1,22 +1,20 @@
-/// Pasarelas de pago: la que Marcolini tiene (Wompi), las que no se
-/// pueden integrar porque solo existen dentro de su plataforma, y las
-/// que una marca puede pedir. Lo usan la detección al duplicar una
-/// tienda (shopify-theme.ts), el aviso al admin
+/// Pasarelas de pago: las que Marcolini tiene (ver payment-providers.ts),
+/// las que no se pueden integrar porque solo existen dentro de su
+/// plataforma, y las que una marca puede pedir. Lo usan la detección al
+/// duplicar una tienda (shopify-theme.ts), el aviso al admin
 /// (payment-gateway-request-service.ts) y el selector de Pagos.
 /// Ver conversación del 2026-10-18.
 
-export const SUPPORTED_GATEWAYS = ["Wompi"] as const;
+import { PAYMENT_PROVIDERS, PAYMENT_PROVIDER_IDS } from "@/lib/payment-providers";
+
+export const SUPPORTED_GATEWAYS: readonly string[] = PAYMENT_PROVIDER_IDS.map((id) => PAYMENT_PROVIDERS[id].name);
 
 /// Solo funcionan dentro de Shopify: no hay integración que construir.
 export const NOT_PORTABLE_GATEWAYS = ["Shopify Payments / Shop Pay"] as const;
 
 /// Las que una marca puede elegir en Pagos (además de "Otra").
 export const KNOWN_GATEWAYS = [
-  "Mercado Pago",
-  "PayU",
-  "ePayco",
   "Addi",
-  "Bold",
   "PlacetoPay",
   "PayPal",
   "Nequi",

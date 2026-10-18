@@ -5,14 +5,16 @@ import { useCart } from "@/components/storefront/cart-context";
 import { cartLineKey } from "@/lib/storefront-cart";
 import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
 import { taxIncluded, orderTotal } from "@/lib/order-math";
-import { openWompiWidget, type WompiParams } from "@/components/storefront/wompi-widget";
+import { launchPayment, type PaymentLaunch } from "@/components/storefront/payment-launch";
 
 type PendingPayment = {
   payload: string;
-  wompi: WompiParams;
-  customerData: Record<string, string>;
-  checkoutUrl: string;
+  launch: PaymentLaunch;
 };
+
+/// La pasarela con la que cobra la marca, para mostrarla en "Pago" — null
+/// cuando todavía no conectó ninguna.
+export type CheckoutGateway = { provider: string; name: string; badges: string[]; hint: string };
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -153,16 +155,16 @@ function Section({ title, children, aside }: { title: string; children: React.Re
 }
 
 /// Checkout de una sola página, como el de Shopify: contacto, entrega (con
-/// cédula o NIT), métodos de envío, pago con Wompi y dirección de
+/// cédula o NIT), métodos de envío, pago con la pasarela de la marca y dirección de
 /// facturación a la izquierda; el resumen del pedido a la derecha. "Pagar
-/// ahora" crea el pedido y abre enseguida la ventana de pago de Wompi con
-/// los datos ya llenos (ver wompi-widget.ts) — antes había un paso
+/// ahora" crea el pedido y manda enseguida a pagar con la pasarela de la
+/// marca (ver payment-launch.ts) — antes había un paso
 /// intermedio con un segundo botón. Ver conversación del 2026-10-01.
 export function CheckoutForm({
   brandSlug,
   basePath = `/t/${brandSlug}`,
   taxRatePercent,
-  paymentsReady,
+  gateway,
   referredCode,
 }: {
   brandSlug: string;
@@ -171,7 +173,7 @@ export function CheckoutForm({
   /// BrandProfile.taxRatePercent — solo para mostrar cuánto IVA va
   /// incluido; el monto real lo calcula createStoreOrder en el servidor.
   taxRatePercent: number;
-  paymentsReady: boolean;
+  gateway: CheckoutGateway | null;
   /// Código de la cookie de atribución de primera parte (ver src/proxy.ts)
   /// — si el comprador llegó por el link de un creador se aplica solo.
   referredCode?: string | null;
@@ -301,7 +303,7 @@ export function CheckoutForm({
   }, []);
 
   const [submitting, setSubmitting] = useState(false);
-  const [openingWompi, setOpeningWompi] = useState(false);
+  const [openingPayment, setOpeningPayment] = useState(false);
   const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -314,14 +316,17 @@ export function CheckoutForm({
   const [shippingQuote, setShippingQuote] = useState<{
     amount: number | null;
     name: string | null;
+    /// "Se paga al recibir": la tarifa va en $0 pero el envío no es gratis,
+    /// el comprador se lo paga a la transportadora al recibir.
+    payOnDelivery: boolean;
     error: string | null;
     loading: boolean;
-  }>({ amount: null, name: null, error: null, loading: false });
+  }>({ amount: null, name: null, payOnDelivery: false, error: null, loading: false });
 
   useEffect(() => {
     if (!needsShipping || !region) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- resetea la cotización cuando se borra el departamento
-      setShippingQuote({ amount: null, name: null, error: null, loading: false });
+      setShippingQuote({ amount: null, name: null, payOnDelivery: false, error: null, loading: false });
       return;
     }
     let cancelled = false;
@@ -335,14 +340,20 @@ export function CheckoutForm({
       .then((body) => {
         if (cancelled) return;
         if (body?.ok) {
-          setShippingQuote({ amount: body.shippingCents / 100, name: body.rateName ?? null, error: null, loading: false });
+          setShippingQuote({
+            amount: body.shippingCents / 100,
+            name: body.rateName ?? null,
+            payOnDelivery: Boolean(body.payOnDelivery),
+            error: null,
+            loading: false,
+          });
         } else {
-          setShippingQuote({ amount: null, name: null, error: body?.error ?? "No se pudo cotizar el envío.", loading: false });
+          setShippingQuote({ amount: null, name: null, payOnDelivery: false, error: body?.error ?? "No se pudo cotizar el envío.", loading: false });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setShippingQuote({ amount: null, name: null, error: "No se pudo cotizar el envío — revisa tu conexión.", loading: false });
+          setShippingQuote({ amount: null, name: null, payOnDelivery: false, error: "No se pudo cotizar el envío — revisa tu conexión.", loading: false });
         }
       });
     return () => {
@@ -352,6 +363,14 @@ export function CheckoutForm({
   }, [brandSlug, needsShipping, region]);
 
   const shippingCost = shippingQuote.amount ?? 0;
+  // Cómo se muestra el envío cotizado: el valor, "Gratis" o, si la tarifa
+  // es contraentrega, "Se paga al recibir" (antes salía "Gratis" y el
+  // comprador entendía que no pagaba envío). Ver conversación del 2026-10-18.
+  const shippingLabel = shippingQuote.payOnDelivery
+    ? "Se paga al recibir"
+    : shippingCost === 0
+      ? "Gratis"
+      : formatCOP(shippingCost);
   // Los precios ya traen el IVA: se muestra cuánto va incluido, no se suma.
   const taxAmount = taxIncluded(afterDiscount, taxRatePercent);
   const total = orderTotal({ subtotal, discount: discountAmount, shipping: shippingCost });
@@ -424,8 +443,8 @@ export function CheckoutForm({
         });
 
     // Si ya se creó el pedido con exactamente estos datos (el comprador
-    // cerró la ventana de Wompi y vuelve a tocar "Pagar ahora"), se reabre
-    // la misma ventana en vez de crear otro pedido.
+    // cerró la ventana de pago y vuelve a tocar "Pagar ahora"), se reabre
+    // el mismo cobro en vez de crear otro pedido.
     if (pendingPayment && pendingPayment.payload === payload) {
       setSubmitting(false);
       await openPayment(pendingPayment);
@@ -443,7 +462,7 @@ export function CheckoutForm({
         setSubmitError(body?.error ?? "No se pudo crear el pedido.");
         return;
       }
-      const pending = { payload, wompi: body.wompi, customerData: body.customerData ?? {}, checkoutUrl: body.checkoutUrl };
+      const pending = { payload, launch: body.payment as PaymentLaunch };
       setPendingPayment(pending);
       await openPayment(pending);
     } catch {
@@ -453,13 +472,13 @@ export function CheckoutForm({
     }
   }
 
-  /// Abre la ventana de pago de Wompi encima del checkout; si no carga,
-  /// lleva a la página de pago de Wompi.
+  /// Manda a pagar con la pasarela de la marca (ventana encima del
+  /// checkout o salto a su página, según la pasarela — ver payment-launch.ts).
   async function openPayment(pending: PendingPayment) {
-    setOpeningWompi(true);
-    const opened = await openWompiWidget(pending.wompi, pending.customerData);
-    setOpeningWompi(false);
-    if (!opened) window.location.assign(pending.checkoutUrl);
+    setOpeningPayment(true);
+    const opened = await launchPayment(pending.launch);
+    setOpeningPayment(false);
+    if (!opened) setSubmitError(`No se pudo abrir ${gateway?.name ?? "la pasarela de pago"} — revisa tu conexión e intenta de nuevo.`);
   }
 
   if (items.length === 0 && !pendingPayment) {
@@ -581,9 +600,7 @@ export function CheckoutForm({
                   ? "Calculando..."
                   : shippingQuote.amount == null
                     ? "—"
-                    : shippingCost === 0
-                      ? "Gratis"
-                      : formatCOP(shippingCost)}
+                    : shippingLabel}
             </span>
           </div>
         )}
@@ -725,36 +742,41 @@ export function CheckoutForm({
                     <span className="w-4 h-4 rounded-full border-[5px] border-brand-ink bg-brand-surface" aria-hidden="true" />
                     {shippingQuote.name ?? "Envío a domicilio"}
                   </span>
-                  <span className="font-medium text-brand-ink tabular-nums">
-                    {shippingCost === 0 ? "Gratis" : formatCOP(shippingCost)}
-                  </span>
+                  <span className="font-medium text-brand-ink tabular-nums">{shippingLabel}</span>
                 </div>
+              )}
+              {shippingQuote.payOnDelivery && !shippingQuote.loading && !shippingQuote.error && (
+                <p className="text-xs text-brand-ink-soft">
+                  El valor del envío lo pagas al recibir el pedido, directo a la transportadora. No va en el total de hoy.
+                </p>
               )}
             </Section>
           )}
 
           <Section title="Pago">
             <p className="text-xs text-brand-ink-soft -mt-2">Todas las transacciones son seguras y están encriptadas.</p>
-            {paymentsReady ? (
+            {gateway ? (
               <div className="rounded-lg border border-brand-ink overflow-hidden">
                 <div className="flex items-center justify-between gap-3 px-4 py-3.5 bg-brand-bg/60">
                   <span className="flex items-center gap-3 text-sm font-medium text-brand-ink">
                     <span className="w-4 h-4 rounded-full border-[5px] border-brand-ink bg-brand-surface" aria-hidden="true" />
-                    Wompi
+                    {gateway.name}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    {["Tarjetas", "PSE", "Nequi"].map((m) => (
+                    {gateway.badges.slice(0, 3).map((m) => (
                       <span key={m} className="text-[10px] font-semibold rounded border border-brand-line bg-brand-surface px-1.5 py-0.5 text-brand-ink">
                         {m}
                       </span>
                     ))}
-                    <span className="text-[10px] font-semibold rounded border border-brand-line bg-brand-surface px-1.5 py-0.5 text-brand-ink-soft">
-                      +3
-                    </span>
+                    {gateway.badges.length > 3 && (
+                      <span className="text-[10px] font-semibold rounded border border-brand-line bg-brand-surface px-1.5 py-0.5 text-brand-ink-soft">
+                        +{gateway.badges.length - 3}
+                      </span>
+                    )}
                   </span>
                 </div>
                 <p className="border-t border-brand-line bg-brand-bg px-4 py-4 text-center text-sm text-brand-ink-soft">
-                  Al tocar Pagar ahora se abre Wompi para completar tu compra.
+                  {gateway.hint}
                 </p>
               </div>
             ) : (
@@ -846,7 +868,7 @@ export function CheckoutForm({
                 <div className="flex justify-between text-brand-ink">
                   <span>Envío</span>
                   <span className="tabular-nums text-brand-ink-soft">
-                    {!region ? "Ingresa tu dirección" : shippingQuote.amount == null ? "—" : shippingCost === 0 ? "Gratis" : formatCOP(shippingCost)}
+                    {!region ? "Ingresa tu dirección" : shippingQuote.amount == null ? "—" : shippingLabel}
                   </span>
                 </div>
               )}
@@ -860,11 +882,11 @@ export function CheckoutForm({
 
             <button
               type="submit"
-              disabled={!paymentsReady || submitting || openingWompi || shippingBlocked}
+              disabled={!gateway || submitting || openingPayment || shippingBlocked}
               className="w-full rounded-lg bg-brand-button text-brand-button-text px-6 py-4 text-base font-semibold hover:opacity-90 disabled:opacity-50"
             >
-              {openingWompi
-                ? "Abriendo Wompi..."
+              {openingPayment
+                ? `Abriendo ${gateway?.name ?? "el pago"}...`
                 : submitting
                   ? "Creando tu pedido..."
                   : needsShipping && shippingQuote.loading

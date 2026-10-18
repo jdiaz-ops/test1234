@@ -1,12 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getStoreOrder } from "@/server/services/store-order-service";
-import {
-  getActiveWompiKeys,
-  fetchWompiTransaction,
-  WompiApiError,
-} from "@/server/integrations/wompi-client";
-import { applyWompiTransactionStatus } from "@/server/services/store-order-service";
+import { flattenQuery, settleOrderFromReturn } from "@/server/payments/return-check";
 import { ClearCartIfPaid } from "@/components/storefront/clear-cart-if-paid";
 import { TrackPurchase } from "@/components/storefront/pixel-events";
 import { getStoreBasePath } from "@/lib/store-base-path";
@@ -48,39 +43,20 @@ export default async function StorefrontOrderStatusPage({
   searchParams,
 }: {
   params: Promise<{ slug: string; orderId: string }>;
-  searchParams: Promise<{ id?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug, orderId } = await params;
-  const { id: wompiId } = await searchParams;
+  const query = flattenQuery(await searchParams);
 
   let order = await getStoreOrder(orderId);
   if (!order || order.brand.storefrontSlug !== slug) notFound();
 
-  // Wompi redirige acá con `?id=` apenas el comprador termina en su
-  // widget — casi siempre llega antes que el webhook, así que lo
-  // consultamos de una vez en vez de dejar al comprador viendo "pendiente"
-  // más de lo necesario.
-  if (order.status === "PENDING" && wompiId) {
-    const keys = getActiveWompiKeys(order.brand);
-    if (keys) {
-      try {
-        const txn = await fetchWompiTransaction(
-          keys.mode,
-          keys.publicKey,
-          wompiId,
-        );
-        if (txn && txn.reference === order.reference) {
-          await applyWompiTransactionStatus({
-            reference: order.reference,
-            wompiTransactionId: txn.id,
-            wompiStatus: txn.status,
-          });
-          order = await getStoreOrder(orderId);
-        }
-      } catch (err) {
-        if (!(err instanceof WompiApiError)) throw err;
-      }
-    }
+  // La pasarela redirige acá con el id de su cobro en la URL (?id= Wompi,
+  // ?payment_id= Mercado Pago, la firma de PayU, ?ref_payco= ePayco…) apenas
+  // el comprador termina — casi siempre llega antes que el aviso, así que
+  // se consulta de una vez en vez de dejarlo viendo "pendiente".
+  if (await settleOrderFromReturn(order, order.brand, query)) {
+    order = await getStoreOrder(orderId);
   }
 
   if (!order) notFound();
@@ -209,6 +185,12 @@ export default async function StorefrontOrderStatusPage({
                 <span className="font-mono">
                   {formatCOP(order.shippingCents / 100)}
                 </span>
+              </div>
+            )}
+            {order.shippingCents === 0 && order.shippingPayOnDelivery && (
+              <div className="flex justify-between text-brand-ink-soft">
+                <span>Envío</span>
+                <span>Se paga al recibir</span>
               </div>
             )}
             <div className="flex justify-between font-semibold text-brand-ink">

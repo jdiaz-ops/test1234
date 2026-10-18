@@ -230,7 +230,7 @@ export const moderateReviewSchema = z.object({
 /// Acción sobre varios productos a la vez (casillas de la tabla).
 export const bulkProductActionSchema = z.object({
   productIds: z.array(z.string().min(1)).min(1, "Elige al menos un producto").max(500),
-  action: z.enum(["activate", "hide", "addCollection", "removeCollection"]),
+  action: z.enum(["activate", "hide", "addCollection", "removeCollection", "splitVariants"]),
   collectionId: z.string().min(1).optional(),
 });
 
@@ -282,6 +282,18 @@ export const importShopifyProductsSchema = z.object({
 
 /// Todos los campos opcionales — la marca puede guardar solo las llaves de
 /// prueba primero, y agregar las de producción después sin perder nada.
+/// Llaves de cualquier pasarela (ver saveGatewayCredentials): por entorno
+/// (TEST/PRODUCTION) o un solo juego (SHARED, ePayco). Un campo ausente se
+/// conserva, "" lo borra.
+const credentialSetSchema = z.record(z.string().max(60), z.string().max(500)).optional();
+export const gatewayCredentialsSchema = z.object({
+  provider: z.enum(["WOMPI", "MERCADO_PAGO", "PAYU", "EPAYCO", "BOLD"]),
+  paymentMode: z.enum(["TEST", "PRODUCTION"]),
+  credentials: z
+    .object({ TEST: credentialSetSchema, PRODUCTION: credentialSetSchema, SHARED: credentialSetSchema })
+    .default({}),
+});
+
 export const wompiCredentialsSchema = z.object({
   paymentMode: z.enum(["TEST", "PRODUCTION"]),
   wompiPublicKeyTest: z.string().optional().or(z.literal("")),
@@ -350,6 +362,8 @@ export const storeConfigSchema = z.object({
 const shippingRateSchema = z.object({
   name: z.string().min(2, "Ingresa un nombre para la tarifa").max(80),
   price: z.coerce.number().min(0, "No puede ser negativo"),
+  /// "Se paga al recibir" (contraentrega) — ver ShippingZoneRate.payOnDelivery.
+  payOnDelivery: z.boolean().optional(),
   condition: z.enum(["NONE", "MIN_ORDER_AMOUNT", "MIN_WEIGHT"]),
   conditionValue: z.coerce
     .number()

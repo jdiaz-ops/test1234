@@ -39,6 +39,7 @@ export default async function TiendaEnviosPage() {
             id: r.id,
             name: r.name,
             price: Number(r.price),
+            payOnDelivery: r.payOnDelivery,
             condition: r.condition,
             conditionValue: r.conditionValue != null ? Number(r.conditionValue) : null,
             conditionMaxValue:

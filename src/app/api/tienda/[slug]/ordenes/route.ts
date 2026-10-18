@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
 import { limitOrReject } from "@/lib/rate-limit";
 import { createStoreOrderSchema } from "@/lib/validation/storefront";
-import {
-  createStoreOrder,
-  StoreOrderError,
-  wompiCheckoutUrl,
-  wompiCustomerData,
-} from "@/server/services/store-order-service";
+import { createStoreOrder, StoreOrderError } from "@/server/services/store-order-service";
 
-/// Crea un pedido de "Mi tienda" y devuelve lo que necesita el botón de
-/// Wompi para cobrar — nunca crea el cargo acá, eso lo hace Wompi mismo
-/// cuando el comprador confirma en su widget.
+/// Crea un pedido de "Mi tienda" y devuelve lo que necesita el checkout
+/// para mandar a pagar con la pasarela de la marca (ver PaymentLaunch en
+/// src/server/payments/types.ts) — el cargo lo hace la pasarela cuando el
+/// comprador confirma.
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ slug: string }> },
@@ -32,7 +28,7 @@ export async function POST(
   }
 
   try {
-    const { order, wompi } = await createStoreOrder(slug, {
+    const { order, payment } = await createStoreOrder(slug, {
       items: parsed.data.items,
       buyerName: parsed.data.buyerName,
       buyerEmail: parsed.data.buyerEmail,
@@ -58,13 +54,7 @@ export async function POST(
       shippingPostalCode: parsed.data.shippingPostalCode || undefined,
       acceptsMarketing: parsed.data.acceptsMarketing ?? false,
     });
-    return NextResponse.json({
-      ok: true,
-      orderId: order.id,
-      wompi,
-      customerData: wompiCustomerData(order),
-      checkoutUrl: wompiCheckoutUrl(wompi),
-    });
+    return NextResponse.json({ ok: true, orderId: order.id, payment });
   } catch (err) {
     if (err instanceof StoreOrderError) {
       return NextResponse.json({ error: err.message }, { status: 400 });

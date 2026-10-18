@@ -237,7 +237,7 @@ describe.skipIf(!hasDb)("checkout: la ruta que usa el navegador", () => {
     expect(await prisma.storeOrder.count({ where: { brandId: brand.id } })).toBe(0);
   });
 
-  it("devuelve el link directo a Wompi con los datos del comprador y guarda los campos nuevos", async () => {
+  it("devuelve la ventana de Wompi con los datos del comprador y guarda los campos nuevos", async () => {
     const brand = await createSellingBrand();
     const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });
     const buyerEmail = email("onepage");
@@ -259,12 +259,15 @@ describe.skipIf(!hasDb)("checkout: la ruta que usa el navegador", () => {
     });
     expect(res.status).toBe(200);
     const body = await res.json();
+    // Lo que el checkout necesita para abrir Wompi (ver PaymentLaunch).
+    expect(body.payment.kind).toBe("wompi");
+    expect(body.payment.provider).toBe("WOMPI");
     // Vuelve al link real de la tienda, nunca a localhost (el firewall de
     // Wompi lo rechazaba).
-    expect(body.wompi.redirectUrl).toBe(`https://${brand.storefrontSlug}.marcolini.lat/pedido/${body.orderId}`);
+    expect(body.payment.widget.redirectUrl).toBe(`https://${brand.storefrontSlug}.marcolini.lat/pedido/${body.orderId}`);
 
     // Datos para precargar la ventana de Wompi.
-    expect(body.customerData).toEqual({
+    expect(body.payment.customerData).toEqual({
       email: buyerEmail,
       fullName: "Ana María Pérez Gómez",
       phoneNumber: "3134058607",
@@ -274,15 +277,16 @@ describe.skipIf(!hasDb)("checkout: la ruta que usa el navegador", () => {
     });
     // Respaldo: el link de pago de Wompi solo con lo indispensable (con los
     // datos del comprador el firewall de Wompi respondía 403).
-    const url = new URL(body.checkoutUrl);
+    const url = new URL(body.payment.checkoutUrl);
     expect(url.origin + url.pathname).toBe("https://checkout.wompi.co/p/");
     expect(url.searchParams.get("public-key")).toBe("pub_test_x");
-    expect(url.searchParams.get("amount-in-cents")).toBe(String(body.wompi.amountInCents));
-    expect(url.searchParams.get("signature:integrity")).toBe(body.wompi.signature);
+    expect(url.searchParams.get("amount-in-cents")).toBe(String(body.payment.widget.amountInCents));
+    expect(url.searchParams.get("signature:integrity")).toBe(body.payment.widget.signature);
     expect([...url.searchParams.keys()].some((k) => k.startsWith("customer-data"))).toBe(false);
 
     const order = await prisma.storeOrder.findUniqueOrThrow({ where: { id: body.orderId } });
     expect(order).toMatchObject({
+      paymentProvider: "WOMPI",
       buyerFirstName: "Ana María",
       buyerLastName: "Pérez Gómez",
       shippingPostalCode: "050021",

@@ -418,7 +418,7 @@ export function OrderItemsList({
 }
 
 /// Devolución de un pedido pagado. El dinero se devuelve desde el panel de
-/// Wompi; acá queda registrada, se repone el inventario si la marca lo
+/// la pasarela; acá queda registrada, se repone el inventario si la marca lo
 /// marca, se detiene la comisión del creador y el comprador recibe un
 /// correo. Ver refundStoreOrder y conversación del 2026-09-30.
 export function OrderRefundPanel({
@@ -426,10 +426,14 @@ export function OrderRefundPanel({
   totalLabel,
   hasPhysicalItems,
   refund,
+  refundHint = "tu pasarela de pagos",
 }: {
   orderId: string;
   totalLabel: string;
   hasPhysicalItems: boolean;
+  /// Dónde se devuelve el dinero según la pasarela del pedido (ver
+  /// PAYMENT_PROVIDERS[].refundHint).
+  refundHint?: string;
   /// Si ya está devuelto, los datos de la devolución.
   refund: { refundedAt: string; reason: string | null; restocked: boolean } | null;
 }) {
@@ -490,9 +494,8 @@ export function OrderRefundPanel({
   return (
     <div className="space-y-3 text-sm">
       <p className="text-brand-ink-soft">
-        Primero devuelve el dinero desde tu panel de Wompi (Transacciones → la del pedido → Anular o reembolsar).
-        Después regístralo acá: el pedido queda como Devuelto, la comisión del creador se cancela y el comprador
-        recibe un correo.
+        Primero devuelve el dinero desde {refundHint}. Después regístralo acá: el pedido queda como Devuelto, la
+        comisión del creador se cancela y el comprador recibe un correo.
       </p>
       <div>
         <label className="block text-xs text-brand-ink mb-1">Motivo (opcional, lo ve el comprador)</label>

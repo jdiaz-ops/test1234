@@ -49,18 +49,20 @@ function renderMenuLink(
 }
 
 /// Alto del logo — el ancho sale solo de la proporción de la imagen, sin
-/// marco ni recorte circular.
+/// marco ni recorte circular. En celular va un escalón más grande que en
+/// computadora: ahí el logo es lo único que identifica la tienda y se veía
+/// chico al lado del buscador. Ver conversación del 2026-10-18.
 const LOGO_HEIGHT_CLASS = {
-  small: "h-7",
-  medium: "h-9",
-  large: "h-14",
+  small: "h-9 sm:h-7",
+  medium: "h-12 sm:h-9",
+  large: "h-16 sm:h-14",
 };
 
 /// El círculo con la inicial, solo para la marca que todavía no subió logo.
 const LOGO_FALLBACK_CLASS = {
-  small: "w-7 h-7 text-sm",
-  medium: "w-9 h-9 text-base",
-  large: "w-12 h-12 text-lg",
+  small: "w-9 h-9 sm:w-7 sm:h-7 text-sm",
+  medium: "w-12 h-12 sm:w-9 sm:h-9 text-base",
+  large: "w-14 h-14 sm:w-12 sm:h-12 text-lg",
 };
 
 export function StoreHeader({
@@ -116,7 +118,7 @@ export function StoreHeader({
         <img
           src={logoUrl}
           alt={brandName}
-          className={`${LOGO_HEIGHT_CLASS[header.logoSize]} w-auto max-w-[180px] object-contain`}
+          className={`${LOGO_HEIGHT_CLASS[header.logoSize]} w-auto max-w-[min(220px,55vw)] sm:max-w-[180px] object-contain`}
         />
       ) : (
         <>
@@ -178,12 +180,18 @@ export function StoreHeader({
     </nav>
   );
 
-  // Buscador grande de celular — un <form> GET liso a /buscar, sin JS:
-  // funciona incluso donde la hidratación no prende. Se activa desde
-  // Diseño → Encabezado → Mostrar → "Buscador grande". Ver conversación
-  // del 2026-09-15.
+  // Buscador de celular — un <form> GET liso a /buscar, sin JS: funciona
+  // incluso donde la hidratación no prende. Se activa desde Diseño →
+  // Encabezado → Mostrar → "Buscador". Antes ocupaba todo el ancho entre
+  // el logo y el carrito; ahora es una caja compacta que crece al tocarla,
+  // para dejarle el espacio al logo. Ver conversación del 2026-10-18.
   const searchBar = showSearch && (
-    <form action={`${basePath}/buscar`} method="GET" role="search" className="flex-1 min-w-0">
+    <form
+      action={`${basePath}/buscar`}
+      method="GET"
+      role="search"
+      className="w-28 shrink-0 focus-within:w-44 transition-[width] duration-200 motion-reduce:transition-none"
+    >
       <div className="relative">
         <svg
           viewBox="0 0 24 24"
@@ -201,7 +209,7 @@ export function StoreHeader({
           type="search"
           name="q"
           placeholder="Buscar"
-          className="w-full rounded-full border border-brand-line bg-brand-bg pl-9 pr-3 py-2 text-sm text-brand-ink placeholder:text-brand-ink-soft focus:outline-none focus:ring-1 focus:ring-brand-accent"
+          className="w-full rounded-full border border-brand-line bg-brand-bg pl-9 pr-3 py-1.5 text-sm text-brand-ink placeholder:text-brand-ink-soft focus:outline-none focus:ring-1 focus:ring-brand-accent"
         />
       </div>
     </form>
@@ -268,7 +276,7 @@ export function StoreHeader({
               siempre, con las posiciones que la marca eligió. */}
           {searchBar && (
             <div className="flex items-center gap-3 sm:hidden">
-              {logo}
+              <div className="flex-1 min-w-0 flex items-center">{logo}</div>
               {searchBar}
               {cartButton}
             </div>

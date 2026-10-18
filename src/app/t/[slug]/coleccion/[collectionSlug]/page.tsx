@@ -5,7 +5,7 @@ import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { getPublicBrandCollection } from "@/server/services/brand-collection-service";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { StoreHeader } from "@/components/storefront/store-header";
-import { CollectionProductGrid } from "@/components/storefront/collection-product-grid";
+import { CollectionBrowser } from "@/components/storefront/collection-browser";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { stripHtml } from "@/lib/sanitize-html";
 
@@ -90,10 +90,7 @@ export default async function StorefrontCollectionPage({
             Todavía no hay productos en esta colección.
           </p>
         ) : (
-          <CollectionProductGrid
-            basePath={basePath}
-            products={products.map((p) => toCardProduct(p))}
-          />
+          <CollectionBrowser basePath={basePath} products={products.map((p) => toCardProduct(p))} />
         )}
       </div>
     </div>

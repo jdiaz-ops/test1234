@@ -52,6 +52,8 @@ export type ManualProductInput = {
   hasVariants?: boolean;
   optionNames?: string[];
   variants?: VariantInput[];
+  /// Atributos para los filtros de la colección (ver Product.attributes).
+  attributes?: Record<string, string>;
 };
 
 const productListInclude = {
@@ -296,6 +298,7 @@ export async function createManualProduct(
         digitalFileUrl: data.type === "DIGITAL" ? data.digitalFileUrl || null : null,
         hasVariants,
         optionNames: hasVariants ? (data.optionNames ?? []) : [],
+        attributes: data.attributes ?? {},
       },
     });
     await tx.productImage.createMany({

@@ -269,7 +269,7 @@ export function DataicoConnectionCard({
             Facturar automáticamente cada venta pagada
           </label>
           <p className="text-xs text-brand-ink-soft -mt-2">
-            Los pedidos hechos en modo de prueba de Wompi solo se facturan en el ambiente de pruebas. Las devoluciones (notas
+            Los pedidos hechos en modo de prueba de la pasarela solo se facturan en el ambiente de pruebas. Las devoluciones (notas
             crédito) se hacen por ahora desde Dataico.
           </p>
 

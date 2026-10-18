@@ -355,7 +355,9 @@ async function reserveNumber(brandId: string) {
 }
 
 async function wompiPaymentMethod(order: InvoiceOrder & { brand: unknown }) {
-  if (!order.wompiTransactionId) return null;
+  // Solo Wompi expone el medio de pago por API con la llave pública; con
+  // otra pasarela se factura con el medio por defecto.
+  if (order.paymentProvider !== "WOMPI" || !order.wompiTransactionId) return null;
   try {
     const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: order.brandId } });
     const keys = getActiveWompiKeys({ ...brand, paymentMode: order.paymentMode });

@@ -69,8 +69,8 @@ export function OtherGatewayForm({ initialRequests }: { initialRequests: string[
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mt-6">
       <p className="text-sm font-medium text-brand-ink mb-1">¿Cobras con otra pasarela?</p>
       <p className="text-xs text-brand-ink-soft mb-4 max-w-lg">
-        Hoy Marcolini cobra con Wompi. Si tu pasarela es otra, cuéntanos cuál: el equipo recibe el aviso para
-        construir la integración y te avisamos cuando esté lista.
+        Hoy Marcolini cobra con Wompi, Mercado Pago, PayU, ePayco y Bold. Si tu pasarela es otra, cuéntanos cuál: el
+        equipo recibe el aviso para construir la integración y te avisamos cuando esté lista.
       </p>
       {requests.length > 0 && (
         <ul className="mb-4 space-y-1 text-sm">

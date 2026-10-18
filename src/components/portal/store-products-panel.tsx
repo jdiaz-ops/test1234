@@ -177,10 +177,18 @@ export function StoreProductsPanel({
     });
   }
 
-  async function runBulk(action: "activate" | "hide" | "addCollection" | "removeCollection") {
+  async function runBulk(action: "activate" | "hide" | "addCollection" | "removeCollection" | "splitVariants") {
     if (selected.size === 0) return;
     if ((action === "addCollection" || action === "removeCollection") && !bulkCollectionId) {
       setError("Elige primero la colección.");
+      return;
+    }
+    if (
+      action === "splitVariants" &&
+      !window.confirm(
+        "Cada variante pasa a ser un producto propio (nombre + variante, su precio, foto, inventario y las mismas colecciones). El producto original queda oculto. ¿Continuar?",
+      )
+    ) {
       return;
     }
     setBulkBusy(true);
@@ -199,6 +207,17 @@ export function StoreProductsPanel({
       const body = await res.json().catch(() => null);
       if (!res.ok) {
         setError(body?.error ?? "No se pudo aplicar el cambio.");
+        return;
+      }
+      if (action === "splitVariants") {
+        setBulkNotice(
+          body.changed > 0
+            ? `Listo: ${body.changed} productos nuevos a partir de ${body.splitProducts} con variantes (los originales quedaron ocultos).` +
+                (body.skipped > 0 ? ` ${body.skipped} sin variantes se dejaron igual.` : "")
+            : "Ninguno de los seleccionados tiene variantes que separar.",
+        );
+        setSelected(new Set());
+        reloadProducts();
         return;
       }
       const verb = {
@@ -617,6 +636,17 @@ export function StoreProductsPanel({
                 Quitar de la colección
               </button>
             </>
+          )}
+          {products.some((p) => selected.has(p.id) && p.hasVariants) && (
+            <button
+              type="button"
+              onClick={() => runBulk("splitVariants")}
+              disabled={bulkBusy}
+              title="Cada variante (tono, talla…) pasa a ser un producto propio; el original queda oculto"
+              className="rounded-full border border-brand-line px-3 py-1.5 text-xs font-medium text-brand-ink hover:bg-brand-accent-soft disabled:opacity-50"
+            >
+              Separar variantes en productos
+            </button>
           )}
           <button
             type="button"

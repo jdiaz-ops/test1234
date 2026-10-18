@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import { requireBrandProfile } from "@/lib/current-brand";
-import { wompiCredentialsSchema } from "@/lib/validation/brand";
-import {
-  saveWompiCredentials,
-  BrandPaymentError,
-} from "@/server/services/brand-payment-service";
+import { gatewayCredentialsSchema } from "@/lib/validation/brand";
+import { saveGatewayCredentials, BrandPaymentError } from "@/server/services/brand-payment-service";
 
+/// Guarda las llaves de la pasarela elegida y la deja activa (ver
+/// saveGatewayCredentials). Las secretas que no cambiaron no viajan: la
+/// página solo manda las que la marca escribió.
 export async function PATCH(req: Request) {
   const profile = await requireBrandProfile();
   if (!profile)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const body = await req.json();
-  const parsed = wompiCredentialsSchema.safeParse(body);
+  const parsed = gatewayCredentialsSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0].message },
@@ -21,7 +21,7 @@ export async function PATCH(req: Request) {
   }
 
   try {
-    await saveWompiCredentials(profile.userId, parsed.data);
+    await saveGatewayCredentials(profile.userId, parsed.data);
   } catch (err) {
     if (err instanceof BrandPaymentError)
       return NextResponse.json({ error: err.message }, { status: 400 });

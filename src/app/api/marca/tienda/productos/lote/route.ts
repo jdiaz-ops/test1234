@@ -5,6 +5,7 @@ import {
   bulkProductAction,
   BrandStoreProductError,
 } from "@/server/services/brand-store-product-service";
+import { splitProductsVariants } from "@/server/services/product-split-service";
 
 /// Acciones sobre varios productos a la vez. Ver bulkProductAction.
 export async function POST(req: Request) {
@@ -19,7 +20,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await bulkProductAction(profile.id, parsed.data);
+    // Separar variantes en productos (ver product-split-service.ts).
+    if (parsed.data.action === "splitVariants") {
+      const result = await splitProductsVariants(profile.id, parsed.data.productIds);
+      return NextResponse.json({ ok: true, ...result });
+    }
+    const result = await bulkProductAction(profile.id, { ...parsed.data, action: parsed.data.action });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     if (err instanceof BrandStoreProductError)

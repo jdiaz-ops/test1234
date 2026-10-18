@@ -3,7 +3,8 @@ import { TrackInitiateCheckout } from "@/components/storefront/pixel-events";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
-import { getActiveWompiKeys } from "@/server/integrations/wompi-client";
+import { getActivePaymentGateway } from "@/server/payments/credentials";
+import { PAYMENT_PROVIDERS } from "@/lib/payment-providers";
 import { CheckoutForm } from "@/components/storefront/checkout-form";
 import { CartIcon } from "@/components/storefront/mobile-nav-icons";
 import { getStoreBasePath } from "@/lib/store-base-path";
@@ -19,7 +20,17 @@ export default async function StorefrontCheckoutPage({
   const brand = await getStorefrontBrand(slug);
   if (!brand) notFound();
 
-  const paymentsReady = getActiveWompiKeys(brand) !== null;
+  // Con qué pasarela cobra la marca (su propia cuenta) — null si todavía
+  // no pegó sus llaves: el checkout lo dice y no deja pagar.
+  const activeGateway = getActivePaymentGateway(brand);
+  const gateway = activeGateway
+    ? {
+        provider: activeGateway.provider,
+        name: PAYMENT_PROVIDERS[activeGateway.provider].name,
+        badges: PAYMENT_PROVIDERS[activeGateway.provider].badges,
+        hint: PAYMENT_PROVIDERS[activeGateway.provider].checkoutHint,
+      }
+    : null;
   const basePath = await getStoreBasePath(slug);
   const theme = await getStorefrontTheme(brand.id);
   const headerBg = checkoutHeaderColor(theme);
@@ -70,7 +81,7 @@ export default async function StorefrontCheckoutPage({
         brandSlug={slug}
         basePath={basePath}
         taxRatePercent={Number(brand.taxRatePercent)}
-        paymentsReady={paymentsReady}
+        gateway={gateway}
         referredCode={referredCode}
       />
     </div>

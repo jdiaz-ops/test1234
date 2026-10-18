@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { marketplaceMissing } from "@/lib/marketplace-readiness";
 import { DeleteTestProfilesButton } from "@/components/portal/delete-test-profiles-button";
 import { getGoLiveSummaries } from "@/server/services/go-live-service";
+import { needsIntegration } from "@/lib/payment-gateways";
 
 export default async function AdminMarcasPage() {
   const session = await auth();
@@ -35,7 +36,8 @@ export default async function AdminMarcasPage() {
         brands={brands.map(({ charges, user, paymentGatewayRequests, ...b }) => ({
           ...b,
           email: user.email,
-          gatewayRequests: paymentGatewayRequests.map((g) => g.gateway),
+          // Solo las pasarelas que todavía no tenemos (ver payment-providers.ts).
+          gatewayRequests: paymentGatewayRequests.map((g) => g.gateway).filter(needsIntegration),
           accessTokenExpiresAt: b.accessTokenExpiresAt?.toISOString() ?? null,
           accessLinkCreatedAt: b.accessLinkCreatedAt?.toISOString() ?? null,
           claimedAt: b.claimedAt?.toISOString() ?? null,

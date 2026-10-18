@@ -7,6 +7,7 @@ import {
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CollectionProductGrid } from "@/components/storefront/collection-product-grid";
+import { toCardProduct } from "@/components/storefront/product-card";
 import { getStoreBasePath } from "@/lib/store-base-path";
 
 export async function generateMetadata({
@@ -79,16 +80,7 @@ export default async function StorefrontSearchPage({
         {products.length > 0 && (
           <CollectionProductGrid
             basePath={basePath}
-            products={products.map((p) => ({
-              id: p.id,
-              slug: p.slug,
-              name: p.name,
-              price: Number(p.price),
-              compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
-              imageUrl: p.imageUrl,
-              stock: p.stock,
-              type: p.type,
-            }))}
+            products={products.map(toCardProduct)}
           />
         )}
       </div>

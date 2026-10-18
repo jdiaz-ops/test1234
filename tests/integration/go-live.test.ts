@@ -44,7 +44,15 @@ describe.skipIf(!hasDb)("lo que falta para vender", () => {
     await createPendingOrder(brand.id, [{ productId: placa.id, quantity: 1, unitPrice: 15000 }]);
     await prisma.brandProfile.update({
       where: { id: brand.id },
-      data: { legalName: "Marca S.A.S.", taxId: "900111222-3", wompiPublicKeyProd: "pub_prod_x", wompiPrivateKeyProd: "prv_prod_x", paymentMode: "PRODUCTION" },
+      data: {
+        legalName: "Marca S.A.S.",
+        taxId: "900111222-3",
+        wompiPublicKeyProd: "pub_prod_x",
+        wompiPrivateKeyProd: "prv_prod_x",
+        wompiEventsKeyProd: "prod_events_x",
+        wompiIntegrityKeyProd: "prod_integrity_x",
+        paymentMode: "PRODUCTION",
+      },
     });
     const list = (await getGoLiveChecklist(brand.id))!;
     const k = Object.fromEntries(list.items.map((i) => [i.key, i.done]));

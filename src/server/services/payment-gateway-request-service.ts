@@ -53,6 +53,27 @@ export async function recordGatewayRequests(
   return { recorded, notified };
 }
 
+/// Una pasarela que una marca pidió (o se le detectó) y que ya quedó
+/// integrada: se le avisa a la marca, una sola vez, que ya puede cobrar
+/// con ella. Corre en el cron diario (ver pagos-diarios). Devuelve
+/// cuántas marcas avisó.
+export async function notifyGatewayReady() {
+  const pending = await prisma.paymentGatewayRequest.findMany({
+    where: { notifiedReadyAt: null },
+    include: { brand: { select: { userId: true } } },
+  });
+  let notified = 0;
+  for (const request of pending) {
+    if (needsIntegration(request.gateway)) continue;
+    await createNotification(request.brand.userId, "PAYMENT_GATEWAY_READY", {
+      pasarela: normalizeGatewayName(request.gateway) ?? request.gateway,
+    });
+    await prisma.paymentGatewayRequest.update({ where: { id: request.id }, data: { notifiedReadyAt: new Date() } });
+    notified++;
+  }
+  return notified;
+}
+
 export async function listGatewayRequests(brandId: string) {
   return prisma.paymentGatewayRequest.findMany({ where: { brandId }, orderBy: { createdAt: "asc" } });
 }

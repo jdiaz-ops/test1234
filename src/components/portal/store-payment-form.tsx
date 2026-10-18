@@ -1,52 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  PAYMENT_PROVIDERS,
+  PAYMENT_PROVIDER_IDS,
+  PAYU_SANDBOX_CREDENTIALS,
+  type CredentialField,
+  type CredentialScope,
+  type PaymentModeId,
+  type PaymentProviderId,
+} from "@/lib/payment-providers";
 
-type Mode = "TEST" | "PRODUCTION";
 type Status = "NOT_CONNECTED" | "ACTIVE" | "TEST" | "INCOMPLETE";
 type Secret = { saved: boolean; last4: string };
+/// Lo guardado de un juego de llaves, como lo manda la página: las
+/// públicas completas, las secretas enmascaradas.
+type SavedSet = Record<string, string | Secret>;
 
-type KeySet = {
-  publicKey: string;
-  privateKey: Secret;
-  eventsKey: Secret;
-  integrityKey: Secret;
+export type ProviderInitial = {
+  status: Status;
+  credentials: Partial<Record<CredentialScope, SavedSet>>;
+  webhookUrl: string | null;
 };
 
 export type StorePaymentInitial = {
-  status: Status;
-  paymentMode: Mode;
-  test: KeySet;
-  prod: KeySet;
-  eventsUrl: string;
+  activeProvider: PaymentProviderId | null;
+  paymentMode: PaymentModeId;
+  providers: Record<PaymentProviderId, ProviderInitial>;
 };
-
-/// Nombre del campo en BrandProfile / la API para cada llave y entorno.
-const FIELD = {
-  PRODUCTION: {
-    publicKey: "wompiPublicKeyProd",
-    privateKey: "wompiPrivateKeyProd",
-    eventsKey: "wompiEventsKeyProd",
-    integrityKey: "wompiIntegrityKeyProd",
-  },
-  TEST: {
-    publicKey: "wompiPublicKeyTest",
-    privateKey: "wompiPrivateKeyTest",
-    eventsKey: "wompiEventsKeyTest",
-    integrityKey: "wompiIntegrityKeyTest",
-  },
-} as const;
-
-/// Cómo empieza cada llave en Wompi — solo para avisar si alguien pegó la
-/// llave en el campo equivocado (ej. la de pruebas en producción). No
-/// bloquea el guardado.
-const PREFIX = {
-  PRODUCTION: { publicKey: "pub_prod_", privateKey: "prv_prod_", eventsKey: "prod_events_", integrityKey: "prod_integrity_" },
-  TEST: { publicKey: "pub_test_", privateKey: "prv_test_", eventsKey: "test_events_", integrityKey: "test_integrity_" },
-} as const;
-
-type KeyName = keyof typeof FIELD.PRODUCTION;
 
 const STATUS_CHIP: Record<Status, { label: string; className: string }> = {
   ACTIVE: { label: "Activa", className: "bg-emerald-100 text-emerald-800" },
@@ -54,18 +36,6 @@ const STATUS_CHIP: Record<Status, { label: string; className: string }> = {
   INCOMPLETE: { label: "Faltan llaves", className: "bg-red-100 text-red-700" },
   NOT_CONNECTED: { label: "Sin conectar", className: "bg-brand-bg text-brand-ink-soft border border-brand-line" },
 };
-
-/// Métodos que ofrece Wompi en Colombia. Cuáles ve el comprador depende de
-/// lo que la marca tenga activo en su propia cuenta de Wompi — Marcolini
-/// no los prende ni los apaga, por eso acá no hay interruptores.
-const METHODS: { name: string; detail: string; mark: string; markClass: string }[] = [
-  { name: "Tarjetas de crédito y débito", detail: "Visa, Mastercard, American Express", mark: "CARD", markClass: "bg-slate-800 text-white" },
-  { name: "PSE", detail: "Débito desde cualquier banco", mark: "PSE", markClass: "bg-sky-100 text-sky-800" },
-  { name: "Nequi", detail: "Pago desde la app", mark: "N", markClass: "bg-fuchsia-100 text-fuchsia-800" },
-  { name: "Bancolombia", detail: "Botón de pago y QR", mark: "B", markClass: "bg-yellow-100 text-yellow-900" },
-  { name: "Daviplata", detail: "Pago desde la app", mark: "D", markClass: "bg-red-100 text-red-700" },
-  { name: "Efectivo", detail: "Corresponsales Bancolombia", mark: "$", markClass: "bg-emerald-100 text-emerald-800" },
-];
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -75,15 +45,7 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   );
 }
 
-function Switch({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-}) {
+function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button
       type="button"
@@ -104,12 +66,12 @@ function Switch({
   );
 }
 
-function PrefixWarning({ value, prefix }: { value: string; prefix: string }) {
-  if (!value.trim() || value.trim().startsWith(prefix)) return null;
+function PrefixWarning({ value, prefix }: { value: string; prefix?: string }) {
+  if (!prefix || !value.trim() || value.trim().startsWith(prefix)) return null;
   return (
     <p className="text-xs text-amber-700 mt-1">
-      Esta llave normalmente empieza por <span className="font-mono">{prefix}</span>. Revisa
-      que la hayas copiado del lugar correcto.
+      Esta llave normalmente empieza por <span className="font-mono">{prefix}</span>. Revisa que la hayas copiado del
+      lugar correcto.
     </p>
   );
 }
@@ -119,24 +81,29 @@ function PublicKeyField({
   label,
   value,
   prefix,
+  help,
   onChange,
 }: {
   label: string;
   value: string;
-  prefix: string;
+  prefix?: string;
+  help?: string;
   onChange: (v: string) => void;
 }) {
+  const id = useId();
   return (
     <div>
-      <label className="block text-sm text-brand-ink mb-1">{label}</label>
+      <label htmlFor={id} className="block text-sm text-brand-ink mb-1">{label}</label>
       <input
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={`${prefix}...`}
+        placeholder={prefix ? `${prefix}...` : ""}
         spellCheck={false}
         className="input font-mono text-sm"
       />
       <PrefixWarning value={value} prefix={prefix} />
+      {help && <p className="text-xs text-brand-ink-soft mt-1">{help}</p>}
     </div>
   );
 }
@@ -148,46 +115,42 @@ function SecretKeyField({
   label,
   saved,
   prefix,
+  help,
   value,
   onChange,
 }: {
   label: string;
   saved: Secret;
-  prefix: string;
+  prefix?: string;
+  help?: string;
   value: string | undefined;
   onChange: (v: string | undefined) => void;
 }) {
   const editing = value !== undefined || !saved.saved;
   const [visible, setVisible] = useState(false);
+  const id = useId();
 
   return (
     <div>
-      <label className="block text-sm text-brand-ink mb-1">{label}</label>
+      <label htmlFor={id} className="block text-sm text-brand-ink mb-1">{label}</label>
       {editing ? (
         <>
           <div className="flex items-center gap-2">
             <input
+              id={id}
               type={visible ? "text" : "password"}
               value={value ?? ""}
               onChange={(e) => onChange(e.target.value)}
-              placeholder={`${prefix}...`}
+              placeholder={prefix ? `${prefix}...` : ""}
               autoComplete="off"
               spellCheck={false}
               className="input font-mono text-sm flex-1"
             />
-            <button
-              type="button"
-              onClick={() => setVisible((v) => !v)}
-              className="text-xs text-brand-ink-soft hover:text-brand-ink shrink-0"
-            >
+            <button type="button" onClick={() => setVisible((v) => !v)} className="text-xs text-brand-ink-soft hover:text-brand-ink shrink-0">
               {visible ? "Ocultar" : "Mostrar"}
             </button>
             {saved.saved && (
-              <button
-                type="button"
-                onClick={() => onChange(undefined)}
-                className="text-xs text-brand-ink-soft hover:text-brand-ink shrink-0"
-              >
+              <button type="button" onClick={() => onChange(undefined)} className="text-xs text-brand-ink-soft hover:text-brand-ink shrink-0">
                 Cancelar
               </button>
             )}
@@ -196,70 +159,14 @@ function SecretKeyField({
         </>
       ) : (
         <div className="flex items-center gap-3 rounded-xl border border-brand-line bg-brand-bg px-3 py-2.5">
-          <span className="font-mono text-sm text-brand-ink flex-1 tracking-wider">
-            ••••••••{saved.last4}
-          </span>
+          <span className="font-mono text-sm text-brand-ink flex-1 tracking-wider">••••••••{saved.last4}</span>
           <span className="text-xs text-emerald-700">Guardada</span>
-          <button
-            type="button"
-            onClick={() => onChange("")}
-            className="text-xs font-medium text-brand-accent hover:underline"
-          >
+          <button type="button" onClick={() => onChange("")} className="text-xs font-medium text-brand-accent hover:underline">
             Cambiar
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-function KeysSection({
-  mode,
-  saved,
-  publicKey,
-  secrets,
-  onPublicKey,
-  onSecret,
-}: {
-  mode: Mode;
-  saved: KeySet;
-  publicKey: string;
-  secrets: Partial<Record<Exclude<KeyName, "publicKey">, string>>;
-  onPublicKey: (v: string) => void;
-  onSecret: (name: Exclude<KeyName, "publicKey">, v: string | undefined) => void;
-}) {
-  const env = mode === "PRODUCTION" ? "de producción" : "de prueba";
-  const prefix = PREFIX[mode];
-  return (
-    <div className="space-y-4">
-      <PublicKeyField label={`Llave pública ${env}`} value={publicKey} prefix={prefix.publicKey} onChange={onPublicKey} />
-      <SecretKeyField
-        label={`Llave privada ${env}`}
-        saved={saved.privateKey}
-        prefix={prefix.privateKey}
-        value={secrets.privateKey}
-        onChange={(v) => onSecret("privateKey", v)}
-      />
-      <div className="pt-2 border-t border-brand-line space-y-4">
-        <p className="text-xs text-brand-ink-soft">
-          Llaves de seguridad: con ellas confirmamos que cada pago de verdad lo
-          aprobó Wompi.
-        </p>
-        <SecretKeyField
-          label="Eventos"
-          saved={saved.eventsKey}
-          prefix={prefix.eventsKey}
-          value={secrets.eventsKey}
-          onChange={(v) => onSecret("eventsKey", v)}
-        />
-        <SecretKeyField
-          label="Integridad"
-          saved={saved.integrityKey}
-          prefix={prefix.integrityKey}
-          value={secrets.integrityKey}
-          onChange={(v) => onSecret("integrityKey", v)}
-        />
-      </div>
+      {help && <p className="text-xs text-brand-ink-soft mt-1">{help}</p>}
     </div>
   );
 }
@@ -285,68 +192,172 @@ function CopyField({ value }: { value: string }) {
   );
 }
 
-/// Pagos, al estilo de la página de Wompi en Shopify: estado arriba
-/// (Activa / Modo de prueba / Faltan llaves), los métodos que ve el
-/// comprador, el interruptor de modo de prueba y las llaves — las secretas
-/// enmascaradas. Antes era un formulario plano con 8 campos de contraseña.
-/// Ver conversación del 2026-10-01.
+/// Lo que la marca escribió en un juego de llaves: las públicas siempre
+/// tienen valor (arrancan con lo guardado); las secretas undefined hasta
+/// que toca "Cambiar" o escribe algo.
+type Edits = Record<string, string | undefined>;
+
+function initialEdits(fields: CredentialField[], saved: SavedSet | undefined): Edits {
+  const edits: Edits = {};
+  for (const f of fields) {
+    if (!f.secret) edits[f.key] = typeof saved?.[f.key] === "string" ? (saved[f.key] as string) : "";
+  }
+  return edits;
+}
+
+function KeysSection({
+  provider,
+  mode,
+  saved,
+  edits,
+  onChange,
+}: {
+  provider: PaymentProviderId;
+  mode: PaymentModeId;
+  saved: SavedSet | undefined;
+  edits: Edits;
+  onChange: (key: string, value: string | undefined) => void;
+}) {
+  const spec = PAYMENT_PROVIDERS[provider];
+  return (
+    <div className="space-y-4">
+      {spec.fields.map((field) => {
+        const prefix = field.prefix?.[mode];
+        const label = field.optional ? `${field.label} (opcional)` : field.label;
+        if (!field.secret) {
+          return (
+            <PublicKeyField
+              key={field.key}
+              label={label}
+              value={edits[field.key] ?? ""}
+              prefix={prefix}
+              help={field.help}
+              onChange={(v) => onChange(field.key, v)}
+            />
+          );
+        }
+        const savedValue = saved?.[field.key];
+        const secret: Secret = savedValue && typeof savedValue === "object" ? savedValue : { saved: false, last4: "" };
+        return (
+          <SecretKeyField
+            key={field.key}
+            label={label}
+            saved={secret}
+            prefix={prefix}
+            help={field.help}
+            value={edits[field.key]}
+            onChange={(v) => onChange(field.key, v)}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/// Pagos: la marca elige con qué pasarela cobra (su propia cuenta: Wompi,
+/// Mercado Pago, PayU, ePayco o Bold), ve el estado y los medios de pago,
+/// prende el modo de prueba y pega sus llaves — las secretas enmascaradas.
+/// Antes solo existía Wompi ("no puedo obligar a que abra Wompi"). Ver
+/// conversación del 2026-10-18.
 export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) {
   const router = useRouter();
+  const [provider, setProvider] = useState<PaymentProviderId>(initial.activeProvider ?? "WOMPI");
   const [testMode, setTestMode] = useState(initial.paymentMode === "TEST");
-  const [publicKeys, setPublicKeys] = useState({ PRODUCTION: initial.prod.publicKey, TEST: initial.test.publicKey });
-  const [secrets, setSecrets] = useState<Record<Mode, Partial<Record<Exclude<KeyName, "publicKey">, string>>>>({
-    PRODUCTION: {},
-    TEST: {},
-  });
-  const [aboutOpen, setAboutOpen] = useState(initial.status === "NOT_CONNECTED");
+  const spec = PAYMENT_PROVIDERS[provider];
+  const current = initial.providers[provider];
+  const scopes: CredentialScope[] = spec.scopes === "SHARED" ? ["SHARED"] : ["TEST", "PRODUCTION"];
+
+  const [edits, setEdits] = useState<Partial<Record<CredentialScope, Edits>>>(() => ({
+    TEST: initialEdits(spec.fields, current.credentials.TEST),
+    PRODUCTION: initialEdits(spec.fields, current.credentials.PRODUCTION),
+    SHARED: initialEdits(spec.fields, current.credentials.SHARED),
+  }));
+  const [aboutOpen, setAboutOpen] = useState(current.status === "NOT_CONNECTED");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mode: Mode = testMode ? "TEST" : "PRODUCTION";
-  const dirty =
-    testMode !== (initial.paymentMode === "TEST") ||
-    publicKeys.PRODUCTION !== initial.prod.publicKey ||
-    publicKeys.TEST !== initial.test.publicKey ||
-    Object.values(secrets.PRODUCTION).some((v) => v) ||
-    Object.values(secrets.TEST).some((v) => v);
-
-  function setSecret(m: Mode, name: Exclude<KeyName, "publicKey">, value: string | undefined) {
+  function choose(id: PaymentProviderId) {
+    if (id === provider) return;
+    const s = PAYMENT_PROVIDERS[id];
+    const c = initial.providers[id];
+    setProvider(id);
+    setEdits({
+      TEST: initialEdits(s.fields, c.credentials.TEST),
+      PRODUCTION: initialEdits(s.fields, c.credentials.PRODUCTION),
+      SHARED: initialEdits(s.fields, c.credentials.SHARED),
+    });
+    setAboutOpen(c.status === "NOT_CONNECTED");
     setSaved(false);
-    setSecrets((prev) => {
-      const next = { ...prev[m] };
-      if (value === undefined) delete next[name];
-      else next[name] = value;
-      return { ...prev, [m]: next };
+    setError(null);
+  }
+
+  function setField(scope: CredentialScope, key: string, value: string | undefined) {
+    setSaved(false);
+    setEdits((prev) => {
+      const next = { ...(prev[scope] ?? {}) };
+      if (value === undefined) delete next[key];
+      else next[key] = value;
+      return { ...prev, [scope]: next };
     });
   }
+
+  function scopeDirty(scope: CredentialScope) {
+    const e = edits[scope] ?? {};
+    const s = current.credentials[scope];
+    return spec.fields.some((f) => {
+      const v = e[f.key];
+      if (f.secret) return Boolean(v);
+      return (v ?? "") !== (typeof s?.[f.key] === "string" ? (s[f.key] as string) : "");
+    });
+  }
+
+  const dirty =
+    provider !== initial.activeProvider ||
+    testMode !== (initial.paymentMode === "TEST") ||
+    scopes.some(scopeDirty);
 
   async function handleSave() {
     setSaving(true);
     setError(null);
     setSaved(false);
-
-    const body: Record<string, string> = { paymentMode: mode };
-    for (const m of ["PRODUCTION", "TEST"] as const) {
-      body[FIELD[m].publicKey] = publicKeys[m];
-      for (const [name, value] of Object.entries(secrets[m])) {
-        // Una llave en "Cambiar" que quedó vacía no borra la guardada.
-        if (value) body[FIELD[m][name as Exclude<KeyName, "publicKey">]] = value;
+    const credentials: Partial<Record<CredentialScope, Record<string, string>>> = {};
+    for (const scope of scopes) {
+      const set: Record<string, string> = {};
+      const e = edits[scope] ?? {};
+      for (const f of spec.fields) {
+        const v = e[f.key];
+        if (f.secret) {
+          // Una llave en "Cambiar" que quedó vacía no borra la guardada.
+          if (v) set[f.key] = v;
+        } else if (v !== undefined) {
+          set[f.key] = v;
+        }
       }
+      credentials[scope] = set;
     }
-
     try {
       const res = await fetch("/api/marca/tienda/pagos", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ provider, paymentMode: testMode ? "TEST" : "PRODUCTION", credentials }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         setError(data?.error ?? "No se pudo guardar.");
         return;
       }
-      setSecrets({ PRODUCTION: {}, TEST: {} });
+      // Las secretas ya quedaron guardadas: se limpian de la pantalla (el
+      // servidor las vuelve a mandar enmascaradas al refrescar).
+      setEdits((prev) => {
+        const next: typeof prev = {};
+        for (const scope of Object.keys(prev) as CredentialScope[]) {
+          const clean: Edits = {};
+          for (const f of spec.fields) if (!f.secret && prev[scope]?.[f.key] !== undefined) clean[f.key] = prev[scope]![f.key];
+          next[scope] = clean;
+        }
+        return next;
+      });
       setSaved(true);
       router.refresh();
     } catch {
@@ -356,21 +367,71 @@ export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) 
     }
   }
 
-  const chip = STATUS_CHIP[initial.status];
+  const isActive = provider === initial.activeProvider;
+  const chip = STATUS_CHIP[isActive ? current.status : current.status === "NOT_CONNECTED" ? "NOT_CONNECTED" : "INCOMPLETE"];
+  const chipLabel = isActive ? chip.label : current.status === "NOT_CONNECTED" ? "Sin conectar" : "Con llaves, no activa";
+  const activeName = initial.activeProvider ? PAYMENT_PROVIDERS[initial.activeProvider].name : null;
+
+  function fillPayuSandbox() {
+    setSaved(false);
+    setEdits((prev) => ({ ...prev, TEST: { ...(prev.TEST ?? {}), ...PAYU_SANDBOX_CREDENTIALS } }));
+  }
 
   return (
     <div className="space-y-4 max-w-2xl">
+      <div>
+        <h2 className="font-display text-xl font-semibold text-brand-ink">Pagos</h2>
+        <p className="text-sm text-brand-ink-soft mt-1">
+          Cobras con tu propia cuenta: el dinero llega directo a ti, Marcolini nunca lo recibe.
+          {activeName ? ` Hoy tu tienda cobra con ${activeName}.` : " Elige tu pasarela y pega sus llaves para empezar a cobrar."}
+        </p>
+      </div>
+
+      <Card>
+        <p className="text-sm font-medium text-brand-ink mb-3">¿Con qué pasarela cobras?</p>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {PAYMENT_PROVIDER_IDS.map((id) => {
+            const st = initial.providers[id].status;
+            const selected = id === provider;
+            const live = id === initial.activeProvider;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => choose(id)}
+                aria-pressed={selected}
+                className={`rounded-xl border px-3 py-3 text-left transition-colors ${
+                  selected ? "border-brand-ink bg-brand-bg" : "border-brand-line hover:bg-brand-accent-soft/40"
+                }`}
+              >
+                <span className="block text-sm font-semibold text-brand-ink">{PAYMENT_PROVIDERS[id].name}</span>
+                <span className={`block text-[11px] mt-0.5 ${live ? "text-emerald-700" : "text-brand-ink-soft"}`}>
+                  {live ? (st === "ACTIVE" ? "Activa" : st === "TEST" ? "En prueba" : "Faltan llaves") : st === "NOT_CONNECTED" ? "Sin conectar" : "Con llaves"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {!isActive && (
+          <p className="text-xs text-amber-700 mt-3">
+            Al guardar, tu tienda pasa a cobrar con {spec.name}
+            {activeName ? ` en vez de ${activeName}` : ""}. Las llaves de las demás pasarelas se conservan.
+          </p>
+        )}
+      </Card>
+
       <div className="flex items-center gap-3">
-        <h2 className="font-display text-xl font-semibold text-brand-ink">Wompi</h2>
-        <span className={`text-xs font-medium rounded-md px-2 py-0.5 ${chip.className}`}>{chip.label}</span>
+        <h3 className="font-display text-lg font-semibold text-brand-ink">{spec.name}</h3>
+        <span className={`text-xs font-medium rounded-md px-2 py-0.5 ${chip.className}`}>{chipLabel}</span>
       </div>
       <p className="text-sm text-brand-ink-soft -mt-2">
-        {initial.status === "ACTIVE" && "Tu tienda está cobrando de verdad. El dinero llega directo a tu cuenta de Wompi."}
-        {initial.status === "TEST" && "Tu tienda está en modo de prueba: puedes hacer compras de ensayo, pero no se cobra de verdad."}
-        {initial.status === "INCOMPLETE" &&
-          "Tu tienda todavía no puede cobrar: faltan llaves para el modo que tienes activo."}
-        {initial.status === "NOT_CONNECTED" &&
-          "Conecta tu cuenta de Wompi para empezar a cobrar. El dinero llega directo a tu cuenta; Marcolini nunca lo recibe."}
+        {isActive && current.status === "ACTIVE" && `Tu tienda está cobrando de verdad. El dinero llega directo a tu cuenta de ${spec.name}.`}
+        {isActive && current.status === "TEST" && "Tu tienda está en modo de prueba: puedes hacer compras de ensayo, pero no se cobra de verdad."}
+        {isActive && current.status === "INCOMPLETE" && "Tu tienda todavía no puede cobrar: faltan llaves para el modo que tienes activo."}
+        {(!isActive || current.status === "NOT_CONNECTED") &&
+          (current.status === "NOT_CONNECTED"
+            ? `Conecta tu cuenta de ${spec.name} para cobrar con ella.`
+            : `Tienes llaves de ${spec.name} guardadas. Guarda para que tu tienda cobre con ella.`)}
       </p>
 
       <Card className="!p-0">
@@ -380,36 +441,18 @@ export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) 
           aria-expanded={aboutOpen}
           className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
         >
-          <span className="text-sm font-medium text-brand-ink">Acerca de Wompi</span>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className={`text-brand-ink-soft transition-transform ${aboutOpen ? "rotate-180" : ""}`}
-            aria-hidden="true"
-          >
+          <span className="text-sm font-medium text-brand-ink">Acerca de {spec.name}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-brand-ink-soft transition-transform ${aboutOpen ? "rotate-180" : ""}`} aria-hidden="true">
             <path d="m6 9 6 6 6-6" />
           </svg>
         </button>
         {aboutOpen && (
           <div className="px-5 pb-5 -mt-1 space-y-2 text-sm text-brand-ink-soft">
-            <p>
-              Wompi es la pasarela de pagos de Bancolombia. Cobras con tu propia
-              cuenta: cada venta llega directo a ti y Wompi descuenta su tarifa
-              por transacción según tu plan con ellos.
-            </p>
+            <p>{spec.about}</p>
             <p>
               ¿Aún no tienes cuenta?{" "}
-              <a
-                href="https://comercios.wompi.co"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-brand-accent font-medium hover:underline"
-              >
-                Créala en Wompi →
+              <a href={spec.signupUrl} target="_blank" rel="noopener noreferrer" className="text-brand-accent font-medium hover:underline">
+                Créala en {spec.name} →
               </a>
             </p>
           </div>
@@ -420,17 +463,13 @@ export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) 
         <div className="px-5 pt-4 pb-3">
           <p className="text-sm font-medium text-brand-ink">Métodos de pago</p>
           <p className="text-xs text-brand-ink-soft mt-0.5">
-            Tus clientes ven los que tengas activos en tu cuenta de Wompi. Se
-            prenden y apagan desde el panel de Wompi.
+            Tus clientes ven los que tengas activos en tu cuenta de {spec.name}. Se prenden y apagan desde su panel.
           </p>
         </div>
         <ul className="divide-y divide-brand-line border-t border-brand-line">
-          {METHODS.map((m) => (
+          {spec.methods.map((m) => (
             <li key={m.name} className="flex items-center gap-3 px-5 py-3">
-              <span
-                className={`w-10 h-7 rounded-md flex items-center justify-center text-[10px] font-bold tracking-wide shrink-0 ${m.markClass}`}
-                aria-hidden="true"
-              >
+              <span className={`w-10 h-7 rounded-md flex items-center justify-center text-[10px] font-bold tracking-wide shrink-0 ${m.markClass}`} aria-hidden="true">
                 {m.mark}
               </span>
               <span className="min-w-0">
@@ -447,9 +486,10 @@ export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) 
           <div>
             <p className="text-sm font-medium text-brand-ink">Modo de prueba</p>
             <p className="text-xs text-brand-ink-soft mt-0.5">
-              Mira cómo funcionan los pagos y los pedidos en tu tienda sin cobrar de
-              verdad. Apágalo cuando quieras empezar a vender.
+              Mira cómo funcionan los pagos y los pedidos en tu tienda sin cobrar de verdad. Apágalo cuando quieras
+              empezar a vender.
             </p>
+            <p className="text-xs text-brand-ink-soft mt-1">{spec.testHint}</p>
           </div>
           <Switch
             checked={testMode}
@@ -460,52 +500,55 @@ export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) 
             label="Modo de prueba"
           />
         </div>
-        {testMode && (
+        {testMode && spec.scopes === "PER_MODE" && (
           <div className="mt-5 pt-5 border-t border-brand-line">
-            <p className="text-sm font-medium text-brand-ink mb-3">Llaves de prueba</p>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <p className="text-sm font-medium text-brand-ink">Llaves de prueba</p>
+              {provider === "PAYU" && (
+                <button type="button" onClick={fillPayuSandbox} className="text-xs font-medium text-brand-accent hover:underline">
+                  Usar las credenciales de prueba de PayU
+                </button>
+              )}
+            </div>
             <KeysSection
+              provider={provider}
               mode="TEST"
-              saved={initial.test}
-              publicKey={publicKeys.TEST}
-              secrets={secrets.TEST}
-              onPublicKey={(v) => {
-                setSaved(false);
-                setPublicKeys((p) => ({ ...p, TEST: v }));
-              }}
-              onSecret={(name, v) => setSecret("TEST", name, v)}
+              saved={current.credentials.TEST}
+              edits={edits.TEST ?? {}}
+              onChange={(key, v) => setField("TEST", key, v)}
             />
           </div>
         )}
       </Card>
 
       <Card>
-        <p className="text-sm font-medium text-brand-ink">Llaves de producción</p>
+        <p className="text-sm font-medium text-brand-ink">{spec.scopes === "SHARED" ? "Llaves" : "Llaves de producción"}</p>
         <p className="text-xs text-brand-ink-soft mt-0.5 mb-4">
-          Las encuentras en tu panel de Wompi, en la sección{" "}
-          <span className="text-brand-ink">Desarrolladores</span>. Son las que cobran de verdad.
+          {spec.keysHint} {spec.scopes === "SHARED" ? "Sirven para probar y para cobrar de verdad." : "Son las que cobran de verdad."}
         </p>
         <KeysSection
+          provider={provider}
           mode="PRODUCTION"
-          saved={initial.prod}
-          publicKey={publicKeys.PRODUCTION}
-          secrets={secrets.PRODUCTION}
-          onPublicKey={(v) => {
-            setSaved(false);
-            setPublicKeys((p) => ({ ...p, PRODUCTION: v }));
-          }}
-          onSecret={(name, v) => setSecret("PRODUCTION", name, v)}
+          saved={current.credentials[spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION"]}
+          edits={edits[spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION"] ?? {}}
+          onChange={(key, v) => setField(spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION", key, v)}
         />
       </Card>
 
-      <Card>
-        <p className="text-sm font-medium text-brand-ink">URL de eventos</p>
-        <p className="text-xs text-brand-ink-soft mt-0.5 mb-3">
-          Pégala en Wompi → Desarrolladores → URL de eventos (en producción y en
-          pruebas). Así cada pedido se marca como pagado solo, apenas Wompi
-          aprueba el pago.
+      {spec.webhook && current.webhookUrl && (
+        <Card>
+          <p className="text-sm font-medium text-brand-ink">URL de avisos de pago</p>
+          <p className="text-xs text-brand-ink-soft mt-0.5 mb-3">
+            Pégala en {spec.webhook.where} Así cada pedido se marca como pagado solo, apenas {spec.name} aprueba el pago.
+          </p>
+          <CopyField value={current.webhookUrl} />
+        </Card>
+      )}
+      {!spec.webhook && (
+        <p className="text-xs text-brand-ink-soft px-1">
+          {spec.name} avisa cada pago a Marcolini automáticamente: no tienes que configurar ninguna URL en su panel.
         </p>
-        <CopyField value={initial.eventsUrl} />
-      </Card>
+      )}
 
       <div className="flex items-center justify-end gap-3 pt-1">
         {error && <p className="text-sm text-red-600 mr-auto">{error}</p>}

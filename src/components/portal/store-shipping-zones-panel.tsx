@@ -11,6 +11,8 @@ export type ShippingRateRow = {
   id: string;
   name: string;
   price: number;
+  /// "Se paga al recibir" (contraentrega): tarifa en $0 que no es gratis.
+  payOnDelivery: boolean;
   condition: ShippingRateCondition;
   conditionValue: number | null;
   /// Tope del rango (ej. "pesa entre 2 y 5 kg") — opcional, se puede
@@ -44,7 +46,7 @@ function regionsLabel(regions: string[]) {
 }
 
 function rateSummary(rate: ShippingRateRow) {
-  const price = rate.price === 0 ? "Gratis" : formatCOP(rate.price);
+  const price = rate.price === 0 ? (rate.payOnDelivery ? "Se paga al recibir" : "Gratis") : formatCOP(rate.price);
   if (rate.condition === "NONE") return `${rate.name}: ${price}`;
 
   const hasMin = rate.conditionValue != null;
@@ -116,6 +118,17 @@ function RateRow({
             value={rate.price}
             onChange={(price) => onChange({ price: price ?? 0 })}
           />
+          {rate.price === 0 && (
+            <label className="flex items-start gap-2 mt-2 text-[11px] text-brand-ink-soft leading-snug">
+              <input
+                type="checkbox"
+                checked={rate.payOnDelivery}
+                onChange={(e) => onChange({ payOnDelivery: e.target.checked })}
+                className="mt-0.5"
+              />
+              <span>El cliente paga el envío al recibirlo (contraentrega). En el checkout dice &ldquo;Se paga al recibir&rdquo; en vez de &ldquo;Gratis&rdquo;.</span>
+            </label>
+          )}
         </div>
         <div>
           <label className="block text-[11px] text-brand-ink-soft mb-0.5">
@@ -193,6 +206,7 @@ function emptyRate(): ShippingRateRow {
     id: `new-${Math.random().toString(36).slice(2)}`,
     name: "",
     price: 0,
+    payOnDelivery: false,
     condition: "NONE",
     conditionValue: null,
     conditionMaxValue: null,
@@ -283,6 +297,7 @@ function ZoneForm({
             rates: rates.map((r) => ({
               name: r.name,
               price: r.price,
+              payOnDelivery: r.price === 0 && r.payOnDelivery,
               condition: r.condition,
               conditionValue: r.condition === "NONE" ? null : r.conditionValue,
               conditionMaxValue: r.condition === "NONE" ? null : r.conditionMaxValue,

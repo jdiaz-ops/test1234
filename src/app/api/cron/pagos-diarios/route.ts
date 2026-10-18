@@ -22,6 +22,7 @@ import { sendOnboardingReminders } from "@/server/services/creator-onboarding-se
 import { retryFailedDeliveries } from "@/server/services/webhook-service";
 import { retryFailedInvoices } from "@/server/services/dataico-service";
 import { reconcilePendingOrders } from "@/server/services/store-order-service";
+import { notifyGatewayReady } from "@/server/services/payment-gateway-request-service";
 
 /// Punto de entrada para el cron diario real. Soporta dos formas de
 /// autenticarse, según quién lo llame:
@@ -78,12 +79,18 @@ async function runDailyJob() {
     console.error("[cron] Falló el reintento de webhooks:", err);
     return { retried: 0, succeeded: 0, pruned: 0 };
   });
-  // Pedidos que siguen "Pendiente" aunque Wompi ya los resolvió (ver
+  // Pedidos que siguen "Pendiente" aunque la pasarela ya los resolvió (ver
   // reconcilePendingOrders). Va antes de las facturas: un pedido que pasa
   // a Pagado acá se factura en ese mismo momento.
   const ordersReconciled = await reconcilePendingOrders().catch((err) => {
-    console.error("[cron] Falló la conciliación de pedidos con Wompi:", err);
+    console.error("[cron] Falló la conciliación de pedidos con las pasarelas:", err);
     return { checked: 0, updated: 0 };
+  });
+  // Marcas que pidieron una pasarela que ya está integrada: se les avisa
+  // una vez (ver notifyGatewayReady).
+  const gatewayReady = await notifyGatewayReady().catch((err) => {
+    console.error("[cron] Falló el aviso de pasarelas listas:", err);
+    return 0;
   });
   // Facturas de Dataico que no salieron (ver retryFailedInvoices).
   const invoiceRetries = await retryFailedInvoices().catch((err) => {
@@ -112,6 +119,7 @@ async function runDailyJob() {
     webhooksRetried: webhookRetries.retried,
     webhooksRecovered: webhookRetries.succeeded,
     ordersReconciled: ordersReconciled.updated,
+    gatewayReady,
     invoicesRetried: invoiceRetries.retried,
     invoicesIssued: invoiceRetries.issued,
     brandCharges: chargeResults.length,

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { canDeleteStoreOrder, getBrandOrderDetail } from "@/server/services/store-order-service";
+import { PAYMENT_PROVIDERS, isPaymentProviderId } from "@/lib/payment-providers";
 import { OrderArchiveActions } from "@/components/portal/order-archive-actions";
 import { getDataicoConnection } from "@/server/services/dataico-service";
 import { dataicoAllowed } from "@/lib/features";
@@ -384,6 +385,7 @@ export default async function TiendaPedidoDetallePage({
               <OrderRefundPanel
                 orderId={order.id}
                 totalLabel={formatCOP(order.totalCents)}
+                refundHint={isPaymentProviderId(order.paymentProvider) ? PAYMENT_PROVIDERS[order.paymentProvider].refundHint : undefined}
                 hasPhysicalItems={!isService && !isDigital}
                 refund={
                   order.status === "REFUNDED" && order.refundedAt

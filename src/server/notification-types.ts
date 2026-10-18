@@ -421,6 +421,15 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "referidor,referido,monto",
   },
   {
+    key: "PAYMENT_GATEWAY_READY",
+    label: "Tu pasarela ya está en Marcolini",
+    audience: "BRAND",
+    channelEmail: true,
+    messageTemplate:
+      "Ya puedes cobrar con {pasarela} en tu tienda Marcolini: entra a Configuración → Pagos de la tienda y pega las llaves de tu cuenta.",
+    placeholders: "pasarela",
+  },
+  {
     key: "PAYMENT_GATEWAY_REQUEST_ADMIN",
     label: "Pasarela de pago que no tenemos",
     audience: "ADMIN",

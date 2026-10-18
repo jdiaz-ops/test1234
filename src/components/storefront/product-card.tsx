@@ -1,8 +1,21 @@
 import Link from "next/link";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { CardVariantPicker } from "@/components/storefront/card-variant-picker";
 import { StoreImage } from "@/components/storefront/store-image";
 import { formatCOP } from "@/components/storefront/catalog-templates/types";
 import { priceRange } from "@/lib/product-price";
+
+export type CardVariant = {
+  id: string;
+  option1Value: string | null;
+  option2Value: string | null;
+  option3Value: string | null;
+  /// null = usa el precio base del producto.
+  price: number | null;
+  imageUrl: string | null;
+  /// null = sin control de inventario.
+  stock: number | null;
+};
 
 export type CardProduct = {
   id: string;
@@ -15,11 +28,31 @@ export type CardProduct = {
   imageUrl: string | null;
   stock: number | null;
   type: "PHYSICAL" | "SERVICE" | "DIGITAL";
+  /// Con variantes la tarjeta deja elegir la combinación antes de agregar
+  /// al carrito (ver CardVariantPicker) — antes agregaba el producto sin
+  /// variante, como si una placa de 12 tonos fuera uno solo.
+  hasVariants?: boolean;
+  optionNames?: string[];
+  variants?: CardVariant[];
+  /// Atributos para los filtros de la colección (ver collection-filters.ts).
+  attributes?: Record<string, string>;
 };
+
+export { CARD_VARIANT_SELECT, cardProductSelect } from "@/lib/card-product-select";
+
+function readAttributes(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof v === "string" && v.trim()) out[k] = v;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 /// Las consultas de Prisma traen Decimal — la tarjeta espera números
 /// planos. Con los precios de las variantes (si la consulta los trae) se
-/// sabe si hay que decir "Desde".
+/// sabe si hay que decir "Desde"; con sus ids, la tarjeta puede dejar
+/// elegir la variante.
 export function toCardProduct(p: {
   id: string;
   name: string;
@@ -29,10 +62,35 @@ export function toCardProduct(p: {
   compareAtPrice: unknown;
   stock: number | null;
   type: "PHYSICAL" | "SERVICE" | "DIGITAL";
-  variants?: { price: unknown }[] | null;
+  hasVariants?: boolean;
+  optionNames?: string[];
+  attributes?: unknown;
+  variants?:
+    | {
+        id?: string;
+        option1Value?: string | null;
+        option2Value?: string | null;
+        option3Value?: string | null;
+        price: unknown;
+        imageUrl?: string | null;
+        stock?: number | null;
+      }[]
+    | null;
 }): CardProduct {
   const price = Number(p.price);
   const range = priceRange(price, p.variants);
+  const variants =
+    p.variants && p.variants.every((v) => typeof v.id === "string")
+      ? p.variants.map((v) => ({
+          id: v.id!,
+          option1Value: v.option1Value ?? null,
+          option2Value: v.option2Value ?? null,
+          option3Value: v.option3Value ?? null,
+          price: v.price == null ? null : Number(v.price),
+          imageUrl: v.imageUrl ?? null,
+          stock: v.stock === undefined ? null : v.stock,
+        }))
+      : undefined;
   return {
     id: p.id,
     name: p.name,
@@ -43,6 +101,10 @@ export function toCardProduct(p: {
     compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
     stock: p.stock,
     type: p.type,
+    ...(p.hasVariants && variants && variants.length > 0
+      ? { hasVariants: true, optionNames: p.optionNames ?? [], variants }
+      : {}),
+    ...(readAttributes(p.attributes) ? { attributes: readAttributes(p.attributes) } : {}),
   };
 }
 
@@ -131,6 +193,8 @@ export function ProductCard({
   className?: string;
 }) {
   const href = `${basePath}/${product.slug}`;
+  const withVariants = Boolean(product.hasVariants && product.variants && product.variants.length > 0);
+  const buttonClass = `${CARD_BUTTON_CLASS} ${CARD_PRIMARY_BUTTON_CLASS}`;
   return (
     <div className={`flex flex-col ${className}`}>
       <Link href={href} className="relative block bg-brand-accent-soft">
@@ -147,7 +211,7 @@ export function ProductCard({
           <div className="w-full aspect-square" />
         )}
         <DiscountBadge price={product.price} compareAtPrice={product.compareAtPrice} />
-        {product.stock != null && product.stock <= 0 && (
+        {!withVariants && product.stock != null && product.stock <= 0 && (
           // Agotado: el producto se sigue viendo (no se esconde), con la
           // etiqueta sobre la foto y el botón deshabilitado — como en
           // Shopify. Ver conversación del 2026-09-30.
@@ -166,22 +230,28 @@ export function ProductCard({
           )}
           <p className="text-sm font-semibold text-brand-ink leading-snug line-clamp-2">{product.name}</p>
         </Link>
-        <ProductPrice price={product.price} compareAtPrice={product.compareAtPrice} from={product.priceFrom} className="text-lg" />
-        <div className="mt-auto pt-1">
-          <AddToCartButton
-            basePath={basePath}
-            product={{
-              id: product.id,
-              slug: product.slug ?? "",
-              name: product.name,
-              price: product.price,
-              imageUrl: product.imageUrl,
-              stock: product.stock,
-              type: product.type,
-            }}
-            className={`${CARD_BUTTON_CLASS} ${CARD_PRIMARY_BUTTON_CLASS}`}
-          />
-        </div>
+        {withVariants ? (
+          <CardVariantPicker product={product} basePath={basePath} buttonClassName={buttonClass} />
+        ) : (
+          <>
+            <ProductPrice price={product.price} compareAtPrice={product.compareAtPrice} from={product.priceFrom} className="text-lg" />
+            <div className="mt-auto pt-1">
+              <AddToCartButton
+                basePath={basePath}
+                product={{
+                  id: product.id,
+                  slug: product.slug ?? "",
+                  name: product.name,
+                  price: product.price,
+                  imageUrl: product.imageUrl,
+                  stock: product.stock,
+                  type: product.type,
+                }}
+                className={buttonClass}
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

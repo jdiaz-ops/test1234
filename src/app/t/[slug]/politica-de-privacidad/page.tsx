@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
+import { paymentProviderName } from "@/lib/payment-providers";
 import { getPublicStorePage, listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { getStoreBasePath } from "@/lib/store-base-path";
@@ -34,6 +35,9 @@ export default async function StorePrivacyPolicyPage({
   const { slug } = await params;
   const brand = await getStorefrontBrand(slug);
   if (!brand) notFound();
+  // La pasarela con la que cobra la marca (su propia cuenta) — ver
+  // src/lib/payment-providers.ts.
+  const gatewayName = paymentProviderName(brand.paymentProvider) ?? "la pasarela de pagos de la tienda";
 
   const basePath = await getStoreBasePath(slug);
   for (const pageSlug of OWN_PAGE_SLUGS) {
@@ -85,9 +89,9 @@ export default async function StorePrivacyPolicyPage({
 
           <h2>Con quién los compartimos</h2>
           <p>
-            Con la empresa transportadora que lleva tu pedido, con Wompi, que procesa tu pago, y con Marcolini, la
-            plataforma que opera esta tienda en nombre de {responsible}. Los datos de tu tarjeta o cuenta bancaria
-            los recibe directamente Wompi: esta tienda nunca los ve ni los guarda.
+            Con la empresa transportadora que lleva tu pedido, con {gatewayName}, que procesa tu pago, y con Marcolini,
+            la plataforma que opera esta tienda en nombre de {responsible}. Los datos de tu tarjeta o cuenta bancaria
+            los recibe directamente {gatewayName}: esta tienda nunca los ve ni los guarda.
           </p>
 
           <h2>Tus derechos</h2>
