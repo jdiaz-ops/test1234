@@ -230,18 +230,25 @@ function ImageCarouselSection({ config }: { config: ImageCarouselConfig }) {
 }
 
 function ShippingInfoBannersSection({ config }: { config: ShippingInfoBannersConfig }) {
-  const items = config.items.filter((i) => i.show && (i.title || i.description));
+  // Una cajita puede ser solo una imagen (el ícono con el texto adentro,
+  // como vienen de muchas tiendas WordPress): se muestra más grande.
+  const items = config.items.filter((i) => i.show && (i.title || i.description || i.imageUrl));
   if (items.length === 0) return null;
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {items.map((item, i) => {
           const emoji = trustIconEmoji(item.icon);
+          const imageOnly = Boolean(item.imageUrl) && !item.title && !item.description;
           const body = (
             <div className="text-center">
               {item.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element -- icono subido por la marca
-                <img src={item.imageUrl} alt="" className="w-8 h-8 mx-auto mb-2 object-contain" />
+                <img
+                  src={item.imageUrl}
+                  alt=""
+                  className={imageOnly ? "w-28 h-28 sm:w-36 sm:h-36 mx-auto object-contain" : "w-8 h-8 mx-auto mb-2 object-contain"}
+                />
               ) : (
                 emoji && <p className="text-2xl mb-2">{emoji}</p>
               )}

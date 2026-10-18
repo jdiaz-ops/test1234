@@ -21,6 +21,7 @@ const sectionSchema = z.discriminatedUnion("type", [
     subtitle: z.string().max(500),
     buttonText: z.string().max(80),
     buttonHref: z.string().max(500),
+    links: z.array(z.string().max(500)).max(6).optional(),
   }),
   z.object({ type: z.literal("FEATURED_COLLECTION"), collectionHandle: handle, title: z.string().max(200) }),
   z.object({ type: z.literal("TEXT"), heading: z.string().max(200), body: z.string().max(5000) }),
@@ -33,7 +34,9 @@ const sectionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("FEATURED_PRODUCTS"), productHandles: z.array(handle).max(8), title: z.string().max(200) }),
   z.object({
     type: z.literal("INFO_COLUMNS"),
-    items: z.array(z.object({ title: z.string().max(120), description: z.string().max(300) })).max(4),
+    items: z
+      .array(z.object({ title: z.string().max(120), description: z.string().max(300), imageUrl: url.nullable().optional(), link: z.string().max(500).optional() }))
+      .max(4),
   }),
 ]);
 

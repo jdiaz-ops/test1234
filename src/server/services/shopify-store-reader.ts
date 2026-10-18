@@ -310,10 +310,13 @@ export async function readShopifyStorefront(
     throw new ShopifyStoreError(PASSWORD_ERROR);
   }
   let theme = parseShopifyStorefront(html, storeUrl);
-  if (!theme.colors || !theme.fonts) {
+  // Las fotos de un slider de Elementor viven en su CSS (".elementor-
+  // repeater-item-x .swiper-slide-bg{background-image:…}"), no en el HTML.
+  const slideId = html.match(/elementor-repeater-item-([a-z0-9]+)\s+swiper-slide\b/i)?.[1];
+  if (!theme.colors || !theme.fonts || slideId) {
     // Temas de WordPress (Elementor, Astra…) guardan colores y letra en
     // sus propios .css: se bajan unas pocas hojas y se vuelve a leer.
-    const css = await readStylesheets(fetchImpl, storeUrl, html);
+    const css = await readStylesheets(fetchImpl, storeUrl, html, slideId ? { until: `elementor-repeater-item-${slideId}`, max: 10 } : undefined);
     if (css) theme = parseShopifyStorefront(html, storeUrl, css);
   }
   return { storeUrl, theme };
@@ -324,8 +327,16 @@ const MAX_CSS_CHARS = 400_000;
 
 /// Las hojas de estilo enlazadas en la portada que más probablemente
 /// traen los colores y la letra del tema (Elementor, Astra, el tema
-/// activo), bajadas y pegadas. Vacío si ninguna se pudo leer.
-export async function readStylesheets(fetchImpl: FetchLike, baseUrl: string, html: string): Promise<string> {
+/// activo), bajadas y pegadas. Vacío si ninguna se pudo leer. Con `until`
+/// se siguen bajando (hasta `max`) hasta que alguna traiga ese texto —
+/// el CSS de la página de Elementor, que con Autoptimize queda con un
+/// nombre al azar y un "?ver=" de fecha.
+export async function readStylesheets(
+  fetchImpl: FetchLike,
+  baseUrl: string,
+  html: string,
+  options: { until?: string; max?: number } = {},
+): Promise<string> {
   const base = new URL(baseUrl);
   const host = (h: string) => h.replace(/^www\./, "").toLowerCase();
   const candidates: { url: string; score: number }[] = [];
@@ -341,16 +352,19 @@ export async function readStylesheets(fetchImpl: FetchLike, baseUrl: string, htm
     }
     if (!/^https?:$/.test(url.protocol) || host(url.hostname) !== host(base.hostname)) continue;
     const path = url.pathname.toLowerCase();
-    const score = /elementor\/css\/(post|global)/.test(path) ? 3 : /astra|kit|global|theme|style\.css|custom/.test(path) ? 2 : 1;
+    const dated = /^\d{10}$/.test(url.searchParams.get("ver") ?? "");
+    const score = /elementor\/css\/(post|global)/.test(path) || dated ? 3 : /astra|kit|global|theme|style\.css|custom/.test(path) ? 2 : 1;
     if (!candidates.some((c) => c.url === url.href)) candidates.push({ url: url.href, score });
   }
   candidates.sort((a, b) => b.score - a.score);
   const parts: string[] = [];
-  for (const { url } of candidates.slice(0, MAX_STYLESHEETS)) {
+  for (const { url } of candidates.slice(0, options.max ?? MAX_STYLESHEETS)) {
     try {
       const response = await doFetch(fetchImpl, url, "text/css,*/*;q=0.1");
       if (response.status !== 200) continue;
-      parts.push((await response.text()).slice(0, MAX_CSS_CHARS));
+      const css = (await response.text()).slice(0, MAX_CSS_CHARS);
+      parts.push(css);
+      if (options.until && css.includes(options.until)) break;
     } catch {
       // Una hoja que no se pudo leer no frena el resto.
     }

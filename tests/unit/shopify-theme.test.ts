@@ -384,6 +384,7 @@ describe("portada de tiendas que no son Shopify (WooCommerce con Elementor, Gute
         subtitle: "Esmaltes profesionales hechos en Colombia",
         buttonText: "Ver esmaltes",
         buttonHref: "/collections/esmaltes",
+        links: ["/collections/esmaltes", ""],
       },
       {
         type: "CATEGORY_GRID",
@@ -401,6 +402,7 @@ describe("portada de tiendas que no son Shopify (WooCommerce con Elementor, Gute
         subtitle: "",
         buttonText: "Comprar ahora",
         buttonHref: "/collections/all",
+        links: [""],
       },
       {
         type: "TEXT",
@@ -451,6 +453,7 @@ describe("portada de tiendas que no son Shopify (WooCommerce con Elementor, Gute
         subtitle: "Gel polish con fórmula vegana",
         buttonText: "Comprar",
         buttonHref: "/collections/all",
+        links: [""],
       },
       {
         type: "CATEGORY_GRID",
@@ -470,8 +473,95 @@ describe("portada de tiendas que no son Shopify (WooCommerce con Elementor, Gute
         subtitle: "Formulamos cada tono en nuestro laboratorio con pigmentos de alta pureza y sin ingredientes tóxicos.",
         buttonText: "",
         buttonHref: "",
+        links: [""],
       },
-      { type: "BANNER", images: ["https://amglow.co/wp-content/uploads/kit-banner.jpg"], title: "", subtitle: "", buttonText: "", buttonHref: "/products/kit-inicial" },
+      // Una foto apaisada con link: banner cuyo clic lleva al producto.
+      { type: "BANNER", images: ["https://amglow.co/wp-content/uploads/kit-banner.jpg"], title: "", subtitle: "", buttonText: "", buttonHref: "", links: ["/products/kit-inicial"] },
+    ]);
+  });
+
+  // Como la portada real de rumicol.com (2026-10-18): slider de Elementor
+  // con las fotos en el CSS, versión para celular escondida, carrusel de
+  // productos de Essential Addons, banners anchos con link a categorías,
+  // fila de íconos con el texto adentro y una foto grande de
+  // distribuidores.
+  const RUMI = `<html><head><style>.elementor-45 .elementor-element-e75937c .elementor-repeater-item-70c8e4d .swiper-slide-bg{background-image:url("https://rumicol.com/wp-content/uploads/2026/01/slide-1.jpg");}
+@media(max-width:767px){.elementor-45 .elementor-element-e75937c .elementor-repeater-item-70c8e4d .swiper-slide-bg{background-image:url("https://rumicol.com/wp-content/uploads/2026/01/slide-1-movil.jpg");}}</style></head><body>
+<header class="site-header"><nav><a href="https://rumicol.com/categoria-producto/colecciones/">Colecciones</a></nav></header>
+<main id="content">
+<section class="elementor-section elementor-top-section elementor-element elementor-element-78c565a elementor-hidden-mobile" data-id="78c565a">
+  <div class="elementor-element elementor-element-e75937c elementor-widget elementor-widget-slides"><div class="elementor-slides-wrapper elementor-main-swiper swiper"><div class="swiper-wrapper elementor-slides">
+    <div class="elementor-repeater-item-70c8e4d swiper-slide"><div class="swiper-slide-bg" role="img" aria-label="Rumi"></div><a class="swiper-slide-inner" href="https://rumicol.com/semipermanente/"><div class="swiper-slide-contents"></div></a></div>
+    <div class="elementor-repeater-item-1e7fdfe swiper-slide"><div class="swiper-slide-bg" role="img"></div><a class="swiper-slide-inner" href="https://rumicol.com/categoria-producto/colecciones/"><div class="swiper-slide-contents"></div></a></div>
+  </div></div></div>
+</section>
+<section class="elementor-section elementor-top-section elementor-element elementor-element-e61c573 elementor-hidden-desktop elementor-hidden-tablet" data-id="e61c573">
+  <div class="elementor-element elementor-element-b1b2b3b elementor-widget elementor-widget-slides"><div class="swiper"><div class="swiper-wrapper"><div class="elementor-repeater-item-b85af60 swiper-slide"><div class="swiper-slide-bg" style="background-image:url(https://rumicol.com/wp-content/uploads/2026/01/slide-1-movil.jpg)"></div></div></div></div></div>
+</section>
+<section class="elementor-section elementor-top-section elementor-element" data-id="bc2a23f">
+  <div class="elementor-widget elementor-widget-eael-woo-product-carousel"><div class="swiper-container-wrap eael-woo-product-carousel-container"><div class="woocommerce eael-woo-product-carousel swiper swiper-container"><div class="products swiper-wrapper">
+    <div class="product swiper-slide post-10272 type-product"><a href="https://rumicol.com/producto/linner-metallic-gel/"><img width="1000" height="1000" src="https://rumicol.com/wp-content/uploads/2026/09/METALLIC-gel-linner.jpg" alt="Linner metallic gel"><h2>Linner metallic gel</h2></a></div>
+    <div class="product swiper-slide post-10262 type-product"><a href="https://rumicol.com/producto/opal-gel/"><img width="1000" height="1000" src="https://rumicol.com/wp-content/uploads/2026/09/Opal-GEL.jpg" alt="Opal gel"><h2>Opal gel</h2></a></div>
+    <div class="product swiper-slide post-10252 type-product"><a href="https://rumicol.com/producto/diamond-powder/"><h2>Diamond powder</h2></a></div>
+  </div></div></div></div>
+  <div class="elementor-widget elementor-widget-button"><a class="elementor-button elementor-button-link" href="https://rumicol.com/categoria-producto/lo-nuevo/"><span class="elementor-button-text">LO NUEVO</span></a></div>
+</section>
+<section class="elementor-section elementor-top-section elementor-element" data-id="0044001">
+  <div class="elementor-widget elementor-widget-image"><a href="https://rumicol.com/categoria-producto/herramientas/"><img width="1000" height="400" src="https://rumicol.com/wp-content/uploads/2025/10/Lanzamientos-profecioales.jpg" alt="Lanzamientos-profecioales"></a></div>
+  <div class="elementor-widget elementor-widget-image"><a href="https://rumicol.com/colecciones/"><img width="1000" height="400" src="https://rumicol.com/wp-content/uploads/2026/04/Sin-titulo-2.jpg" alt=""></a></div>
+  <div class="elementor-widget elementor-widget-image"><a href="https://rumicol.com/categoria-producto/decoracion/"><img width="1000" height="400" src="https://rumicol.com/wp-content/uploads/2025/10/Decoracion-rumi.jpg" alt=""></a></div>
+</section>
+<section class="elementor-section elementor-top-section elementor-element" data-id="5ce7a3b">
+  <div class="elementor-widget elementor-widget-image"><img width="700" height="700" src="https://rumicol.com/wp-content/uploads/2023/02/transporte.jpg" alt="Envíos a todo el país"></div>
+  <div class="elementor-widget elementor-widget-image"><img width="700" height="700" src="https://rumicol.com/wp-content/uploads/2023/02/calidad.jpg" alt=""></div>
+  <div class="elementor-widget elementor-widget-image"><a href="https://wa.link/s2hjcy"><img width="700" height="700" src="https://rumicol.com/wp-content/uploads/2023/02/contacto.jpg" alt=""></a></div>
+  <div class="elementor-widget elementor-widget-image"><img width="700" height="700" src="https://rumicol.com/wp-content/uploads/2023/02/pago-seguro-1.jpg" alt=""></div>
+</section>
+<section class="elementor-section elementor-top-section elementor-element elementor-hidden-desktop" data-id="17c1523">
+  <div class="elementor-widget elementor-widget-image"><img width="300" height="300" src="https://rumicol.com/wp-content/uploads/2023/02/transporte-300x300.jpg" alt=""></div>
+  <div class="elementor-widget elementor-widget-image"><img width="300" height="300" src="https://rumicol.com/wp-content/uploads/2023/02/calidad-300x300.jpg" alt=""></div>
+  <div class="elementor-widget elementor-widget-image"><img width="300" height="300" src="https://rumicol.com/wp-content/uploads/2023/02/contacto-300x300.jpg" alt=""></div>
+</section>
+<section class="elementor-section elementor-top-section elementor-element" data-id="68d39aa">
+  <div class="elementor-widget elementor-widget-image"><a href="#mapa"><img width="1254" height="1179" src="https://rumicol.com/wp-content/uploads/2026/06/Distribiodres-mapa-1.webp" alt=""></a></div>
+  <div class="elementor-widget elementor-widget-html"><iframe src="https://www.google.com/maps/d/u/0/embed?mid=abc" width="100%" height="480"></iframe></div>
+</section>
+</main>
+<footer class="site-footer"><p>Rumi</p></footer>
+</body></html>`;
+
+  it("arma la portada de rumicol.com: slider con fotos del CSS, carrusel, banners con link, íconos y foto grande", async () => {
+    const { extractHomeSections } = await import("@/lib/shopify-theme");
+    const sections = extractHomeSections(RUMI, "https://rumicol.com/", `.elementor-45 .elementor-element-e75937c .elementor-repeater-item-1e7fdfe .swiper-slide-bg{background-image:url(https://rumicol.com/wp-content/uploads/2026/01/slide-2.jpg)}`);
+    expect(sections).toEqual([
+      // La versión de computadora del slider, con la foto de cada slide
+      // sacada del CSS (la de celular, escondida en computadora, no cuenta).
+      {
+        type: "BANNER",
+        images: ["https://rumicol.com/wp-content/uploads/2026/01/slide-1.jpg", "https://rumicol.com/wp-content/uploads/2026/01/slide-2.jpg"],
+        title: "",
+        subtitle: "",
+        buttonText: "",
+        buttonHref: "",
+        links: ["", "/collections/colecciones"],
+      },
+      { type: "FEATURED_PRODUCTS", productHandles: ["linner-metallic-gel", "opal-gel", "diamond-powder"], title: "" },
+      // Banners anchos: cada uno con su link; "/colecciones/" a secas no es
+      // una categoría. El botón "LO NUEVO" solo no arma una cuadrícula.
+      { type: "BANNER", images: ["https://rumicol.com/wp-content/uploads/2025/10/Lanzamientos-profecioales.jpg"], title: "", subtitle: "", buttonText: "", buttonHref: "", links: ["/collections/herramientas"] },
+      { type: "BANNER", images: ["https://rumicol.com/wp-content/uploads/2026/04/Sin-titulo-2.jpg"], title: "", subtitle: "", buttonText: "", buttonHref: "", links: [""] },
+      { type: "BANNER", images: ["https://rumicol.com/wp-content/uploads/2025/10/Decoracion-rumi.jpg"], title: "", subtitle: "", buttonText: "", buttonHref: "", links: ["/collections/decoracion"] },
+      {
+        type: "INFO_COLUMNS",
+        items: [
+          { title: "Envíos a todo el país", description: "", imageUrl: "https://rumicol.com/wp-content/uploads/2023/02/transporte.jpg", link: "" },
+          { title: "", description: "", imageUrl: "https://rumicol.com/wp-content/uploads/2023/02/calidad.jpg", link: "" },
+          { title: "", description: "", imageUrl: "https://rumicol.com/wp-content/uploads/2023/02/contacto.jpg", link: "https://wa.link/s2hjcy" },
+          { title: "", description: "", imageUrl: "https://rumicol.com/wp-content/uploads/2023/02/pago-seguro-1.jpg", link: "" },
+        ],
+      },
+      // Una ancla ("#mapa") no es un link.
+      { type: "BANNER", images: ["https://rumicol.com/wp-content/uploads/2026/06/Distribiodres-mapa-1.webp"], title: "", subtitle: "", buttonText: "", buttonHref: "", links: [""] },
     ]);
   });
 

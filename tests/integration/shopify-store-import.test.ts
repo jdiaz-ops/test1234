@@ -314,12 +314,18 @@ describe.skipIf(!hasDb)("páginas, portada, fotos de variante y Google Analytics
 
     const result = await importShopifySections(brand.id, {
       sections: [
-        { type: "BANNER", images: ["https://cdn.shopify.com/s/files/hero.jpg"], title: "Hola", subtitle: "Sub", buttonText: "Ver", buttonHref: "/collections/soft-gel" },
+        { type: "BANNER", images: ["https://cdn.shopify.com/s/files/hero.jpg"], title: "Hola", subtitle: "Sub", buttonText: "Ver", buttonHref: "/collections/soft-gel", links: ["/collections/soft-gel"] },
         { type: "FEATURED_COLLECTION", collectionHandle: "soft-gel", title: "Lo mejor" },
         { type: "FEATURED_COLLECTION", collectionHandle: "no-existe", title: "" },
         { type: "FEATURED_PRODUCTS", productHandles: ["placa-01", "otro"], title: "" },
         { type: "CATEGORY_GRID", title: "Categorías", items: [{ collectionHandle: "soft-gel", imageUrl: null, label: "Soft Gel" }] },
-        { type: "INFO_COLUMNS", items: [{ title: "Envío gratis", description: "Desde $150.000" }] },
+        {
+          type: "INFO_COLUMNS",
+          items: [
+            { title: "Envío gratis", description: "Desde $150.000" },
+            { title: "", description: "", imageUrl: "https://rumicol.com/wp-content/uploads/contacto.jpg", link: "https://wa.link/abc" },
+          ],
+        },
       ],
       replace: true,
       collectionSlugByHandle: { "soft-gel": "soft-gel" },
@@ -337,7 +343,12 @@ describe.skipIf(!hasDb)("páginas, portada, fotos de variante y Google Analytics
     const collection = await prisma.brandCollection.findFirstOrThrow({ where: { brandId: brand.id } });
     const placa = await prisma.product.findFirstOrThrow({ where: { brandId: brand.id } });
     expect(sections.map((s) => s.type)).toEqual(["BANNER", "FEATURED_COLLECTION", "FEATURED_PRODUCTS", "CATEGORY_GRID", "SHIPPING_INFO_BANNERS"]);
-    expect(sections[0].config).toMatchObject({ slides: [{ imageUrl: "https://cdn.shopify.com/s/files/hero.jpg", link: "" }], title: "Hola", buttonLink: "/coleccion/soft-gel" });
+    expect(sections[0].config).toMatchObject({ slides: [{ imageUrl: "https://cdn.shopify.com/s/files/hero.jpg", link: "/coleccion/soft-gel" }], title: "Hola", buttonLink: "/coleccion/soft-gel" });
+    expect((sections[4].config as { items: { show: boolean; imageUrl: string | null; link: string }[] }).items.slice(0, 3)).toMatchObject([
+      { show: true, imageUrl: null, link: "" },
+      { show: true, imageUrl: "https://rumicol.com/wp-content/uploads/contacto.jpg", link: "https://wa.link/abc" },
+      { show: false },
+    ]);
     expect(sections[1].config).toMatchObject({ collectionId: collection.id, title: "Lo mejor" });
     expect(sections[2].config).toMatchObject({ productIds: [placa.id], title: "Destacados" });
     expect((sections[3].config as { items: { show: boolean; collectionId: string | null }[] }).items.map((i) => [i.show, i.collectionId])).toEqual([

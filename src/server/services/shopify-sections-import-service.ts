@@ -80,7 +80,7 @@ export async function importShopifySections(
             type: "BANNER",
             config: {
               aspectRatio: "original",
-              slides: section.images.slice(0, 6).map((imageUrl) => ({ imageUrl, link: "" })),
+              slides: section.images.slice(0, 6).map((imageUrl, i) => ({ imageUrl, link: link(section.links?.[i] ?? "") })),
               title: section.title.slice(0, 120),
               subtitle: section.subtitle.slice(0, 240),
               buttonText: section.buttonText.slice(0, 40),
@@ -127,7 +127,14 @@ export async function importShopifySections(
           const items = Array.from({ length: 4 }, (_, i) => {
             const column = section.items[i];
             return column
-              ? { show: true, icon: "NONE", imageUrl: null, title: column.title.slice(0, 60), description: column.description.slice(0, 120), link: "" }
+              ? {
+                  show: true,
+                  icon: "NONE",
+                  imageUrl: column.imageUrl ?? null,
+                  title: column.title.slice(0, 60),
+                  description: column.description.slice(0, 120),
+                  link: link(column.link ?? ""),
+                }
               : { show: false, icon: "NONE", imageUrl: null, title: "", description: "", link: "" };
           });
           created = { type: "SHIPPING_INFO_BANNERS", config: { items } };

@@ -7,7 +7,8 @@
 ///
 /// Uso: npx tsx scripts/diagnostico-portada.ts https://tienda.com
 import { gzipSync } from "node:zlib";
-import { extractGenericHomeSections, parseShopifyStorefront } from "@/lib/shopify-theme";
+import { parseShopifyStorefront } from "@/lib/shopify-theme";
+import { readShopifyStorefront } from "@/server/services/shopify-store-reader";
 
 const MARKERS: Record<string, RegExp> = {
   main: /<main\b/gi,
@@ -50,13 +51,15 @@ async function main() {
   console.log("---- marcadores ----");
   for (const [name, re] of Object.entries(MARKERS)) console.log(`${name}: ${(html.match(re) ?? []).length}`);
 
-  const theme = parseShopifyStorefront(html, res.url);
+  // Tal como lo lee el importador (baja también las hojas de estilo que
+  // hagan falta para colores, letra y fotos de sliders).
+  const { theme } = await readShopifyStorefront(url);
   console.log("---- tema ----");
   console.log(JSON.stringify({ storeName: theme.storeName, logoUrl: theme.logoUrl, colors: theme.colors, fonts: theme.fonts, menu: theme.menu, announcements: theme.announcements }, null, 1));
-  console.log("---- secciones (extractHomeSections) ----");
+  console.log("---- secciones (como las lee el importador) ----");
   console.log(JSON.stringify(theme.homeSections, null, 1));
-  console.log("---- secciones (solo lector genérico) ----");
-  console.log(JSON.stringify(extractGenericHomeSections(html, res.url), null, 1));
+  console.log("---- secciones (solo con el HTML, sin hojas de estilo) ----");
+  console.log(JSON.stringify(parseShopifyStorefront(html, res.url).homeSections, null, 1));
 
   console.log("---- HTML gzip base64 ----");
   const b64 = gzipSync(Buffer.from(html, "utf8")).toString("base64");
