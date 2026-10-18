@@ -145,7 +145,9 @@ describe.skipIf(!hasDb)("checkout: inventario apartado", () => {
         { label: "Dorado", stock: 0 },
       ],
     });
-    const [plateado, dorado] = esmalte.variants;
+    // Por nombre, no por posición: la base no garantiza el orden.
+    const plateado = esmalte.variants.find((v) => v.option1Value === "Plateado")!;
+    const dorado = esmalte.variants.find((v) => v.option1Value === "Dorado")!;
     await expect(
       createStoreOrder(brand.storefrontSlug!, {
         ...BUYER,
