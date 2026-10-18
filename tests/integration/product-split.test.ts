@@ -39,8 +39,10 @@ describe.skipIf(!hasDb)("separar variantes en productos", () => {
         brandCollections: { create: { collectionId: collection.id, position: 0 } },
       },
     });
+    // Por nombre, no por posición: la base no garantiza el orden de las
+    // variantes recién creadas (en CI salían en otro orden).
     await prisma.productVariant.update({
-      where: { id: placa.variants[1].id },
+      where: { id: placa.variants.find((v) => v.option1Value === "Loca")!.id },
       data: { price: 17900, imageUrl: "https://cdn.prueba.test/loca.jpg", sku: "GP-LOCA" },
     });
     const verdes = await createProduct(brand.id, {
