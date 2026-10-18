@@ -38,13 +38,18 @@ async function main() {
     console.error("Falta el link de la tienda.");
     process.exit(1);
   }
-  const res = await fetch(url, {
-    redirect: "follow",
-    headers: {
-      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-      accept: "text/html,application/xhtml+xml",
-      "accept-language": "es-CO,es;q=0.9",
-    },
+  const headers = {
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+    accept: "text/html,application/xhtml+xml",
+    "accept-language": "es-CO,es;q=0.9",
+  };
+  // Un dominio pelado que no responde se prueba con "www." adelante.
+  const res = await fetch(url, { redirect: "follow", headers }).catch(async (err) => {
+    const parsed = new URL(url);
+    if (/^www\./i.test(parsed.hostname)) throw err;
+    parsed.hostname = `www.${parsed.hostname}`;
+    console.log(`Sin respuesta en ${url}; probando ${parsed.href}`);
+    return fetch(parsed.href, { redirect: "follow", headers });
   });
   const html = await res.text();
   console.log(`Estado ${res.status} · ${html.length} caracteres · URL final ${res.url}`);

@@ -117,7 +117,16 @@ function storeNameFromHtml(html: string, origin: string) {
 
 async function detect(input: string): Promise<ScanResult> {
   let origin = normalizeStoreUrl(input);
-  const home = await safeFetchText(origin).catch((err) => {
+  // Un dominio pelado que no responde se prueba con "www." adelante
+  // (amglowspa.com rechaza la conexión segura; www.amglowspa.com sí abre).
+  const home = await safeFetchText(origin).catch(async (err) => {
+    const url = new URL(origin);
+    if (/^www\./i.test(url.hostname)) throw err;
+    url.hostname = `www.${url.hostname}`;
+    return safeFetchText(url.origin).catch(() => {
+      throw err;
+    });
+  }).catch((err) => {
     throw new OtherStoreError(err instanceof SafeFetchError ? err.message : "No pudimos abrir esa tienda.");
   });
   // Si mitienda.com redirige a www.mitienda.com, se sigue con la final.

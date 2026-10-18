@@ -34,6 +34,27 @@ function fakeFetch(handler: (url: URL) => Response | Promise<Response>) {
   return { impl, calls };
 }
 
+describe("dominio pelado que no responde", () => {
+  it("prueba con www. adelante y sigue con esa dirección", async () => {
+    const { impl, calls } = fakeFetch((url) => {
+      if (!url.hostname.startsWith("www.")) throw new Error("ssl handshake failure");
+      return page(1, 2);
+    });
+    const result = await readShopifyStorePage("amglowspa.com", 1, impl);
+    expect(result.storeUrl).toBe("https://www.amglowspa.com/");
+    expect(result.products).toHaveLength(2);
+    expect(calls[0]).toContain("https://amglowspa.com/");
+    expect(calls[1]).toContain("https://www.amglowspa.com/");
+  });
+
+  it("con www. ya puesto no insiste y explica el error", async () => {
+    const { impl } = fakeFetch(() => {
+      throw new Error("ssl handshake failure");
+    });
+    await expect(readShopifyStorePage("www.amglowspa.com", 1, impl)).rejects.toBeInstanceOf(ShopifyStoreError);
+  });
+});
+
 describe("normalizar el link de la tienda Shopify", () => {
   it("acepta el dominio pelado, con http, con ruta o con mayúsculas, y deja solo la raíz https", () => {
     expect(normalizeShopifyStoreUrl("hlacosedora.myshopify.com").href).toBe("https://hlacosedora.myshopify.com/");

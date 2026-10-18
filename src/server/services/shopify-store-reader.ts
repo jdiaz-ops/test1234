@@ -122,12 +122,31 @@ async function doFetch(fetchImpl: FetchLike, url: string, accept: string) {
 /// redirects a mano: de .myshopify.com al dominio propio (o de www a sin
 /// www) es normal y se sigue con las mismas reglas del link; a /password
 /// es la tienda con contraseña.
+/// El mismo origen con "www." adelante (null si ya lo tiene).
+function withWww(origin: string): string | null {
+  const url = new URL(origin);
+  if (/^www\./i.test(url.hostname)) return null;
+  url.hostname = `www.${url.hostname}`;
+  return url.href;
+}
+
 async function getPath(fetchImpl: FetchLike, base: string, path: string, accept: string) {
   let current = base;
   let url = `${current}${path}`;
   const file = path.split("?")[0].split("/").pop() ?? "";
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const response = await doFetch(fetchImpl, url, accept);
+    let response: Response;
+    try {
+      response = await doFetch(fetchImpl, url, accept);
+    } catch (err) {
+      // Un dominio pelado que no responde (amglowspa.com rechaza la
+      // conexión segura; www.amglowspa.com sí abre): se prueba con www.
+      const www = hop === 0 ? withWww(current) : null;
+      if (!www) throw err;
+      current = www;
+      url = `${current}${path}`;
+      response = await doFetch(fetchImpl, url, accept);
+    }
     if (!isRedirect(response.status)) return { response, base: current };
 
     const location = response.headers.get("location");
