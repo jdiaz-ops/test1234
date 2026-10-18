@@ -17,6 +17,7 @@ import {
   type ShopifyPolicyKind,
   type ShopifyThemeInfo,
 } from "@/lib/shopify-theme";
+import { menuForProposal, type MergeProposal } from "@/lib/collection-merge";
 import { cleanCatalogTitles, cleanTitle } from "@/lib/store-titles";
 import {
   buildShippingZones,
@@ -68,6 +69,9 @@ type LinkExtras = {
   collections: ShopifyImportCollection[];
   /// Categorías propuestas cuando Shopify no tiene colecciones.
   proposed: { collections: ProposedCollection[]; source: "ia" | "reglas" } | null;
+  /// Menos colecciones cuando la tienda trae de más (ver
+  /// collection-merge.ts); la administradora elige en la vista previa.
+  merge: MergeProposal | null;
   theme: ShopifyThemeInfo | null;
   shipping: ShippingRead | null;
   /// Avisos de lectura (algo que no se pudo leer y se siguió sin eso).
@@ -120,6 +124,7 @@ const PLATFORM_LABEL: Record<StorePlatform, string> = {
 };
 const API_IMPORT = "/api/marca/tienda/productos/importar-shopify";
 const API_PROPOSE = "/api/marca/tienda/colecciones/proponer";
+const API_REORGANIZE = "/api/marca/tienda/colecciones/reorganizar";
 const API_COLLECTIONS = "/api/marca/tienda/colecciones/importar-shopify";
 const API_DESIGN = "/api/marca/tienda/diseno/importar-shopify";
 const API_SHIPPING = "/api/marca/tienda/envios/importar-shopify";
@@ -245,6 +250,8 @@ export function ShopifyImporter({
   const [fileName, setFileName] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ShopifyCsvParseResult | null>(null);
   const [extras, setExtras] = useState<LinkExtras | null>(null);
+  /// Con una propuesta para unir colecciones: cuál se importa.
+  const [collectionChoice, setCollectionChoice] = useState<"original" | "proposed">("proposed");
   const [options, setOptions] = useState<ImportOptions>({
     products: true,
     pages: true,
@@ -332,6 +339,36 @@ export function ShopifyImporter({
     return null;
   }
 
+  /// Cuando la tienda trae colecciones de más (una por color, repetidas…)
+  /// se propone unirlas (ver collection-merge.ts); la administradora elige
+  /// en la vista previa. null si no hay nada que simplificar.
+  async function proposeMerge(
+    collections: ShopifyImportCollection[],
+    products: ShopifyImportProduct[],
+    notes: string[],
+  ): Promise<MergeProposal | null> {
+    if (collections.length < 2) return null;
+    try {
+      setReadingStep("Revisando si las colecciones se pueden simplificar…");
+      const nameByHandle = new Map(products.map((p) => [p.handle, p.name]));
+      const body = await postJson(API_REORGANIZE, {
+        collections: collections.map((c) => ({
+          handle: c.handle,
+          name: c.name,
+          productHandles: c.productHandles,
+          sampleNames: c.productHandles
+            .slice(0, 3)
+            .map((h) => nameByHandle.get(h))
+            .filter((n): n is string => Boolean(n)),
+        })),
+      });
+      return (body.proposal as MergeProposal | null) ?? null;
+    } catch (err) {
+      notes.push(`No se pudo revisar si las colecciones se pueden simplificar: ${message(err)}`);
+      return null;
+    }
+  }
+
   /// Lo leído de los archivos de una marca sin web (catalog-files-reader.tsx)
   /// entra a la misma vista previa que el link.
   function handleFilesRead(read: FilesRead) {
@@ -342,6 +379,7 @@ export function ShopifyImporter({
       pages: [],
       collections: read.collections,
       proposed: null,
+      merge: null,
       theme: read.theme,
       shipping: null,
       notes: read.notes,
@@ -458,8 +496,10 @@ export function ShopifyImporter({
         : null;
     const cleaned = cleanCatalogTitles(products, collections, theme?.storeName);
     if (cleaned.suffix) notes.push(suffixNote(cleaned.suffix));
+    const merge = await proposeMerge(cleaned.collections, cleaned.products, notes);
     setParsed({ products: cleaned.products, warnings, stats });
-    setExtras({ storeUrl: origin, pages, collections: cleaned.collections, proposed, theme, shipping: null, notes });
+    setExtras({ storeUrl: origin, pages, collections: cleaned.collections, proposed, merge, theme, shipping: null, notes });
+    setCollectionChoice(merge ? "proposed" : "original");
     setOptions({
       products: true,
       pages: pages.length > 0,
@@ -558,6 +598,12 @@ export function ShopifyImporter({
         notes.push(`No se pudo leer el diseño de la tienda: ${message(err)}`);
       }
 
+      // Nombres sin el "| Tienda" que muchas ponen para Google (ver store-titles.ts).
+      const cleaned = cleanCatalogTitles(products, collections, theme?.storeName);
+      if (cleaned.suffix) notes.push(suffixNote(cleaned.suffix));
+      // ¿Colecciones de más? Se propone unirlas (ver collection-merge.ts).
+      const merge = await proposeMerge(cleaned.collections, cleaned.products, notes);
+
       // Páginas enlazadas en la portada y políticas (las de siempre se
       // buscan aunque no estén enlazadas; Shopify responde 404 si no hay).
       const pages: PageRead[] = [];
@@ -650,14 +696,12 @@ export function ShopifyImporter({
         notes.push(`No se pudieron leer los fletes: ${message(err)}`);
       }
 
-      // Nombres sin el "| Tienda" que muchas ponen para Google (ver store-titles.ts).
-      const cleaned = cleanCatalogTitles(products, collections, theme?.storeName);
-      if (cleaned.suffix) notes.push(suffixNote(cleaned.suffix));
       if (shipping) {
         shipping = { ...shipping, variant: { ...shipping.variant, productName: cleanTitle(shipping.variant.productName, cleaned.suffix) } };
       }
       setParsed({ products: cleaned.products, warnings, stats });
-      setExtras({ storeUrl: resolvedUrl, pages, collections: cleaned.collections, proposed, theme, shipping, notes });
+      setExtras({ storeUrl: resolvedUrl, pages, collections: cleaned.collections, proposed, merge, theme, shipping, notes });
+      setCollectionChoice(merge ? "proposed" : "original");
       setOptions({
         products: true,
         pages: pages.length > 0,
@@ -746,11 +790,27 @@ export function ShopifyImporter({
       }
     }
 
+    // Con la propuesta elegida se crean las colecciones unidas; las
+    // originales de cada grupo apuntan a la unida en el menú y la portada.
+    const merge = byLink && extras.merge && collectionChoice === "proposed" ? extras.merge : null;
     if (byLink && withCollections) {
       setExtraStep("Creando colecciones y menú…");
       try {
-        const payload =
-          extras.collections.length > 0
+        const sourceByHandle = new Map(extras.collections.map((c) => [c.handle, c]));
+        const payload = merge
+          ? merge.collections.map((m) => {
+              const first = sourceByHandle.get(m.sourceHandles[0]);
+              const single = m.sourceHandles.length === 1 ? first : undefined;
+              return {
+                handle: m.handle,
+                name: m.name,
+                description: single?.description || null,
+                imageUrl: first?.imageUrl ?? null,
+                sortOrder: single?.sortOrder ?? "MANUAL",
+                productHandles: m.productHandles,
+              };
+            })
+          : extras.collections.length > 0
             ? extras.collections.map((c) => ({
                 handle: c.handle,
                 name: c.name,
@@ -764,13 +824,20 @@ export function ShopifyImporter({
                 name: c.name,
                 productHandles: c.productHandles,
               }));
+        const menuLinks = merge ? menuForProposal(extras.theme?.menu ?? [], merge) : (extras.theme?.menu ?? []);
         const body = await postJson(API_COLLECTIONS, {
           collections: payload,
-          menu: { links: extras.theme?.menu ?? [], replace: true },
+          menu: { links: menuLinks, replace: true },
           pageLinks,
         });
         const rows = body.collections as { handle: string; slug: string; action: string; linked: number }[];
         for (const row of rows) if (row.action !== "error" && row.slug) collectionSlugByHandle[row.handle] = row.slug;
+        if (merge) {
+          for (const m of merge.collections) {
+            const slug = collectionSlugByHandle[m.handle];
+            if (slug) for (const h of m.sourceHandles) collectionSlugByHandle[h] = slug;
+          }
+        }
         result.collections = {
           created: rows.filter((r) => r.action === "created").length,
           updated: rows.filter((r) => r.action === "updated").length,
@@ -869,6 +936,22 @@ export function ShopifyImporter({
   const errors = results.filter((r) => r.action === "error");
   const reading = readingStep !== null;
   const theme = extras?.theme ?? null;
+  /// Lo que se ve (y se importa) en el bloque de colecciones: la propuesta
+  /// elegida, las de la tienda, o las categorías propuestas si no tenía.
+  const chosenCollections: { name: string; count: number; merges: string[] }[] = !extras
+    ? []
+    : extras.merge && collectionChoice === "proposed"
+      ? extras.merge.collections.map((m) => ({
+          name: m.name,
+          count: m.productHandles.length,
+          merges:
+            m.sourceHandles.length > 1
+              ? m.sourceHandles.map((h) => extras.collections.find((c) => c.handle === h)?.name ?? h)
+              : [],
+        }))
+      : extras.collections.length > 0
+        ? extras.collections.map((c) => ({ name: c.name, count: c.productHandles.length, merges: [] }))
+        : (extras.proposed?.collections ?? []).map((c) => ({ name: c.name, count: c.productHandles.length, merges: [] }));
   const shipping = extras?.shipping ?? null;
   const canImport =
     parsed !== null &&
@@ -1136,10 +1219,44 @@ export function ShopifyImporter({
                     />
                     <span>
                       {extras.collections.length > 0
-                        ? `${extras.collections.length} colecciones de Shopify y el menú`
+                        ? `${chosenCollections.length} colecciones y el menú`
                         : `${extras.proposed!.collections.length} categorías propuestas y el menú`}
                     </span>
                   </label>
+                  {extras.merge && (
+                    <div className="space-y-1.5 text-sm">
+                      <p className="text-xs text-brand-ink-soft">
+                        Varias colecciones parecen ser la misma categoría. Elige cómo dejarlas en tu tienda:
+                      </p>
+                      <label className="flex items-start gap-2">
+                        <input
+                          type="radio"
+                          name="collection-choice"
+                          checked={collectionChoice === "proposed"}
+                          onChange={() => setCollectionChoice("proposed")}
+                          className="mt-1"
+                        />
+                        <span>
+                          <span className="font-medium text-brand-ink">Propuesta de Marcolini ({extras.merge.collections.length})</span>{" "}
+                          <span className="text-xs text-brand-ink-soft">
+                            {extras.merge.source === "ia"
+                              ? "· organizada con inteligencia artificial"
+                              : "· unimos las colecciones pequeñas que empiezan igual"}
+                          </span>
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-2">
+                        <input
+                          type="radio"
+                          name="collection-choice"
+                          checked={collectionChoice === "original"}
+                          onChange={() => setCollectionChoice("original")}
+                          className="mt-1"
+                        />
+                        <span className="font-medium text-brand-ink">Como está en la tienda ({extras.collections.length})</span>
+                      </label>
+                    </div>
+                  )}
                   {extras.collections.length === 0 && extras.proposed && (
                     <p className="text-xs text-brand-ink-soft">
                       Tu tienda no tiene colecciones en Shopify.{" "}
@@ -1150,20 +1267,18 @@ export function ShopifyImporter({
                     </p>
                   )}
                   <ul className="text-xs text-brand-ink-soft space-y-0.5">
-                    {(extras.collections.length > 0
-                      ? extras.collections.map((c) => ({ name: c.name, count: c.productHandles.length }))
-                      : extras.proposed!.collections.map((c) => ({ name: c.name, count: c.productHandles.length }))
-                    )
-                      .slice(0, 15)
-                      .map((c) => (
-                        <li key={c.name}>
-                          {c.name} <span className="font-mono opacity-70">{c.count}</span>
-                        </li>
-                      ))}
+                    {chosenCollections.slice(0, 20).map((c) => (
+                      <li key={c.name}>
+                        {c.name} <span className="font-mono opacity-70">{c.count}</span>
+                        {c.merges.length > 1 && <span className="block pl-3 opacity-80">une: {c.merges.join(" · ")}</span>}
+                      </li>
+                    ))}
                   </ul>
                   <p className="text-xs text-brand-ink-soft">
                     {theme && theme.menu.length > 0
-                      ? `Menú: ${theme.menu.map((m) => m.label).join(" · ")}.`
+                      ? `Menú: ${(extras.merge && collectionChoice === "proposed" ? menuForProposal(theme.menu, extras.merge) : theme.menu)
+                          .map((m) => m.label)
+                          .join(" · ")}.`
                       : "Menú: una entrada por colección."}{" "}
                     Reemplaza el menú actual de tu tienda. Los enlaces a blogs de Shopify no se traen.
                   </p>

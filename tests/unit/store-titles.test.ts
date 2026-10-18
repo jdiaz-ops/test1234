@@ -43,6 +43,13 @@ describe("cleanTitle", () => {
     expect(cleanTitle("Esmaltes Semipermanentes Beauty Solution", "Beauty Solution")).toBe("Esmaltes Semipermanentes");
   });
 
+  it("entiende el | sin espacio antes y no deja separadores sueltos", () => {
+    expect(cleanTitle("Gel Polish Rojos y Amarillos| Beauty Solution", "Beauty Solution")).toBe("Gel Polish Rojos y Amarillos");
+    expect(cleanTitle("Gel Polish Rojos|Beauty Solution", "Beauty Solution", { firstSegment: true })).toBe("Gel Polish Rojos");
+    expect(cleanTitle("Tips|Coffin| Beauty Solution", "Beauty Solution")).toBe("Tips | Coffin");
+    expect(detectStoreSuffix(["Esmalte A| Mi Tienda", "Esmalte B |Mi Tienda", "Esmalte C | Mi Tienda"])).toBe("Mi Tienda");
+  });
+
   it("deja el resto del título en los productos", () => {
     expect(cleanTitle("AcrySoft™ | Soft Gel Tips Profesionales | Beauty Solution", "Beauty Solution")).toBe(
       "AcrySoft™ | Soft Gel Tips Profesionales",

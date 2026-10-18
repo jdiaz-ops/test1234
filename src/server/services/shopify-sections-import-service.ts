@@ -81,6 +81,8 @@ export async function importShopifySections(
           const items = section.items
             .map((item) => ({ id: collectionId(item.collectionHandle), imageUrl: item.imageUrl, label: item.label.slice(0, 40) }))
             .filter((item): item is { id: string; imageUrl: string | null; label: string } => Boolean(item.id))
+            // Varias casillas de Shopify pueden apuntar a colecciones que acá se unieron en una.
+            .filter((item, i, list) => list.findIndex((other) => other.id === item.id) === i)
             .slice(0, 6);
           if (items.length === 0) break;
           const padded = Array.from({ length: 6 }, (_, i) =>

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminActingAsBrand } from "@/lib/current-brand";
+import { prisma } from "@/lib/prisma";
 import { limitOrReject } from "@/lib/rate-limit";
-import { MAX_PRODUCTS_PER_CALL, proposeCollections } from "@/server/services/shopify-categorize-service";
+import { MAX_PRODUCTS_PER_CALL, proposeCollections, sectorFromVertical } from "@/server/services/shopify-categorize-service";
 
 /// Propone categorías para los productos de una tienda Shopify que no
 /// tiene colecciones (ver shopify-categorize-service.ts). Por tandas: la
@@ -33,6 +34,9 @@ export async function POST(req: Request) {
 
   const body = bodySchema.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Lista de productos inválida." }, { status: 400 });
-  const result = await proposeCollections(body.data);
+  const vertical = profile.verticalId
+    ? await prisma.vertical.findUnique({ where: { id: profile.verticalId }, select: { name: true } })
+    : null;
+  const result = await proposeCollections({ ...body.data, sector: sectorFromVertical(vertical?.name) });
   return NextResponse.json({ ok: true, ...result });
 }

@@ -12,9 +12,10 @@
 /// parte: "AcrySoft™ | Soft Gel Tips Profesionales" es para Google, la
 /// colección se llama "AcrySoft™", como en el menú de la tienda.
 
-/// Separadores con espacio a cada lado. El guion solo con espacios, para
-/// no partir "Semi-permanente".
-const SEPARATOR = /(\s+(?:\||·|•|–|—|-)\s+)/;
+/// Separadores: el "|" con o sin espacios ("Amarillos| Beauty Solution"
+/// también se ve); los demás solo con espacio a cada lado, para no partir
+/// "Semi-permanente".
+const SEPARATOR = /(\s*\|\s*|\s+(?:·|•|–|—|-)\s+)/;
 
 /// Cuántos títulos deben terminar igual para tomar ese remate como el
 /// nombre de la tienda, y qué parte de los títulos con "|" deben ser.
@@ -99,8 +100,14 @@ export function cleanTitle(title: string, suffix: string | null, options: { firs
   if (options.firstSegment && kept.length > 1 && kept[1].separatorBefore?.includes("|")) kept.length = 1;
 
   let out = kept[0].text;
-  for (let i = 1; i < kept.length; i++) out += (kept[i].separatorBefore ?? " | ") + kept[i].text;
-  out = out.replace(/\s+/g, " ").trim();
+  for (let i = 1; i < kept.length; i++) {
+    const separator = kept[i].separatorBefore ?? " | ";
+    out += (separator.includes("|") ? " | " : separator) + kept[i].text;
+  }
+  out = out
+    .replace(/\s+/g, " ")
+    .replace(/^[\s|·•–—]+|[\s|·•–—]+$/g, "")
+    .trim();
   return out || original;
 }
 
