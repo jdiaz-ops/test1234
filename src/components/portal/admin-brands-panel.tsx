@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { EnterAsButton } from "@/components/portal/enter-as-button";
 
 type Brand = {
   id: string;
   userId: string;
+  email: string;
+  /// Creada sin correo de la dueña: la reclama con el link de acceso (ver
+  /// generateBrandAccessLink en admin-brand-service.ts).
+  ownerPending: boolean;
+  accessTokenExpiresAt: string | null;
+  accessLinkCreatedAt: string | null;
+  claimedAt: string | null;
   companyName: string;
   city: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED" | "PAUSED";
@@ -83,8 +90,7 @@ function AddBrandForm({ onDone }: { onDone: () => void }) {
       <div className="grid sm:grid-cols-3 gap-3">
         <input
           type="email"
-          required
-          placeholder="correo@marca.com"
+          placeholder="Correo de la dueña (opcional)"
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
           className="input"
@@ -105,6 +111,11 @@ function AddBrandForm({ onDone }: { onDone: () => void }) {
           className="input"
         />
       </div>
+      <p className="text-xs text-brand-ink-soft">
+        Con correo, a la dueña le llega de una vez la invitación para poner su contraseña. Sin correo, la
+        marca queda «sin dueña»: la armas tú con «Entrar como» y, cuando esté lista, le generas el link de
+        acceso desde esta lista para que ella cree su correo y contraseña.
+      </p>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex items-center gap-4">
         <button
@@ -258,6 +269,57 @@ export function AdminBrandsPanel({
     router.refresh();
   }
 
+  // Link de acceso de una marca sin dueña: se muestra una sola vez, en
+  // una fila debajo de la marca, para copiarlo y mandarlo por WhatsApp.
+  const [accessLinks, setAccessLinks] = useState<Record<string, { url: string; expiresAt: string }>>({});
+  const [accessError, setAccessError] = useState<{ brandId: string; message: string } | null>(null);
+
+  async function generateAccessLink(brandId: string) {
+    setLoadingId(brandId);
+    setAccessError(null);
+    const res = await fetch("/api/admin/marcas/acceso", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandId }),
+    });
+    const body = await res.json().catch(() => null);
+    setLoadingId(null);
+    if (!res.ok) {
+      setAccessError({ brandId, message: body?.error ?? "No se pudo generar el link." });
+      return;
+    }
+    setAccessLinks((prev) => ({ ...prev, [brandId]: { url: body.url, expiresAt: body.expiresAt } }));
+    router.refresh();
+  }
+
+  async function revokeAccessLink(brandId: string) {
+    setLoadingId(brandId);
+    await fetch("/api/admin/marcas/acceso", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandId }),
+    });
+    setLoadingId(null);
+    setAccessLinks((prev) => {
+      const next = { ...prev };
+      delete next[brandId];
+      return next;
+    });
+    router.refresh();
+  }
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Sin permiso de portapapeles: el link queda visible para copiarlo a mano.
+    }
+  }
+
+  function fecha(iso: string) {
+    return new Date(iso).toLocaleDateString("es-CO", { day: "numeric", month: "short" });
+  }
+
   async function createTestBrands() {
     setCreatingTestBrands(true);
     await fetch("/api/admin/marcas/prueba", { method: "POST" });
@@ -389,11 +451,27 @@ export function AdminBrandsPanel({
           </thead>
           <tbody className="divide-y divide-brand-line">
             {brands.map((b) => (
-              <tr key={b.id}>
+              <Fragment key={b.id}>
+              <tr>
                 <td className="px-5 py-3 text-brand-ink">
                   {b.companyName}
                   {b.city && (
                     <span className="text-brand-ink-soft"> · {b.city}</span>
+                  )}
+                  {b.ownerPending ? (
+                    <span className="block text-xs text-amber-600 mt-0.5">
+                      Sin dueña
+                      {b.accessTokenExpiresAt
+                        ? new Date(b.accessTokenExpiresAt) > new Date()
+                          ? ` · link enviado, vence el ${fecha(b.accessTokenExpiresAt)}`
+                          : " · link vencido"
+                        : " · sin link de acceso"}
+                    </span>
+                  ) : (
+                    <span className="block text-xs text-brand-ink-soft mt-0.5">
+                      {b.email}
+                      {b.claimedAt && ` · activada el ${fecha(b.claimedAt)}`}
+                    </span>
                   )}
                 </td>
                 <td className="px-5 py-3 text-brand-ink-soft">{b.storeType}</td>
@@ -562,12 +640,62 @@ export function AdminBrandsPanel({
                         </button>
                       </>
                     )}
+                    {isOwner && b.ownerPending && (
+                      <>
+                        <button
+                          onClick={() => generateAccessLink(b.id)}
+                          disabled={loadingId === b.id}
+                          className="text-xs text-brand-accent hover:underline disabled:opacity-50"
+                          title="Link de un solo uso que vence a los 7 días: la dueña pone su correo y su contraseña y queda ligada a esta marca."
+                        >
+                          {b.accessTokenExpiresAt ? "Nuevo link de acceso" : "Generar link de acceso"}
+                        </button>
+                        {b.accessTokenExpiresAt && (
+                          <button
+                            onClick={() => revokeAccessLink(b.id)}
+                            disabled={loadingId === b.id}
+                            className="text-xs text-brand-ink-soft hover:text-red-600 hover:underline disabled:opacity-50"
+                          >
+                            Anular link
+                          </button>
+                        )}
+                      </>
+                    )}
                     {isOwner && (
                       <EnterAsButton userId={b.userId} role="BRAND" />
                     )}
                   </div>
                 </td>
               </tr>
+              {(accessLinks[b.id] || accessError?.brandId === b.id) && (
+                <tr>
+                  <td colSpan={isOwner ? 8 : 7} className="px-5 py-3 bg-brand-bg">
+                    {accessError?.brandId === b.id && (
+                      <p className="text-sm text-red-600">{accessError.message}</p>
+                    )}
+                    {accessLinks[b.id] && (
+                      <div className="rounded-lg border border-brand-line bg-brand-surface p-3 text-xs text-brand-ink space-y-2">
+                        <p className="font-medium">Link de acceso para {b.companyName} (se muestra una sola vez):</p>
+                        <p className="font-mono break-all select-all">{accessLinks[b.id].url}</p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => copyText(accessLinks[b.id].url)}
+                            className="border border-brand-line rounded-full px-3 py-1 text-brand-ink hover:bg-brand-accent-soft"
+                          >
+                            Copiar link
+                          </button>
+                          <span className="text-brand-ink-soft">
+                            Mándaselo a la dueña por WhatsApp. Es de un solo uso y vence el{" "}
+                            {fecha(accessLinks[b.id].expiresAt)}; si se pierde, genera otro.
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>

@@ -559,6 +559,17 @@ model BrandProfile {
 
   status       BrandStatus @default(PENDING)
   approvedAt   DateTime?
+
+  /// Marca creada por el admin sin el correo de la dueña (2026-10-18): la
+  /// cuenta es provisional (correo @pendiente.marcolini.lat, sin
+  /// contraseña) hasta que alguien la reclama con el link de acceso que
+  /// genera el admin — ver generateBrandAccessLink / claimBrandAccess en
+  /// admin-brand-service.ts. Del link solo se guarda el hash.
+  ownerPending         Boolean   @default(false)
+  accessTokenHash      String?   @unique
+  accessTokenExpiresAt DateTime?
+  accessLinkCreatedAt  DateTime?
+  claimedAt            DateTime?
   approvedById String? // referencia al User admin que aprobó
 
   marketplaceVisibilityOverride MarketplaceVisibilityOverride @default(AUTO)

@@ -85,10 +85,14 @@ export const removeAdminSchema = z.object({
 });
 
 export const createBrandManuallySchema = z.object({
-  email: z.string().email(),
+  /// Opcional (2026-10-18): sin correo, la marca nace sin dueña y el admin
+  /// le manda después el link de acceso (ver generateBrandAccessLink).
+  email: z.string().trim().email("Correo inválido").optional().or(z.literal("")),
   companyName: z.string().min(2, "Ingresa el nombre de la marca"),
   city: z.string().optional().or(z.literal("")),
 });
+
+export const brandAccessLinkSchema = z.object({ brandId: z.string().min(1) });
 
 export const createCreatorManuallySchema = z.object({
   email: z.string().email(),

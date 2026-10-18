@@ -14,7 +14,20 @@ const FROM = process.env.EMAIL_FROM || "Marcolini <onboarding@resend.dev>";
 
 export type EmailSendResult = { ok: true; id: string | null } | { ok: false; error: string };
 
+/// Las marcas que el admin crea sin correo de la dueña tienen una
+/// dirección provisional en este dominio, sin buzón: nunca se les manda
+/// nada (ver createBrandManually).
+export const PLACEHOLDER_EMAIL_DOMAIN = "pendiente.marcolini.lat";
+
+export function isPlaceholderEmail(email: string | null | undefined) {
+  return Boolean(email && email.toLowerCase().endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`));
+}
+
 async function send(to: string, subject: string, html: string): Promise<EmailSendResult> {
+  if (isPlaceholderEmail(to)) {
+    console.log(`[email] Sin dueña todavía: no se manda "${subject}" a ${to}.`);
+    return { ok: false, error: "La marca todavía no tiene correo de contacto." };
+  }
   if (!resend) {
     // Sin API key configurada (típico en desarrollo local): en vez de fallar,
     // dejamos el correo visible en consola para poder probar el flujo.
@@ -71,6 +84,19 @@ export async function sendAccountInviteEmail(to: string, setPasswordUrl: string)
     `<p>Ya tienes una cuenta activa en Marcolini.</p>
      <p><a href="${setPasswordUrl}">Haz clic aquí para poner tu contraseña</a> y entrar.</p>
      <p>Este link expira en 1 hora — si expira, puedes pedir uno nuevo desde "¿Olvidaste tu contraseña?" en la pantalla de inicio de sesión.</p>`
+  );
+}
+
+/// Bienvenida a la dueña que reclamó su marca con el link de acceso (ver
+/// claimBrandAccess): confirma que ese correo quedó ligado a la cuenta.
+export async function sendBrandWelcomeEmail(to: string, params: { companyName: string; loginUrl: string }) {
+  await send(
+    to,
+    `Tu tienda ${params.companyName} ya está en Marcolini`,
+    `<p>Hola,</p>
+     <p>Tu cuenta de <strong>${params.companyName}</strong> en Marcolini quedó activa con este correo.</p>
+     <p><a href="${params.loginUrl}">Entra a tu portal</a> con tu correo y la contraseña que acabas de crear.</p>
+     <p>Si no fuiste tú, escríbenos respondiendo este correo.</p>`
   );
 }
 
