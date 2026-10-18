@@ -1,6 +1,7 @@
 import { toCardProduct } from "@/components/storefront/product-card";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { fallbackCollectionTarget } from "@/server/services/storefront-redirect-service";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { getPublicBrandCollection } from "@/server/services/brand-collection-service";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
@@ -39,7 +40,14 @@ export default async function StorefrontCollectionPage({
   if (!brand) notFound();
 
   const collection = await getPublicBrandCollection(brand.id, collectionSlug);
-  if (!collection) notFound();
+  if (!collection) {
+    // Link a una colección que ya no tiene ese slug: se resuelve por los
+    // redirects viejos, por nombre o por parecido; si no, a todas las
+    // categorías (ver fallbackCollectionTarget).
+    const target = await fallbackCollectionTarget(brand.id, collectionSlug);
+    if (target) permanentRedirect(`${await getStoreBasePath(slug)}${target}`);
+    notFound();
+  }
 
   const [menuItems, basePath] = await Promise.all([
     listStorefrontMenuItems(brand.id),

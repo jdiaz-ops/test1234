@@ -57,6 +57,32 @@ export async function oldCollectionTarget(brandId: string, handle: string): Prom
   return found ? `/coleccion/${found.slug}` : "/coleccion";
 }
 
+/// /coleccion/{slug} que no existe (un link del menú o repartido que
+/// apunta a una colección que se agrupó, se renombró o se borró): busca el
+/// redirect guardado de la tienda anterior, una colección con ese nombre,
+/// una parecida, y si no hay nada, "todas las categorías". Null solo si
+/// la marca no tiene colecciones. Antes era un 404 pelado (2026-10-18,
+/// "Esto pasa al querer entrar a Extensiones").
+export async function fallbackCollectionTarget(brandId: string, slug: string): Promise<string | null> {
+  const self = `/coleccion/${slug}`;
+  const saved = await resolveRedirect(brandId, `/collections/${slug}`);
+  if (saved && saved !== self) return saved;
+  const key = slugify(slug.toLowerCase());
+  const all = await prisma.brandCollection.findMany({
+    where: { brandId },
+    select: { slug: true, name: true },
+    orderBy: { position: "asc" },
+  });
+  if (all.length === 0) return null;
+  const exact = all.find((c) => c.slug === key || slugify(c.name) === key);
+  if (exact && exact.slug !== slug) return `/coleccion/${exact.slug}`;
+  if (key.length >= 4) {
+    const partial = all.find((c) => c.slug.includes(key) || key.includes(c.slug) || slugify(c.name).includes(key));
+    if (partial && partial.slug !== slug) return `/coleccion/${partial.slug}`;
+  }
+  return "/coleccion";
+}
+
 /// /pages/{handle} → la página propia; si no existe, la portada.
 export async function oldPageTarget(brandId: string, handle: string): Promise<string> {
   const saved = await resolveRedirect(brandId, `/pages/${handle}`);

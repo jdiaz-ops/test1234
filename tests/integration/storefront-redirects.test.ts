@@ -6,6 +6,7 @@ import { importShopifyCollections } from "@/server/services/shopify-collections-
 import { importShopifyProducts } from "@/server/services/shopify-csv-import-service";
 import { importShopifyPages } from "@/server/services/shopify-pages-import-service";
 import {
+  fallbackCollectionTarget,
   normalizeOldPath,
   oldCollectionTarget,
   oldPageTarget,
@@ -122,5 +123,29 @@ describe.skipIf(!hasDb)("links viejos de la tienda anterior", () => {
     expect(saved.description).not.toContain("cdn.shopify.com");
     expect(saved.description).toMatch(/src="\/uploads\/marcas\/.+\/fotos\/[a-f0-9]+\.webp"/);
     await rm(path.join(process.cwd(), "public", result.saved[0].newUrl), { force: true });
+  });
+});
+
+describe.skipIf(!hasDb)("colección que ya no tiene ese slug", () => {
+  it("se resuelve por el redirect viejo, por nombre o por parecido, y si no, a todas las categorías", async () => {
+    const brand = await createBrand();
+    await prisma.brandCollection.createMany({
+      data: [
+        { brandId: brand.id, name: "Extensiones y tips", slug: "extensiones-y-tips", position: 0 },
+        { brandId: brand.id, name: "Gel Polish", slug: "gel-polish", position: 1 },
+      ],
+    });
+    // Nombre igual, slug distinto (la marca renombró el slug).
+    expect(await fallbackCollectionTarget(brand.id, "gel-polish-2")).toBe("/coleccion/gel-polish");
+    // Parecido: "extensiones" está dentro de "extensiones-y-tips".
+    expect(await fallbackCollectionTarget(brand.id, "extensiones")).toBe("/coleccion/extensiones-y-tips");
+    // Nada parecido: todas las categorías.
+    expect(await fallbackCollectionTarget(brand.id, "pedicura")).toBe("/coleccion");
+    // Un redirect guardado de la tienda anterior manda.
+    await saveRedirects(brand.id, [{ fromPath: "/collections/pedicura", toPath: "/coleccion/gel-polish" }]);
+    expect(await fallbackCollectionTarget(brand.id, "pedicura")).toBe("/coleccion/gel-polish");
+    // Sin colecciones no hay a dónde mandar.
+    const empty = await createBrand();
+    expect(await fallbackCollectionTarget(empty.id, "extensiones")).toBeNull();
   });
 });
