@@ -52,6 +52,11 @@ export type PaymentProviderSpec = {
   checkoutHint: string;
   /// Nota para el modo de prueba (cómo se prueba sin cobrar de verdad).
   testHint: string;
+  /// Qué hacer, en pasos cortos, en el paso "Conecta tus pagos" del
+  /// Dashboard (pedido del 2026-10-19: "para cada uno las instrucciones
+  /// cortas de qué hacer"). "Tu URL de avisos" es la de `webhook`. Solo
+  /// las que se ofrecen hoy; las demás muestran keysHint/testHint.
+  steps?: Record<PaymentModeId, string[]>;
 };
 
 const CARD = { mark: "CARD", markClass: "bg-slate-800 text-white" };
@@ -104,6 +109,20 @@ export const PAYMENT_PROVIDERS: Record<PaymentProviderId, PaymentProviderSpec> =
     refundHint: "tu panel de Wompi (Transacciones → la del pedido → Anular o reembolsar)",
     checkoutHint: "Al tocar Pagar ahora se abre Wompi para completar tu compra.",
     testHint: "Con las llaves de prueba de Wompi puedes hacer compras de ensayo con sus tarjetas de prueba.",
+    steps: {
+      PRODUCTION: [
+        "Entra a comercios.wompi.co → Desarrolladores.",
+        "Copia las 4 llaves de producción (pública, privada, eventos e integridad) y pégalas aquí.",
+        "En «URL de eventos» de producción, pega tu URL de avisos (está abajo).",
+        "Toca «Guardar y empezar a cobrar».",
+      ],
+      TEST: [
+        "Entra a comercios.wompi.co → Desarrolladores.",
+        "Copia las 4 llaves de pruebas (empiezan por pub_test_, prv_test_, test_events_ y test_integrity_) y pégalas aquí.",
+        "En «URL de eventos» de pruebas, pega tu URL de avisos (está abajo).",
+        "Toca «Guardar y probar» y haz una compra de ensayo con las tarjetas de prueba de Wompi.",
+      ],
+    },
   },
   MERCADO_PAGO: {
     id: "MERCADO_PAGO",
@@ -139,6 +158,20 @@ export const PAYMENT_PROVIDERS: Record<PaymentProviderId, PaymentProviderSpec> =
     checkoutHint: "Al tocar Pagar ahora pasas a Mercado Pago para completar tu compra y vuelves a la tienda al terminar.",
     testHint:
       "Con el Access Token de prueba (empieza por TEST-) los cobros son de ensayo: Mercado Pago pide pagar con un usuario de prueba de tu aplicación.",
+    steps: {
+      PRODUCTION: [
+        "Entra a mercadopago.com.co/developers → Tus integraciones y abre tu aplicación (o crea una).",
+        "En «Credenciales de producción», copia el Access Token (empieza por APP_USR-) y pégalo aquí.",
+        "En «Webhooks», pega tu URL de avisos (está abajo) en modo productivo y marca el evento «Pagos».",
+        "Toca «Guardar y empezar a cobrar».",
+      ],
+      TEST: [
+        "Entra a mercadopago.com.co/developers → Tus integraciones y abre tu aplicación (o crea una).",
+        "En «Credenciales de prueba», copia el Access Token (empieza por TEST-) y pégalo aquí.",
+        "En «Webhooks», pega tu URL de avisos (está abajo) en modo de prueba y marca el evento «Pagos».",
+        "Toca «Guardar y probar» y paga con un usuario de prueba de tu aplicación (en «Cuentas de prueba»): con tu propia cuenta no se puede.",
+      ],
+    },
   },
   PAYU: {
     id: "PAYU",
@@ -200,6 +233,18 @@ export const PAYMENT_PROVIDERS: Record<PaymentProviderId, PaymentProviderSpec> =
     refundHint: "tu panel de ePayco (Transacciones → la del pedido → Reversar)",
     checkoutHint: "Al tocar Pagar ahora se abre ePayco para completar tu compra.",
     testHint: "Las mismas llaves sirven para probar: en modo de prueba la ventana de ePayco abre en su ambiente de pruebas y no cobra de verdad.",
+    steps: {
+      PRODUCTION: [
+        "Entra a tu panel de ePayco → Integraciones → Llaves API y copia la PUBLIC_KEY.",
+        "En Configuración → Personalizaciones → Llaves secretas, copia P_CUST_ID_CLIENTE y P_KEY.",
+        "Pégalas aquí y toca «Guardar y empezar a cobrar». Con ePayco no hay URL que pegar.",
+      ],
+      TEST: [
+        "Entra a tu panel de ePayco → Integraciones → Llaves API y copia la PUBLIC_KEY.",
+        "En Configuración → Personalizaciones → Llaves secretas, copia P_CUST_ID_CLIENTE y P_KEY.",
+        "Pégalas aquí y toca «Guardar y probar». Son las mismas llaves de cobrar: en modo de prueba ePayco no cobra de verdad.",
+      ],
+    },
   },
   BOLD: {
     id: "BOLD",

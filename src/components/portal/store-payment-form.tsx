@@ -460,7 +460,15 @@ export function StorePaymentForm({
               ¿No tienes cuenta? Créala →
             </a>
           </div>
-          <p className="-mt-1 text-xs text-brand-ink-soft">{testMode ? spec.testHint : spec.keysHint}</p>
+          {spec.steps ? (
+            <ol className="list-decimal space-y-0.5 pl-4 text-xs text-brand-ink-soft">
+              {spec.steps[testMode ? "TEST" : "PRODUCTION"].map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          ) : (
+            <p className="-mt-1 text-xs text-brand-ink-soft">{testMode ? spec.testHint : spec.keysHint}</p>
+          )}
           <KeysSection
             provider={provider}
             mode={testMode ? "TEST" : "PRODUCTION"}
@@ -471,7 +479,7 @@ export function StorePaymentForm({
           />
           {spec.webhook && current.webhookUrl && (
             <div>
-              <p className="mb-1 text-xs text-brand-ink">Pega esta URL en {spec.webhook.where}</p>
+              <p className="mb-1 text-xs text-brand-ink">{spec.steps ? "Tu URL de avisos" : `Pega esta URL en ${spec.webhook.where}`}</p>
               <CopyField value={current.webhookUrl} />
             </div>
           )}
