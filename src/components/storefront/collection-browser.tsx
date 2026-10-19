@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ProductCard, type CardProduct } from "@/components/storefront/product-card";
+import { COLOR_FAMILY_FACET, colorFamilySwatch } from "@/lib/color-families";
 import {
   EMPTY_FILTERS,
   activeFilterCount,
@@ -58,6 +59,9 @@ function FacetGroup({
           <li key={v.value}>
             <label className="flex items-center gap-2 text-sm text-brand-ink cursor-pointer">
               <input type="checkbox" checked={chosen.includes(v.value)} onChange={() => onToggle(v.value)} className="accent-brand-ink" />
+              {facet.key === COLOR_FAMILY_FACET && colorFamilySwatch(v.value) && (
+                <span aria-hidden className="w-3.5 h-3.5 shrink-0 rounded-full border border-brand-line" style={{ background: colorFamilySwatch(v.value)! }} />
+              )}
               <span className="flex-1 truncate">{v.value}</span>
               <span className="text-xs text-brand-ink-soft tabular-nums">{v.count}</span>
             </label>

@@ -8,6 +8,7 @@ import {
   facetKey,
   priceBuckets,
 } from "@/lib/collection-filters";
+import { COLOR_FAMILY_ATTRIBUTE, COLOR_FAMILY_FACET, compareColorFamilies, withColorFamily } from "@/lib/color-families";
 
 const gel = (id: string, grupo: string, tono: string, price = 15900, stock: number | null = 5) => ({
   id,
@@ -92,5 +93,27 @@ describe("filtros de colección", () => {
     expect(buckets[0].label).toMatch(/^Hasta \$/);
     expect(buckets[buckets.length - 1].label).toMatch(/^Más de \$/);
     expect(buckets[buckets.length - 1].max).toBeNull();
+  });
+
+  it("la familia de color va primero y en el orden de la paleta", () => {
+    expect(facetKey(COLOR_FAMILY_ATTRIBUTE)).toBe(COLOR_FAMILY_FACET);
+    const products = [
+      { ...gel("1", "Builder", "Clear"), attributes: { Tono: "Clear", [COLOR_FAMILY_ATTRIBUTE]: "Transparentes" } },
+      { ...gel("2", "Builder", "Pink"), attributes: { Tono: "Pink", [COLOR_FAMILY_ATTRIBUTE]: "Rosados" } },
+      { ...gel("3", "Builder", "Hot pink"), attributes: { Tono: "Hot pink", [COLOR_FAMILY_ATTRIBUTE]: "Rosados" } },
+      { ...gel("4", "Builder", "Beige"), attributes: { Tono: "Beige", [COLOR_FAMILY_ATTRIBUTE]: "Nudes" } },
+    ];
+    const { facets } = buildFacets(products);
+    expect(facets[0]).toEqual({
+      key: COLOR_FAMILY_FACET,
+      label: COLOR_FAMILY_ATTRIBUTE,
+      values: [
+        { value: "Nudes", count: 1 },
+        { value: "Rosados", count: 2 },
+        { value: "Transparentes", count: 1 },
+      ],
+    });
+    expect(["Mi color", "Verdes", "Nudes"].sort(compareColorFamilies)).toEqual(["Nudes", "Verdes", "Mi color"]);
+    expect(withColorFamily({ Grupo: "X", [COLOR_FAMILY_ATTRIBUTE]: "Rojos" }, null)).toEqual({ Grupo: "X" });
   });
 });

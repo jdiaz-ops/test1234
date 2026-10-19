@@ -5,6 +5,7 @@
 /// configurar. Acá vive lo puro, sin React: facetas, coincidencia y
 /// orden. Ver conversación del 2026-10-18 ("un motor eficiente de
 /// filtrar… por tonos, por precio, por ml y demás").
+import { COLOR_FAMILY_FACET, compareColorFamilies } from "@/lib/color-families";
 
 export type FilterableVariant = {
   option1Value: string | null;
@@ -164,14 +165,18 @@ export function buildFacets(products: FilterableProduct[]): { facets: Facet[]; p
   const facets: Facet[] = [];
   for (const [key, facet] of byKey) {
     if (facet.counts.size < 2) continue;
-    const values = Array.from(facet.counts, ([value, count]) => ({ value, count })).sort(
-      (a, b) => b.count - a.count || a.value.localeCompare(b.value, "es", { numeric: true }),
+    // La familia de color va en el orden de la paleta (nudes, rosados,
+    // rojos…), no por cantidad: así se encuentra de un vistazo.
+    const values = Array.from(facet.counts, ([value, count]) => ({ value, count })).sort((a, b) =>
+      key === COLOR_FAMILY_FACET ? compareColorFamilies(a.value, b.value) : b.count - a.count || a.value.localeCompare(b.value, "es", { numeric: true }),
     );
     facets.push({ key, label: facet.label, values });
   }
-  // Las más útiles primero: pocas opciones claras antes que listas largas,
-  // y el tamaño al final.
+  // Las más útiles primero: la familia de color, después pocas opciones
+  // claras antes que listas largas, y el tamaño al final.
   facets.sort((a, b) => {
+    if (a.key === COLOR_FAMILY_FACET) return -1;
+    if (b.key === COLOR_FAMILY_FACET) return 1;
     if (a.key === facetKey(SIZE_LABEL)) return 1;
     if (b.key === facetKey(SIZE_LABEL)) return -1;
     return a.values.length - b.values.length;
