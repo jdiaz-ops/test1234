@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatShortDateTimeCo } from "@/lib/date-time-co";
 
 interface Message {
   id: string;
@@ -69,7 +70,7 @@ export function MessageThread({
                 >
                   <p className="whitespace-pre-wrap break-words">{m.body}</p>
                   <p className={`text-[10px] mt-1 ${isMine ? "text-white/70" : "text-brand-ink-soft"}`}>
-                    {new Date(m.createdAt).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {formatShortDateTimeCo(m.createdAt)}
                   </p>
                 </div>
               </div>

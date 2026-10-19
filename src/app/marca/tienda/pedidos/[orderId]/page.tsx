@@ -9,6 +9,7 @@ import { dataicoAllowed } from "@/lib/features";
 import { OrderInvoicePanel } from "@/components/portal/order-invoice-panel";
 import { prisma } from "@/lib/prisma";
 import { creatorVitrinaUrl } from "@/lib/creator-identity";
+import { formatDateTimeCo } from "@/lib/date-time-co";
 import {
   OrderItemsList,
   OrderFulfillmentPanel,
@@ -24,13 +25,8 @@ function formatCOP(cents: number) {
   }).format(cents / 100);
 }
 
-function formatDateTime(iso: string | Date) {
-  return new Date(iso).toLocaleString("es-CO", {
-    dateStyle: "long",
-    timeStyle: "short",
-    timeZone: "America/Bogota",
-  });
-}
+/// La misma forma que el panel del pedido (ver date-time-co.ts).
+const formatDateTime = formatDateTimeCo;
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Pendiente",

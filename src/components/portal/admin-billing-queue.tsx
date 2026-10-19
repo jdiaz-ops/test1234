@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatShortDateTimeCo } from "@/lib/date-time-co";
 
 type Item = {
   id: string;
@@ -68,7 +69,7 @@ function QueueRow({ item }: { item: Item }) {
           <p className="font-display font-semibold text-brand-ink">{item.brandName}</p>
           <p className="text-xs text-brand-ink-soft font-mono mt-0.5">
             {formatCOP(item.totalAmount)} — vence{" "}
-            {new Date(item.dueAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}
+            {formatShortDateTimeCo(item.dueAt, { year: true })}
           </p>
         </div>
         {item.proofUrl && (

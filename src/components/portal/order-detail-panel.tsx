@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CARRIERS } from "@/lib/carriers";
+import { formatDateTimeCo } from "@/lib/date-time-co";
 
 export type OrderDetailItem = {
   id: string;
@@ -23,13 +24,8 @@ function formatCOP(cents: number) {
   }).format(cents / 100);
 }
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("es-CO", {
-    dateStyle: "long",
-    timeStyle: "short",
-    timeZone: "America/Bogota",
-  });
-}
+/// Igual en el servidor y en el navegador (ver date-time-co.ts).
+const formatDateTime = formatDateTimeCo;
 
 /// La marca confirma (o ajusta) la fecha/hora de una reserva de servicio
 /// ya pagada, y si es virtual deja el link de la videollamada — antes

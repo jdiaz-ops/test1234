@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { WEBHOOK_TOPICS, webhookTopicLabel } from "@/lib/webhook-topics";
+import { formatShortDateTimeCo } from "@/lib/date-time-co";
 import { DataicoConnectionCard, type DataicoConnectionView } from "@/components/portal/dataico-connection-card";
 
 type Delivery = {
@@ -19,12 +20,6 @@ type Delivery = {
 
 type Webhook = { id: string; topic: string; url: string; deliveries: Delivery[] };
 
-const dateFormat = new Intl.DateTimeFormat("es-CO", {
-  day: "numeric",
-  month: "short",
-  hour: "numeric",
-  minute: "2-digit",
-});
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <section className={`rounded-2xl border border-brand-line bg-brand-surface ${className}`}>{children}</section>;
@@ -60,7 +55,7 @@ function DeliveryRow({ delivery }: { delivery: Delivery }) {
   return (
     <li className="py-2.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        <span className="text-brand-ink-soft tabular-nums w-28 shrink-0">{dateFormat.format(new Date(delivery.createdAt))}</span>
+        <span className="text-brand-ink-soft tabular-nums w-28 shrink-0">{formatShortDateTimeCo(delivery.createdAt)}</span>
         <StatusChip delivery={delivery} />
         {delivery.test && <span className="text-[11px] text-brand-ink-soft border border-brand-line rounded-md px-1.5 py-0.5">Prueba</span>}
         {delivery.status === "FAILED" && delivery.lastError && (
