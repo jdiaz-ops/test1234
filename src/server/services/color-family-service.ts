@@ -1,12 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { readFile } from "fs/promises";
-import path from "path";
 import sharp from "sharp";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { readProductAttributes } from "@/lib/product-attributes";
 import { COLOR_FAMILY_ATTRIBUTE, COLOR_FAMILY_NAMES, NO_COLOR, isColorFamily, withColorFamily, type ColorFamily } from "@/lib/color-families";
-import { downloadImage } from "@/server/services/shopify-design-import-service";
+import { readImageBytes } from "@/server/services/image-bytes";
 import type { FetchLike } from "@/server/services/shopify-store-reader";
 
 /// Familias de color con IA (ver color-families.ts): Claude mira la foto de
@@ -65,16 +63,7 @@ export async function listColorCandidates(brandId: string): Promise<ColorCandida
 /// (/uploads/…, en desarrollo) se leen del disco.
 async function thumbnail(url: string, fetchImpl: FetchLike): Promise<string | null> {
   try {
-    let bytes: Buffer;
-    if (url.startsWith("/uploads/")) {
-      const root = path.join(process.cwd(), "public");
-      const file = path.resolve(root, `.${url}`);
-      if (!file.startsWith(`${root}${path.sep}`)) return null;
-      bytes = await readFile(file);
-    } else {
-      const file = await downloadImage(url, "foto", fetchImpl, MAX_IMAGE_BYTES);
-      bytes = Buffer.from(await file.arrayBuffer());
-    }
+    const bytes = await readImageBytes(url, MAX_IMAGE_BYTES, fetchImpl);
     const out = await sharp(bytes, { failOn: "none" })
       .rotate()
       .resize({ width: THUMB_SIDE, height: THUMB_SIDE, fit: "inside", withoutEnlargement: true })

@@ -163,7 +163,15 @@ const designTypeSchema = withDefaults({
   /// íconos con variante "grueso/fino" (son mayormente emoji), así que
   /// este toggle todavía no cambia nada visible.
   boldIcons: z.boolean().default(false),
+  /// Espacio arriba y abajo de cada sección de la página de inicio (ver
+  /// SECTION_SPACING_PX). Antes cada sección traía 32 a 40 px por lado y
+  /// entre un título y lo que seguía quedaba un hueco enorme (pedido del
+  /// 2026-10-19: "el gap … es enorme … en todos").
+  sectionSpacing: z.enum(["compact", "normal", "wide"]).default("normal"),
 });
+
+/// Píxeles por lado [celular, computador] de cada sección de la portada.
+export const SECTION_SPACING_PX = { compact: [10, 16], normal: [16, 26], wide: [30, 44] } as const;
 
 // ----------------------------------------------------------------------------
 // Encabezado
@@ -534,6 +542,8 @@ export function themeToCssVars(theme: ThemeConfig): Record<string, string> {
     "--brand-button-text": contrastTextFor(colors.botones),
     "--font-display": fontStack(typography.headingFont),
     "--font-body": fontStack(typography.bodyFont),
+    "--section-pad-y": `${SECTION_SPACING_PX[theme.designType.sectionSpacing][0]}px`,
+    "--section-pad-y-lg": `${SECTION_SPACING_PX[theme.designType.sectionSpacing][1]}px`,
   };
 }
 

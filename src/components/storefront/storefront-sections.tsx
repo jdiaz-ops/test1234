@@ -31,6 +31,10 @@ import { ProductCard, toCardProduct, type CardProduct } from "@/components/store
 import { prisma } from "@/lib/prisma";
 
 
+/// Espacio arriba y abajo de cada sección, el de Diseño → Página de inicio
+/// → "Espacio entre secciones" (variables del layout, ver themeToCssVars).
+const SECTION_PAD = "py-[var(--section-pad-y,16px)] sm:py-[var(--section-pad-y-lg,26px)]";
+
 function trustIconEmoji(icon: string) {
   return TRUST_ICON_OPTIONS.find((i) => i.value === icon)?.emoji ?? null;
 }
@@ -172,7 +176,7 @@ async function FeaturedCollectionSection({
   if (products.length === 0) return null;
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
+    <div className={`max-w-[1600px] mx-auto px-4 sm:px-8 ${SECTION_PAD}`}>
       <div className="flex items-end justify-between gap-4 mb-4">
         <h2 className="font-display text-xl font-semibold text-brand-ink">
           {config.title || collection.name}
@@ -204,12 +208,20 @@ async function FeaturedCollectionSection({
   );
 }
 
-function TextSection({ config }: { config: TextConfig }) {
+/// `asHeading`: un título solo (sin párrafo) seguido de otra sección es el
+/// título de esa sección ("Compra por categoría" sobre la cuadrícula): va
+/// sin espacio abajo, pegado a lo que titula.
+function TextSection({ config, asHeading = false }: { config: TextConfig; asHeading?: boolean }) {
   if (!config.heading && !config.body) return null;
+  const titleOnly = asHeading && !config.body;
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 text-center">
+    <div
+      className={`max-w-[1600px] mx-auto px-4 sm:px-8 text-center ${
+        titleOnly ? "pt-[var(--section-pad-y,16px)] sm:pt-[var(--section-pad-y-lg,26px)]" : SECTION_PAD
+      }`}
+    >
       {config.heading && (
-        <h2 className="font-display text-xl font-semibold text-brand-ink mb-2">
+        <h2 className={`font-display text-xl font-semibold text-brand-ink ${titleOnly ? "" : "mb-2"}`}>
           {config.heading}
         </h2>
       )}
@@ -249,7 +261,7 @@ function ShippingInfoBannersSection({ config }: { config: ShippingInfoBannersCon
   const items = config.items.filter((i) => i.show && (i.title || i.description || i.imageUrl));
   if (items.length === 0) return null;
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8">
+    <div className={`max-w-[1600px] mx-auto px-4 sm:px-8 ${SECTION_PAD}`}>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {items.map((item, i) => {
           const emoji = trustIconEmoji(item.icon);
@@ -307,7 +319,7 @@ async function CategoryBannersSection({
   if (items.length === 0) return null;
 
   return (
-    <div className={`max-w-[1600px] mx-auto ${config.extendFullWidth ? "px-0" : "px-4 sm:px-8"} py-8`}>
+    <div className={`max-w-[1600px] mx-auto ${config.extendFullWidth ? "px-0" : "px-4 sm:px-8"} ${SECTION_PAD}`}>
       <div className={`grid gap-3 ${items.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-3"}`}>
         {items.map((item, i) => (
           <Link
@@ -352,7 +364,7 @@ async function CategoryGridSection({
   if (items.length === 0) return null;
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8">
+    <div className={`max-w-[1600px] mx-auto px-4 sm:px-8 ${SECTION_PAD}`}>
       {(config.title || config.subtitle) && (
         <div className="mb-4">
           {config.title && (
@@ -411,7 +423,7 @@ function PromoBannersSection({ config, basePath }: { config: PromoBannersConfig;
   const items = config.items.filter((i) => i.show && i.imageUrl);
   if (items.length === 0) return null;
   return (
-    <div className={`max-w-[1600px] mx-auto ${config.extendFullWidth ? "px-0" : "px-4 sm:px-8"} py-8`}>
+    <div className={`max-w-[1600px] mx-auto ${config.extendFullWidth ? "px-0" : "px-4 sm:px-8"} ${SECTION_PAD}`}>
       <div className={`grid gap-3 ${items.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-3"}`}>
         {items.map((item, i) => {
           const href = resolveLink(item.link, basePath);
@@ -449,7 +461,7 @@ function ProductGrid({
 }) {
   if (products.length === 0) return null;
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
+    <div className={`max-w-[1600px] mx-auto px-4 sm:px-8 ${SECTION_PAD}`}>
       {title && (
         <h2 className="font-display text-xl font-semibold text-brand-ink mb-4">{title}</h2>
       )}
@@ -581,7 +593,7 @@ function BrandCarouselSection({ config }: { config: BrandCarouselConfig }) {
   const items = config.items.filter((i) => i.imageUrl);
   if (items.length === 0) return null;
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8">
+    <div className={`max-w-[1600px] mx-auto px-4 sm:px-8 ${SECTION_PAD}`}>
       <div className="flex items-center gap-6 overflow-x-auto">
         {items.map((item, i) => {
           // eslint-disable-next-line @next/next/no-img-element -- logo subido por la marca
@@ -611,7 +623,7 @@ function VideoSection({ config }: { config: VideoConfig }) {
   const embedUrl = config.url ? embedVideoUrl(config.url) : null;
   if (!embedUrl) return null;
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
+    <div className={`max-w-[1600px] mx-auto px-4 sm:px-8 ${SECTION_PAD}`}>
       {config.title && (
         <h2 className="font-display text-xl font-semibold text-brand-ink mb-4">{config.title}</h2>
       )}
@@ -641,7 +653,7 @@ function InstagramCtaSection({
       href={`https://instagram.com/${instagramHandle.replace(/^@/, "")}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="block max-w-[1600px] mx-auto px-4 sm:px-8 py-8 text-center hover:opacity-90"
+      className={`block max-w-[1600px] mx-auto px-4 sm:px-8 ${SECTION_PAD} text-center hover:opacity-90`}
     >
       <p className="font-display text-lg font-semibold text-brand-ink">{config.title}</p>
       {config.description && (
@@ -837,9 +849,15 @@ function CustomBlockSection({ config, basePath }: { config: CustomBlockConfig; b
   return (
     <section
       style={{ backgroundColor: config.background || undefined, color: config.textColor || undefined }}
-      className={config.background ? "py-4" : ""}
     >
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">{inner}</div>
+      {/* Con fondo de color, un poco más de aire adentro de la franja. */}
+      <div
+        className={`max-w-[1600px] mx-auto px-4 sm:px-8 ${
+          config.background ? "py-[calc(var(--section-pad-y,16px)*1.75)] sm:py-[calc(var(--section-pad-y-lg,26px)*1.5)]" : SECTION_PAD
+        }`}
+      >
+        {inner}
+      </div>
     </section>
   );
 }
@@ -865,7 +883,7 @@ async function ProductCatalogSection({
 }) {
   const products = await listStorefrontProducts(brandId, { showSoldOut });
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">
+    <div className={`max-w-[1600px] mx-auto px-4 sm:px-8 ${SECTION_PAD}`}>
       {config.title && (
         <h2 className="font-display text-xl font-semibold text-brand-ink mb-4">{config.title}</h2>
       )}
@@ -908,7 +926,7 @@ export async function StorefrontSections({
   if (sections.length === 0) return null;
   return (
     <>
-      {sections.map((s) => {
+      {sections.map((s, index) => {
         switch (s.type) {
           case "BANNER":
             return <BannerSection key={s.id} config={s.config as BannerConfig} basePath={basePath} />;
@@ -922,8 +940,13 @@ export async function StorefrontSections({
                 showSoldOut={showSoldOut}
               />
             );
-          case "TEXT":
-            return <TextSection key={s.id} config={s.config as TextConfig} />;
+          case "TEXT": {
+            // Pegado a lo que sigue, salvo que sea una foto a lo ancho (no
+            // trae espacio propio y el título quedaría encima de la foto).
+            const next = sections[index + 1]?.type;
+            const asHeading = Boolean(next) && next !== "BANNER" && next !== "IMAGE_CAROUSEL";
+            return <TextSection key={s.id} config={s.config as TextConfig} asHeading={asHeading} />;
+          }
           case "IMAGE_CAROUSEL":
             return <ImageCarouselSection key={s.id} config={s.config as ImageCarouselConfig} />;
           case "SHIPPING_INFO_BANNERS":

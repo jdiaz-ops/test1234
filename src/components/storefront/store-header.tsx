@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useCart } from "@/components/storefront/cart-context";
 import { useStorefrontTheme } from "@/components/storefront/storefront-theme-context";
 import { resolveColorRef } from "@/lib/brand-theme";
+import { storefrontLogoSrc } from "@/lib/logo-src";
 import { CartIcon } from "@/components/storefront/mobile-nav-icons";
 
 export type StoreHeaderMenuItem = { id: string; label: string; url: string; children?: StoreHeaderMenuItem[] };
@@ -226,12 +227,12 @@ export function StoreHeader({
       {logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- logo subido por la marca
         <img
-          src={logoUrl}
+          src={storefrontLogoSrc(brandSlug, logoUrl) ?? logoUrl}
           alt={brandName}
           className={
             header.logoSize === "custom"
               ? `${LOGO_HEIGHT_CLASS.custom} object-contain`
-              : `${LOGO_HEIGHT_CLASS[header.logoSize]} w-auto max-w-[calc(100vw-8.5rem)] sm:max-w-[180px] object-contain`
+              : `${LOGO_HEIGHT_CLASS[header.logoSize]} w-auto max-w-[min(220px,calc(100vw-8.5rem))] sm:max-w-[180px] object-contain`
           }
           style={header.logoSize === "custom" ? { width: header.logoWidth } : undefined}
         />

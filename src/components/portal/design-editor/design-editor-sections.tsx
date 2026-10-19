@@ -279,6 +279,26 @@ export function TypographySection({ theme, patch }: { theme: ThemeConfig; patch:
 // Tipo de diseño
 // ----------------------------------------------------------------------------
 
+/// Arriba de las secciones de la página de inicio: cuánto aire lleva cada
+/// una. Pedido del 2026-10-19 ("el gap … es enorme … en todos").
+export function SectionSpacingSection({ theme, patch }: { theme: ThemeConfig; patch: PatchFn }) {
+  return (
+    <div className="mb-5 max-w-sm">
+      <Field label="Espacio entre secciones" hint="El aire arriba y abajo de cada sección. Un título solo queda pegado a lo que sigue.">
+        <select
+          value={theme.designType.sectionSpacing}
+          onChange={(e) => patch({ designType: { sectionSpacing: e.target.value } })}
+          className="input text-sm"
+        >
+          <option value="compact">Compacto</option>
+          <option value="normal">Normal</option>
+          <option value="wide">Amplio</option>
+        </select>
+      </Field>
+    </div>
+  );
+}
+
 export function DesignTypeSection({ theme, patch }: { theme: ThemeConfig; patch: PatchFn }) {
   return (
     <div className="space-y-6 max-w-sm">

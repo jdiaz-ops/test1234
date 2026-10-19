@@ -1,10 +1,8 @@
-import { readFile } from "fs/promises";
-import path from "path";
 import sharp from "sharp";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { PhotoShape } from "@/lib/brand-theme";
-import { downloadImage } from "@/server/services/shopify-design-import-service";
+import { readImageBytes } from "@/server/services/image-bytes";
 import type { FetchLike } from "@/server/services/shopify-store-reader";
 
 /// La forma de las tarjetas de producto en "Automática" (Diseño → Página de
@@ -52,16 +50,7 @@ function smallerVariant(url: string) {
 
 async function photoRatio(url: string, fetchImpl: FetchLike): Promise<number | null> {
   try {
-    let bytes: Buffer;
-    if (url.startsWith("/uploads/")) {
-      const root = path.join(process.cwd(), "public");
-      const file = path.resolve(root, `.${url}`);
-      if (!file.startsWith(`${root}${path.sep}`)) return null;
-      bytes = await readFile(file);
-    } else {
-      const file = await downloadImage(smallerVariant(url), "foto", fetchImpl, MAX_IMAGE_BYTES);
-      bytes = Buffer.from(await file.arrayBuffer());
-    }
+    const bytes = await readImageBytes(smallerVariant(url), MAX_IMAGE_BYTES, fetchImpl);
     const meta = await sharp(bytes, { failOn: "none" }).metadata();
     if (!meta.width || !meta.height) return null;
     // Fotos de celular giradas por los datos de la cámara.

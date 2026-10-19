@@ -16,6 +16,7 @@ import {
   CartSection,
   MobileNavSection,
   PopupSection,
+  SectionSpacingSection,
   type Patch,
 } from "./design-editor-sections";
 import {
@@ -283,7 +284,12 @@ export function DesignEditorPanel({
               <StorefrontMenuPanel initialItems={initialMenuItems} importTools={menuImportTools} storeUrl={originalStoreUrl} />
             </>
           )}
-          {active === "sections" && <StorefrontSectionsPanel initialSections={initialSections} />}
+          {active === "sections" && (
+            <>
+              <SectionSpacingSection theme={theme} patch={patch} />
+              <StorefrontSectionsPanel initialSections={initialSections} />
+            </>
+          )}
           {active === "announcement" && <AnnouncementSection theme={theme} patch={patch} />}
           {active === "footer" && <FooterSection theme={theme} patch={patch} />}
           {active === "productListing" && <ProductListingSection theme={theme} patch={patch} />}
