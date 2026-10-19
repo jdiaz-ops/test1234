@@ -4,17 +4,17 @@ import { useState } from "react";
 
 /// Configuración → Píxeles de anuncios. La marca pega su Pixel ID (o el
 /// código completo; el servidor saca el número) y su tienda queda conectada
-/// a Meta / TikTok. Ver lib/ad-pixels.ts.
+/// a Meta / TikTok. Ver lib/ad-pixels.ts. Solo los tres campos, sin textos
+/// de ayuda (pedido del 2026-10-19: "aquí va Meta, aquí va TikTok, aquí va
+/// Google. Sencillo").
 export function AdPixelsForm({
   initialMetaPixelId,
   initialTiktokPixelId,
   initialGoogleAnalyticsId = "",
-  storeUrl,
 }: {
   initialMetaPixelId: string;
   initialTiktokPixelId: string;
   initialGoogleAnalyticsId?: string;
-  storeUrl: string | null;
 }) {
   const [meta, setMeta] = useState(initialMetaPixelId);
   const [tiktok, setTiktok] = useState(initialTiktokPixelId);
@@ -57,18 +57,12 @@ export function AdPixelsForm({
 
   return (
     <form onSubmit={save} className="space-y-6 max-w-2xl">
-      <p className="text-sm text-brand-ink-soft">
-        Pega el ID de tu pixel y tu tienda queda conectada: Meta y TikTok sabrán
-        qué anuncio trajo cada visita y cada venta, y podrás hacer remarketing.
-      </p>
-
       <PixelField
         label="Pixel de Meta (Facebook e Instagram)"
         value={meta}
         onChange={setMeta}
         active={!!saved.meta}
         placeholder="Ej. 1234567890123456"
-        help="En el Administrador de eventos de Meta: Orígenes de datos → tu pixel. Es el número que aparece debajo del nombre (Identificador)."
       />
 
       <PixelField
@@ -77,7 +71,6 @@ export function AdPixelsForm({
         onChange={setTiktok}
         active={!!saved.tiktok}
         placeholder="Ej. CABC123DEF456GHI789J0"
-        help="En TikTok Ads Manager: Herramientas → Eventos → Eventos web → tu pixel. Es el código que aparece debajo del nombre (ID del pixel)."
       />
 
       <PixelField
@@ -86,30 +79,7 @@ export function AdPixelsForm({
         onChange={setGa}
         active={!!saved.ga}
         placeholder="Ej. G-ABC123XYZ"
-        help="En Google Analytics: Administrar → Flujos de datos → tu sitio web. Es el ID de medición, que empieza por G-. Solo mide visitas."
       />
-
-      <div className="rounded-xl border border-brand-line bg-brand-bg p-4 text-xs text-brand-ink-soft space-y-1.5">
-        <p className="font-medium text-brand-ink">Qué le avisamos a tu pixel</p>
-        <p>
-          Visitas a tu tienda · Producto visto · Agregar al carrito · Inicio de
-          pago · Compra (con el valor del pedido en COP)
-        </p>
-        <p>
-          Puedes pegar solo el ID o el código completo que te da Meta o TikTok;
-          nosotros sacamos el número.
-        </p>
-        {storeUrl && (
-          <p>
-            Para probarlo, abre{" "}
-            <a href={storeUrl} target="_blank" rel="noreferrer" className="text-brand-accent hover:underline">
-              tu tienda
-            </a>{" "}
-            con la extensión Meta Pixel Helper o TikTok Pixel Helper de Chrome, o
-            en la sección &ldquo;Probar eventos&rdquo; de cada plataforma.
-          </p>
-        )}
-      </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -133,14 +103,12 @@ function PixelField({
   onChange,
   active,
   placeholder,
-  help,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   active: boolean;
   placeholder: string;
-  help: string;
 }) {
   return (
     <div>
@@ -160,7 +128,6 @@ function PixelField({
         autoComplete="off"
         className="input text-sm font-mono"
       />
-      <p className="text-xs text-brand-ink-soft mt-1">{help}</p>
     </div>
   );
 }

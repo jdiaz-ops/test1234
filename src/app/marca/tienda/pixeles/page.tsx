@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { SettingsShell } from "@/components/portal/settings-shell";
 import { AdPixelsForm } from "@/components/portal/ad-pixels-form";
-import { publicStoreUrl } from "@/lib/store-url";
 
 export default async function TiendaPixelesPage() {
   const profile = await requireBrandProfile();
@@ -14,7 +13,6 @@ export default async function TiendaPixelesPage() {
         initialMetaPixelId={profile.metaPixelId ?? ""}
         initialGoogleAnalyticsId={profile.googleAnalyticsId ?? ""}
         initialTiktokPixelId={profile.tiktokPixelId ?? ""}
-        storeUrl={publicStoreUrl(profile)}
       />
     </SettingsShell>
   );
