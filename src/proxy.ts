@@ -8,6 +8,7 @@ const roleHome: Record<string, string> = {
   CREATOR: "/creador",
   BRAND: "/marca",
   ADMIN: "/admin",
+  ALLY: "/aliado",
 };
 
 /// Atribución por cookie de primera parte (complementa el código de
@@ -160,14 +161,18 @@ export default auth(async (req) => {
     return NextResponse.redirect(url, 308);
   }
 
-  const protectedPrefixes = ["/creador", "/marca", "/admin"];
-  const matchedPrefix = protectedPrefixes.find((p) => pathname.startsWith(p));
+  const protectedPrefixes = ["/creador", "/marca", "/admin", "/aliado"];
+  // "/aliado/entrar" es donde el aliado usa el link de su correo: no tiene
+  // sesión todavía. Y "/aliados…" (otra palabra) no es el portal.
+  const matchedPrefix = protectedPrefixes.find((p) => pathname === p || pathname.startsWith(`${p}/`) || (p !== "/aliado" && pathname.startsWith(p)));
+  if (pathname === "/aliado/entrar") return NextResponse.next();
 
   if (!matchedPrefix) return NextResponse.next();
 
-  // Sin sesión: al login, recordando a dónde quería ir.
+  // Sin sesión: al login, recordando a dónde quería ir. El aliado entra
+  // con el link de su correo, no con contraseña.
   if (!session?.user) {
-    const url = new URL("/login", req.nextUrl.origin);
+    const url = new URL(matchedPrefix === "/aliado" ? "/aliado/entrar" : "/login", req.nextUrl.origin);
     url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);
   }

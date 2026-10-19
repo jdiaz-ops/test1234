@@ -25,6 +25,8 @@ enum UserRole {
   CREATOR
   BRAND
   ADMIN
+  /// Aliado comercial: presenta marcas y creadoras (ver AllyProfile).
+  ALLY
 }
 
 /// Roles internos del Panel Admin — permisos limitados por rol (Fase 2, pero
@@ -52,6 +54,7 @@ model User {
 
   creatorProfile CreatorProfile?
   brandProfile   BrandProfile?
+  allyProfile    AllyProfile?
 
   notifications Notification[]
   deviceTokens  DeviceToken[]
@@ -272,6 +275,8 @@ model CreatorProfile {
   /// como mucho, por quién fue invitado él mismo (referred, único).
   referralsMade CreatorReferral[] @relation("ReferralsMade")
   referredBy    CreatorReferral?  @relation("ReferralsReceived")
+  /// El aliado comercial que la presentó, si lo hay (ver AllyReferral).
+  allyReferral  AllyReferral?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -774,6 +779,8 @@ model BrandProfile {
 
   storeOrders         StoreOrder[]
   storeSaleFees       StoreSaleFee[]
+  /// El aliado comercial que la presentó, si lo hay (ver AllyReferral).
+  allyReferral        AllyReferral?
   productReviews      ProductReview[]
   sampleRequests      SampleRequest[]
   contentLicenses     ContentLicense[]
@@ -2910,4 +2917,154 @@ model StoreSaleFee {
 enum StoreSaleFeeStatus {
   PENDING // causada, entra al próximo corte
   REVERSED // la venta se devolvió antes del corte
+}
+
+// ----------------------------------------------------------------------------
+// ALIADOS COMERCIALES (2026-10-19)
+// Personas que presentan marcas y creadoras a Marcolini: ganan un % de las
+// ventas de cada una (2,5 % marca, 1,25 % creadora) durante 6 meses desde su
+// primera venta, pagado de la tarifa de Marcolini. Un solo nivel; si trajo la
+// marca y la creadora, gana por las dos. La marca y la creadora no ven nada
+// del aliado; el aliado solo ve sus nombres y los totales de ventas por mes
+// (ver términos, sección "Aliados comerciales", y ally-service.ts).
+// ----------------------------------------------------------------------------
+
+enum AllyStatus {
+  ACTIVE
+  PAUSED // su link deja de recibir solicitudes; lo ganado se le sigue pagando
+}
+
+model AllyProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name   String
+  phone  String?
+  /// Su link propio: marcolini.lat/unete/{code}.
+  code   String     @unique
+  status AllyStatus @default(ACTIVE)
+
+  /// Lo que gana, en puntos básicos (250 = 2,5 %), y por cuántos meses desde
+  /// la primera venta. Se copia a cada AllyReferral al vincularla, para que
+  /// cambiarlo después no toque lo ya acordado.
+  brandRateBps   Int @default(250)
+  creatorRateBps Int @default(125)
+  windowMonths   Int @default(6)
+
+  /// Datos para pagarle (los llena en su portal).
+  legalName         String?
+  documentType      String?
+  documentNumber    String?
+  payoutMethod      CreatorPayoutMethod?
+  breBKey           String?
+  bankName          String?
+  bankAccountType   String?
+  bankAccountNumber String?
+
+  leads     AllyLead[]
+  referrals AllyReferral[]
+  payouts   AllyPayout[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum AllyLeadKind {
+  BRAND
+  CREATOR
+}
+
+enum AllyLeadStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Solicitud que llegó por el link de un aliado ("Soy marca" / "Soy
+/// creadora"). Marcolini la revisa y, si entra, la vincula a la marca o
+/// creadora que se crea (AllyReferral).
+model AllyLead {
+  id     String      @id @default(cuid())
+  allyId String
+  ally   AllyProfile @relation(fields: [allyId], references: [id], onDelete: Cascade)
+
+  kind        AllyLeadKind
+  /// Marca: el nombre de la marca. Creadora: su nombre.
+  name        String
+  /// Marca: el nombre de quien la llena.
+  contactName String?
+  phone       String
+  /// Marca: Instagram o web. Creadora: Instagram.
+  instagram   String?
+  /// Solo creadora.
+  city        String?
+  /// Prueba de la autorización de datos (Ley 1581).
+  consentAt   DateTime
+
+  status     AllyLeadStatus @default(PENDING)
+  reviewedAt DateTime?
+
+  referral AllyReferral?
+
+  createdAt DateTime @default(now())
+
+  @@index([allyId, createdAt])
+  @@index([status])
+}
+
+/// Una marca o creadora que trajo un aliado. Una marca o creadora solo la
+/// pudo traer un aliado.
+model AllyReferral {
+  id     String      @id @default(cuid())
+  allyId String
+  ally   AllyProfile @relation(fields: [allyId], references: [id], onDelete: Cascade)
+
+  leadId String?   @unique
+  lead   AllyLead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  brandId   String?         @unique
+  brand     BrandProfile?   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  creatorId String?         @unique
+  creator   CreatorProfile? @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  rateBps      Int
+  windowMonths Int
+  /// Su primera venta en Marcolini: desde ahí corren los meses. Null =
+  /// todavía no vende.
+  firstSaleAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([allyId])
+}
+
+/// Lo que se le pagó a un aliado por un mes.
+model AllyPayout {
+  id     String      @id @default(cuid())
+  allyId String
+  ally   AllyProfile @relation(fields: [allyId], references: [id], onDelete: Cascade)
+
+  /// El mes que paga: las 00:00 del día 1 en Colombia.
+  period    DateTime
+  amount    Decimal  @db.Decimal(12, 2)
+  reference String?
+  paidAt    DateTime @default(now())
+  paidById  String?
+
+  @@unique([allyId, period])
+}
+
+/// Link de un solo uso para entrar al portal de aliados (sin contraseña):
+/// lo pide el aliado con su correo o se lo genera el admin. Solo se guarda
+/// el hash.
+model AllyLoginToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  expires   DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }

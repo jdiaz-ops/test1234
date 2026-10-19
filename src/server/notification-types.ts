@@ -439,6 +439,14 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "marca,pasarela,fuente",
   },
   {
+    key: "ALLY_LEAD_ADMIN",
+    label: "Solicitud por el link de un aliado",
+    audience: "ADMIN",
+    channelEmail: true,
+    messageTemplate: "Nueva solicitud por el link de {aliado}: {tipo} {nombre} ({celular}). Revísala en Admin → Aliados.",
+    placeholders: "aliado,tipo,nombre,celular",
+  },
+  {
     key: "BRAND_PENDING_ADMIN",
     label: "Marca nueva pendiente de revisar",
     audience: "ADMIN",

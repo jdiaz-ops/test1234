@@ -13,6 +13,7 @@ const items = [
   { href: "/admin/finanzas", label: "Finanzas" },
   { href: "/admin/cobros", label: "Cobros" },
   { href: "/admin/pagos-creadores", label: "Pagos" },
+  { href: "/admin/aliados", label: "Aliados" },
   // Escondido mientras REFERRALS_ENABLED esté apagado (src/lib/features.ts).
   ...(REFERRALS_ENABLED ? [{ href: "/admin/referidos", label: "Referidos" }] : []),
   { href: "/admin/facturas", label: "Facturas" },

@@ -100,6 +100,19 @@ export async function sendBrandWelcomeEmail(to: string, params: { companyName: s
   );
 }
 
+/// Link de un solo uso para entrar al portal de aliados (sin contraseña),
+/// ver ally-service.ts.
+export async function sendAllyLoginEmail(to: string, params: { name: string; url: string; minutes: number }) {
+  const hours = params.minutes >= 120 ? `${Math.round(params.minutes / 60 / 24)} días` : `${params.minutes} minutos`;
+  return send(
+    to,
+    "Tu link para entrar a Marcolini Aliados",
+    `<p>Hola ${escapeHtml(params.name)},</p>
+     <p><a href="${params.url}">Entra a tu portal de aliado</a> para ver tu link, las marcas y creadoras que trajiste y lo que llevas ganado.</p>
+     <p>El link sirve una sola vez y dura ${hours}. Si no lo pediste, ignora este correo.</p>`
+  );
+}
+
 /// Aviso de cobro del día 1 — se manda en paralelo a lo que ya se ve en el
 /// dashboard, por si la marca no entra a la plataforma. Trae el mismo PDF
 /// que se muestra ahí, con el desglose, las instrucciones de pago y la

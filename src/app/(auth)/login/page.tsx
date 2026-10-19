@@ -11,6 +11,7 @@ const roleHome: Record<string, string> = {
   CREATOR: "/creador/inicio",
   BRAND: "/marca",
   ADMIN: "/admin",
+  ALLY: "/aliado",
 };
 
 function LoginForm() {
@@ -137,6 +138,12 @@ function LoginForm() {
           className="text-brand-accent font-medium hover:underline"
         >
           Soy Marca
+        </Link>
+      </p>
+      <p className="text-center text-xs text-brand-ink-soft mt-3">
+        ¿Eres aliado comercial?{" "}
+        <Link href="/aliado/entrar" className="text-brand-accent hover:underline">
+          Entra con un link a tu correo
         </Link>
       </p>
     </div>

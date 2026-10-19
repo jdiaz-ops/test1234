@@ -5,6 +5,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { consumeImpersonationToken } from "@/lib/impersonation";
+import { consumeAllyLoginToken } from "@/lib/ally-login-token";
 import { normalizeEmail } from "@/lib/normalize-email";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
@@ -55,8 +56,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Contraseña", type: "password" },
         impersonateToken: { label: "impersonateToken", type: "text" },
+        allyToken: { label: "allyToken", type: "text" },
       },
       authorize: async (credentials, request) => {
+        // Portal de aliados: entran con el link de un solo uso que les
+        // llega al correo (ver lib/ally-login-token.ts), sin contraseña.
+        const allyToken = credentials?.allyToken as string | undefined;
+        if (allyToken) {
+          const ally = await consumeAllyLoginToken(allyToken);
+          if (!ally) return null;
+          return { id: ally.id, email: ally.email, role: ally.role, adminRole: null };
+        }
+
         // Camino de "entrar como" — un admin Propietario ya generó este
         // token de un solo uso desde /api/admin/entrar-como (ver ese
         // endpoint para el chequeo de permisos); aquí solo se consume, nunca
