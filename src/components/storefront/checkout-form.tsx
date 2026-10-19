@@ -25,7 +25,7 @@ function formatCOP(amount: number) {
 }
 
 const ID_TYPES = [
-  { value: "CC", label: "CC", field: "Cédula" },
+  { value: "CC", label: "CC", field: "Cédula de ciudadanía" },
   { value: "NIT", label: "NIT", field: "NIT" },
   { value: "CE", label: "CE", field: "Cédula de extranjería" },
   { value: "PASAPORTE", label: "Pasaporte", field: "Pasaporte" },
@@ -663,7 +663,9 @@ export function CheckoutForm({
                 ))}
               </SelectField>
               <Field
-                label={idType === "CC" ? "Cédula o NIT" : idTypeInfo.field}
+                // Con CC dice solo "Cédula de ciudadanía" (antes "Cédula o
+                // NIT", que confundía: el NIT tiene su propia opción).
+                label={idTypeInfo.field}
                 inputMode={idType === "PASAPORTE" ? "text" : "numeric"}
                 required
                 value={idNumber}
