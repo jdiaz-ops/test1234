@@ -45,9 +45,10 @@ describe.skipIf(!hasDb)("buzón de sugerencias", () => {
 
   it("pide un mensaje o una nota de voz, y solo acepta audio", async () => {
     const brand = await createBrand();
-    await expect(createSuggestion({ userId: brand.userId, portal: "BRAND" })).rejects.toBeInstanceOf(SuggestionError);
+    const empty = suggestionInputSchema.parse({});
+    await expect(createSuggestion({ ...empty, userId: brand.userId, portal: "BRAND" })).rejects.toBeInstanceOf(SuggestionError);
     const notAudio = new File(["hola"], "nota.txt", { type: "text/plain" });
-    await expect(createSuggestion({ userId: brand.userId, portal: "BRAND", audio: notAudio })).rejects.toBeInstanceOf(FileUploadError);
+    await expect(createSuggestion({ ...empty, userId: brand.userId, portal: "BRAND", audio: notAudio })).rejects.toBeInstanceOf(FileUploadError);
     expect(await listMySuggestions(brand.userId, "BRAND")).toEqual([]);
     await expect(setSuggestionStatus(randomUUID(), "DONE")).rejects.toBeInstanceOf(SuggestionError);
   });
