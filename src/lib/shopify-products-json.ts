@@ -56,6 +56,7 @@ export type ShopifyJsonProduct = {
   handle?: string | null;
   body_html?: string | null;
   product_type?: string | null;
+  vendor?: string | null;
   tags?: string[] | string | null;
   published_at?: string | null;
   variants?: ShopifyJsonVariant[] | null;
@@ -180,6 +181,7 @@ export function convertShopifyProducts(raw: ShopifyJsonProduct[]): ShopifyCsvPar
     const description = text(item.body_html).slice(0, MAX_DESCRIPTION_LENGTH);
     const collectionName = resolveCollectionName(item);
     const tags = splitTags(item.tags);
+    const vendor = text(item.vendor).slice(0, 120) || undefined;
     // Todo lo que Shopify publica en products.json está activo; si viene
     // sin fecha de publicación, mejor que entre como borrador.
     let status: "ACTIVE" | "DRAFT" = item.published_at === null ? "DRAFT" : "ACTIVE";
@@ -227,6 +229,7 @@ export function convertShopifyProducts(raw: ShopifyJsonProduct[]): ShopifyCsvPar
         status,
         collectionName,
         tags,
+        vendor,
         hasVariants: true,
         optionNames,
         variants,
@@ -252,6 +255,7 @@ export function convertShopifyProducts(raw: ShopifyJsonProduct[]): ShopifyCsvPar
         status,
         collectionName,
         tags,
+        vendor,
         hasVariants: false,
         optionNames: [],
         variants: [],

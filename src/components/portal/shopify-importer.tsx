@@ -37,6 +37,7 @@ import {
 } from "@/lib/store-scrape";
 import type { ScanResult, ScanStep } from "@/server/services/other-store-reader";
 import { CatalogFilesReader, type FilesRead } from "@/components/portal/catalog-files-reader";
+import { ALL_STORE, applyImportScope, importStats, vendorsOf, type ImportScope, type ScopeKind } from "@/lib/import-scope";
 
 type ImportResult = {
   handle: string;
@@ -313,6 +314,9 @@ export function ShopifyImporter({
     profile: true,
   });
   const [parseError, setParseError] = useState<string | null>(null);
+  const [scope, setScope] = useState<ImportScope>(ALL_STORE);
+  /// Lo que se marcó al leer la tienda, para volver a eso con "Toda la tienda".
+  const [readOptions, setReadOptions] = useState<ImportOptions | null>(null);
   const [phase, setPhase] = useState<"pick" | "importing" | "done">("pick");
   const [progress, setProgress] = useState(0);
   const [extraStep, setExtraStep] = useState<string | null>(null);
@@ -324,6 +328,26 @@ export function ShopifyImporter({
     setParsed(null);
     setExtras(null);
     setParseError(null);
+    setScope(ALL_STORE);
+  }
+
+  /// Las opciones que deja la lectura (y "Toda la tienda" otra vez).
+  function readDone(next: ImportOptions) {
+    setOptions(next);
+    setReadOptions(next);
+    setScope(ALL_STORE);
+  }
+
+  /// Con solo una parte de la tienda, lo que es de la tienda entera (sus
+  /// páginas, portada, diseño, fletes y datos) no se trae, salvo que se
+  /// vuelva a marcar.
+  function changeScope(next: ImportScope) {
+    if (next.kind === "all") {
+      if (readOptions) setOptions(readOptions);
+    } else if (scope.kind === "all") {
+      setOptions({ ...options, pages: false, home: false, design: false, shipping: false, profile: false });
+    }
+    setScope(next);
   }
 
   async function handleFile(file: File | null) {
@@ -413,7 +437,7 @@ export function ShopifyImporter({
       shipping: null,
       notes: read.notes,
     });
-    setOptions({
+    readDone({
       products: true,
       pages: false,
       collections: read.collections.length > 0,
@@ -458,6 +482,7 @@ export function ShopifyImporter({
             const [keep, other] = richness(p) > richness(prev) ? [p, prev] : [prev, p];
             for (const name of other.collectionNames) if (!keep.collectionNames.includes(name)) keep.collectionNames.push(name);
             if (!keep.description && other.description) keep.description = other.description;
+            if (!keep.brand && other.brand) keep.brand = other.brand;
             if (keep.images.length === 0 && other.images.length > 0) keep.images = other.images;
             byHandle.set(p.handle, keep);
           }
@@ -572,7 +597,7 @@ export function ShopifyImporter({
     const homeTheme = await readHomeFaithfully(origin, theme, notes);
     setParsed({ products: cleaned.products, warnings, stats });
     setExtras({ storeUrl: origin, pages, collections: cleaned.collections, profile: profileRead, theme: homeTheme, shipping: null, notes });
-    setOptions({
+    readDone({
       products: true,
       pages: pages.length > 0,
       collections: collections.length > 0,
@@ -771,7 +796,7 @@ export function ShopifyImporter({
       const homeTheme = await readHomeFaithfully(resolvedUrl || url, theme, notes);
       setParsed({ products: cleaned.products, warnings, stats });
       setExtras({ storeUrl: resolvedUrl, pages, collections: cleaned.collections, profile: profileRead, theme: homeTheme, shipping, notes });
-      setOptions({
+      readDone({
         products: true,
         pages: pages.length > 0,
         collections: collections.length > 0,
@@ -799,9 +824,9 @@ export function ShopifyImporter({
     // "Desde archivos" también deja extras (colecciones y diseño) y sigue
     // el mismo camino que el link.
     const byLink = source !== "csv" && extras !== null;
-    const withCollections = byLink && options.collections && extras.collections.length > 0;
+    const withCollections = byLink && options.collections && scopedCollections.length > 0;
     // Con colecciones de verdad no se arma además una por Tipo de producto.
-    const products = parsed.products.map((p) => (withCollections ? { ...p, collectionName: null } : p));
+    const products = scopedProducts.map((p) => (withCollections ? { ...p, collectionName: null } : p));
     const importProducts = !byLink || options.products;
 
     if (importProducts) {
@@ -865,7 +890,7 @@ export function ShopifyImporter({
     if (byLink && withCollections) {
       setExtraStep("Creando colecciones y menú…");
       try {
-        const payload = extras.collections.map((c) => ({
+        const payload = scopedCollections.map((c) => ({
           handle: c.handle,
           name: c.name,
           description: c.description || null,
@@ -875,7 +900,9 @@ export function ShopifyImporter({
         }));
         const body = await postJson(API_COLLECTIONS, {
           collections: payload,
-          menu: { links: extras.theme?.menu ?? [], replace: true },
+          // Con una parte de la tienda, el menú de la tienda entera no sirve:
+          // una entrada por cada colección que se trae.
+          menu: { links: scope.kind === "all" ? (extras.theme?.menu ?? []) : [], replace: true },
           pageLinks,
         });
         const rows = body.collections as { handle: string; slug: string; action: string; linked: number }[];
@@ -966,7 +993,7 @@ export function ShopifyImporter({
     // Marcolini para construir la integración (ver
     // payment-gateway-request-service.ts). No depende de ninguna opción.
     const missingGateways = (extras?.theme?.payments.gateways ?? []).filter(needsIntegration);
-    if (byLink && missingGateways.length > 0) {
+    if (byLink && scope.kind === "all" && missingGateways.length > 0) {
       try {
         const body = await postJson(API_GATEWAYS, { gateways: missingGateways, source: "DUPLICAR" });
         result.gateways = body.recorded as string[];
@@ -1008,29 +1035,34 @@ export function ShopifyImporter({
     onImported();
   }
 
+  // Lo que se va a traer según "Qué productos traer" (ver import-scope.ts).
+  const vendors = vendorsOf(parsed?.products ?? []);
+  const scoped = applyImportScope(parsed?.products ?? [], extras?.collections ?? [], extras ? scope : ALL_STORE);
+  const scopedProducts = scoped.products;
+  const scopedCollections = scoped.collections;
+  const stats = parsed ? (scope.kind === "all" ? parsed.stats : importStats(scopedProducts)) : emptyStats();
+
   const created = results.filter((r) => r.action === "created").length;
   const updated = results.filter((r) => r.action === "updated").length;
   const errors = results.filter((r) => r.action === "error");
   const reading = readingStep !== null;
   const theme = extras?.theme ?? null;
   /// Las colecciones de la tienda original, tal cual se importan.
-  const chosenCollections: { name: string; count: number }[] = extras
-    ? extras.collections.map((c) => ({ name: c.name, count: c.productHandles.length }))
-    : [];
+  const chosenCollections: { name: string; count: number }[] = scopedCollections.map((c) => ({ name: c.name, count: c.productHandles.length }));
   const shipping = extras?.shipping ?? null;
   const canImport =
     parsed !== null &&
     (source === "csv"
       ? parsed.products.length > 0
-      : options.products || options.pages || options.collections || options.home || options.design || options.shipping);
+      : (options.products && scopedProducts.length > 0) || options.pages || options.collections || options.home || options.design || options.shipping);
 
   const importButtonLabel = (() => {
     if (!parsed) return "Importar";
     if (source === "csv" || !extras) return `Importar ${parsed.stats.products} productos`;
     const parts: string[] = [];
-    if (options.products) parts.push(`${parsed.stats.products} productos`);
+    if (options.products) parts.push(`${stats.products} productos`);
     if (options.pages && extras.pages.length > 0) parts.push("páginas");
-    if (options.collections && extras.collections.length > 0) parts.push("colecciones y menú");
+    if (options.collections && scopedCollections.length > 0) parts.push("colecciones y menú");
     if (options.home && theme) parts.push("portada");
     if (options.profile && extras?.profile) parts.push("datos de la marca");
     if (options.design && theme) parts.push("diseño");
@@ -1180,6 +1212,87 @@ export function ShopifyImporter({
                 </p>
               )}
 
+              {extras && parsed.products.length > 0 && (
+                <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-2">
+                  <p className="text-sm font-medium text-brand-ink">Qué productos traer</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(
+                      [
+                        ["all", "Toda la tienda"],
+                        ...(extras.collections.length > 0 ? [["collection", "Una colección"]] : []),
+                        ...(vendors.length > 1 ? [["brand", "Una marca"]] : []),
+                        ["text", "Los que digan…"],
+                      ] as [ScopeKind, string][]
+                    ).map(([kind, label]) => (
+                      <button
+                        key={kind}
+                        type="button"
+                        onClick={() =>
+                          changeScope({
+                            kind,
+                            value: kind === "collection" ? (extras.collections[0]?.handle ?? "") : kind === "brand" ? (vendors[0]?.name ?? "") : "",
+                          })
+                        }
+                        className={`rounded-full px-3 py-1.5 text-xs ${
+                          scope.kind === kind ? "bg-brand-ink text-white" : "border border-brand-line text-brand-ink-soft hover:text-brand-ink"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {scope.kind === "collection" && (
+                    <select
+                      value={scope.value}
+                      onChange={(e) => changeScope({ kind: "collection", value: e.target.value })}
+                      className="input text-sm"
+                      aria-label="Colección a traer"
+                    >
+                      {extras.collections.map((c) => (
+                        <option key={c.handle} value={c.handle}>
+                          {c.name} ({c.productHandles.length})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {scope.kind === "brand" && (
+                    <select
+                      value={scope.value}
+                      onChange={(e) => changeScope({ kind: "brand", value: e.target.value })}
+                      className="input text-sm"
+                      aria-label="Marca a traer"
+                    >
+                      {vendors.map((v) => (
+                        <option key={v.name} value={v.name}>
+                          {v.name} ({v.count})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {scope.kind === "text" && (
+                    <input
+                      value={scope.value}
+                      onChange={(e) => changeScope({ kind: "text", value: e.target.value })}
+                      placeholder="Una palabra del nombre o la marca, ej. Shilke"
+                      className="input text-sm"
+                      aria-label="Palabra a buscar"
+                    />
+                  )}
+                  {scope.kind === "all" ? (
+                    <p className="text-xs text-brand-ink-soft">
+                      Si la tienda vende varias marcas, puedes traer solo una colección, solo una marca o los productos
+                      que digan una palabra en el nombre.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-brand-ink-soft">
+                      {plural(scopedProducts.length, "producto", "productos")} de {parsed.products.length}. Como es solo
+                      una parte de la tienda, no se traen sus páginas, portada, diseño, envíos ni datos de la marca:
+                      márcalos abajo si sí son de esta marca. El menú queda con una entrada por colección.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-2">
                 <label className="flex items-start gap-2 text-sm font-medium text-brand-ink">
                   {extras && (
@@ -1191,12 +1304,12 @@ export function ShopifyImporter({
                     />
                   )}
                   <span>
-                    {parsed.stats.products} productos
-                    {parsed.stats.withVariants > 0 && ` · ${parsed.stats.withVariants} con variantes`}
-                    {` · ${parsed.stats.images} fotos`}
+                    {stats.products} productos
+                    {stats.withVariants > 0 && ` · ${stats.withVariants} con variantes`}
+                    {` · ${stats.images} fotos`}
                   </span>
                 </label>
-                {parsed.stats.unknownStock > 0 && (
+                {stats.unknownStock > 0 && (
                   <p className="text-xs text-brand-ink-soft">
                     {source === "link"
                       ? "El link no trae cantidades de inventario, así que el stock queda sin definir: "
@@ -1207,9 +1320,9 @@ export function ShopifyImporter({
                     también se venden sin control hasta que les pongas inventario desde Editar.
                   </p>
                 )}
-                {parsed.stats.draft > 0 && (
+                {stats.draft > 0 && (
                   <p className="text-xs text-brand-ink-soft">
-                    {parsed.stats.draft} de estos productos están despublicados,
+                    {stats.draft} de estos productos están despublicados,
                     archivados o sin precio en Shopify: si son nuevos acá entran
                     como borrador (no se ven en la tienda hasta que los actives).
                   </p>
@@ -1229,7 +1342,7 @@ export function ShopifyImporter({
                     />
                     <span>
                       Guardar en Marcolini las fotos de productos
-                      {parsed.stats.images > 0 ? ` (${parsed.stats.images})` : ""}, portada y páginas. Quedan en
+                      {stats.images > 0 ? ` (${stats.images})` : ""}, portada y páginas. Quedan en
                       nuestro servidor para que nada se rompa si la marca cierra su Shopify.
                     </span>
                   </label>
@@ -1274,7 +1387,7 @@ export function ShopifyImporter({
                 </div>
               )}
 
-              {extras && extras.collections.length > 0 && (
+              {extras && scopedCollections.length > 0 && (
                 <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-2">
                   <label className="flex items-start gap-2 text-sm font-medium text-brand-ink">
                     <input
@@ -1293,7 +1406,7 @@ export function ShopifyImporter({
                     ))}
                   </ul>
                   <p className="text-xs text-brand-ink-soft">
-                    {theme && theme.menu.length > 0
+                    {theme && theme.menu.length > 0 && scope.kind === "all"
                       ? `Menú: ${theme.menu
                           .map((m) => (m.children && m.children.length > 0 ? `${m.label} (${m.children.length} en el submenú)` : m.label))
                           .join(" · ")}.`
@@ -1463,7 +1576,7 @@ export function ShopifyImporter({
                 </div>
               )}
 
-              {extras && theme && (theme.payments.methods.length > 0 || theme.payments.gateways.length > 0) && (
+              {extras && theme && scope.kind === "all" && (theme.payments.methods.length > 0 || theme.payments.gateways.length > 0) && (
                 <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-1.5">
                   <p className="text-sm font-medium text-brand-ink">Pagos (solo informativo)</p>
                   {theme.payments.methods.length > 0 && (
@@ -1585,7 +1698,7 @@ export function ShopifyImporter({
             <p className="text-sm text-brand-ink">{extraStep}</p>
           ) : (
             <p className="text-sm text-brand-ink">
-              Importando {progress} de {parsed.stats.products}…
+              Importando {progress} de {stats.products}…
             </p>
           )}
           <div className="h-2 rounded-full bg-brand-bg overflow-hidden">
@@ -1593,9 +1706,9 @@ export function ShopifyImporter({
               className="h-full bg-brand-accent transition-all"
               style={{
                 width: `${
-                  extraStep || parsed.stats.products === 0
+                  extraStep || stats.products === 0
                     ? 100
-                    : Math.round((progress / parsed.stats.products) * 100)
+                    : Math.round((progress / stats.products) * 100)
                 }%`,
               }}
             />

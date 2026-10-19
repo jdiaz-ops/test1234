@@ -48,6 +48,10 @@ export type ShopifyImportProduct = {
   /// la tienda no tiene colecciones (ver shopify-categorize.ts); el
   /// importador no las guarda.
   tags?: string[];
+  /// La marca del producto en la tienda (el "Vendor" de Shopify, la marca de
+  /// WooCommerce o del JSON-LD): para traer solo los de una marca de una
+  /// tienda que vende varias (ver Duplicar tienda). El importador no la guarda.
+  vendor?: string;
   hasVariants: boolean;
   optionNames: string[];
   variants: ShopifyImportVariant[];

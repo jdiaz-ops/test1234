@@ -48,6 +48,8 @@ export type ScrapedProduct = {
   /// null = no se sabe (ninguna plataforma publica la cantidad real).
   stock: number | null;
   collectionNames: string[];
+  /// La marca, cuando la tienda la publica (WooCommerce, JSON-LD).
+  brand?: string;
   hasVariants: boolean;
   optionNames: string[];
   variants: ScrapedVariant[];
@@ -217,6 +219,8 @@ export type WooStoreProduct = {
   prices?: WooPrices;
   images?: { src?: string }[];
   categories?: { name?: string }[];
+  /// Las marcas de WooCommerce (9.6+) o de los plugins de marcas.
+  brands?: { name?: string }[];
   is_in_stock?: boolean;
   attributes?: { name?: string; has_variations?: boolean; terms?: { name?: string; slug?: string }[] }[];
   variations?: { id?: number; attributes?: { name?: string; value?: string | null }[] }[];
@@ -240,6 +244,18 @@ function wooPrice(prices: WooPrices | undefined) {
     compareAtPrice: regular != null && regular > price ? regular : null,
     currency: prices?.currency_code ?? null,
   };
+}
+
+const BRAND_ATTRIBUTE_RE = /^(?:pa_)?(?:marca|marcas|brand|brands|fabricante|laboratorio)$/i;
+
+/// La marca de un producto de WooCommerce: la de sus marcas, o el atributo
+/// "Marca" si la tienda la lleva así.
+function wooBrand(p: WooStoreProduct): string | undefined {
+  const fromBrands = text(p.brands?.[0]?.name);
+  if (fromBrands) return decodeHtmlEntities(fromBrands).slice(0, 120);
+  const attribute = (p.attributes ?? []).find((a) => BRAND_ATTRIBUTE_RE.test(text(a.name)));
+  const term = text(attribute?.terms?.[0]?.name);
+  return term ? decodeHtmlEntities(term).slice(0, 120) : undefined;
 }
 
 /// `variationDetails` = la respuesta de la Store API para cada variación
@@ -269,6 +285,7 @@ export function parseWooProduct(
     weightUnit: "KG",
     stock: p.is_in_stock === false ? 0 : null,
     collectionNames: uniqueNames((p.categories ?? []).map((c) => text(c.name))),
+    brand: wooBrand(p),
     hasVariants: false,
     optionNames: [],
     variants: [],
@@ -481,6 +498,14 @@ export function detectPlatformFromHtml(html: string): StorePlatform {
   return "generic";
 }
 
+/// La marca del JSON-LD del producto: "brand": "X" o {"@type": "Brand", "name": "X"}.
+function jsonLdBrand(ld: JsonLd | undefined): string | undefined {
+  const brand = ld?.brand as unknown;
+  const first = Array.isArray(brand) ? brand[0] : brand;
+  const name = typeof first === "string" ? first : first && typeof first === "object" ? text((first as { name?: unknown }).name) : "";
+  return name ? name.trim().slice(0, 120) || undefined : undefined;
+}
+
 /// Lee una página de producto. Devuelve null si la página no es de un
 /// producto (sin JSON-LD Product ni og:type product).
 export function parseProductPage(html: string, pageUrl: string): ScrapedProduct | null {
@@ -520,6 +545,7 @@ export function parseProductPage(html: string, pageUrl: string): ScrapedProduct 
     weightUnit: weight.weightUnit,
     stock: offer.available === false ? 0 : null,
     collectionNames: uniqueNames([category, breadcrumbCategory(nodes) ?? ""]),
+    brand: jsonLdBrand(ld),
     hasVariants: false,
     optionNames: [],
     variants: [],
@@ -718,6 +744,7 @@ export function toShopifyImport(p: ScrapedProduct): ShopifyImportProduct {
     status: noPrice ? "DRAFT" : "ACTIVE",
     collectionName: p.collectionNames[0] ?? null,
     tags: p.collectionNames,
+    vendor: p.brand,
     hasVariants: p.hasVariants,
     optionNames: p.optionNames,
     variants: p.variants,
