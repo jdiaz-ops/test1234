@@ -27,6 +27,12 @@ const bodySchema = z.object({
       currency: z.string().max(3).nullable(),
     }),
     z.object({
+      step: z.literal("catalogo-products"),
+      page: z.number().int().min(2).max(200),
+      query: z.string().max(80).nullable(),
+      categories: z.record(z.string().regex(/^\d{1,10}$/), z.string().max(80)).refine((c) => Object.keys(c).length <= 1000),
+    }),
+    z.object({
       step: z.literal("ecometri-details"),
       slugs: z.array(z.string().regex(/^[a-z0-9._-]{1,200}$/i)).min(1).max(6),
       phone: z.string().regex(/^\d{0,20}$/),

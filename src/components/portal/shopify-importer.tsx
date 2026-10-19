@@ -129,6 +129,7 @@ const PLATFORM_LABEL: Record<StorePlatform, string> = {
   woocommerce: "WooCommerce",
   tiendanube: "Tiendanube",
   ecometri: "Ecometri",
+  catalogo: "un catálogo a la medida",
   generic: "otra plataforma",
 };
 const API_IMPORT = "/api/marca/tienda/productos/importar-shopify";

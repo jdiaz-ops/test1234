@@ -56,7 +56,8 @@ export type ScrapedProduct = {
   sourceUrl: string;
 };
 
-export type StorePlatform = "shopify" | "woocommerce" | "tiendanube" | "ecometri" | "generic";
+/// "catalogo": una tienda a la medida con su catálogo en /api/v1 (ver catalog-api.ts).
+export type StorePlatform = "shopify" | "woocommerce" | "tiendanube" | "ecometri" | "catalogo" | "generic";
 
 export const MAX_IMAGES_PER_PRODUCT = 20;
 export const MAX_PRODUCTS = 2000;

@@ -263,3 +263,72 @@ describe("una tienda Ecometri", () => {
     ).rejects.toThrow(/inválido/);
   });
 });
+
+describe("una tienda a la medida con catálogo en /api/v1 (blissednails.co)", () => {
+  const origin = "https://blissednails.example";
+  const item = (id: number, nombre: string, categorias: number[], extra: Record<string, unknown> = {}) => ({
+    id,
+    codigo: `77092205${String(id).padStart(5, "0")}`,
+    nombre,
+    grupo: "12",
+    nombre_grupo: "BUILDER GEL - CANM",
+    proveedor: null,
+    precio_visible: "18000.00",
+    precio_original: null,
+    precio_con_descuento: null,
+    saldo_general: "0.00",
+    imagen_url_resuelto: `/api/v1/productos/imagenes/marca-agua?token=t${id}`,
+    imagenes: [{ url_resuelto: `/api/v1/productos/imagenes/marca-agua?token=t${id}` }],
+    tiene_imagen: true,
+    estado: "activo",
+    categorias,
+    tags: [],
+    es_promo: false,
+    ...extra,
+  });
+  const categorias = [
+    { id: 24, nombre: "Esmaltes", parent_id: null, nivel: 1, children: [{ id: 33, nombre: "Shikle Gel", parent_id: 24, nivel: 2, children: [] }] },
+    { id: 40, nombre: "Builder Gel", parent_id: null, nivel: 1, children: [{ id: 41, nombre: "Shikle Gel", parent_id: 40, nivel: 2, children: [] }, { id: 42, nombre: "Canm", parent_id: 40, nivel: 2, children: [] }] },
+  ];
+
+  it("lee la búsqueda del link, todas las páginas y las colecciones de primer nivel", async () => {
+    const page = (n: number, items: unknown[]) => ({ total: 101, page: n, per_page: 100, items });
+    const first = Array.from({ length: 100 }, (_, i) => item(1000 + i, `BUILDER GEL SHIKLE 15 GR ${i} PINK`, [42]));
+    mockFetch({
+      [`${origin}/`]: { body: '<!doctype html><title>Blissed Nails</title><div id="root"></div>' },
+      [`${origin}/api/v1/productos?page=1&per_page=100&q=shikle`]: { body: page(1, first) },
+      [`${origin}/api/v1/productos?page=2&per_page=100&q=shikle`]: {
+        body: page(2, [item(1767, "ESMALTE SHIKLE GEL 8 ML 010 BERLIN", [33], { precio_visible: "13000.00", precio_con_descuento: "11000.00", imagenes: [], imagen_url_resuelto: null })]),
+      },
+      [`${origin}/api/v1/categorias`]: { body: categorias },
+    });
+    const results = await runAll(`${origin}/catalogo?q=shikle`);
+    expect(results[0]).toMatchObject({ platform: "catalogo", origin, categories: [{ name: "Esmaltes", url: null }, { name: "Builder Gel", url: null }] });
+    expect(results[0].warnings).toEqual(['Solo los 101 productos que salen al buscar "shikle" en la tienda.']);
+    expect(results[0].next).toEqual([{ step: "catalogo-products", page: 2, query: "shikle", categories: { "24": "Esmaltes", "33": "Esmaltes", "40": "Builder Gel", "41": "Builder Gel", "42": "Builder Gel" } }]);
+    const products = results.flatMap((r) => r.products);
+    expect(products).toHaveLength(101);
+    expect(products[0]).toMatchObject({
+      handle: "builder-gel-shikle-15-gr-0-pink-1000",
+      price: 18000,
+      compareAtPrice: null,
+      // La foto tal como la sirve la tienda, con su marca de agua.
+      images: [`${origin}/api/v1/productos/imagenes/marca-agua?token=t1000`],
+      barcode: "7709220501000",
+      stock: null,
+      collectionNames: ["Builder Gel"],
+    });
+    expect(products[100]).toMatchObject({ name: "ESMALTE SHIKLE GEL 8 ML 010 BERLIN", price: 11000, compareAtPrice: 13000, images: [], collectionNames: ["Esmaltes"] });
+  });
+
+  it("avisa cuando la tienda tiene más productos de los que se leen", async () => {
+    mockFetch({
+      [`${origin}/`]: { body: "<title>Blissed Nails</title>" },
+      [`${origin}/api/v1/productos?page=1&per_page=100`]: { body: { total: 4086, page: 1, per_page: 100, items: [item(1, "LIMA 100/180", [])] } },
+    });
+    const first = await scanStore(null, { step: "detect", url: `${origin}/catalogo` });
+    expect(first.platform).toBe("catalogo");
+    expect(first.next).toHaveLength(19);
+    expect(first.warnings[0]).toMatch(/tiene 4086 productos: se leen los primeros 2000.*catalogo\?q=/);
+  });
+});

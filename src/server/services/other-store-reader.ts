@@ -21,6 +21,16 @@ import {
 } from "@/lib/store-scrape";
 import { safeFetch, safeFetchJson, safeFetchText, SafeFetchError } from "@/server/integrations/safe-fetch";
 import {
+  CATALOG_API_PATH,
+  CATALOG_PAGE_SIZE,
+  catalogProductsUrl,
+  catalogQueryFromInput,
+  parseCatalogCategories,
+  parseCatalogItem,
+  parseCatalogPage,
+  topCategoryNames,
+} from "@/lib/catalog-api";
+import {
   ECOMETRI_DETAILS_PER_STEP,
   ECOMETRI_GRAPHQL,
   ECOMETRI_PAGE_SIZE,
@@ -51,6 +61,9 @@ import {
 /// leer página por página (la portada y cada producto redirigen a una
 /// colección, y una colección solo muestra 12 productos): se leen la
 /// tienda de la portada y los productos de su API pública — ver ecometri.ts.
+///
+/// Las tiendas a la medida con su catálogo en /api/v1 (blissednails.co)
+/// se leen de esa API, de a 100 productos por paso — ver catalog-api.ts.
 
 export class OtherStoreError extends Error {}
 
@@ -60,7 +73,18 @@ export type ScanStep =
   | { step: "pages"; urls: string[] }
   | { step: "page"; url: string }
   | EcometriProductsStep
-  | EcometriDetailsStep;
+  | EcometriDetailsStep
+  | CatalogProductsStep;
+
+/// Una página de /api/v1/productos. query = la búsqueda del link pegado
+/// (solo esos productos); categories = id de categoría → nombre de su
+/// categoría de primer nivel, la colección de cada producto.
+export type CatalogProductsStep = {
+  step: "catalogo-products";
+  page: number;
+  query: string | null;
+  categories: Record<string, string>;
+};
 
 /// Una página de productos de la API de Ecometri: collection = "" trae todos
 /// los productos de la tienda; con el id de una colección, los de esa
@@ -227,6 +251,10 @@ async function detect(input: string): Promise<ScanResult> {
     return result;
   }
 
+  // Tienda a la medida con su catálogo en /api/v1 (blissednails.co).
+  const catalog = await detectCatalogApi(origin, storeName, input);
+  if (catalog) return { ...catalog, infoPages: extractInfoPageLinks(html, origin) };
+
   // Sin API pública (Tiendanube, otras plataformas, o un WooCommerce con
   // la Store API apagada): se lee página por página.
   // Parece Shopify pero /products.json no responde (tienda con contraseña,
@@ -234,6 +262,35 @@ async function detect(input: string): Promise<ScanResult> {
   if (hinted === "shopify") return { ...emptyResult(origin, "shopify"), storeName };
   const result = await discoverPages(origin, hinted, storeName, html);
   return { ...result, infoPages: extractInfoPageLinks(html, origin) };
+}
+
+/// /api/v1/productos responde con { total, items }: se leen las categorías
+/// y la primera página ya trae los primeros productos; las demás páginas
+/// van en pasos aparte (todas de una vez, para leerlas en paralelo). Con
+/// una búsqueda en el link pegado ("/catalogo?q=shikle"), solo esos.
+async function detectCatalogApi(origin: string, storeName: string, input: string): Promise<ScanResult | null> {
+  const query = catalogQueryFromInput(input);
+  const first = parseCatalogPage(await safeFetchJson(catalogProductsUrl(origin, 1, query), { timeoutMs: 12000 }).catch(() => null));
+  if (!first) return null;
+  const result: ScanResult = { ...emptyResult(origin, "catalogo"), storeName };
+  const categories = parseCatalogCategories(await safeFetchJson(`${origin}${CATALOG_API_PATH}/categorias`, { timeoutMs: 12000 }).catch(() => null));
+  const topNames = topCategoryNames(categories);
+  result.categories = categories.filter((c) => c.parentId == null).map((c) => ({ name: c.name, url: null }));
+  for (const item of first.items) {
+    const parsed = parseCatalogItem(item, origin, topNames);
+    if (parsed) result.products.push(parsed);
+  }
+  const total = Math.min(first.total, MAX_PRODUCTS);
+  for (let page = 2; (page - 1) * CATALOG_PAGE_SIZE < total; page++) {
+    result.next.push({ step: "catalogo-products", page, query, categories: topNames });
+  }
+  if (query) result.warnings.push(`Solo los ${first.total} productos que salen al buscar "${query}" en la tienda.`);
+  if (first.total > MAX_PRODUCTS) {
+    result.warnings.push(
+      `La tienda tiene ${first.total} productos: se leen los primeros ${MAX_PRODUCTS}. Para traer solo una marca o un tipo de producto, pega el link con la búsqueda, por ejemplo ${origin}/catalogo?q=palabra.`,
+    );
+  }
+  return result;
 }
 
 /// Ecometri: la portada (o cualquier colección) trae la tienda completa —
@@ -430,6 +487,20 @@ async function ecometriProducts(origin: string, step: EcometriProductsStep): Pro
   return result;
 }
 
+async function catalogProducts(origin: string, step: CatalogProductsStep): Promise<ScanResult> {
+  const result = emptyResult(origin, "catalogo");
+  const page = parseCatalogPage(await safeFetchJson(catalogProductsUrl(origin, step.page, step.query), { timeoutMs: 15000 }));
+  if (!page) {
+    result.warnings.push(`No se pudo leer la página ${step.page} de productos.`);
+    return result;
+  }
+  for (const item of page.items) {
+    const parsed = parseCatalogItem(item, origin, step.categories);
+    if (parsed) result.products.push(parsed);
+  }
+  return result;
+}
+
 async function ecometriDetails(origin: string, step: EcometriDetailsStep): Promise<ScanResult> {
   const result = emptyResult(origin, "ecometri");
   const details = await pool(step.slugs.slice(0, ECOMETRI_DETAILS_PER_STEP), ECOMETRI_DETAILS_PER_STEP, async (slug) => {
@@ -476,5 +547,7 @@ export async function scanStore(origin: string | null, step: ScanStep): Promise<
       return ecometriProducts(base, step);
     case "ecometri-details":
       return ecometriDetails(base, step);
+    case "catalogo-products":
+      return catalogProducts(base, step);
   }
 }
