@@ -23,9 +23,12 @@ type Product = {
 export function QuantityAddToCart({
   product,
   disabled,
+  disabledLabel,
 }: {
   product: Product;
   disabled?: boolean;
+  /// Ver AddToCartButton.
+  disabledLabel?: string;
 }) {
   const [quantity, setQuantity] = useState(1);
   const max = product.stock != null && product.stock > 0 ? product.stock : Infinity;
@@ -62,6 +65,7 @@ export function QuantityAddToCart({
         <AddToCartButton
           product={product}
           disabled={disabled}
+          disabledLabel={disabledLabel}
           quantity={quantity}
           className={`${CARD_BUTTON_CLASS} ${CARD_PRIMARY_BUTTON_CLASS} h-full min-h-[48px]`}
         />

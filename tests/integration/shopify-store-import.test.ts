@@ -137,13 +137,16 @@ describe.skipIf(!hasDb)("importar colecciones, menú y diseño desde Shopify", (
 
     const result = await applyShopifyDesign(
       brand.id,
-      { colors, fonts: { headingFont: "Playfair Display", bodyFont: "Karla" }, logoUrl: "https://cdn.shopify.com/logo.png", faviconUrl: null },
+      { colors, fonts: { headingFont: "Playfair Display", bodyFont: "Karla" }, logoUrl: "https://cdn.shopify.com/logo.png", logoWidth: 250, productImageRatio: "portrait", faviconUrl: null },
       fakeFetch,
     );
-    expect(result).toEqual({ colors: true, fonts: true, announcements: false, published: true, logo: "subido", favicon: "omitido", profileFields: [] });
+    expect(result).toEqual({ colors: true, fonts: true, announcements: false, logoWidth: true, imageRatio: true, published: true, logo: "subido", favicon: "omitido", profileFields: [] });
     const published = await getPublishedTheme(brand.id);
     expect(published.colors).toMatchObject({ ...colors, usarAcento: false });
     expect(published.typography).toEqual({ headingFont: "Playfair Display", bodyFont: "Karla" });
+    // El logo con el ancho de la tienda original y las fotos con su forma.
+    expect(published.header).toMatchObject({ logoSize: "custom", logoWidth: 250, sticky: true });
+    expect(published.productListing).toMatchObject({ imageRatio: "portrait", productsPerRow: "2-4" });
     const profile = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id } });
     expect(profile.logoUrl).toMatch(/^\/uploads\/marcas\/.+\/[a-f0-9]+\.png$/);
     expect(calls).toEqual(["https://cdn.shopify.com/logo.png"]);
@@ -156,7 +159,7 @@ describe.skipIf(!hasDb)("importar colecciones, menú y diseño desde Shopify", (
       { colors: { ...colors, botones: "#000000" }, fonts: { headingFont: "Comic Sans", bodyFont: "Karla" }, logoUrl: "https://cdn.shopify.com/logo.png", publish: false },
       fakeFetch,
     );
-    expect(second).toEqual({ colors: true, fonts: false, announcements: false, published: false, logo: "ya-tenia", favicon: "omitido", profileFields: [] });
+    expect(second).toEqual({ colors: true, fonts: false, announcements: false, logoWidth: false, imageRatio: false, published: false, logo: "ya-tenia", favicon: "omitido", profileFields: [] });
     expect((await getPublishedTheme(brand.id)).colors.botones).toBe("#d1477b");
     expect((await getDraftTheme(brand.id)).colors.botones).toBe("#000000");
     expect(calls).toEqual(["https://cdn.shopify.com/logo.png", "https://fonts.googleapis.com/css?family=Comic+Sans"]);

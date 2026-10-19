@@ -91,6 +91,10 @@ const LOGO_HEIGHT_CLASS = {
   small: "h-10 sm:h-7",
   medium: "h-14 sm:h-9",
   large: "h-[4.5rem] sm:h-14",
+  // Ancho exacto (header.logoWidth, va en style): en celular se achica
+  // hasta dejar espacio al menú y al carrito; en computador, a lo sumo
+  // el 40 % del encabezado.
+  custom: "h-auto max-w-[calc(100vw-12rem)] sm:max-w-[40vw]",
 };
 
 /// El círculo con la inicial, solo para la marca que todavía no subió logo.
@@ -98,6 +102,7 @@ const LOGO_FALLBACK_CLASS = {
   small: "w-10 h-10 sm:w-7 sm:h-7 text-sm",
   medium: "w-14 h-14 sm:w-9 sm:h-9 text-base",
   large: "w-16 h-16 sm:w-12 sm:h-12 text-lg",
+  custom: "w-14 h-14 sm:w-9 sm:h-9 text-base",
 };
 
 export function StoreHeader({
@@ -223,7 +228,12 @@ export function StoreHeader({
         <img
           src={logoUrl}
           alt={brandName}
-          className={`${LOGO_HEIGHT_CLASS[header.logoSize]} w-auto max-w-[calc(100vw-8.5rem)] sm:max-w-[180px] object-contain`}
+          className={
+            header.logoSize === "custom"
+              ? `${LOGO_HEIGHT_CLASS.custom} object-contain`
+              : `${LOGO_HEIGHT_CLASS[header.logoSize]} w-auto max-w-[calc(100vw-8.5rem)] sm:max-w-[180px] object-contain`
+          }
+          style={header.logoSize === "custom" ? { width: header.logoWidth } : undefined}
         />
       ) : (
         <>

@@ -3,7 +3,7 @@ import { isCatalogFont, isFontValue } from "@/lib/brand-theme";
 import { isValidGoogleAnalyticsId } from "@/lib/ad-pixels";
 import { FileUploadError, MAX_UPLOAD_BYTES, uploadFile } from "@/lib/file-upload";
 import { ShopifyStoreError } from "@/lib/shopify-products-json";
-import type { ShopifyThemeColors } from "@/lib/shopify-theme";
+import type { ProductImageRatio, ShopifyThemeColors } from "@/lib/shopify-theme";
 import { getDraftTheme, publishTheme, updateDraftTheme } from "@/server/services/brand-theme-store";
 import { fetchImageSafely, googleFontExists, type FetchLike } from "@/server/services/shopify-store-reader";
 
@@ -18,6 +18,11 @@ export type ShopifyDesignInput = {
   colors?: ShopifyThemeColors | null;
   fonts?: { headingFont: string; bodyFont: string } | null;
   logoUrl?: string | null;
+  /// Ancho del logo en la tienda original (px): queda como "Ancho exacto"
+  /// en Diseño → Encabezado.
+  logoWidth?: number | null;
+  /// Forma de las fotos de las tarjetas en la tienda original.
+  productImageRatio?: ProductImageRatio | null;
   faviconUrl?: string | null;
   /// Píxeles, redes y teléfono leídos de la portada: se guardan solo en
   /// los campos del perfil que estén vacíos (nunca pisan lo que la marca
@@ -36,6 +41,9 @@ export type ShopifyDesignResult = {
   colors: boolean;
   fonts: boolean;
   announcements: boolean;
+  /// Se copió el ancho del logo / la forma de las fotos.
+  logoWidth: boolean;
+  imageRatio: boolean;
   published: boolean;
   logo: ImageOutcome;
   favicon: ImageOutcome;
@@ -77,6 +85,8 @@ export async function applyShopifyDesign(
       patch.announcementBar = { enabled: true, messages: announcements.map((text) => ({ text: text.slice(0, 200), link: "" })) };
     }
   }
+  if (input.logoWidth) patch.header = { logoSize: "custom", logoWidth: input.logoWidth };
+  if (input.productImageRatio) patch.productListing = { imageRatio: input.productImageRatio };
   let published = false;
   if (Object.keys(patch).length > 0) {
     await updateDraftTheme(brandId, patch);
@@ -125,6 +135,8 @@ export async function applyShopifyDesign(
     colors: Boolean(patch.colors),
     fonts: Boolean(patch.typography),
     announcements: Boolean(patch.announcementBar),
+    logoWidth: Boolean(patch.header),
+    imageRatio: Boolean(patch.productListing),
     published,
     logo,
     favicon,

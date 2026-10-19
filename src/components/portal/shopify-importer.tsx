@@ -96,6 +96,8 @@ type DesignResult = {
   colors: boolean;
   fonts: boolean;
   announcements: boolean;
+  logoWidth?: boolean;
+  imageRatio?: boolean;
   published: boolean;
   logo: string;
   favicon: string;
@@ -959,6 +961,8 @@ export function ShopifyImporter({
           colors: t.colors,
           fonts: t.fonts ? { headingFont: t.fonts.headingFont, bodyFont: t.fonts.bodyFont } : null,
           logoUrl: t.logoUrl,
+          logoWidth: t.logoWidth ?? null,
+          productImageRatio: t.productImageRatio ?? null,
           faviconUrl: t.faviconUrl,
           pixels: {
             metaPixelId: t.pixels.metaPixelId,
@@ -1773,6 +1777,8 @@ export function ShopifyImporter({
                 extrasResult.design.colors ? "colores" : null,
                 extrasResult.design.fonts ? "letra" : null,
                 extrasResult.design.announcements ? "barra de anuncio" : null,
+                extrasResult.design.logoWidth ? "tamaño del logo" : null,
+                extrasResult.design.imageRatio ? "forma de las fotos" : null,
               ]
                 .filter(Boolean)
                 .join(", ") || "sin cambios"}

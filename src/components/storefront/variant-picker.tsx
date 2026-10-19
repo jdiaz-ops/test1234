@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { setSelectedVariantImage } from "@/components/storefront/selected-variant-store";
 import { QuantityAddToCart } from "@/components/storefront/quantity-add-to-cart";
 import { useStorefrontTheme } from "@/components/storefront/storefront-theme-context";
+import { chooseOptionLabel } from "@/lib/variant-choice";
 
 export type StorefrontVariant = {
   id: string;
@@ -99,6 +100,19 @@ export function VariantPicker({
     ? (matchedVariant.price ?? basePrice)
     : basePrice;
   const outOfStock = matchedVariant != null && matchedVariant.stock != null && matchedVariant.stock <= 0;
+  const isSoldOut = (v: StorefrontVariant) => v.stock != null && v.stock <= 0;
+  // "Agotado" antes de elegir solo si no queda ninguna opción con unidades;
+  // si quedan, el botón pide elegir (ver variant-choice.ts).
+  const allSoldOut = variants.length > 0 && variants.every(isSoldOut);
+  const singleAxis = optionNames.length === 1;
+
+  // Un valor está agotado si todas las variantes que lo tienen (con lo ya
+  // elegido en los otros ejes) están sin unidades — se marca tachado.
+  function valueSoldOut(idx: number, value: string) {
+    const key = (i: number) => `option${i + 1}Value` as "option1Value" | "option2Value" | "option3Value";
+    const matching = variants.filter((v) => v[key(idx)] === value && optionNames.every((_, other) => other === idx || !selected[other] || v[key(other)] === selected[other]));
+    return matching.length > 0 && matching.every(isSoldOut);
+  }
 
   // La galería muestra la foto de la variante elegida (ver
   // selected-variant-store.ts y product-gallery.tsx).
@@ -128,6 +142,7 @@ export function VariantPicker({
                 {valuesByOption[idx].map((value) => (
                   <option key={value} value={value}>
                     {value}
+                    {valueSoldOut(idx, value) ? " — agotado" : ""}
                   </option>
                 ))}
               </select>
@@ -142,20 +157,21 @@ export function VariantPicker({
               {valuesByOption[idx].map((value) => {
                 const isSelected = selected[idx] === value;
                 const photoUrl = showPhoto ? imageForOptionValue(idx, value) : null;
+                const soldOut = valueSoldOut(idx, value);
                 return (
                   <button
                     key={value}
                     type="button"
                     onClick={() => setSelected((prev) => ({ ...prev, [idx]: value }))}
-                    title={value}
+                    title={soldOut ? `${value} — agotado` : value}
                     className={
                       photoUrl
-                        ? `rounded-full overflow-hidden w-10 h-10 border-2 ${isSelected ? "border-brand-accent" : "border-brand-line"}`
+                        ? `rounded-full overflow-hidden w-10 h-10 border-2 ${isSelected ? "border-brand-accent" : "border-brand-line"} ${soldOut ? "opacity-40" : ""}`
                         : `text-sm rounded-full px-4 py-1.5 border ${
                             isSelected
                               ? "bg-brand-button text-brand-button-text border-brand-button"
                               : "border-brand-line text-brand-ink hover:bg-brand-accent-soft"
-                          }`
+                          } ${soldOut ? "line-through opacity-50" : ""}`
                     }
                   >
                     {photoUrl ? (
@@ -182,18 +198,23 @@ export function VariantPicker({
         </p>
       )}
       {matchedVariant && outOfStock && (
-        <p className="text-sm text-brand-ink-soft">Agotado en esa combinación.</p>
+        <p className="text-sm text-brand-ink-soft">
+          {singleAxis ? `No quedan unidades de ${selected[0]}.` : "No quedan unidades de esa combinación."}
+        </p>
       )}
 
       <QuantityAddToCart
         disabled={!matchedVariant || outOfStock}
+        disabledLabel={matchedVariant ? undefined : allChosen ? "No disponible" : chooseOptionLabel(optionNames, selected)}
         product={{
           id: productId,
           slug: productSlug,
           name: productName,
           price: displayPrice,
           imageUrl: matchedVariant?.imageUrl ?? baseImageUrl,
-          stock: matchedVariant ? matchedVariant.stock : 0,
+          // Sin elegir todavía no se sabe el inventario: null (no "0", que
+          // el botón leía como "Agotado"), salvo que estén todas agotadas.
+          stock: matchedVariant ? matchedVariant.stock : allSoldOut ? 0 : null,
           variantId: matchedVariant?.id ?? null,
           variantLabel: matchedVariant
             ? optionNames.map((n, idx) => `${n}: ${selected[idx]}`).join(" · ")

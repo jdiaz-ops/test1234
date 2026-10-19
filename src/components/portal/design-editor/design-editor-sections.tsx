@@ -367,8 +367,22 @@ export function HeaderSection({ theme, patch }: { theme: ThemeConfig; patch: Pat
           <option value="small">Pequeño</option>
           <option value="medium">Mediano</option>
           <option value="large">Grande</option>
+          <option value="custom">Ancho exacto</option>
         </select>
       </Field>
+      {h.logoSize === "custom" && (
+        <Field label={`Ancho del logo en computador: ${h.logoWidth} px`} hint="En celular se achica solo si no cabe junto al menú y el carrito.">
+          <input
+            type="range"
+            min={40}
+            max={400}
+            step={5}
+            value={h.logoWidth}
+            onChange={(e) => patch({ header: { logoWidth: Number(e.target.value) } })}
+            className="w-full accent-brand-accent"
+          />
+        </Field>
+      )}
 
       <div className="border-t border-brand-line pt-4 space-y-3">
         <p className="text-xs font-medium text-brand-ink">Encabezado en celulares</p>
@@ -682,10 +696,22 @@ export function ProductListingSection({ theme, patch }: { theme: ThemeConfig; pa
           <option value="2-4">2 en celular y 4 en computadora</option>
         </select>
       </Field>
-      <p className="text-[11px] text-brand-ink-soft">
-        Tamaño recomendado de foto: cuadrada, 1000×1000px (mínimo
-        800×800px) — así se ve nítida en pantallas de alta resolución sin
-        pesar de más.
+      <Field label="Forma de las fotos">
+        <select
+          value={p.imageRatio}
+          onChange={(e) => patch({ productListing: { imageRatio: e.target.value } })}
+          className="input text-sm"
+        >
+          <option value="natural">Como vienen, sin recortar</option>
+          <option value="square">Cuadradas (recorta lo que sobre)</option>
+          <option value="portrait">Verticales 4:5 (recorta lo que sobre)</option>
+        </select>
+      </Field>
+      <p className="text-[11px] text-brand-ink-soft -mt-2">
+        Con &quot;Como vienen&quot;, si todas tus fotos tienen la misma forma las
+        tarjetas quedan parejas. Tamaño recomendado: 1000px de ancho (mínimo
+        800px) — así se ve nítida en pantallas de alta resolución sin pesar
+        de más.
       </p>
       <Checkbox
         label="Mostrar productos agotados"

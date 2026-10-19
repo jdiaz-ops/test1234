@@ -6,7 +6,9 @@ import {
   extractFaviconUrl,
   extractFonts,
   extractLogoUrl,
+  extractLogoWidth,
   extractMenu,
+  extractProductImageRatio,
   extractStoreName,
   mapShopifyMenuHref,
   parseShopifyStorefront,
@@ -109,6 +111,29 @@ describe("leer el diseño de la portada de Shopify", () => {
     expect(extractFaviconUrl(DAWN, BASE)).toBe("https://www.beautysolutionshop.com/cdn/shop/files/favicon_180x180.png?v=1");
     expect(extractStoreName(DAWN)).toBe("Beauty Solution Shop");
     expect(extractStoreName("<title>Mi Tienda – Uñas</title>")).toBe("Mi Tienda");
+  });
+
+  it("copia el ancho del logo y la forma de las fotos de las tarjetas", () => {
+    const logo = (attrs: string, css = "") =>
+      `<html><head><style>${css}</style></head><body><header><a href="/"><img src="/cdn/shop/files/logo.png" alt="Beauty Solution" class="header__heading-logo motion-reduce" ${attrs}></a></header></body></html>`;
+    expect(extractLogoWidth(logo('width="250" height="62.5"'), BASE)).toBe(250);
+    expect(extractLogoWidth(logo("", ".header__heading-logo { height: auto; max-width: 220px; } @media (max-width: 749px) { .header__heading-logo{max-width:140px} }"), BASE)).toBe(220);
+    expect(extractLogoWidth(logo('style="max-width:180px"'), BASE)).toBe(180);
+    // El tamaño del archivo no es el ancho en pantalla: manda el CSS, y el
+    // atributo solo cuenta en los temas tipo Dawn.
+    expect(extractLogoWidth(logo('width="1200" height="300"'), BASE)).toBeNull();
+    expect(extractLogoWidth(logo('width="380" style="max-width: 150px"'), BASE)).toBe(150);
+    expect(extractLogoWidth('<header><img src="/wp-content/uploads/logo.png" class="custom-logo" width="300" height="80"></header>', BASE)).toBeNull();
+    expect(extractLogoWidth(DAWN, BASE)).toBeNull();
+
+    const cards = (...ratios: number[]) =>
+      ratios
+        .map((r) => `<div class="card-wrapper product-card-wrapper"><div class="card card--media" style="--ratio-percent: ${r}%;"><div class="card__inner ratio" style="--ratio-percent: ${r}%;"></div></div></div>`)
+        .join("");
+    expect(extractProductImageRatio(cards(125, 125.0, 125))).toBe("portrait");
+    expect(extractProductImageRatio(cards(100, 100))).toBe("square");
+    expect(extractProductImageRatio(cards(125, 100, 133.3))).toBe("natural");
+    expect(extractProductImageRatio(DAWN)).toBeNull();
   });
 
   it("arma el menú del <nav> del encabezado sin repetidos ni links de carrito", () => {

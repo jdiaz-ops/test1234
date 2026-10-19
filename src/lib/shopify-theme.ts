@@ -65,6 +65,11 @@ export type ShopifyThemeInfo = {
   /// corta del perfil (ver brand-profile-extract-service.ts).
   metaDescription: string | null;
   logoUrl: string | null;
+  /// Ancho del logo en computador, en píxeles (ver extractLogoWidth).
+  logoWidth?: number | null;
+  /// Forma de las fotos en las tarjetas de producto (ver
+  /// extractProductImageRatio).
+  productImageRatio?: ProductImageRatio | null;
   faviconUrl: string | null;
   colors: ShopifyThemeColors | null;
   fonts: ShopifyThemeFonts | null;
@@ -711,10 +716,12 @@ function largestFromSrcset(srcset: string | null): string | null {
   return best?.url ?? null;
 }
 
-export function extractLogoUrl(html: string, baseUrl: string): string | null {
+/// La etiqueta <img> del logo — la que más huele a logo en el encabezado —
+/// y su dirección.
+function findLogo(html: string, baseUrl: string): { url: string; tag: string } | null {
   const scope = headerHtml(html) ?? html.slice(0, 200_000);
   const images = scope.match(/<img\b[^>]*>/gi) ?? [];
-  let best: { url: string; score: number } | null = null;
+  let best: { url: string; tag: string; score: number } | null = null;
   for (const tag of images) {
     const src = attr(tag, "src") ?? attr(tag, "data-src");
     const srcset = largestFromSrcset(attr(tag, "srcset") ?? attr(tag, "data-srcset"));
@@ -723,16 +730,68 @@ export function extractLogoUrl(html: string, baseUrl: string): string | null {
     const haystack = `${attr(tag, "class") ?? ""} ${attr(tag, "alt") ?? ""} ${url}`.toLowerCase();
     let score = /logo/.test(haystack) ? 10 : 0;
     if (/payment|badge|flag|icon|sprite|pixel|track/.test(haystack)) score -= 5;
-    if (!best || score > best.score) best = { url, score };
+    if (!best || score > best.score) best = { url, tag, score };
   }
-  if (best && best.score >= 10) return best.url;
+  if (best && best.score >= 10) return best;
   // Fuera del encabezado, cualquier imagen que se llame logo.
   const anywhere = html.match(/<img\b[^>]*logo[^>]*>/i)?.[0];
   if (anywhere) {
-    const src = attr(anywhere, "src") ?? attr(anywhere, "data-src");
-    return absoluteUrl(src, baseUrl);
+    const url = absoluteUrl(attr(anywhere, "src") ?? attr(anywhere, "data-src"), baseUrl);
+    return url ? { url, tag: anywhere } : null;
   }
-  return best?.url ?? null;
+  return best;
+}
+
+export function extractLogoUrl(html: string, baseUrl: string): string | null {
+  return findLogo(html, baseUrl)?.url ?? null;
+}
+
+const LOGO_WIDTH_MIN = 40;
+const LOGO_WIDTH_MAX = 400;
+
+/// El ancho con que la tienda muestra su logo en computador, en píxeles.
+/// Primero lo que dice su CSS (una regla max-width/width para la clase del
+/// logo, o el style del <img>): se toma el mayor, porque el de celular
+/// suele ser más chico. Si no hay, el atributo width — solo en los temas
+/// de Shopify de la familia Dawn (clase header__heading-logo), donde sale
+/// del ajuste "Ancho del logo"; en los demás suele ser el tamaño del
+/// archivo, no el que se ve. null si no se sabe. Pedido del 2026-10-19:
+/// "el logo casi no se ve".
+export function extractLogoWidth(html: string, baseUrl: string): number | null {
+  const logo = findLogo(html, baseUrl);
+  if (!logo) return null;
+  const credible = (values: number[]) => values.filter((w) => w >= LOGO_WIDTH_MIN && w <= LOGO_WIDTH_MAX);
+  const fromCss: number[] = [];
+  const style = attr(logo.tag, "style") ?? "";
+  for (const m of style.matchAll(/(?:^|;)\s*(?:max-)?width\s*:\s*(\d+(?:\.\d+)?)px/gi)) fromCss.push(parseFloat(m[1]));
+  const classes = (attr(logo.tag, "class") ?? "").split(/\s+/).filter((c) => /^[\w-]+$/.test(c) && /logo/i.test(c));
+  const css = Array.from(html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi), (m) => m[1]).join("\n");
+  for (const name of classes) {
+    for (const m of css.matchAll(new RegExp(`\\.${name}\\s*\\{(?:[^}]*?[;\\s])?(?:max-)?width\\s*:\\s*(\\d+(?:\\.\\d+)?)px`, "gi"))) fromCss.push(parseFloat(m[1]));
+  }
+  const shown = credible(fromCss);
+  if (shown.length > 0) return Math.round(Math.max(...shown));
+  const width = attr(logo.tag, "width");
+  if (!classes.includes("header__heading-logo") || !width || !/^\d+(\.\d+)?$/.test(width)) return null;
+  const fromAttr = credible([parseFloat(width)]);
+  return fromAttr.length > 0 ? Math.round(fromAttr[0]) : null;
+}
+
+export type ProductImageRatio = "natural" | "square" | "portrait";
+
+/// La forma de las fotos en las tarjetas de producto de la tienda. Los
+/// temas de Shopify de la familia Dawn ponen en cada tarjeta
+/// --ratio-percent (alto ÷ ancho × 100) según el ajuste "Proporción de
+/// imagen": todas al 100 % = cuadradas, todas al 125 % = verticales 4:5;
+/// cualquier otra cosa es "adaptar a la imagen" (cada foto con su forma).
+/// null si la página no tiene tarjetas de producto que lo digan.
+export function extractProductImageRatio(html: string): ProductImageRatio | null {
+  const values: number[] = [];
+  for (const m of html.matchAll(/product-card-wrapper[\s\S]{0,800}?--ratio-percent\s*:\s*(\d+(?:\.\d+)?)%/gi)) values.push(parseFloat(m[1]));
+  if (values.length === 0) return null;
+  if (values.every((v) => Math.abs(v - 100) < 1)) return "square";
+  if (values.every((v) => Math.abs(v - 125) < 1)) return "portrait";
+  return "natural";
 }
 
 export function extractFaviconUrl(html: string, baseUrl: string): string | null {
@@ -1145,6 +1204,8 @@ export function parseShopifyStorefront(html: string, baseUrl: string, extraCss?:
     storeName: extractStoreName(html),
     metaDescription: extractMetaDescription(html),
     logoUrl: extractLogoUrl(html, baseUrl),
+    logoWidth: extractLogoWidth(html, baseUrl),
+    productImageRatio: extractProductImageRatio(html),
     faviconUrl: extractFaviconUrl(html, baseUrl),
     colors: extractColors(styled),
     fonts: extractFonts(styled),

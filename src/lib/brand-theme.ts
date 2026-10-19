@@ -176,7 +176,14 @@ const headerSchema = withDefaults({
   /// cambiar. Ver conversación del 2026-10-02.
   checkoutBgColor: hexColor().nullable().default(null),
   sticky: z.boolean().default(true),
-  logoSize: z.enum(["small", "medium", "large"]).default("medium"),
+  /// "custom" = el ancho exacto de logoWidth, como "Ancho del logo" en
+  /// Shopify. Pedido del 2026-10-19 ("el logo casi no se ve"): un logo
+  /// ancho y delgado se veía diminuto con las tres alturas fijas.
+  logoSize: z.enum(["small", "medium", "large", "custom"]).default("medium"),
+  /// Ancho del logo en computador, en píxeles, cuando logoSize es
+  /// "custom". Duplicar tienda copia el de la tienda original (ver
+  /// extractLogoWidth en shopify-theme.ts). En celular se achica si no cabe.
+  logoWidth: z.coerce.number().int().min(40).max(400).default(160),
   /// Si el menú de navegación (ver StorefrontMenuPanel) se muestra en el
   /// encabezado — en computadora siempre como links normales; en celular,
   /// según mobile.menuStyle (ver store-header.tsx). El control del pie de
@@ -278,6 +285,14 @@ const productListingSchema = withDefaults({
   /// abierta por link directo. Prendido: se ven con la etiqueta "Agotado".
   /// Ver product-stock.ts y conversación del 2026-10-18.
   showSoldOut: z.boolean().default(false),
+  /// Forma de la foto en las tarjetas de producto. "natural" (por defecto):
+  /// cada foto con su propia forma, sin recortarle nada — como "Adaptar a
+  /// la imagen" en Shopify. Antes era siempre cuadrada y a las fotos
+  /// verticales se les cortaba arriba y abajo, con el texto que traen
+  /// (pedido del 2026-10-19: "las imágenes se cortan"). "square" y
+  /// "portrait" (4:5) dejan todas las tarjetas parejas recortando lo que
+  /// sobre.
+  imageRatio: z.enum(["natural", "square", "portrait"]).default("natural"),
 });
 
 // ----------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCart } from "@/components/storefront/cart-context";
 import type { CardProduct, CardVariant } from "@/components/storefront/product-card";
 import { ProductPrice } from "@/components/storefront/product-card";
+import { chooseOptionLabel } from "@/lib/variant-choice";
 
 function labelFor(product: CardProduct, variant: CardVariant) {
   const names = product.optionNames ?? [];
@@ -147,7 +148,7 @@ export function CardVariantPicker({
           <p className="text-xs text-brand-ink-soft py-2">Esa combinación no está disponible.</p>
         ) : (
           <Link href={href} className={`${buttonClassName} block text-center`}>
-            Elige {singleAxis ? (optionNames[0] ?? "tu opción").toLowerCase() : "tus opciones"}
+            {chooseOptionLabel(optionNames, selected)}
           </Link>
         )}
         {error && <p className="text-xs text-red-600 mt-1.5">{error}</p>}

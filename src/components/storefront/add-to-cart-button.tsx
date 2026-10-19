@@ -21,6 +21,7 @@ export function AddToCartButton({
   product,
   className,
   disabled,
+  disabledLabel,
   quantity = 1,
 }: {
   product: Product;
@@ -31,6 +32,10 @@ export function AddToCartButton({
   /// Ej. producto con variantes y todavía no elige ninguna combinación
   /// completa.
   disabled?: boolean;
+  /// Lo que dice el botón mientras está deshabilitado por otra cosa que no
+  /// es falta de unidades — ej. "Elige tu referencia" (ver
+  /// variant-choice.ts). Sin esto diría "Agregar al carrito", apagado.
+  disabledLabel?: string;
   /// Ya no se usa (el botón no navega a ninguna página) — se deja en el
   /// tipo sin desestructurar para no tener que tocar cada lugar que
   /// todavía lo manda.
@@ -80,7 +85,9 @@ export function AddToCartButton({
           ? isService
             ? "Sin cupos"
             : "Agotado"
-          : added
+          : disabled && disabledLabel
+            ? disabledLabel
+            : added
             ? "Agregado ✓"
             : isService
               ? "Reservar"

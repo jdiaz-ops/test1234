@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { CardVariantPicker } from "@/components/storefront/card-variant-picker";
-import { StoreImage } from "@/components/storefront/store-image";
+import { CardPhoto } from "@/components/storefront/card-photo";
 import { formatCOP } from "@/components/storefront/catalog-templates/types";
 import { priceRange } from "@/lib/product-price";
 import { readProductAttributes } from "@/lib/product-attributes";
@@ -195,18 +195,7 @@ export function ProductCard({
   return (
     <div className={`flex flex-col ${className}`}>
       <Link href={href} className="relative block bg-brand-accent-soft">
-        {product.imageUrl ? (
-          <div className="relative w-full aspect-square">
-            <StoreImage
-              src={product.imageUrl}
-              alt={product.name}
-              className="object-cover"
-              sizes="(min-width: 1024px) 400px, (min-width: 640px) 25vw, 50vw"
-            />
-          </div>
-        ) : (
-          <div className="w-full aspect-square" />
-        )}
+        <CardPhoto src={product.imageUrl} alt={product.name} sizes="(min-width: 1024px) 400px, (min-width: 640px) 25vw, 50vw" />
         <DiscountBadge price={product.price} compareAtPrice={product.compareAtPrice} />
         {!withVariants && product.stock != null && product.stock <= 0 && (
           // Agotado: el producto se sigue viendo (no se esconde), con la
