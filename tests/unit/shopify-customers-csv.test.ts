@@ -52,3 +52,35 @@ describe("CSV de clientes de Shopify", () => {
     expect(parseShopifyCustomersCsv("Handle,Title\nplaca,Placa").error).toMatch(/clientes de Shopify/);
   });
 });
+
+describe("CSV de clientes cualquiera", () => {
+  it("lee las columnas por su nombre en español y no suscribe a nadie sin permiso", async () => {
+    const { parseCustomersCsv } = await import("@/lib/shopify-customers-csv");
+    const { customers, stats, error } = parseCustomersCsv(
+      [
+        "Nombre,Apellidos,Correo electrónico,Celular,Cédula,Ciudad,Departamento,Dirección",
+        "Laura,Gómez,LAURA@correo.com,3001234567,1.020.304.050,Medellín,antioquia,Calle 10 # 20-30",
+        "Sin,Correo,,3000000000,,,,",
+      ].join("\n"),
+    );
+    expect(error).toBeNull();
+    expect(stats).toMatchObject({ rows: 2, withEmail: 1, withoutEmail: 1, emailSubscribed: 0 });
+    expect(customers[0]).toMatchObject({
+      email: "laura@correo.com",
+      name: "Laura Gómez",
+      phone: "3001234567",
+      documentNumber: "1020304050",
+      city: "Medellín",
+      region: "Antioquia",
+      address: "Calle 10 # 20-30",
+      emailSubscribed: false,
+      tags: ["importado"],
+    });
+  });
+
+  it("el de Shopify sigue leyéndose completo, y sin columna de correo se rechaza", async () => {
+    const { parseCustomersCsv } = await import("@/lib/shopify-customers-csv");
+    expect(parseCustomersCsv(csv("'111,Ana,Pérez,ana@correo.com,yes,,,,Bogotá,DC,CO,,,,no,0,0,,no,,no,,")).customers[0]).toMatchObject({ region: "Bogotá D.C.", emailSubscribed: true });
+    expect(parseCustomersCsv("Nombre,Teléfono\nLaura,300").error).toMatch(/columna con el correo/);
+  });
+});

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { isAdminActingAsBrand, requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { listStoreCustomers, type CustomerFilter } from "@/server/services/store-customer-service";
-import { ShopifyCustomersImporter } from "@/components/portal/shopify-customers-importer";
+import { CustomersCsvImporter } from "@/components/portal/customers-csv-importer";
 
 function formatCOP(cents: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -28,7 +28,7 @@ export default async function TiendaClientesPage({
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 
-  // Importar clientes desde Shopify: solo el admin con "Entrar como".
+  // Importar clientes desde un CSV: solo el admin con "Entrar como".
   const importTools = await isAdminActingAsBrand();
   const params = await searchParams;
   const filter = (FILTERS.find((f) => f.key === params.filtro)?.key ?? "todos") as CustomerFilter;
@@ -55,20 +55,20 @@ export default async function TiendaClientesPage({
       </div>
       <p className="text-sm text-brand-ink-soft mb-4 max-w-lg">
         {importTools
-          ? "Los que te han comprado en tu tienda de Marcolini y los que traigas desde Shopify."
+          ? "Los que te han comprado en tu tienda de Marcolini y los que importes desde un archivo CSV."
           : "Los que te han comprado en tu tienda de Marcolini."}
       </p>
 
       {importTools && (
         <div className="mb-6">
-          <ShopifyCustomersImporter />
+          <CustomersCsvImporter />
         </div>
       )}
 
       {counts.todos === 0 ? (
         <p className="text-sm text-brand-ink-soft">
           Todavía no tienes clientes. Aparecerán aquí apenas alguien te compre
-          {importTools ? ", o impórtalos desde Shopify." : "."}
+          {importTools ? ", o impórtalos desde un archivo CSV." : "."}
         </p>
       ) : (
         <>

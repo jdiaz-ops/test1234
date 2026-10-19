@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { parseShopifyCustomersCsv, type ImportCustomer, type CustomersCsvStats } from "@/lib/shopify-customers-csv";
+import { parseCustomersCsv, type ImportCustomer, type CustomersCsvStats } from "@/lib/shopify-customers-csv";
 
 const BATCH_SIZE = 500;
 
@@ -10,11 +10,13 @@ function n(value: number) {
   return value.toLocaleString("es-CO");
 }
 
-/// Mi tienda → Clientes → "Importar desde Shopify". El CSV se lee en el
-/// navegador (lib/shopify-customers-csv.ts) y se manda por lotes a
-/// /api/marca/tienda/clientes/importar. Se puede repetir con el mismo
-/// archivo sin duplicar a nadie (2026-10-04).
-export function ShopifyCustomersImporter() {
+/// Mi tienda → Clientes → "Importar CSV". El CSV se lee en el navegador
+/// (parseCustomersCsv en lib/shopify-customers-csv.ts: cualquier archivo
+/// con una columna de correo, o el que exporta Shopify) y se manda por
+/// lotes a /api/marca/tienda/clientes/importar. Se puede repetir con el
+/// mismo archivo sin duplicar a nadie (2026-10-04). Antes decía "Importar
+/// desde Shopify" (2026-10-19: "quitar mención de Shopify").
+export function CustomersCsvImporter() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export function ShopifyCustomersImporter() {
     setFileName(file?.name ?? null);
     if (!file) return;
     try {
-      const parsed = parseShopifyCustomersCsv(await file.text());
+      const parsed = parseCustomersCsv(await file.text());
       if (parsed.error) {
         setError(parsed.error);
         return;
@@ -40,7 +42,7 @@ export function ShopifyCustomersImporter() {
       setCustomers(parsed.customers);
       setStats(parsed.stats);
     } catch {
-      setError("No se pudo leer el archivo. Revisa que sea el CSV de clientes exportado desde Shopify.");
+      setError("No se pudo leer el archivo. Revisa que sea un archivo .csv.");
     }
   }
 
@@ -90,7 +92,7 @@ export function ShopifyCustomersImporter() {
         onClick={() => setOpen(true)}
         className="border border-brand-line rounded-full px-4 py-2 text-sm text-brand-ink hover:bg-brand-accent-soft"
       >
-        Importar desde Shopify
+        Importar CSV
       </button>
     );
   }
@@ -98,7 +100,7 @@ export function ShopifyCustomersImporter() {
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-4 mb-6">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-brand-ink">Importar clientes desde Shopify</p>
+        <p className="text-sm font-medium text-brand-ink">Importar clientes desde un archivo CSV</p>
         {phase !== "importing" && (
           <button type="button" onClick={reset} className="text-xs text-brand-ink-soft hover:underline">
             Cerrar
@@ -109,9 +111,9 @@ export function ShopifyCustomersImporter() {
       {phase === "pick" && (
         <>
           <p className="text-xs text-brand-ink-soft">
-            En Shopify ve a <strong>Clientes → Exportar</strong>, elige <strong>Todos los clientes</strong> y{" "}
-            <strong>CSV para Excel o similar</strong>. Sube aquí ese archivo. Puedes repetirlo cuando quieras: no se
-            duplica nadie.
+            Sube un archivo .csv con tus clientes. Necesita una columna con el correo (<strong>Email</strong> o{" "}
+            <strong>Correo</strong>); también leemos nombre, teléfono, cédula, ciudad, departamento y dirección. Puedes
+            repetirlo cuando quieras: no se duplica nadie.
           </p>
           <label className="block rounded-xl border border-dashed border-brand-line px-4 py-6 text-center text-sm text-brand-ink-soft cursor-pointer hover:bg-brand-accent-soft">
             {fileName ? <span className="text-brand-ink">{fileName}</span> : "Elige el archivo .csv"}
@@ -126,7 +128,9 @@ export function ShopifyCustomersImporter() {
 
           {stats && (
             <div className="rounded-xl border border-brand-line bg-brand-bg p-4 space-y-1.5 text-sm">
-              <p className="font-medium text-brand-ink">{n(stats.withEmail)} clientes listos para importar</p>
+              <p className="font-medium text-brand-ink">
+                {n(stats.withEmail)} {stats.withEmail === 1 ? "cliente listo" : "clientes listos"} para importar
+              </p>
               <p className="text-xs text-brand-ink-soft">
                 {n(stats.withOrders)} ya te han comprado · {n(stats.withoutOrders)} sin compras (registros o
                 newsletter)
@@ -149,7 +153,7 @@ export function ShopifyCustomersImporter() {
             disabled={customers.length === 0}
             className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            Importar {customers.length > 0 ? n(customers.length) : ""} clientes
+            Importar {customers.length > 0 ? n(customers.length) : ""} {customers.length === 1 ? "cliente" : "clientes"}
           </button>
         </>
       )}

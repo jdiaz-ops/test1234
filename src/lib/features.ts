@@ -11,6 +11,12 @@
 /// landings. Para apagarlo: NEXT_PUBLIC_FEATURE_SAMPLES=false.
 export const SAMPLES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_SAMPLES !== "false";
 
+/// Servicios y productos digitales (Product.type SERVICE/DIGITAL): escondidos
+/// por ahora al crear un producto — solo productos físicos (pedido del
+/// 2026-10-19). Los que ya existen se siguen viendo y vendiendo igual. Para
+/// encenderlo: NEXT_PUBLIC_FEATURE_PRODUCT_TYPES=true.
+export const PRODUCT_TYPES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_PRODUCT_TYPES === "true";
+
 /// Reseñas de productos (product-review-service.ts): los compradores
 /// opinan desde la ficha y la marca aprueba. Apagado: la marca pidió
 /// quitarlo — no se ve en la ficha, ni en el menú, y la API de envío

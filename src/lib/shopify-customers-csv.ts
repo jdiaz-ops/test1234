@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
 
 /// Lee el CSV de clientes que exporta Shopify (Clientes → Exportar) para
 /// importarlo en Mi tienda → Clientes. Corre en el navegador: el archivo
@@ -199,6 +200,104 @@ export function parseShopifyCustomersCsv(text: string): {
     if (c.smsSubscribed) stats.smsSubscribed++;
     if (c.orderCount > 0) stats.withOrders++;
     else stats.withoutOrders++;
+  }
+  return { customers, stats, error: null };
+}
+
+// ----------------------------------------------------------------------------
+// Cualquier CSV de clientes (pedido del 2026-10-19: "quitar mención de
+// Shopify, más bien importar CSV"). Si el archivo es el de Shopify, se lee
+// con todo su detalle (arriba); si no, se buscan las columnas por su nombre
+// más común en español o inglés. Nadie queda suscrito a correos o SMS si el
+// archivo no lo dice: no se puede suponer el permiso.
+// ----------------------------------------------------------------------------
+
+/// "Correo electrónico:" → "correo electronico".
+function headerKey(header: string) {
+  return header
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const COLUMNS = {
+  email: ["email", "correo", "correo electronico", "e mail", "mail", "email address"],
+  fullName: ["nombre completo", "nombre y apellido", "nombres y apellidos", "name", "full name", "cliente"],
+  firstName: ["nombre", "nombres", "first name"],
+  lastName: ["apellido", "apellidos", "last name"],
+  phone: ["telefono", "celular", "movil", "whatsapp", "phone", "telefono celular", "numero de celular", "numero de telefono"],
+  document: ["cedula", "documento", "numero de documento", "cc", "nit", "identificacion", "cedula o nit"],
+  address: ["direccion", "address", "direccion de envio"],
+  city: ["ciudad", "city", "municipio"],
+  region: ["departamento", "region", "provincia", "state", "province"],
+  emailConsent: ["acepta correos", "acepta marketing", "suscrito", "suscrita", "newsletter", "acepta email marketing"],
+  smsConsent: ["acepta sms", "acepta whatsapp", "acepta sms o whatsapp"],
+} as const;
+
+const REGION_BY_KEY = new Map(COLOMBIA_REGIONS.map((r) => [headerKey(r), r]));
+
+function affirmative(value: string | undefined) {
+  return ["si", "yes", "true", "1", "x", "acepta"].includes(headerKey(value ?? ""));
+}
+
+export function parseCustomersCsv(text: string): {
+  customers: ImportCustomer[];
+  stats: CustomersCsvStats;
+  error: string | null;
+} {
+  const parsed = Papa.parse<Row>(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: true });
+  const rows = parsed.data;
+  const headers = parsed.meta.fields ?? [];
+  if (headers.includes("Email") && headers.includes("Accepts Email Marketing")) return parseShopifyCustomersCsv(text);
+
+  const stats: CustomersCsvStats = { rows: rows.length, withEmail: 0, withoutEmail: 0, emailSubscribed: 0, smsSubscribed: 0, withOrders: 0, withoutOrders: 0 };
+  const byKey = new Map(headers.map((h) => [headerKey(h), h]));
+  const column = (names: readonly string[]) => names.map((n) => byKey.get(n)).find((h): h is string => Boolean(h));
+  const col = Object.fromEntries(Object.entries(COLUMNS).map(([k, names]) => [k, column(names)])) as Record<keyof typeof COLUMNS, string | undefined>;
+  if (!col.email) {
+    return { customers: [], stats, error: "El archivo necesita una columna con el correo de cada cliente (Email o Correo)." };
+  }
+
+  const byEmail = new Map<string, ImportCustomer>();
+  for (const row of rows) {
+    const email = (row[col.email] ?? "").trim().toLowerCase();
+    if (!email || !EMAIL.test(email)) {
+      stats.withoutEmail++;
+      continue;
+    }
+    const get = (key: keyof typeof COLUMNS) => (col[key] ? clean(row[col[key]!]) : null);
+    const name = get("fullName") ?? ([get("firstName"), get("lastName")].filter(Boolean).join(" ") || null);
+    const document = get("document");
+    const region = get("region");
+    byEmail.set(email, {
+      email,
+      name,
+      phone: get("phone"),
+      documentNumber: document ? document.replace(/[.\s]/g, "") : null,
+      company: null,
+      address: get("address"),
+      address2: null,
+      city: get("city"),
+      region: region ? (REGION_BY_KEY.get(headerKey(region)) ?? region) : null,
+      postalCode: null,
+      countryCode: null,
+      emailSubscribed: col.emailConsent ? affirmative(row[col.emailConsent]) : false,
+      smsSubscribed: col.smsConsent ? affirmative(row[col.smsConsent]) : false,
+      orderCount: 0,
+      spentCents: 0,
+      tags: ["importado"],
+      notes: null,
+      shopifyCustomerId: null,
+    });
+  }
+  const customers = Array.from(byEmail.values());
+  stats.withEmail = customers.length;
+  for (const c of customers) {
+    if (c.emailSubscribed) stats.emailSubscribed++;
+    if (c.smsSubscribed) stats.smsSubscribed++;
+    stats.withoutOrders++;
   }
   return { customers, stats, error: null };
 }

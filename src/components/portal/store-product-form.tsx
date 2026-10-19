@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PRODUCT_TYPES_ENABLED } from "@/lib/features";
 import { PriceInput } from "@/components/portal/price-input";
 import { ProductImageUploader } from "@/components/portal/product-image-uploader";
 import { RichTextEditor } from "@/components/portal/rich-text-editor";
@@ -299,6 +300,9 @@ export function StoreProductForm({
       onSubmit={handleSubmit}
       className="space-y-4 rounded-2xl border border-brand-line bg-brand-surface p-5"
     >
+      {/* Solo productos físicos por ahora (PRODUCT_TYPES_ENABLED): el tipo
+          se ve únicamente si ya era un servicio o un producto digital. */}
+      {(PRODUCT_TYPES_ENABLED || type !== "PHYSICAL") && (
       <div>
         <label className="block text-sm text-brand-ink mb-1">Tipo</label>
         <div className="flex gap-2">
@@ -324,6 +328,7 @@ export function StoreProductForm({
           </p>
         )}
       </div>
+      )}
 
       <div>
         <label className="block text-sm text-brand-ink mb-1">
