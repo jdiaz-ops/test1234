@@ -167,15 +167,15 @@ export const PAYMENT_PROVIDERS: Record<PaymentProviderId, PaymentProviderSpec> =
     steps: {
       PRODUCTION: [
         "En mercadopago.com.co/developers → Tus integraciones → «Crear aplicación»: elige «Checkout Pro» y, en Tipo de API, «API de Preferences»; acepta y créala. Si ya la tienes, ábrela.",
-        "En tu aplicación → «Credenciales de producción»: actívalas (te pide industria y sitio web: pon el link de tu tienda) y copia el Access Token (empieza por APP_USR-). Pégalo aquí.",
+        "En tu aplicación → Credenciales, pestaña «Productivas»: toca «Activar credenciales» (te pide industria y sitio web: pon el link de tu tienda), luego «Ver datos de la credencial» y copia el Access Token (empieza por APP_USR-). Pégalo aquí.",
         "Opcional: en «Webhooks» pega tu URL de avisos (está abajo), marca el evento «Pagos», guarda y pega aquí la clave secreta que te muestra.",
         "Toca «Guardar y empezar a cobrar».",
       ],
       TEST: [
         "En mercadopago.com.co/developers → Tus integraciones → «Crear aplicación»: elige «Checkout Pro» y, en Tipo de API, «API de Preferences»; acepta y créala. Si ya la tienes, ábrela.",
-        "En tu aplicación → «Credenciales de prueba», copia el Access Token (empieza por TEST-) y pégalo aquí.",
+        "En tu aplicación → Credenciales, pestaña «Prueba»: toca «Activar credenciales», luego «Ver datos de la credencial» y copia el Access Token. Pégalo aquí.",
         "Toca «Guardar y probar».",
-        "Para pagar, crea un comprador en «Cuentas de prueba» y entra con él a Mercado Pago: con tu propia cuenta no se puede.",
+        "Para pagar, crea una cuenta «Comprador» en «Cuentas de prueba», entra con ella a Mercado Pago y usa una tarjeta de «Tarjetas de prueba»: con tu propia cuenta no se puede.",
       ],
     },
   },
