@@ -304,7 +304,7 @@ export function InventoryStep({ onDoneAll }: { onDoneAll: () => void }) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-brand-ink-soft">
-        Escribe cuántas unidades tienes; se guarda solo. Si vendes sobre pedido o sin límite, déjalos así y marca el paso como listo.
+        Escribe cuántas unidades tienes; se guarda solo.
         {data && !query.trim() && data.total > 0 ? ` Faltan ${data.total}.` : ""}
       </p>
       <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" className="input text-sm" />
