@@ -479,7 +479,7 @@ export function StorePaymentForm({
           />
           {spec.webhook && current.webhookUrl && (
             <div>
-              <p className="mb-1 text-xs text-brand-ink">{spec.steps ? "Tu URL de avisos" : `Pega esta URL en ${spec.webhook.where}`}</p>
+              <p className="mb-1 text-xs text-brand-ink">{spec.steps ? (spec.webhook.optional ? "Tu URL de avisos (opcional)" : "Tu URL de avisos") : `Pega esta URL en ${spec.webhook.where}`}</p>
               <CopyField value={current.webhookUrl} />
             </div>
           )}

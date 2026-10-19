@@ -44,7 +44,9 @@ export type PaymentProviderSpec = {
   /// URL fija que la marca pega en el panel de la pasarela para que avise
   /// cada pago (Wompi, Mercado Pago, Bold) — null cuando la URL de aviso
   /// va dentro de cada cobro (PayU, ePayco) y no hay nada que pegar.
-  webhook: { path: (brandId: string) => string; where: string } | null;
+  /// `optional`: la URL ya viaja en cada cobro y pegarla en el panel no es
+  /// obligatorio (Mercado Pago).
+  webhook: { path: (brandId: string) => string; where: string; optional?: boolean } | null;
   /// Dónde se devuelve el dinero de un pedido (el reembolso se hace en la
   /// pasarela; en Marcolini solo se registra).
   refundHint: string;
@@ -151,6 +153,7 @@ export const PAYMENT_PROVIDERS: Record<PaymentProviderId, PaymentProviderSpec> =
     ],
     badges: ["Tarjetas", "PSE", "Mercado Pago", "Efecty"],
     webhook: {
+      optional: true,
       path: (brandId) => `/api/webhooks/mercadopago/${brandId}`,
       where: "Mercado Pago → Tus integraciones → tu aplicación → Webhooks → URL (modo productivo y modo de prueba), evento Pagos.",
     },
@@ -158,18 +161,21 @@ export const PAYMENT_PROVIDERS: Record<PaymentProviderId, PaymentProviderSpec> =
     checkoutHint: "Al tocar Pagar ahora pasas a Mercado Pago para completar tu compra y vuelves a la tienda al terminar.",
     testHint:
       "Con el Access Token de prueba (empieza por TEST-) los cobros son de ensayo: Mercado Pago pide pagar con un usuario de prueba de tu aplicación.",
+    // Marcolini cobra con Checkout Pro (ver providers/mercado-pago.ts) y
+    // manda la URL de avisos en cada cobro: el Webhook del panel es
+    // opcional (solo da la clave secreta para validar la firma).
     steps: {
       PRODUCTION: [
-        "Entra a mercadopago.com.co/developers → Tus integraciones y abre tu aplicación (o crea una).",
-        "En «Credenciales de producción», copia el Access Token (empieza por APP_USR-) y pégalo aquí.",
-        "En «Webhooks», pega tu URL de avisos (está abajo) en modo productivo y marca el evento «Pagos».",
+        "En mercadopago.com.co/developers → Tus integraciones → «Crear aplicación»: elige «Checkout Pro», ponle un nombre (ej. «Marcolini») y créala. Si ya la tienes, ábrela.",
+        "En tu aplicación → «Credenciales de producción»: actívalas (te pide industria y sitio web: pon el link de tu tienda) y copia el Access Token (empieza por APP_USR-). Pégalo aquí.",
+        "Opcional: en «Webhooks» pega tu URL de avisos (está abajo), marca el evento «Pagos», guarda y pega aquí la clave secreta que te muestra.",
         "Toca «Guardar y empezar a cobrar».",
       ],
       TEST: [
-        "Entra a mercadopago.com.co/developers → Tus integraciones y abre tu aplicación (o crea una).",
-        "En «Credenciales de prueba», copia el Access Token (empieza por TEST-) y pégalo aquí.",
-        "En «Webhooks», pega tu URL de avisos (está abajo) en modo de prueba y marca el evento «Pagos».",
-        "Toca «Guardar y probar» y paga con un usuario de prueba de tu aplicación (en «Cuentas de prueba»): con tu propia cuenta no se puede.",
+        "En mercadopago.com.co/developers → Tus integraciones → «Crear aplicación»: elige «Checkout Pro», ponle un nombre (ej. «Marcolini») y créala. Si ya la tienes, ábrela.",
+        "En tu aplicación → «Credenciales de prueba», copia el Access Token (empieza por TEST-) y pégalo aquí.",
+        "Toca «Guardar y probar».",
+        "Para pagar, crea un comprador en «Cuentas de prueba» y entra con él a Mercado Pago: con tu propia cuenta no se puede.",
       ],
     },
   },
