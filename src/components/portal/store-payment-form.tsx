@@ -221,6 +221,22 @@ function initialEdits(fields: CredentialField[], saved: SavedSet | undefined): E
   return edits;
 }
 
+/// Los pasos cortos de cada pasarela (ver PaymentProviderSpec.steps), en
+/// un recuadro para que no se pierdan. «{guardar}» es el botón de guardar
+/// de donde se muestran.
+function ProviderSteps({ steps, saveLabel }: { steps: string[]; saveLabel: string }) {
+  return (
+    <div className="rounded-lg border border-brand-line px-3 py-2.5">
+      <p className="mb-1 text-xs font-medium text-brand-ink">Paso a paso</p>
+      <ol className="list-decimal space-y-1 pl-4 text-xs leading-relaxed text-brand-ink">
+        {steps.map((step) => (
+          <li key={step}>{step.replace("{guardar}", saveLabel)}</li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function KeysSection({
   provider,
   mode,
@@ -461,11 +477,7 @@ export function StorePaymentForm({
             </a>
           </div>
           {spec.steps ? (
-            <ol className="list-decimal space-y-0.5 pl-4 text-xs text-brand-ink-soft">
-              {spec.steps[testMode ? "TEST" : "PRODUCTION"].map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
+            <ProviderSteps steps={spec.steps[testMode ? "TEST" : "PRODUCTION"]} saveLabel={testMode ? "Guardar y probar" : "Guardar y empezar a cobrar"} />
           ) : (
             <p className="-mt-1 text-xs text-brand-ink-soft">{testMode ? spec.testHint : spec.keysHint}</p>
           )}
@@ -602,6 +614,13 @@ export function StorePaymentForm({
           </div>
         )}
       </Card>
+
+      {spec.steps && (
+        <Card>
+          <p className="mb-2 text-xs text-brand-ink-soft">{testMode ? "Para probar sin cobrar de verdad:" : "Para cobrar de verdad:"}</p>
+          <ProviderSteps steps={spec.steps[testMode ? "TEST" : "PRODUCTION"]} saveLabel="Guardar" />
+        </Card>
+      )}
 
       <Card className="!p-0 overflow-hidden">
         <div className="px-5 pt-4 pb-3">
