@@ -21,11 +21,15 @@ import {
 } from "@/lib/store-scrape";
 import { safeFetch, safeFetchJson, safeFetchText, SafeFetchError } from "@/server/integrations/safe-fetch";
 import {
+  ECOMETRI_DETAILS_PER_STEP,
+  ECOMETRI_GRAPHQL,
   ECOMETRI_PAGE_SIZE,
+  ecometriProductQueryBody,
   ecometriProductsUrl,
   isEcometriHost,
   isEcometriHtml,
   parseEcometriProduct,
+  parseEcometriProductDetail,
   parseEcometriProductsResponse,
   parseEcometriStorePage,
   type EcometriStorePage,
@@ -55,7 +59,8 @@ export type ScanStep =
   | { step: "woo-products"; page: number; base: string }
   | { step: "pages"; urls: string[] }
   | { step: "page"; url: string }
-  | EcometriProductsStep;
+  | EcometriProductsStep
+  | EcometriDetailsStep;
 
 /// Una página de productos de la API de Ecometri: collection = "" trae todos
 /// los productos de la tienda; con el id de una colección, los de esa
@@ -67,6 +72,15 @@ export type EcometriProductsStep = {
   collection: string;
   name: string | null;
   offset: number;
+  phone: string;
+  currency: string | null;
+};
+
+/// El detalle (descripción, variantes, fotos, inventario) de hasta 6
+/// productos de Ecometri, por su GraphQL — una consulta por producto.
+export type EcometriDetailsStep = {
+  step: "ecometri-details";
+  slugs: string[];
   phone: string;
   currency: string | null;
 };
@@ -405,6 +419,24 @@ async function ecometriProducts(origin: string, step: EcometriProductsStep): Pro
   else if (more && step.collection === "") {
     result.warnings.push(`La tienda tiene más de ${MAX_PRODUCTS} productos — se leerán los primeros ${MAX_PRODUCTS}.`);
   }
+  // La lista no trae descripción ni variantes: el detalle de cada producto
+  // se pide aparte, solo desde la lista completa (una vez por producto).
+  if (step.collection === "") {
+    const slugs = result.products.map((p) => p.handle);
+    for (let i = 0; i < slugs.length; i += ECOMETRI_DETAILS_PER_STEP) {
+      result.next.push({ step: "ecometri-details", slugs: slugs.slice(i, i + ECOMETRI_DETAILS_PER_STEP), phone: step.phone, currency: step.currency });
+    }
+  }
+  return result;
+}
+
+async function ecometriDetails(origin: string, step: EcometriDetailsStep): Promise<ScanResult> {
+  const result = emptyResult(origin, "ecometri");
+  const details = await pool(step.slugs.slice(0, ECOMETRI_DETAILS_PER_STEP), ECOMETRI_DETAILS_PER_STEP, async (slug) => {
+    const body = await safeFetchJson(ECOMETRI_GRAPHQL, { json: ecometriProductQueryBody(slug, step.phone), timeoutMs: 12000 }).catch(() => null);
+    return parseEcometriProductDetail(body, { origin, phone: step.phone, currency: step.currency, collectionName: null, slug });
+  });
+  result.products = details.filter((p): p is ScrapedProduct => Boolean(p));
   return result;
 }
 
@@ -442,5 +474,7 @@ export async function scanStore(origin: string | null, step: ScanStep): Promise<
       return infoPage(base, step.url);
     case "ecometri-products":
       return ecometriProducts(base, step);
+    case "ecometri-details":
+      return ecometriDetails(base, step);
   }
 }

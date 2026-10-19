@@ -236,6 +236,12 @@ async function postJson(url: string, body: unknown) {
   return data;
 }
 
+/// Qué tan completa viene una lectura de un producto (para quedarse con la
+/// mejor cuando el mismo producto llega por varios pasos).
+function richness(p: ScrapedProduct) {
+  return (p.hasVariants ? 4 : 0) + (p.description ? 2 : 0) + (p.images.length > 0 ? 1 : 0);
+}
+
 /// Un 422 del lector de otras tiendas es un motivo concreto ("no
 /// encontramos productos", "no pudimos leer esa tienda de Ecometri"):
 /// vale más mostrarlo que seguir como Shopify y terminar con el error
@@ -498,17 +504,20 @@ export function ShopifyImporter({
         try {
           const r = (await postJson(API_READ_OTHER, { origin, step })) as ScanResult;
           // El mismo producto puede llegar por varios pasos (en Ecometri,
-          // una vez en la lista completa y otra por cada colección): se
-          // queda el primero y se le suman las colecciones y lo que le falte.
+          // en la lista completa, en cada colección y en su detalle): se
+          // queda la versión más completa (variantes > descripción > fotos)
+          // y se le suman las colecciones de las demás.
           for (const p of r.products) {
             const prev = byHandle.get(p.handle);
             if (!prev) {
               byHandle.set(p.handle, p);
               continue;
             }
-            for (const name of p.collectionNames) if (!prev.collectionNames.includes(name)) prev.collectionNames.push(name);
-            if (!prev.description && p.description) prev.description = p.description;
-            if (prev.images.length === 0 && p.images.length > 0) prev.images = p.images;
+            const [keep, other] = richness(p) > richness(prev) ? [p, prev] : [prev, p];
+            for (const name of other.collectionNames) if (!keep.collectionNames.includes(name)) keep.collectionNames.push(name);
+            if (!keep.description && other.description) keep.description = other.description;
+            if (keep.images.length === 0 && other.images.length > 0) keep.images = other.images;
+            byHandle.set(p.handle, keep);
           }
           if (platform === "generic" && r.platform !== "generic") platform = r.platform;
           warnings.push(...r.warnings);
@@ -1200,7 +1209,7 @@ export function ShopifyImporter({
                   Marcolini.
                 </p>
                 <p>
-                  También funciona con WooCommerce, Tiendanube o cualquier otra tienda: de esas se
+                  También funciona con WooCommerce, Tiendanube, Ecometri o cualquier otra tienda: de esas se
                   traen los productos (precios, variantes, SKU, peso y fotos), sus categorías, el
                   diseño, el menú y las páginas informativas. Los fletes solo se leen de Shopify.
                 </p>

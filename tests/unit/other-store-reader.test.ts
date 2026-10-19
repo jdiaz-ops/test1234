@@ -174,8 +174,11 @@ describe("una tienda Ecometri", () => {
     // La colección que falló deja un aviso y no frena el resto.
     expect(steps[4].products).toEqual([]);
     expect(steps[4].warnings).toEqual(['No se pudo leer la colección "Uñas".']);
-    // Ningún paso pidió más páginas: todo cupo en la primera.
-    expect(results.slice(1).flatMap((r) => r.next)).toEqual([]);
+    // Ningún paso pidió más páginas: todo cupo en la primera. La lista
+    // completa sí pide el detalle de sus productos (de a 6 por paso).
+    expect(results.slice(1).flatMap((r) => r.next)).toEqual([
+      { step: "ecometri-details", slugs: ["producto-1-abc1", "producto-2-abc2"], phone: "573202670591", currency: "COP" },
+    ]);
   });
 
   it("pide la página siguiente mientras la API devuelva páginas llenas", async () => {
@@ -188,10 +191,69 @@ describe("una tienda Ecometri", () => {
     const first = await scanStore(null, { step: "detect", url: O });
     const page1 = await scanStore(O, first.next[0]);
     expect(page1.products).toHaveLength(50);
-    expect(page1.next).toEqual([{ ...first.next[0], offset: 50 }]);
+    expect(page1.next[0]).toEqual({ ...first.next[0], offset: 50 });
+    // Más el detalle de los 50 productos, de a 6.
+    expect(page1.next.slice(1).map((s) => (s.step === "ecometri-details" ? s.slugs.length : s.step))).toEqual([6, 6, 6, 6, 6, 6, 6, 6, 2]);
     const page2 = await scanStore(O, page1.next[0]);
     expect(page2.products).toHaveLength(10);
-    expect(page2.next).toEqual([]);
+    expect(page2.next.map((s) => (s.step === "ecometri-details" ? s.slugs.length : s.step))).toEqual([6, 4]);
+  });
+
+  it("lee el detalle de cada producto por GraphQL: descripción, variantes y fotos", async () => {
+    const detail = (slug: string) =>
+      slug === "polygel-rosa-abc1"
+        ? {
+            data: {
+              product: {
+                id: "p1",
+                name: "Polygel Rosa",
+                description: "<p>Gel de construcción.</p>",
+                price: 50000,
+                discountPrice: 0,
+                sku: "PG",
+                quantityAvailable: null,
+                active: true,
+                productAdditionalInfo: [{ id: "i1", title: "Modo de uso", description: "Aplicar en capas finas." }],
+                productOptions: [
+                  { id: "o1", name: "Tamaño", productOptionValues: [{ id: "v15", name: "15 g" }, { id: "v30", name: "30 g" }] },
+                ],
+                variants: [
+                  { id: "x1", price: 50000, discountPrice: 45000, sku: "PG-15", quantity: 3, optionValues: [{ id: "v15", name: "15 g" }] },
+                  { id: "x2", price: 90000, discountPrice: 0, sku: "PG-30", quantity: 0, optionValues: [{ id: "v30", name: "30 g" }] },
+                ],
+                productImages: [{ id: 2, pictureUrl: "b.jpg", order: 1 }, { id: 1, pictureUrl: "a.jpg", order: 0 }],
+              },
+            },
+          }
+        : { data: { product: null } };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: URL | string, init?: RequestInit) => {
+        if (input.toString() !== "https://graphql.ecometri.shop/graphql" || init?.method !== "POST") {
+          return new Response("no", { status: 404 });
+        }
+        const body = JSON.parse(String(init.body)) as { operationName: string; variables: { slug: string; phoneNumber: string } };
+        expect(body.operationName).toBe("GetProduct");
+        expect(body.variables.phoneNumber).toBe("573202670591");
+        return new Response(JSON.stringify(detail(body.variables.slug)), { status: 200, headers: { "content-type": "application/json" } });
+      }),
+    );
+    const r = await scanStore(O, { step: "ecometri-details", slugs: ["polygel-rosa-abc1", "sin-detalle-xyz"], phone: "573202670591", currency: "COP" });
+    expect(r.products).toHaveLength(1);
+    expect(r.products[0]).toMatchObject({
+      handle: "polygel-rosa-abc1",
+      name: "Polygel Rosa",
+      description: "<p>Gel de construcción.</p><h3>Modo de uso</h3><p>Aplicar en capas finas.</p>",
+      images: ["https://d1b50uin55dq3m.cloudfront.net/a.jpg", "https://d1b50uin55dq3m.cloudfront.net/b.jpg"],
+      hasVariants: true,
+      optionNames: ["Tamaño"],
+      price: 0,
+      sourceUrl: `${O}/573202670591/polygel-rosa-abc1/`,
+    });
+    expect(r.products[0].variants).toEqual([
+      { option1Value: "15 g", option2Value: null, option3Value: null, price: 45000, sku: "PG-15", barcode: "", stock: 3, weight: null, weightUnit: "KG" },
+      { option1Value: "30 g", option2Value: null, option3Value: null, price: 90000, sku: "PG-30", barcode: "", stock: 0, weight: null, weightUnit: "KG" },
+    ]);
   });
 
   it("rechaza un paso con identificadores raros", async () => {

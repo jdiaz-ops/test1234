@@ -13,6 +13,21 @@ import { plainTextToHtml, type ScrapedProduct } from "@/lib/store-scrape";
 /// (janbeauty.ecometri.shop: "La tienda redirige demasiadas veces").
 
 export const ECOMETRI_API = "https://apiv2.ecometri.shop/api/v1";
+/// El detalle de un producto (descripción, variantes) solo sale por su
+/// GraphQL — la misma consulta que hace la vitrina al abrir un producto.
+export const ECOMETRI_GRAPHQL = "https://graphql.ecometri.shop/graphql";
+export const ECOMETRI_PRODUCT_QUERY = `query GetProduct($slug: String, $phoneNumber: String) {
+  product(slug: $slug, phoneNumber: $phoneNumber) {
+    id name price description sku discountPrice quantityAvailable active
+    productAdditionalInfo { id title description }
+    productOptions { id name productOptionValues { id name value order } }
+    variants { id price discountPrice sku quantity optionValues { id name } }
+    productImages { id name pictureUrl order }
+  }
+}`;
+/// Productos por paso de detalle (una consulta por producto, en paralelo).
+export const ECOMETRI_DETAILS_PER_STEP = 6;
+const MAX_VARIANTS = 100;
 /// Las fotos viven en un CDN propio: {cdn}/{archivo} es la original (la
 /// vitrina pide versiones chicas con {cdn}/fit-in/{ancho}x{alto}/{archivo};
 /// Marcolini arma las suyas al alojarlas).
@@ -230,6 +245,8 @@ export type EcometriProductContext = {
   phone: string;
   currency: string | null;
   collectionName: string | null;
+  /// Solo para el detalle (la respuesta de GetProduct no trae el slug).
+  slug?: string;
 };
 
 /// null si el producto está inactivo o no tiene nombre.
@@ -267,6 +284,146 @@ export function parseEcometriProduct(p: EcometriProductJson, ctx: EcometriProduc
     variants: [],
     sourceUrl,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Detalle de un producto (GraphQL GetProduct)
+// ---------------------------------------------------------------------------
+
+export function ecometriProductQueryBody(slug: string, phone: string) {
+  return { operationName: "GetProduct", query: ECOMETRI_PRODUCT_QUERY, variables: { slug, phoneNumber: phone } };
+}
+
+type Rec = Record<string, unknown>;
+
+function recs(value: unknown): Rec[] {
+  return Array.isArray(value) ? value.filter((v): v is Rec => Boolean(v) && typeof v === "object") : [];
+}
+
+/// La respuesta de GetProduct al shape del importador. null si no vino el
+/// producto, está inactivo o no tiene nombre. Las secciones extra
+/// ("Modo de uso", "Ingredientes"…) se pegan a la descripción con su
+/// título.
+export function parseEcometriProductDetail(body: unknown, ctx: EcometriProductContext): ScrapedProduct | null {
+  const data = body && typeof body === "object" ? (body as Rec).data : null;
+  const product = data && typeof data === "object" ? (data as Rec).product : null;
+  if (!product || typeof product !== "object") return null;
+  const p = product as Rec;
+  const name = str(p.name).slice(0, 255);
+  if (name.length < 2) return null;
+  if (p.active === false || p.active === 0) return null;
+  const slug = str(ctx.slug ?? "");
+  if (!slug) return null;
+
+  const sections = recs(p.productAdditionalInfo)
+    .map((info) => ({ title: str(info.title), body: typeof info.description === "string" ? info.description.trim() : "" }))
+    .filter((info) => info.body);
+  const description = [
+    plainTextToHtml(typeof p.description === "string" ? p.description.trim() : ""),
+    ...sections.map((info) => `${info.title ? `<h3>${escapeHtml(info.title)}</h3>` : ""}${plainTextToHtml(info.body)}`),
+  ]
+    .filter(Boolean)
+    .join("")
+    .slice(0, 20000);
+
+  const images = recs(p.productImages)
+    .sort((a, b) => (num(a.order) ?? 0) - (num(b.order) ?? 0))
+    .map((img) => ecometriImageUrl(img.pictureUrl))
+    .filter((u): u is string => Boolean(u));
+
+  const price = num(p.price) ?? 0;
+  const discount = num(p.discountPrice) ?? 0;
+  const hasDiscount = discount > 0 && price > discount;
+  const stock = num(p.quantityAvailable);
+  const base: ScrapedProduct = {
+    handle: slug.slice(0, 200),
+    name,
+    description,
+    price: Math.max(0, hasDiscount ? discount : price),
+    compareAtPrice: hasDiscount ? price : null,
+    currency: ctx.currency,
+    images: Array.from(new Set(images)).slice(0, 20),
+    sku: str(p.sku).slice(0, 120),
+    barcode: "",
+    weight: null,
+    weightUnit: "KG",
+    stock: stock != null ? Math.max(0, Math.floor(stock)) : null,
+    collectionNames: ctx.collectionName ? [ctx.collectionName] : [],
+    hasVariants: false,
+    optionNames: [],
+    variants: [],
+    sourceUrl: `${ctx.origin}/${ctx.phone ? `${ctx.phone}/` : ""}${slug}/`,
+  };
+
+  // Variantes: cada opción (Color, Talla…) con sus valores; cada variante
+  // apunta a un valor por opción (por id). Una sola variante es un
+  // producto simple con el precio/SKU/stock de esa variante.
+  const options = recs(p.productOptions)
+    .map((o) => ({
+      name: str(o.name).slice(0, 40),
+      valueIds: new Map(recs(o.productOptionValues).map((v) => [str(v.id), str(v.name)])),
+    }))
+    .filter((o) => o.name && o.valueIds.size > 0)
+    .slice(0, 3);
+  const variants = recs(p.variants);
+  if (variants.length === 1 && options.length > 0) {
+    const only = variants[0];
+    const vPrice = num(only.price) ?? 0;
+    const vDiscount = num(only.discountPrice) ?? 0;
+    const vHasDiscount = vDiscount > 0 && vPrice > vDiscount;
+    if (vPrice > 0) {
+      base.price = vHasDiscount ? vDiscount : vPrice;
+      base.compareAtPrice = vHasDiscount ? vPrice : null;
+    }
+    base.sku = str(only.sku).slice(0, 120) || base.sku;
+    const qty = num(only.quantity);
+    if (qty != null) base.stock = Math.max(0, Math.floor(qty));
+    return base;
+  }
+  if (variants.length < 2 || options.length === 0) return base;
+
+  const seen = new Set<string>();
+  for (const v of variants) {
+    const valueIds = recs(v.optionValues).map((ov) => str(ov.id));
+    const values = options.map((o) => {
+      const id = valueIds.find((candidate) => o.valueIds.has(candidate));
+      return id ? o.valueIds.get(id) || null : null;
+    });
+    while (values.length < 3) values.push(null);
+    const key = values.join("|").toLowerCase();
+    if (!values[0] || seen.has(key)) continue;
+    seen.add(key);
+    const vPrice = num(v.price) ?? 0;
+    const vDiscount = num(v.discountPrice) ?? 0;
+    const qty = num(v.quantity);
+    base.variants.push({
+      option1Value: values[0],
+      option2Value: values[1],
+      option3Value: values[2],
+      price: vDiscount > 0 && vPrice > vDiscount ? vDiscount : vPrice > 0 ? vPrice : null,
+      sku: str(v.sku).slice(0, 120),
+      barcode: "",
+      stock: qty != null ? Math.max(0, Math.floor(qty)) : null,
+      weight: null,
+      weightUnit: "KG",
+    });
+    if (base.variants.length >= MAX_VARIANTS) break;
+  }
+  if (base.variants.length < 2) {
+    base.variants = [];
+    return base;
+  }
+  base.hasVariants = true;
+  base.optionNames = options.map((o) => o.name);
+  base.price = 0;
+  base.compareAtPrice = null;
+  base.sku = "";
+  base.stock = null;
+  return base;
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /// GET {api}/store/{basename}/products?collection={id}&limit=&offset=.

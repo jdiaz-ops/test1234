@@ -26,6 +26,12 @@ const bodySchema = z.object({
       phone: z.string().regex(/^\d{0,20}$/),
       currency: z.string().max(3).nullable(),
     }),
+    z.object({
+      step: z.literal("ecometri-details"),
+      slugs: z.array(z.string().regex(/^[a-z0-9._-]{1,200}$/i)).min(1).max(6),
+      phone: z.string().regex(/^\d{0,20}$/),
+      currency: z.string().max(3).nullable(),
+    }),
   ]),
 });
 

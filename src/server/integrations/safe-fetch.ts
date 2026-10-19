@@ -78,9 +78,19 @@ export type SafeResponse = {
 
 /// Hace la petición y devuelve el cuerpo completo (hasta `maxBytes`). Un
 /// 404/500 no es error acá — quien llama decide qué hacer con el status.
+export type SafeFetchOptions = {
+  maxBytes?: number;
+  timeoutMs?: number;
+  accept?: string;
+  /// Un POST con cuerpo JSON (la API GraphQL de Ecometri, por ejemplo).
+  /// Con los mismos cuidados que el GET: destino público, redirecciones
+  /// revisadas, tiempo y tamaño máximos.
+  json?: unknown;
+};
+
 export async function safeFetch(
   raw: string,
-  { maxBytes = 5 * 1024 * 1024, timeoutMs = 15000, accept = "*/*" } = {},
+  { maxBytes = 5 * 1024 * 1024, timeoutMs = 15000, accept = "*/*", json }: SafeFetchOptions = {},
 ): Promise<SafeResponse> {
   let current = raw;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -90,7 +100,14 @@ export async function safeFetch(
       res = await fetch(url, {
         redirect: "manual",
         signal: AbortSignal.timeout(timeoutMs),
-        headers: { "User-Agent": USER_AGENT, Accept: accept, "Accept-Language": "es-CO,es;q=0.9,en;q=0.8" },
+        method: json === undefined ? "GET" : "POST",
+        body: json === undefined ? undefined : JSON.stringify(json),
+        headers: {
+          "User-Agent": USER_AGENT,
+          Accept: accept,
+          "Accept-Language": "es-CO,es;q=0.9,en;q=0.8",
+          ...(json === undefined ? {} : { "Content-Type": "application/json" }),
+        },
       });
     } catch (err) {
       const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
@@ -131,7 +148,7 @@ export async function safeFetch(
   throw new SafeFetchError("La dirección redirige demasiadas veces.");
 }
 
-export async function safeFetchJson(raw: string, opts: { timeoutMs?: number; maxBytes?: number } = {}) {
+export async function safeFetchJson(raw: string, opts: { timeoutMs?: number; maxBytes?: number; json?: unknown } = {}) {
   const res = await safeFetch(raw, { accept: "application/json", maxBytes: 15 * 1024 * 1024, ...opts });
   if (res.status !== 200) return null;
   try {
