@@ -364,6 +364,9 @@ export function StorePaymentForm({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Configuración → Pagos con la pasarela ya cobrando: las llaves quedan
+  // detrás de "Cambiar llaves" (ver más abajo).
+  const [showKeys, setShowKeys] = useState(false);
 
   function choose(id: PaymentProviderId) {
     if (id === provider) return;
@@ -379,6 +382,7 @@ export function StorePaymentForm({
     setSaved(false);
     setError(null);
     setNotice(null);
+    setShowKeys(false);
   }
 
   function setField(scope: CredentialScope, key: string, value: string | undefined) {
@@ -484,6 +488,7 @@ export function StorePaymentForm({
   }
 
   const isActive = provider === initial.activeProvider;
+  const charging = isActive && current.status === "ACTIVE";
   const chip = STATUS_CHIP[isActive ? current.status : current.status === "NOT_CONNECTED" ? "NOT_CONNECTED" : "INCOMPLETE"];
   const chipLabel = isActive ? chip.label : current.status === "NOT_CONNECTED" ? "Sin conectar" : "Con llaves, no activa";
   const activeName = initial.activeProvider ? PAYMENT_PROVIDERS[initial.activeProvider].name : null;
@@ -663,152 +668,177 @@ export function StorePaymentForm({
             : `Tienes llaves de ${spec.name} guardadas. Guarda para que tu tienda cobre con ella.`)}
       </p>
 
-      <Card className="!p-0">
-        <button
-          type="button"
-          onClick={() => setAboutOpen((o) => !o)}
-          aria-expanded={aboutOpen}
-          className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
-        >
-          <span className="text-sm font-medium text-brand-ink">Acerca de {spec.name}</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-brand-ink-soft transition-transform ${aboutOpen ? "rotate-180" : ""}`} aria-hidden="true">
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
-        {aboutOpen && (
-          <div className="px-5 pb-5 -mt-1 space-y-2 text-sm text-brand-ink-soft">
-            <p>{spec.about}</p>
-            <p>
-              ¿Aún no tienes cuenta?{" "}
-              <a href={spec.signupUrl} target="_blank" rel="noopener noreferrer" className="text-brand-accent font-medium hover:underline">
-                Créala en {spec.name} →
-              </a>
-            </p>
-          </div>
-        )}
-      </Card>
-
-      {spec.steps && (
-        <Card>
-          <p className="mb-2 text-xs text-brand-ink-soft">{testMode ? "Para probar sin cobrar de verdad:" : "Para cobrar de verdad:"}</p>
-          <ProviderSteps steps={spec.steps[testMode ? "TEST" : "PRODUCTION"]} saveLabel="Guardar" />
-        </Card>
-      )}
-
-      <Card className="!p-0 overflow-hidden">
-        <div className="px-5 pt-4 pb-3">
-          <p className="text-sm font-medium text-brand-ink">Métodos de pago</p>
-          <p className="text-xs text-brand-ink-soft mt-0.5">
-            Tus clientes ven los que tengas activos en tu cuenta de {spec.name}. Se prenden y apagan desde su panel.
-          </p>
+      {/* Ya cobra de verdad con esta pasarela: sin el tutorial, "Acerca de"
+          ni los medios de pago, y las llaves detrás de "Cambiar llaves"
+          (pedido del 2026-10-19: "no creo que haya necesidad de seguir
+          metiendo el tutorial… una opción para poder cambiar las llaves,
+          pero que no sea visible así"). */}
+      {charging && !showKeys ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <button type="button" onClick={() => setShowKeys(true)} className="text-sm font-medium text-brand-accent hover:underline">
+            Cambiar llaves
+          </button>
+          {notice && <p className="text-sm text-emerald-700">{notice}</p>}
         </div>
-        <ul className="divide-y divide-brand-line border-t border-brand-line">
-          {spec.methods.map((m) => (
-            <li key={m.name} className="flex items-center gap-3 px-5 py-3">
-              <span className={`w-10 h-7 rounded-md flex items-center justify-center text-[10px] font-bold tracking-wide shrink-0 ${m.markClass}`} aria-hidden="true">
-                {m.mark}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm text-brand-ink">{m.name}</span>
-                <span className="block text-xs text-brand-ink-soft">{m.detail}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Card>
-
-      <Card>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-brand-ink">Modo de prueba</p>
-            <p className="text-xs text-brand-ink-soft mt-0.5">
-              Mira cómo funcionan los pagos y los pedidos en tu tienda sin cobrar de verdad. Apágalo cuando quieras
-              empezar a vender.
-            </p>
-            <p className="text-xs text-brand-ink-soft mt-1">{spec.testHint}</p>
-          </div>
-          <Switch
-            checked={testMode}
-            onChange={(v) => {
-              setSaved(false);
-              setTestMode(v);
-            }}
-            label="Modo de prueba"
-          />
-        </div>
-        {testMode && spec.scopes === "PER_MODE" && (
-          <div className="mt-5 pt-5 border-t border-brand-line">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <p className="text-sm font-medium text-brand-ink">Llaves de prueba</p>
-              {provider === "PAYU" && (
-                <button type="button" onClick={fillPayuSandbox} className="text-xs font-medium text-brand-accent hover:underline">
-                  Usar las credenciales de prueba de PayU
-                </button>
+      ) : (
+        <>
+          {charging && (
+            <button type="button" onClick={() => setShowKeys(false)} className="text-xs text-brand-ink-soft hover:text-brand-ink hover:underline">
+              Ocultar llaves
+            </button>
+          )}
+          {!charging && (
+            <>
+            <Card className="!p-0">
+              <button
+                type="button"
+                onClick={() => setAboutOpen((o) => !o)}
+                aria-expanded={aboutOpen}
+                className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
+              >
+                <span className="text-sm font-medium text-brand-ink">Acerca de {spec.name}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-brand-ink-soft transition-transform ${aboutOpen ? "rotate-180" : ""}`} aria-hidden="true">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              {aboutOpen && (
+                <div className="px-5 pb-5 -mt-1 space-y-2 text-sm text-brand-ink-soft">
+                  <p>{spec.about}</p>
+                  <p>
+                    ¿Aún no tienes cuenta?{" "}
+                    <a href={spec.signupUrl} target="_blank" rel="noopener noreferrer" className="text-brand-accent font-medium hover:underline">
+                      Créala en {spec.name} →
+                    </a>
+                  </p>
+                </div>
               )}
+            </Card>
+
+            {spec.steps && (
+              <Card>
+                <p className="mb-2 text-xs text-brand-ink-soft">{testMode ? "Para probar sin cobrar de verdad:" : "Para cobrar de verdad:"}</p>
+                <ProviderSteps steps={spec.steps[testMode ? "TEST" : "PRODUCTION"]} saveLabel="Guardar" />
+              </Card>
+            )}
+
+            <Card className="!p-0 overflow-hidden">
+              <div className="px-5 pt-4 pb-3">
+                <p className="text-sm font-medium text-brand-ink">Métodos de pago</p>
+                <p className="text-xs text-brand-ink-soft mt-0.5">
+                  Tus clientes ven los que tengas activos en tu cuenta de {spec.name}. Se prenden y apagan desde su panel.
+                </p>
+              </div>
+              <ul className="divide-y divide-brand-line border-t border-brand-line">
+                {spec.methods.map((m) => (
+                  <li key={m.name} className="flex items-center gap-3 px-5 py-3">
+                    <span className={`w-10 h-7 rounded-md flex items-center justify-center text-[10px] font-bold tracking-wide shrink-0 ${m.markClass}`} aria-hidden="true">
+                      {m.mark}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm text-brand-ink">{m.name}</span>
+                      <span className="block text-xs text-brand-ink-soft">{m.detail}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+            </>
+          )}
+
+          <Card>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-brand-ink">Modo de prueba</p>
+                <p className="text-xs text-brand-ink-soft mt-0.5">
+                  Mira cómo funcionan los pagos y los pedidos en tu tienda sin cobrar de verdad. Apágalo cuando quieras
+                  empezar a vender.
+                </p>
+                <p className="text-xs text-brand-ink-soft mt-1">{spec.testHint}</p>
+              </div>
+              <Switch
+                checked={testMode}
+                onChange={(v) => {
+                  setSaved(false);
+                  setTestMode(v);
+                }}
+                label="Modo de prueba"
+              />
             </div>
-            <KeysSection
-              provider={provider}
-              mode="TEST"
-              saved={current.credentials.TEST}
-              edits={edits.TEST ?? {}}
-              onChange={(key, v) => setField("TEST", key, v)}
-            />
-            {hasSavedKeys(current.credentials.TEST) && (
-              <div className="mt-3">
-                <RemoveKeysButton what={keysLabel("TEST")} disabled={saving} onConfirm={() => removeKeys("TEST")} />
+            {testMode && spec.scopes === "PER_MODE" && (
+              <div className="mt-5 pt-5 border-t border-brand-line">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <p className="text-sm font-medium text-brand-ink">Llaves de prueba</p>
+                  {provider === "PAYU" && (
+                    <button type="button" onClick={fillPayuSandbox} className="text-xs font-medium text-brand-accent hover:underline">
+                      Usar las credenciales de prueba de PayU
+                    </button>
+                  )}
+                </div>
+                <KeysSection
+                  provider={provider}
+                  mode="TEST"
+                  saved={current.credentials.TEST}
+                  edits={edits.TEST ?? {}}
+                  onChange={(key, v) => setField("TEST", key, v)}
+                />
+                {hasSavedKeys(current.credentials.TEST) && (
+                  <div className="mt-3">
+                    <RemoveKeysButton what={keysLabel("TEST")} disabled={saving} onConfirm={() => removeKeys("TEST")} />
+                  </div>
+                )}
               </div>
             )}
+          </Card>
+
+          <Card>
+            <p className="text-sm font-medium text-brand-ink">{spec.scopes === "SHARED" ? "Llaves" : "Llaves de producción"}</p>
+            <p className="text-xs text-brand-ink-soft mt-0.5 mb-4">
+              {spec.keysHint} {spec.scopes === "SHARED" ? "Sirven para probar y para cobrar de verdad." : "Son las que cobran de verdad."}
+            </p>
+            <KeysSection
+              provider={provider}
+              mode="PRODUCTION"
+              saved={current.credentials[spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION"]}
+              edits={edits[spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION"] ?? {}}
+              onChange={(key, v) => setField(spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION", key, v)}
+            />
+            {hasSavedKeys(current.credentials[spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION"]) && (
+              <div className="mt-3">
+                <RemoveKeysButton what={keysLabel("PRODUCTION")} disabled={saving} onConfirm={() => removeKeys("PRODUCTION")} />
+              </div>
+            )}
+          </Card>
+
+          {spec.webhook && current.webhookUrl && (
+            <Card>
+              <p className="text-sm font-medium text-brand-ink">URL de avisos de pago</p>
+              <p className="text-xs text-brand-ink-soft mt-0.5 mb-3">
+                Pégala en {spec.webhook.where} Así cada pedido se marca como pagado solo, apenas {spec.name} aprueba el pago.
+              </p>
+              <CopyField value={current.webhookUrl} />
+            </Card>
+          )}
+          {!spec.webhook && (
+            <p className="text-xs text-brand-ink-soft px-1">
+              {spec.name} avisa cada pago a Marcolini automáticamente: no tienes que configurar ninguna URL en su panel.
+            </p>
+          )}
+
+          <div className="flex items-center justify-end gap-3 pt-1">
+            {error && <p className="text-sm text-red-600 mr-auto">{error}</p>}
+            {notice && <p className="text-sm text-emerald-700 mr-auto">{notice}</p>}
+            {saved && !dirty && <p className="text-sm text-emerald-700 mr-auto">Guardado.</p>}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || !dirty}
+              className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40"
+            >
+              {saving ? "Guardando..." : "Guardar"}
+            </button>
           </div>
-        )}
-      </Card>
-
-      <Card>
-        <p className="text-sm font-medium text-brand-ink">{spec.scopes === "SHARED" ? "Llaves" : "Llaves de producción"}</p>
-        <p className="text-xs text-brand-ink-soft mt-0.5 mb-4">
-          {spec.keysHint} {spec.scopes === "SHARED" ? "Sirven para probar y para cobrar de verdad." : "Son las que cobran de verdad."}
-        </p>
-        <KeysSection
-          provider={provider}
-          mode="PRODUCTION"
-          saved={current.credentials[spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION"]}
-          edits={edits[spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION"] ?? {}}
-          onChange={(key, v) => setField(spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION", key, v)}
-        />
-        {hasSavedKeys(current.credentials[spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION"]) && (
-          <div className="mt-3">
-            <RemoveKeysButton what={keysLabel("PRODUCTION")} disabled={saving} onConfirm={() => removeKeys("PRODUCTION")} />
-          </div>
-        )}
-      </Card>
-
-      {spec.webhook && current.webhookUrl && (
-        <Card>
-          <p className="text-sm font-medium text-brand-ink">URL de avisos de pago</p>
-          <p className="text-xs text-brand-ink-soft mt-0.5 mb-3">
-            Pégala en {spec.webhook.where} Así cada pedido se marca como pagado solo, apenas {spec.name} aprueba el pago.
-          </p>
-          <CopyField value={current.webhookUrl} />
-        </Card>
+        </>
       )}
-      {!spec.webhook && (
-        <p className="text-xs text-brand-ink-soft px-1">
-          {spec.name} avisa cada pago a Marcolini automáticamente: no tienes que configurar ninguna URL en su panel.
-        </p>
-      )}
-
-      <div className="flex items-center justify-end gap-3 pt-1">
-        {error && <p className="text-sm text-red-600 mr-auto">{error}</p>}
-        {notice && <p className="text-sm text-emerald-700 mr-auto">{notice}</p>}
-        {saved && !dirty && <p className="text-sm text-emerald-700 mr-auto">Guardado.</p>}
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving || !dirty}
-          className="bg-brand-accent text-white rounded-full px-6 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40"
-        >
-          {saving ? "Guardando..." : "Guardar"}
-        </button>
-      </div>
     </div>
   );
 }
