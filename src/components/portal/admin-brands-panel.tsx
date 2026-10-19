@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DeleteBrandPanel } from "@/components/portal/delete-brand-panel";
 import { EnterAsButton } from "@/components/portal/enter-as-button";
 
 type Brand = {
@@ -261,6 +262,7 @@ export function AdminBrandsPanel({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [addingBrand, setAddingBrand] = useState(false);
   const [creatingTestBrands, setCreatingTestBrands] = useState(false);
+  const [deletingBrandId, setDeletingBrandId] = useState<string | null>(null);
 
   async function decide(brandId: string, decision: string) {
     setLoadingId(brandId);
@@ -686,9 +688,25 @@ export function AdminBrandsPanel({
                     {isOwner && (
                       <EnterAsButton userId={b.userId} role="BRAND" />
                     )}
+                    {isOwner && (
+                      <button
+                        onClick={() => setDeletingBrandId(deletingBrandId === b.id ? null : b.id)}
+                        disabled={loadingId === b.id}
+                        className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                      >
+                        Borrar
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
+              {isOwner && deletingBrandId === b.id && (
+                <tr>
+                  <td colSpan={isOwner ? 9 : 8} className="px-5 py-3 bg-brand-bg">
+                    <DeleteBrandPanel brandId={b.id} onClose={() => setDeletingBrandId(null)} />
+                  </td>
+                </tr>
+              )}
               {(accessLinks[b.id] || accessError?.brandId === b.id) && (
                 <tr>
                   <td colSpan={isOwner ? 9 : 8} className="px-5 py-3 bg-brand-bg">
