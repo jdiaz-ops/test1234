@@ -1,11 +1,11 @@
 "use client";
 
 import { useId, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   PAYMENT_PROVIDERS,
   PAYU_SANDBOX_CREDENTIALS,
+  requiredCredentialFields,
   type CredentialField,
   type CredentialScope,
   type PaymentModeId,
@@ -285,9 +285,10 @@ export function StorePaymentForm({
 }: {
   initial: StorePaymentInitial;
   /// Dentro del paso "Conecta tus pagos" del Dashboard (ver go-live-card):
-  /// solo la pasarela, las llaves de producción y la URL de avisos — lo que
-  /// hace falta para cobrar de verdad. El modo de prueba queda en
-  /// Configuración → Pagos ("¿esto tiene que ser así de largo?", 2026-10-19).
+  /// solo la pasarela, un juego de llaves y la URL de avisos — lo que hace
+  /// falta para cobrar de verdad ("¿esto tiene que ser así de largo?",
+  /// 2026-10-19). Arranca en las de producción; el modo de prueba se abre
+  /// ahí mismo.
   compact?: boolean;
 }) {
   const router = useRouter();
@@ -408,7 +409,29 @@ export function StorePaymentForm({
   }
 
   if (compact) {
-    const keysScope: CredentialScope = spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION";
+    // "¿Quieres probar antes?" cambia ahí mismo a las llaves de prueba, sin
+    // ir a otra página (pedido del 2026-10-19). Con una sola tanda de
+    // llaves (ePayco) son las mismas: solo cambia el modo.
+    const keysScope: CredentialScope = spec.scopes === "SHARED" ? "SHARED" : testMode ? "TEST" : "PRODUCTION";
+    const keysTitle =
+      spec.scopes === "SHARED" ? `Llaves de ${spec.name}` : testMode ? `Llaves de prueba de ${spec.name}` : `Llaves de producción de ${spec.name}`;
+    // Sin el juego completo la tienda quedaría en prueba sin poder probar
+    // (el servidor solo exige las de producción). Las secretas guardadas
+    // cuentan aunque no estén en pantalla.
+    const missing = requiredCredentialFields(provider).filter((f) => {
+      if (edits[keysScope]?.[f.key]?.trim()) return false;
+      const s = current.credentials[keysScope]?.[f.key];
+      return !(f.secret && typeof s === "object" && s.saved);
+    });
+    function saveCompact() {
+      if (missing.length > 0) {
+        const names = missing.map((f) => f.label);
+        const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
+        setError(`Te falta: ${list}.`);
+        return;
+      }
+      void handleSave();
+    }
     return (
       <div className="space-y-4">
         <div>
@@ -432,15 +455,15 @@ export function StorePaymentForm({
 
         <div className="space-y-3 rounded-xl border border-brand-line bg-brand-surface p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <p className="text-sm font-medium text-brand-ink">{spec.scopes === "SHARED" ? `Llaves de ${spec.name}` : `Llaves de producción de ${spec.name}`}</p>
+            <p className="text-sm font-medium text-brand-ink">{keysTitle}</p>
             <a href={spec.signupUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-accent hover:underline">
               ¿No tienes cuenta? Créala →
             </a>
           </div>
-          <p className="-mt-1 text-xs text-brand-ink-soft">{spec.keysHint}</p>
+          <p className="-mt-1 text-xs text-brand-ink-soft">{testMode ? spec.testHint : spec.keysHint}</p>
           <KeysSection
             provider={provider}
-            mode="PRODUCTION"
+            mode={testMode ? "TEST" : "PRODUCTION"}
             saved={current.credentials[keysScope]}
             edits={edits[keysScope] ?? {}}
             onChange={(key, v) => setField(keysScope, key, v)}
@@ -460,18 +483,31 @@ export function StorePaymentForm({
           </p>
         )}
         {error && <p className="text-sm text-red-600">{error}</p>}
+        {saved && !dirty && (
+          <p className="text-sm text-emerald-700">
+            {testMode ? "Guardado: tu tienda quedó en modo de prueba. Cuando termines de probar, toca «Mejor cobrar de verdad»." : "Guardado."}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <button
             type="button"
-            onClick={handleSave}
+            onClick={saveCompact}
             disabled={saving || !dirty}
             className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
           >
-            {saving ? "Guardando…" : "Guardar y empezar a cobrar"}
+            {saving ? "Guardando…" : testMode ? "Guardar y probar" : "Guardar y empezar a cobrar"}
           </button>
-          <Link href="/marca/tienda/pagos" className="text-xs text-brand-ink-soft hover:underline">
-            ¿Quieres probar antes? Usa el modo de prueba en Pagos
-          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setSaved(false);
+              setError(null);
+              setTestMode((v) => !v);
+            }}
+            className="text-xs text-brand-ink-soft hover:text-brand-ink hover:underline"
+          >
+            {testMode ? "Mejor cobrar de verdad" : "¿Quieres probar antes? Usa el modo de prueba"}
+          </button>
         </div>
       </div>
     );
