@@ -11,16 +11,21 @@ import {
   keepableSection,
   MENU_TOP_ITEMS,
   planMenu,
+  planSettings,
   proposeStructureByRules,
   rankProductIds,
+  renderProductCopy,
   sanitizeHomeComposition,
+  sanitizeProductCopy,
   sanitizeStructure,
   scoreProducts,
   structureFromAssignments,
   summarizeExistingSection,
+  tracksStock,
   type ExistingSectionSummary,
   type OrganizerCollection,
   type OrganizerProduct,
+  type PlannedCollection,
   type RawHomeSection,
 } from "@/lib/store-organizer";
 
@@ -38,6 +43,7 @@ function product(id: string, name: string, extra: Partial<OrganizerProduct> = {}
     stock: null,
     hasVariants: false,
     variantStocks: [],
+    variantLabels: [],
     active: true,
     createdAt: new Date("2026-01-01T00:00:00Z"),
     featured: false,
@@ -52,7 +58,7 @@ function product(id: string, name: string, extra: Partial<OrganizerProduct> = {}
 }
 
 function collection(id: string, name: string, productIds: string[], extra: Partial<OrganizerCollection> = {}): OrganizerCollection {
-  return { id, name, slug: name.toLowerCase().replace(/\s+/g, "-"), description: null, imageUrl: null, position: 0, productIds, ...extra };
+  return { id, name, slug: name.toLowerCase().replace(/\s+/g, "-"), description: null, imageUrl: null, bannerUrl: null, position: 0, productIds, ...extra };
 }
 
 function section(id: string, type: string, extra: Partial<ExistingSectionSummary> = {}): ExistingSectionSummary {
@@ -439,10 +445,16 @@ describe("la portada compuesta por la IA", () => {
         ],
         announcement: "Asesoría por WhatsApp antes de comprar 💅",
         notes: "La colección estrella arriba y las categorías después.",
+        aboutTitle: "Quiénes somos",
+        aboutText: "Vendemos esmaltes semipermanentes y herramientas para manicuristas de toda Colombia, con asesoría por WhatsApp para elegir bien.",
       },
       ctx,
     );
     expect(composed).not.toBeNull();
+    expect(composed!.about).toEqual({
+      title: "Quiénes somos",
+      description: "Vendemos esmaltes semipermanentes y herramientas para manicuristas de toda Colombia, con asesoría por WhatsApp para elegir bien.",
+    });
     // Los más vendidos se agregan después de las categorías y los sellos
     // de confianza antes de Instagram.
     expect(types(composed!.home)).toEqual([
@@ -463,9 +475,19 @@ describe("la portada compuesta por la IA", () => {
     expect(composed!.home[8]).toMatchObject({ title: "Todos los productos" });
     expect(composed!.announcement).toBe("Asesoría por WhatsApp antes de comprar");
     expect(composed!.notes).toBe("La colección estrella arriba y las categorías después.");
-    // Con barra de anuncio ya puesta, no se propone otra.
-    const withBar = sanitizeHomeComposition({ sections: [rawSection({ type: "KEEP", keepId: "S2" }), rawSection({ type: "CATEGORY_GRID" }), rawSection({ type: "TEXT", body: "x".repeat(50) })], announcement: "Novedades cada semana", notes: "" }, { ...ctx, hasAnnouncement: true });
+    // Con barra de anuncio y "Nosotros" ya puestos, no se proponen otros;
+    // y un "Nosotros" con promesas sin sustento se descarta.
+    const withBar = sanitizeHomeComposition(
+      { sections: [rawSection({ type: "KEEP", keepId: "S2" }), rawSection({ type: "CATEGORY_GRID" }), rawSection({ type: "TEXT", body: "x".repeat(50) })], announcement: "Novedades cada semana", notes: "", aboutTitle: "Nosotros", aboutText: "y".repeat(100) },
+      { ...ctx, hasAnnouncement: true, hasAbout: true },
+    );
     expect(withBar?.announcement).toBeNull();
+    expect(withBar?.about).toBeNull();
+    const promising = sanitizeHomeComposition(
+      { sections: [rawSection({ type: "KEEP", keepId: "S2" }), rawSection({ type: "CATEGORY_GRID" }), rawSection({ type: "TEXT", body: "x".repeat(50) })], announcement: "", notes: "", aboutTitle: "", aboutText: "Somos la tienda con envío gratis a toda Colombia y los mejores precios del mercado para manicuristas." },
+      ctx,
+    );
+    expect(promising?.about).toBeNull();
   });
 
   it("descarta lo inválido: colecciones que no existen, repetidos, dos cabeceras, promesas y textos cortos; el catálogo va de último", () => {
@@ -512,5 +534,72 @@ describe("la portada compuesta por la IA", () => {
   it("si casi nada de lo que propuso sirve, se queda la portada por reglas", () => {
     expect(sanitizeHomeComposition({ sections: [rawSection({ type: "KEEP", keepId: "S9" }), rawSection({ type: "NOPE" })], announcement: "", notes: "" }, ctx)).toBeNull();
     expect(sanitizeHomeComposition({ sections: [], announcement: "", notes: "" }, ctx)).toBeNull();
+  });
+});
+
+describe("fichas de producto", () => {
+  it("valida lo que escribe la IA y arma el HTML de la ficha", () => {
+    expect(sanitizeProductCopy({ summary: "corto", benefits: ["a", "b"] })).toBeNull();
+    expect(sanitizeProductCopy({ summary: "x".repeat(40), benefits: ["solo uno"] })).toBeNull();
+    const copy = sanitizeProductCopy({
+      summary: "Esmalte semipermanente de color intenso que dura hasta tres semanas sin perder brillo 💅",
+      benefits: ["Cubre en dos capas finas.", "Seca en 60 segundos en lámpara LED", "x", "Brillo de gel sin top coat extra", "Se retira con acetona en 10 minutos", "Sexto", "Séptimo"],
+      includes: "Frasco de 15 ml",
+      usage: "Aplica una capa fina, cura 60 segundos y repite.",
+      specs: ["Contenido: 15 ml", "Curado: lámpara LED o UV"],
+      note: "Evita el contacto con la piel.",
+    });
+    expect(copy).toEqual({
+      summary: "Esmalte semipermanente de color intenso que dura hasta tres semanas sin perder brillo",
+      benefits: ["Cubre en dos capas finas", "Seca en 60 segundos en lámpara LED", "Brillo de gel sin top coat extra", "Se retira con acetona en 10 minutos", "Sexto"],
+      includes: "Frasco de 15 ml",
+      usage: "Aplica una capa fina, cura 60 segundos y repite.",
+      specs: ["Contenido: 15 ml", "Curado: lámpara LED o UV"],
+      note: "Evita el contacto con la piel.",
+    });
+    const html = renderProductCopy(copy!);
+    expect(html).toContain("<p>Esmalte semipermanente de color intenso");
+    expect(html).toContain("<li>Cubre en dos capas finas</li>");
+    expect(html).toContain("<strong>Incluye:</strong> Frasco de 15 ml");
+    expect(html).toContain("<strong>Cómo se usa:</strong> Aplica una capa fina");
+    expect(html).toContain("<strong>Características</strong></p><ul><li>Contenido: 15 ml</li>");
+    expect(html).toContain("<em>Evita el contacto con la piel.</em>");
+    // Lo que escriba la IA nunca entra como HTML.
+    expect(renderProductCopy({ ...copy!, includes: "<b>x</b> & y" })).toContain("<strong>Incluye:</strong> &lt;b&gt;x&lt;/b&gt; &amp; y");
+    const minimal = renderProductCopy({ ...copy!, includes: "", usage: "", specs: [], note: "" });
+    expect(minimal).not.toContain("Incluye");
+    expect(minimal).not.toContain("Características");
+  });
+});
+
+describe("ajustes de conversión", () => {
+  const planned = (key: string): PlannedCollection => ({ key, existingId: null, name: key, slug: key, description: "", imageUrl: null, productIds: ["p1"], demand: 1, sold: 0, children: [] });
+
+  it("solo con sustento y sin pisar lo que la marca ya configuró", () => {
+    expect(planSettings({ tracksStock: true, hasPages: true, hasPurchaseInfo: false, hasAbout: false }, [planned("a"), planned("b")])).toEqual({
+      purchaseInfo: true,
+      lowStock: true,
+      cartSuggestions: true,
+      footerContact: true,
+      footerPages: true,
+      about: null,
+    });
+    expect(planSettings({ tracksStock: false, hasPages: false, hasPurchaseInfo: true, hasAbout: true }, [planned("a")])).toEqual({
+      purchaseInfo: false,
+      lowStock: false,
+      cartSuggestions: false,
+      footerContact: true,
+      footerPages: false,
+      about: null,
+    });
+    expect(planSettings(undefined, [planned("a"), planned("b")])).toMatchObject({ purchaseInfo: true, lowStock: false, footerPages: false });
+  });
+
+  it("el aviso de últimas unidades solo si la mayoría lleva inventario", () => {
+    expect(tracksStock([product("p1", "A", { stock: 5 }), product("p2", "B", { stock: null }), product("p3", "C", { hasVariants: true, variantStocks: [2, null] })])).toBe(true);
+    expect(tracksStock([product("p1", "A", { stock: null }), product("p2", "B", { stock: null }), product("p3", "C", { stock: 1 })])).toBe(false);
+    // Los borradores no cuentan.
+    expect(tracksStock([product("p1", "A", { stock: 5, active: false }), product("p2", "B", { stock: null })])).toBe(false);
+    expect(tracksStock([])).toBe(false);
   });
 });

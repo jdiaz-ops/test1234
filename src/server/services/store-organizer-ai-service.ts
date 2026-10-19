@@ -1,14 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import {
+  ABOUT_MAX,
   ANNOUNCEMENT_MAX,
+  COPY_LIMITS,
   MAX_FEATURED_COLLECTIONS,
   MAX_MAIN_COLLECTIONS,
   RECENT_DAYS,
+  sanitizeProductCopy,
   type ExistingSectionSummary,
   type OrganizerCollection,
   type OrganizerPlan,
   type OrganizerProduct,
+  type ProductCopy,
   type RawHomeComposition,
 } from "@/lib/store-organizer";
 import { sectorFromVertical } from "@/server/services/shopify-categorize-service";
@@ -28,6 +32,11 @@ import { sectorFromVertical } from "@/server/services/shopify-categorize-service
 ///    qué orden, siguiendo una línea directiva de conversión (ver
 ///    composeHomeWithClaude). Pedido el 2026-10-19: "que la IA se
 ///    encargue pero con una línea directiva".
+/// 4. Fichas de producto: por tandas, la ficha de cada producto con la
+///    misma directiva (qué es, qué gana quien compra, qué incluye, cómo
+///    se usa, datos reales), conservando las que ya venden (ver
+///    describeProductsWithClaude). "Estas filosofías deben existir en
+///    toda la tienda, no solo en la portada" (2026-10-19).
 /// El navegador encadena los pasos (ver store-organizer-tool.tsx). Sin
 /// llave, o si la IA falla, caen las reglas de store-organizer.ts.
 
@@ -268,6 +277,8 @@ const compositionSchema = z.object({
   ),
   announcement: z.string(),
   notes: z.string(),
+  aboutTitle: z.string(),
+  aboutText: z.string(),
 });
 
 const COMPOSITION_OUTPUT_SCHEMA = {
@@ -292,8 +303,10 @@ const COMPOSITION_OUTPUT_SCHEMA = {
     },
     announcement: { type: "string" },
     notes: { type: "string" },
+    aboutTitle: { type: "string" },
+    aboutText: { type: "string" },
   },
-  required: ["sections", "announcement", "notes"],
+  required: ["sections", "announcement", "notes", "aboutTitle", "aboutText"],
   additionalProperties: false,
 } as const;
 
@@ -309,6 +322,8 @@ export type ComposeInput = {
   whatsapp: boolean;
   /// Texto de la barra de anuncio actual, o null si no tiene.
   announcement: string | null;
+  /// El pie de página ya tiene un "Nosotros" escrito por la marca.
+  hasAbout?: boolean;
 };
 
 /// La línea directiva: qué lleva una portada que convierte y en qué
@@ -328,6 +343,7 @@ export const HOME_DIRECTIVE = [
   "Textos en español de Colombia, directos y concretos, sin emojis, sin mayúsculas sostenidas, sin signos de admiración y sin palabras como exclusivo, premium, lujo, increíble o curado. No prometas lo que no esté en los datos: ni envío gratis, ni porcentajes, ni tiempos de entrega.",
   `announcement: si la tienda no tiene barra de anuncio, una frase de máximo ${ANNOUNCEMENT_MAX - 10} caracteres con un dato real de arriba (ofertas, asesoría por WhatsApp, novedades, envíos a todo el país); si ya tiene barra o no hay nada que decir, vacía.`,
   "notes: en una frase de máximo 200 caracteres, por qué la portada quedó así.",
+  `aboutTitle y aboutText: para el "Nosotros" del pie de página, un título corto (máximo 40 caracteres) y una o dos frases (de 80 a ${ABOUT_MAX} caracteres) sobre la tienda con los datos reales de arriba (qué vende, para quién, cómo ayuda); si la tienda ya tiene uno, vacíos.`,
   "Campos que no apliquen: cadena vacía o lista vacía.",
 ].join("\n");
 
@@ -344,7 +360,7 @@ export async function composeHomeWithClaude(input: ComposeInput): Promise<RawHom
   });
   const existing = input.existingSections.map((s, i) => `S${i + 1} | ${s.type} | ${s.label}`);
   const user = [
-    `Tienda "${input.storeName}" (${sector}). ${active.length} productos activos (${stats.withSales} con ventas en la tienda, ${stats.discounted} con descuento, ${recent} nuevos en el último mes). Instagram: ${input.instagram ? "sí" : "no"}. Asesoría por WhatsApp: ${input.whatsapp ? "sí" : "no"}. Barra de anuncio: ${input.announcement ? `ya tiene una ("${input.announcement}")` : "no tiene"}.`,
+    `Tienda "${input.storeName}" (${sector}). ${active.length} productos activos (${stats.withSales} con ventas en la tienda, ${stats.discounted} con descuento, ${recent} nuevos en el último mes). Instagram: ${input.instagram ? "sí" : "no"}. Asesoría por WhatsApp: ${input.whatsapp ? "sí" : "no"}. Barra de anuncio: ${input.announcement ? `ya tiene una ("${input.announcement}")` : "no tiene"}. "Nosotros" en el pie de página: ${input.hasAbout ? "ya tiene" : "no tiene"}.`,
     "",
     "Colecciones nuevas, en orden de demanda (nombre | productos activos | vendidos | foto | descripción):",
     ...collections,
@@ -358,4 +374,111 @@ export async function composeHomeWithClaude(input: ComposeInput): Promise<RawHom
   ].join("\n");
   const system = `Eres quien arma la portada de una tienda en línea colombiana de ${sector} para que convierta visitas en compras. Respondes solo con el JSON pedido.`;
   return ask(system, user, COMPOSITION_OUTPUT_SCHEMA, (r) => compositionSchema.safeParse(r).data ?? null, 3000);
+}
+
+// ---------------------------------------------------------------------------
+// Paso 4: fichas de producto
+// ---------------------------------------------------------------------------
+
+/// Productos por tanda (cada ficha pesa unos 250 tokens de respuesta).
+export const DESCRIBE_BATCH_SIZE = 8;
+const CURRENT_DESCRIPTION_MAX = 500;
+
+const copySchema = z.object({
+  products: z.array(
+    z.object({
+      n: z.number(),
+      keep: z.boolean(),
+      summary: z.string(),
+      benefits: z.array(z.string()),
+      includes: z.string(),
+      usage: z.string(),
+      specs: z.array(z.string()),
+      note: z.string(),
+    }),
+  ),
+});
+
+const COPY_OUTPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    products: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          n: { type: "integer" },
+          keep: { type: "boolean" },
+          summary: { type: "string" },
+          benefits: { type: "array", items: { type: "string" } },
+          includes: { type: "string" },
+          usage: { type: "string" },
+          specs: { type: "array", items: { type: "string" } },
+          note: { type: "string" },
+        },
+        required: ["n", "keep", "summary", "benefits", "includes", "usage", "specs", "note"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["products"],
+  additionalProperties: false,
+} as const;
+
+/// La línea directiva de la ficha de producto (la misma filosofía de la
+/// portada: concreto, con sustento, sin humo).
+export const PRODUCT_DIRECTIVE = [
+  "Escribe la ficha de cada producto para que venda, con esta línea directiva:",
+  `- summary: una o dos frases (máximo ${COPY_LIMITS.summary - 20} caracteres): qué es y el beneficio principal para quien lo usa.`,
+  `- benefits: de 3 a ${COPY_LIMITS.benefits} puntos concretos (máximo ${COPY_LIMITS.benefit - 10} caracteres cada uno): qué resuelve, resultado, duración, facilidad de uso. Nada de adjetivos vacíos.`,
+  "- includes: qué trae (cantidad, piezas, contenido en ml o g) si se sabe; si no, vacío.",
+  "- usage: cómo se usa en una o dos frases, si aplica; si no, vacío.",
+  `- specs: hasta ${COPY_LIMITS.specs} datos técnicos que estén en el nombre, en las variantes o en la descripción actual (contenido, duración, compatibilidad, material); no inventes ninguno.`,
+  "- note: un cuidado o advertencia real, si la descripción actual lo trae; si no, vacío.",
+  "- keep: true si la descripción actual ya vende, está completa y es correcta (deja lo demás vacío). false si está vacía, es corta, es solo una lista sin contexto o tiene errores.",
+  "Español de Colombia, tratando de tú, directo, sin emojis, sin mayúsculas sostenidas, sin signos de admiración y sin palabras como exclusivo, premium, lujo, increíble o el mejor del mercado. No prometas resultados médicos ni garantías. No inventes marcas, cifras, certificaciones, tiempos de envío ni descuentos.",
+  "Responde con el número de cada producto (n), tal cual aparece.",
+].join("\n");
+
+export type DescribeInput = {
+  products: OrganizerProduct[];
+  /// Colección en la que va a quedar cada producto (id → nombre).
+  collectionOf: Map<string, string>;
+  storeName: string;
+  sector?: string | null;
+};
+
+export type DescribeResult = Map<string, { keep: boolean; copy: ProductCopy | null }>;
+
+function money(value: number) {
+  return `$${Math.round(value).toLocaleString("es-CO")}`;
+}
+
+export async function describeProductsWithClaude(input: DescribeInput): Promise<DescribeResult | null> {
+  const sector = sectorOf(input.sector);
+  const products = input.products.slice(0, DESCRIBE_BATCH_SIZE);
+  const lines = products.map((p, i) => {
+    const price = p.compareAtPrice != null && p.compareAtPrice > p.price ? `${money(p.price)} (antes ${money(p.compareAtPrice)})` : money(p.price);
+    const variants = p.variantLabels.length > 0 ? p.variantLabels.slice(0, 12).join(", ") : "-";
+    const current = p.description.replace(/\s+/g, " ").trim().slice(0, CURRENT_DESCRIPTION_MAX) || "(vacía)";
+    return `#${i + 1} | ${p.name.replace(/\s+/g, " ").trim()} | ${price} | ${input.collectionOf.get(p.id) ?? "-"} | ${variants} | ${current}`;
+  });
+  const user = [
+    `Tienda "${input.storeName}" (${sector}).`,
+    "",
+    PRODUCT_DIRECTIVE,
+    "",
+    "Productos (#n | nombre | precio | colección | variantes | descripción actual):",
+    ...lines,
+  ].join("\n");
+  const system = `Eres quien escribe las fichas de producto de una tienda en línea colombiana de ${sector} para que vendan. Respondes solo con el JSON pedido.`;
+  const raw = await ask(system, user, COPY_OUTPUT_SCHEMA, (r) => copySchema.safeParse(r).data ?? null, 6000);
+  if (!raw) return null;
+  const out: DescribeResult = new Map();
+  for (const item of raw.products) {
+    const product = products[item.n - 1];
+    if (!product || out.has(product.id)) continue;
+    out.set(product.id, item.keep ? { keep: true, copy: null } : { keep: false, copy: sanitizeProductCopy(item) });
+  }
+  return out;
 }

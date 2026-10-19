@@ -1,11 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { stripHtml } from "@/lib/sanitize-html";
+import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
 import { slugify } from "@/lib/shopify-csv";
 import { parseSectionConfig, type SectionType } from "@/lib/storefront-sections";
-import { bannerImageUrl } from "@/lib/banner-image";
+import { bannerImageUrl, type BannerSpec } from "@/lib/banner-image";
 import type { ThemeConfig } from "@/lib/brand-theme";
-import { getDraftTheme, getPublishedTheme, patchPublishedTheme } from "@/server/services/brand-theme-store";
+import { getDraftTheme, getPublishedTheme, patchPublishedTheme, restoreThemeConfigs } from "@/server/services/brand-theme-store";
 import {
   bestSellerIds,
   BEST_SELLERS_TITLE,
@@ -15,13 +15,18 @@ import {
   flattenPlanned,
   proposeStructureByRules,
   rankProductIds,
+  renderProductCopy,
   sanitizeHomeComposition,
   scoreProducts,
   structureFromAssignments,
   summarizeExistingSection,
+  tracksStock,
   type BannerPlan,
   type ExistingSectionSummary,
   type HomeSectionPlan,
+  type PlannedDescription,
+  type StoreFacts,
+  type StoreSettingsPlan,
   type OrganizerCollection,
   type OrganizerPlan,
   type OrganizerProduct,
@@ -37,6 +42,8 @@ import {
   classifyWithClaude,
   composeHomeWithClaude,
   defineCollectionsWithClaude,
+  DESCRIBE_BATCH_SIZE,
+  describeProductsWithClaude,
   sectorFromVertical,
   type ClassifyResult,
   type DefinedCollection,
@@ -65,11 +72,24 @@ type Catalog = {
   brand: { companyName: string; instagramHandle: string | null; phone: string | null; sector: string };
   /// Las secciones activas de la portada, resumidas (ver summarizeExistingSection).
   sections: ExistingSectionSummary[];
+  /// Datos para los ajustes de conversión (ver planSettings).
+  facts: StoreFacts;
+  /// El tema publicado: con sus colores y letra se pintan los banners, y
+  /// sobre él van los ajustes.
+  theme: ThemeConfig;
 };
+
+function variantLabels(variants: { option1Value: string | null; option2Value: string | null; option3Value: string | null }[]): string[] {
+  const out = new Set<string>();
+  for (const v of variants) {
+    for (const value of [v.option1Value, v.option2Value, v.option3Value]) if (value?.trim()) out.add(value.trim());
+  }
+  return Array.from(out).slice(0, 20);
+}
 
 async function loadCatalog(brandId: string): Promise<Catalog> {
   const since = new Date(Date.now() - SALES_WINDOW_DAYS * 86_400_000);
-  const [brand, rows, collections, sales, reviews, sections] = await Promise.all([
+  const [brand, rows, collections, sales, reviews, sections, theme, pages] = await Promise.all([
     prisma.brandProfile.findUnique({
       where: { id: brandId },
       select: { companyName: true, instagramHandle: true, phone: true, vertical: { select: { name: true } } },
@@ -90,7 +110,7 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
         available: true,
         createdAt: true,
         featured: true,
-        variants: { select: { stock: true } },
+        variants: { select: { stock: true, option1Value: true, option2Value: true, option3Value: true } },
         brandCollections: { select: { collectionId: true } },
         _count: { select: { images: true } },
       },
@@ -104,6 +124,7 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
         slug: true,
         description: true,
         imageUrl: true,
+        bannerUrl: true,
         position: true,
         products: { orderBy: { position: "asc" }, select: { productId: true } },
       },
@@ -119,6 +140,8 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
       _avg: { rating: true },
     }),
     prisma.storefrontSection.findMany({ where: { brandId, enabled: true }, orderBy: { position: "asc" }, select: { id: true, type: true, config: true } }),
+    getPublishedTheme(brandId),
+    prisma.storePage.count({ where: { brandId } }),
   ]);
   if (!brand) throw new StoreOrganizerError("Marca no encontrada.");
 
@@ -143,6 +166,7 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
     stock: p.stock,
     hasVariants: p.hasVariants,
     variantStocks: p.variants.map((v) => v.stock),
+    variantLabels: variantLabels(p.variants),
     active: p.status === "ACTIVE" && p.available,
     createdAt: p.createdAt,
     featured: p.featured,
@@ -164,6 +188,7 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
       slug: c.slug,
       description: c.description,
       imageUrl: c.imageUrl,
+      bannerUrl: c.bannerUrl,
       position: c.position,
       productIds: c.products.map((p) => p.productId),
     })),
@@ -174,6 +199,13 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
       sector: sectorFromVertical(brand.vertical?.name),
     },
     sections: sections.map((s) => summarizeExistingSection(s, collectionNameById)),
+    facts: {
+      tracksStock: tracksStock(products),
+      hasPages: pages > 0,
+      hasPurchaseInfo: theme.productDetail.purchaseInfo.some((i) => i.show && Boolean(i.title || i.description)),
+      hasAbout: theme.footer.aboutUs.show && Boolean(theme.footer.aboutUs.title || theme.footer.aboutUs.description),
+    },
+    theme,
   };
 }
 
@@ -190,6 +222,7 @@ function planFrom(catalog: Catalog, proposal: StructureProposal, source: Organiz
     instagram: Boolean(catalog.brand.instagramHandle),
     whatsapp: Boolean(catalog.brand.phone),
     existingSections: catalog.sections,
+    store: catalog.facts,
   });
 }
 
@@ -245,6 +278,34 @@ export async function classifyStoreOrganizer(brandId: string, input: { collectio
   }
 }
 
+/// Paso 4 (después del plan): fichas de producto por tandas — cada id
+/// con el nombre de la colección en la que va a quedar. La IA conserva
+/// las fichas que ya venden y escribe las demás (ver
+/// describeProductsWithClaude); acá se vuelven HTML. null si no respondió.
+export async function describeStoreOrganizer(
+  brandId: string,
+  items: { id: string; collection: string }[],
+): Promise<{ descriptions: PlannedDescription[]; kept: number } | null> {
+  const catalog = await loadCatalogOrThrow(brandId);
+  const collectionOf = new Map(items.map((i) => [i.id, i.collection]));
+  const products = catalog.products.filter((p) => collectionOf.has(p.id)).slice(0, DESCRIBE_BATCH_SIZE);
+  if (products.length === 0) return { descriptions: [], kept: 0 };
+  try {
+    const result = await describeProductsWithClaude({ products, collectionOf, storeName: catalog.brand.companyName, sector: catalog.brand.sector });
+    if (!result) return null;
+    const descriptions: PlannedDescription[] = [];
+    for (const p of products) {
+      const r = result.get(p.id);
+      if (!r || r.keep || !r.copy) continue;
+      descriptions.push({ id: p.id, html: renderProductCopy(r.copy), summary: r.copy.summary });
+    }
+    return { descriptions, kept: products.length - descriptions.length };
+  } catch (err) {
+    console.error("[organizador] fichas con IA fallaron:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 /// Paso 3: arma el plan con lo que respondió la IA (o por reglas).
 export async function planStoreOrganizer(
   brandId: string,
@@ -263,7 +324,7 @@ export async function planStoreOrganizer(
 async function composeHome(brandId: string, catalog: Catalog, plan: OrganizerPlan): Promise<OrganizerPlan> {
   if (!aiAvailable()) return plan;
   try {
-    const current = announcementText(await getPublishedTheme(brandId));
+    const current = announcementText(catalog.theme);
     const instagram = Boolean(catalog.brand.instagramHandle);
     const whatsapp = Boolean(catalog.brand.phone);
     const raw = await composeHomeWithClaude({
@@ -286,9 +347,16 @@ async function composeHome(brandId: string, catalog: Catalog, plan: OrganizerPla
       whatsapp,
       discounted: plan.stats.discounted,
       hasAnnouncement: current !== null,
+      hasAbout: catalog.facts.hasAbout,
     });
     if (!composed) return plan;
-    return { ...plan, home: composed.home, announcement: composed.announcement, notes: composed.notes };
+    return {
+      ...plan,
+      home: composed.home,
+      announcement: composed.announcement,
+      notes: composed.notes,
+      settings: { ...plan.settings, about: composed.about },
+    };
   } catch (err) {
     console.error("[organizador] componer la portada con IA falló, queda la portada por reglas:", err instanceof Error ? err.message : err);
     return plan;
@@ -334,6 +402,11 @@ export type ApplySummary = {
   kept: number;
   banners: number;
   announcement: boolean;
+  /// Fichas de producto reescritas, banners de colección pintados y los
+  /// ajustes del tema que se aplicaron (para contarlos).
+  descriptions: number;
+  collectionBanners: number;
+  settings: string[];
 };
 
 type Snapshot = {
@@ -355,8 +428,14 @@ type Snapshot = {
   redirects: string[];
   mobileMenuStyle: string | null;
   /// La barra de anuncio (borrador y publicada) antes de ponerle la
-  /// frase del plan; null si no se tocó.
+  /// frase del plan; null si no se tocó. (Corridas viejas: ahora se
+  /// guarda el tema entero en `theme`.)
   announcementBar?: { draft: unknown; published: unknown } | null;
+  /// El tema entero (borrador y publicado) antes de los ajustes; null si
+  /// no se tocó.
+  theme?: { draft: unknown; published: unknown } | null;
+  /// Las descripciones de los productos cuya ficha reescribió la IA.
+  productDescriptions?: { id: string; description: string | null }[];
 };
 
 async function snapshotStore(brandId: string, productIds: string[]): Promise<Snapshot> {
@@ -389,6 +468,8 @@ async function snapshotStore(brandId: string, productIds: string[]): Promise<Sna
     redirects: [],
     mobileMenuStyle: null,
     announcementBar: null,
+    theme: null,
+    productDescriptions: [],
   };
 }
 
@@ -418,25 +499,34 @@ type SectionContext = {
   theme: ThemeConfig | null;
 };
 
-/// La URL firmada del banner pintado con el estilo de la tienda (ver
-/// banner-image.ts), o null si no se puede firmar (falta AUTH_SECRET).
-function generatedBannerUrl(section: BannerPlan, theme: ThemeConfig, layout: "wide" | "mobile"): string | null {
+/// La receta de un banner con el estilo de la tienda: los colores y la
+/// letra del tema publicado más la foto (solo https).
+function themeBannerSpec(theme: ThemeConfig, texts: { title: string; subtitle: string; cta: string; image: string | null }): Omit<BannerSpec, "layout"> {
+  return {
+    title: texts.title,
+    subtitle: texts.subtitle,
+    cta: texts.cta,
+    image: texts.image && /^https:\/\//i.test(texts.image) ? texts.image : null,
+    bg: theme.colors.fondo,
+    fg: theme.colors.texto,
+    accent: theme.colors.usarAcento ? theme.colors.acento : theme.colors.principal,
+    font: theme.typography.headingFont,
+  };
+}
+
+/// Las URLs firmadas del banner en sus dos formatos (ver banner-image.ts),
+/// o null si no se pueden firmar (falta AUTH_SECRET).
+function signedBanners(spec: Omit<BannerSpec, "layout">): { wide: string; mobile: string } | null {
   try {
-    return bannerImageUrl({
-      layout,
-      title: section.title,
-      subtitle: section.subtitle,
-      cta: section.buttonText,
-      image: /^https:\/\//i.test(section.imageUrl) ? section.imageUrl : null,
-      bg: theme.colors.fondo,
-      fg: theme.colors.texto,
-      accent: theme.colors.usarAcento ? theme.colors.acento : theme.colors.principal,
-      font: theme.typography.headingFont,
-    });
+    return { wide: bannerImageUrl({ ...spec, layout: "wide" }), mobile: bannerImageUrl({ ...spec, layout: "mobile" }) };
   } catch (err) {
     console.error("[organizador] no se pudo firmar el banner:", err instanceof Error ? err.message : err);
     return null;
   }
+}
+
+function generatedBannerUrls(section: BannerPlan, theme: ThemeConfig) {
+  return signedBanners(themeBannerSpec(theme, { title: section.title, subtitle: section.subtitle, cta: section.buttonText, image: section.imageUrl }));
 }
 
 function sectionConfig(section: HomeSectionPlan, ctx: SectionContext): { type: SectionType; config: unknown; generated?: boolean } | null {
@@ -447,14 +537,13 @@ function sectionConfig(section: HomeSectionPlan, ctx: SectionContext): { type: S
       const slug = ctx.slugByKey.get(section.collectionKey);
       if (!slug) return null;
       const link = `/coleccion/${slug}`;
-      const wide = ctx.theme ? generatedBannerUrl(section, ctx.theme, "wide") : null;
-      const mobile = ctx.theme && wide ? generatedBannerUrl(section, ctx.theme, "mobile") : null;
-      if (wide) {
+      const generated = ctx.theme ? generatedBannerUrls(section, ctx.theme) : null;
+      if (generated) {
         // Los textos van pintados dentro de la imagen: sin capa encima.
         return {
           type: "BANNER",
           generated: true,
-          config: { aspectRatio: "original", slides: [{ imageUrl: wide, mobileImageUrl: mobile ?? "", link }], title: "", subtitle: "", buttonText: "", buttonLink: link },
+          config: { aspectRatio: "original", slides: [{ imageUrl: generated.wide, mobileImageUrl: generated.mobile, link }], title: "", subtitle: "", buttonText: "", buttonLink: link },
         };
       }
       return {
@@ -534,6 +623,63 @@ function sectionConfig(section: HomeSectionPlan, ctx: SectionContext): { type: S
   }
 }
 
+/// Los ajustes del tema que ayudan a vender, solo donde falten (ver
+/// planSettings): sellos de confianza en la ficha, aviso de últimas
+/// unidades, botón de compra flotante y ahorro visible, sugerencias en el
+/// carrito, buscador, y el pie con contacto, páginas y "Nosotros".
+function settingsPatch(settings: StoreSettingsPlan, catalog: Catalog, summary: ApplySummary): Record<string, unknown> {
+  const theme = catalog.theme;
+  const patch: Record<string, unknown> = {};
+  const productDetail: Record<string, unknown> = {};
+  if (settings.purchaseInfo && !catalog.facts.hasPurchaseInfo) {
+    const whatsapp = catalog.brand.phone?.replace(/\D/g, "");
+    productDetail.purchaseInfo = [
+      { show: true, icon: "SHIPPING", title: "Envíos a todo el país", description: "Despachamos a cualquier ciudad de Colombia." },
+      { show: true, icon: "PAYMENT", title: "Pagos seguros", description: "Tarjeta, PSE y más, con confirmación al instante." },
+      whatsapp
+        ? { show: true, icon: "SECURITY", title: "Asesoría por WhatsApp", description: "Te ayudamos a elegir antes de comprar." }
+        : { show: true, icon: "RETURNS", title: "Cambios y garantía", description: "Si algo llega mal, lo resolvemos." },
+    ];
+    summary.settings.push("sellos de confianza en la ficha");
+  }
+  if (settings.lowStock && !theme.productDetail.lowStock.enabled) {
+    productDetail.lowStock = { enabled: true, threshold: 3 };
+    summary.settings.push("aviso de últimas unidades");
+  }
+  if (!theme.productDetail.floatingAddToCart) {
+    productDetail.floatingAddToCart = true;
+    summary.settings.push("botón de compra flotante");
+  }
+  if (!theme.productDetail.showSavedAmount) {
+    productDetail.showSavedAmount = true;
+    summary.settings.push("ahorro visible en los descuentos");
+  }
+  if (Object.keys(productDetail).length > 0) patch.productDetail = productDetail;
+  if (settings.cartSuggestions && !theme.cart.suggestComplementary) {
+    patch.cart = { suggestComplementary: true };
+    summary.settings.push("sugerencias en el carrito");
+  }
+  if (!theme.header.showSearch) {
+    patch.header = { showSearch: true };
+    summary.settings.push("buscador visible");
+  }
+  const footer: Record<string, unknown> = {};
+  if (settings.footerContact && !theme.footer.contact.show) {
+    footer.contact = { show: true };
+    summary.settings.push("contacto en el pie de página");
+  }
+  if (settings.footerPages && !theme.footer.menuSecondary.show) {
+    footer.menuSecondary = { show: true, title: theme.footer.menuSecondary.title || "Información" };
+    summary.settings.push("páginas de información en el pie de página");
+  }
+  if (settings.about && !catalog.facts.hasAbout) {
+    footer.aboutUs = { show: true, title: settings.about.title.slice(0, 100), description: settings.about.description.slice(0, 500) };
+    summary.settings.push("\"Nosotros\" en el pie de página");
+  }
+  if (Object.keys(footer).length > 0) patch.footer = footer;
+  return patch;
+}
+
 /// Aplica el plan tal como se mostró (el que devolvió previewStoreOrganizer),
 /// guardando antes una copia para deshacer.
 export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan): Promise<ApplySummary> {
@@ -558,7 +704,11 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
     kept: 0,
     banners: 0,
     announcement: false,
+    descriptions: 0,
+    collectionBanners: 0,
+    settings: [],
   };
+  const theme = catalog.theme;
 
   // 1. Las colecciones que sobran se van (quedan en la copia).
   const kept = new Set(planned.map((c) => c.existingId).filter((id): id is string => Boolean(id)));
@@ -605,6 +755,17 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
     }
     idByKey.set(c.key, id);
     slugByKey.set(c.key, slug);
+    // Banner de la página de la colección, pintado con el estilo de la
+    // tienda, para las principales que no tienen uno propio.
+    const hadBanner = c.existingId ? catalog.collections.find((x) => x.id === c.existingId)?.bannerUrl : null;
+    const collectionImage = imageByKey.get(c.key) ?? null;
+    if (plan.collectionBanners && mains.includes(c.key) && !hadBanner && collectionImage) {
+      const banners = signedBanners(themeBannerSpec(theme, { title: c.name.slice(0, 60), subtitle: c.description.slice(0, 120), cta: "", image: collectionImage }));
+      if (banners) {
+        await prisma.brandCollection.update({ where: { id }, data: { bannerUrl: banners.wide, bannerMobileUrl: banners.mobile } });
+        summary.collectionBanners++;
+      }
+    }
     await prisma.$transaction([
       prisma.productBrandCollection.deleteMany({ where: { collectionId: id } }),
       ...(c.productIds.length > 0
@@ -637,6 +798,19 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
     summary.products.renamed += chunk.length;
   }
 
+  // 4b. Fichas de producto escritas por la IA (las anteriores quedan en
+  // la copia). Se sanean como cualquier descripción que entra.
+  const descriptions = plan.productDescriptions.filter((d) => ownedProducts.has(d.id) && d.html.trim().length > 0);
+  if (descriptions.length > 0) {
+    const previous = await prisma.product.findMany({ where: { brandId, id: { in: descriptions.map((d) => d.id) } }, select: { id: true, description: true } });
+    snapshot.productDescriptions = previous.map((p) => ({ id: p.id, description: p.description }));
+    for (let i = 0; i < descriptions.length; i += 50) {
+      const chunk = descriptions.slice(i, i + 50);
+      await prisma.$transaction(chunk.map((d) => prisma.product.update({ where: { id: d.id }, data: { description: sanitizeProductDescription(d.html).slice(0, 20000) } })));
+      summary.descriptions += chunk.length;
+    }
+  }
+
   // 5. Menú.
   const menu = await replaceStorefrontMenu(brandId, menuToBuilt(plan.menu, slugByKey), true);
   summary.menu = menu.items;
@@ -647,7 +821,6 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
   const ownedSections = new Set((await prisma.storefrontSection.findMany({ where: { brandId }, select: { id: true } })).map((s) => s.id));
   const keepIds = plan.home.flatMap((s) => (s.type === "KEEP" && ownedSections.has(s.sectionId) ? [s.sectionId] : []));
   await prisma.storefrontSection.deleteMany({ where: { brandId, id: { notIn: keepIds } } });
-  const theme = plan.home.some((s) => s.type === "BANNER") ? await getPublishedTheme(brandId) : null;
   let position = 0;
   for (const section of plan.home) {
     if (section.type === "KEEP") {
@@ -670,16 +843,19 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
     if (built.generated) summary.banners++;
   }
 
-  // 7. Barra de anuncio: solo si la tienda no tiene una (lo anterior
-  // queda en la copia para deshacer).
+  // 7. Ajustes del tema que ayudan a vender y la barra de anuncio (solo
+  // si la tienda no tiene una). Van sobre borrador y publicado; el tema
+  // entero de antes queda en la copia para deshacer.
+  const draft = await getDraftTheme(brandId);
+  const patch = settingsPatch(plan.settings, catalog, summary);
   const announcement = plan.announcement?.trim();
-  if (announcement) {
-    const [draft, published] = await Promise.all([getDraftTheme(brandId), getPublishedTheme(brandId)]);
-    if (!announcementText(draft) && !announcementText(published)) {
-      snapshot.announcementBar = { draft: draft.announcementBar, published: published.announcementBar };
-      await patchPublishedTheme(brandId, { announcementBar: { enabled: true, messages: [{ text: announcement.slice(0, 200), link: "" }] } });
-      summary.announcement = true;
-    }
+  if (announcement && !announcementText(draft) && !announcementText(theme)) {
+    patch.announcementBar = { enabled: true, messages: [{ text: announcement.slice(0, 200), link: "" }] };
+    summary.announcement = true;
+  }
+  if (Object.keys(patch).length > 0) {
+    snapshot.theme = { draft, published: theme };
+    await patchPublishedTheme(brandId, patch);
   }
 
   // 8. Familias (otros tonos/aromas/tamaños) sobre los nombres nuevos.
@@ -701,7 +877,7 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
 
 /// Vuelve a dejar la tienda como estaba antes de la última organización:
 /// colecciones (con sus productos y su orden), menú, portada y nombres.
-export async function undoStoreOrganizer(brandId: string): Promise<{ restored: { collections: number; menu: number; sections: number; products: number } }> {
+export async function undoStoreOrganizer(brandId: string): Promise<{ restored: { collections: number; menu: number; sections: number; products: number; descriptions: number } }> {
   const run = await prisma.storeOrganizerRun.findFirst({ where: { brandId, status: "APPLIED" }, orderBy: { createdAt: "desc" } });
   if (!run) throw new StoreOrganizerError("No hay una organización para deshacer.");
   const snapshot = run.snapshot as unknown as Snapshot;
@@ -756,7 +932,15 @@ export async function undoStoreOrganizer(brandId: string): Promise<{ restored: {
   if (snapshot.redirects?.length) {
     await prisma.storefrontRedirect.deleteMany({ where: { brandId, fromPath: { in: snapshot.redirects } } });
   }
-  if (snapshot.announcementBar) {
+  let descriptions = 0;
+  for (const d of snapshot.productDescriptions ?? []) {
+    if (!owned.has(d.id)) continue;
+    await prisma.product.update({ where: { id: d.id }, data: { description: d.description } });
+    descriptions++;
+  }
+  if (snapshot.theme) {
+    await restoreThemeConfigs(brandId, snapshot.theme.draft, snapshot.theme.published);
+  } else if (snapshot.announcementBar) {
     await patchPublishedTheme(
       brandId,
       { announcementBar: snapshot.announcementBar.published as Record<string, unknown> },
@@ -764,7 +948,7 @@ export async function undoStoreOrganizer(brandId: string): Promise<{ restored: {
     );
   }
   await prisma.storeOrganizerRun.update({ where: { id: run.id }, data: { status: "REVERTED", revertedAt: new Date() } });
-  return { restored: { collections: snapshot.collections.length, menu: inserted.size, sections: snapshot.sections.length, products } };
+  return { restored: { collections: snapshot.collections.length, menu: inserted.size, sections: snapshot.sections.length, products, descriptions } };
 }
 
 // ---------------------------------------------------------------------------

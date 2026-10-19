@@ -32,6 +32,18 @@ export type OrganizerPlanView = {
   home: { type: string; title?: string; label?: string; heading?: string }[];
   announcement?: string | null;
   notes?: string | null;
+  productDescriptions: { id: string; html: string; summary: string }[];
+  /// Cuántas fichas ya vendían y se conservan (solo en el navegador).
+  descriptionsKept?: number;
+  collectionBanners: boolean;
+  settings: {
+    purchaseInfo: boolean;
+    lowStock: boolean;
+    cartSuggestions: boolean;
+    footerContact: boolean;
+    footerPages: boolean;
+    about: { title: string; description: string } | null;
+  };
   stats: {
     products: number;
     active: number;
@@ -55,6 +67,9 @@ export type OrganizerSummary = {
   kept?: number;
   banners?: number;
   announcement?: boolean;
+  descriptions?: number;
+  collectionBanners?: number;
+  settings?: string[];
 };
 
 type LastRun = { id: string; status: "APPLIED" | "REVERTED"; source: string; createdAt: string; summary: OrganizerSummary } | null;
@@ -107,6 +122,49 @@ type DefinedCollection = { name: string; description: string; children: string[]
 type Assignment = { id: string; collection: string; child: string | null };
 
 const CLASSIFY_CONCURRENCY = 3;
+const DESCRIBE_BATCH = 8;
+
+/// Fichas de producto por tandas (después del plan, con la colección en la
+/// que queda cada producto). Una tanda que falla dos veces se salta: esos
+/// productos conservan su descripción.
+async function describeProducts(plan: OrganizerPlanView, onStep: (step: string) => void): Promise<{ descriptions: OrganizerPlanView["productDescriptions"]; kept: number }> {
+  const items: { id: string; collection: string }[] = [];
+  const seen = new Set<string>();
+  const walk = (list: PlannedCollection[], parent?: string) => {
+    for (const c of list) {
+      for (const id of c.productIds) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        items.push({ id, collection: parent ? `${parent} / ${c.name}` : c.name });
+      }
+      walk(c.children, c.name);
+    }
+  };
+  walk(plan.collections);
+  const queue: { id: string; collection: string }[][] = [];
+  for (let i = 0; i < items.length; i += DESCRIBE_BATCH) queue.push(items.slice(i, i + DESCRIBE_BATCH));
+  const descriptions: OrganizerPlanView["productDescriptions"] = [];
+  let kept = 0;
+  let done = 0;
+  onStep(`Escribiendo las fichas de producto con la IA… 0 de ${items.length}`);
+  async function worker() {
+    while (queue.length > 0) {
+      const batch = queue.shift()!;
+      const describe = () => organizerRequest({ action: "describe", items: batch }) as Promise<unknown>;
+      let result = await describe().catch(() => null);
+      if (!result) result = await describe().catch(() => null);
+      if (result) {
+        const r = result as { descriptions: OrganizerPlanView["productDescriptions"]; kept: number };
+        descriptions.push(...r.descriptions);
+        kept += r.kept;
+      }
+      done += batch.length;
+      onStep(`Escribiendo las fichas de producto con la IA… ${Math.min(done, items.length)} de ${items.length}`);
+    }
+  }
+  await Promise.all(Array.from({ length: CLASSIFY_CONCURRENCY }, worker));
+  return { descriptions, kept };
+}
 
 /// Arma el plan por pasos: "prepare" (con IA define las colecciones; sin
 /// IA ya devuelve el plan), "classify" por tandas en paralelo, y "plan".
@@ -150,10 +208,19 @@ export async function buildOrganizerPlan(onStep: (step: string) => void): Promis
   }
   onStep("Armando el plan: orden, menú y portada…");
   const planned = (await organizerRequest({ action: "plan", mode: "ia", definitions: ia.collections, assignments, productNames })) as unknown as { plan: OrganizerPlanView; lastRun: LastRun };
-  return { plan: planned.plan, lastRun: planned.lastRun };
+  const described = await describeProducts(planned.plan, onStep);
+  return { plan: { ...planned.plan, productDescriptions: described.descriptions, descriptionsKept: described.kept }, lastRun: planned.lastRun };
 }
 
 export function summaryText(s: OrganizerSummary) {
+  const rest = [
+    s.descriptions ? `${s.descriptions} fichas de producto reescritas` : "",
+    s.collectionBanners ? `${s.collectionBanners} ${s.collectionBanners === 1 ? "banner de colección pintado" : "banners de colección pintados"}` : "",
+    s.settings?.length ? `ajustes: ${s.settings.join(", ")}` : "",
+  ]
+    .filter(Boolean)
+    .map((t) => ` · ${t}`)
+    .join("");
   const home = [
     `portada con ${s.home} secciones`,
     s.kept ? `${s.kept} ${s.kept === 1 ? "importada conservada" : "importadas conservadas"}` : "",
@@ -162,7 +229,19 @@ export function summaryText(s: OrganizerSummary) {
   ]
     .filter(Boolean)
     .join(", ");
-  return `${s.collections.created + s.collections.updated} colecciones (${s.collections.created} nuevas, ${s.collections.updated} conservadas, ${s.collections.removed} quitadas${s.collections.subcollections > 0 ? `, ${s.collections.subcollections} subcolecciones` : ""}) · ${s.products.placed} productos ubicados · ${s.products.renamed} nombres arreglados · menú de ${s.menu} enlaces · ${home}${s.families > 0 ? ` · ${s.families} familias` : ""} · estructura por ${s.source === "ia" ? "IA" : "reglas"}`;
+  return `${s.collections.created + s.collections.updated} colecciones (${s.collections.created} nuevas, ${s.collections.updated} conservadas, ${s.collections.removed} quitadas${s.collections.subcollections > 0 ? `, ${s.collections.subcollections} subcolecciones` : ""}) · ${s.products.placed} productos ubicados · ${s.products.renamed} nombres arreglados · menú de ${s.menu} enlaces · ${home}${rest}${s.families > 0 ? ` · ${s.families} familias` : ""} · estructura por ${s.source === "ia" ? "IA" : "reglas"}`;
+}
+
+/// Los ajustes del plan, en palabras.
+function settingsText(settings: OrganizerPlanView["settings"]) {
+  return [
+    settings.purchaseInfo ? "sellos de confianza en la ficha de producto" : "",
+    settings.lowStock ? "aviso de últimas unidades con el inventario real" : "",
+    settings.cartSuggestions ? "sugerencias en el carrito" : "",
+    settings.footerContact ? "contacto en el pie de página" : "",
+    settings.footerPages ? "páginas de información en el pie de página" : "",
+    settings.about ? `"${settings.about.title}" en el pie de página` : "",
+  ].filter(Boolean);
 }
 
 export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
@@ -179,6 +258,7 @@ export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showNames, setShowNames] = useState(false);
+  const [showCopies, setShowCopies] = useState(false);
 
   async function preview() {
     setBusy("preview");
@@ -218,8 +298,10 @@ export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
     setError(null);
     try {
       const body = await organizerRequest({ action: "undo" });
-      const restored = body.restored as { collections: number; menu: number; sections: number; products: number };
-      setNotice(`Se volvió a como estaba: ${restored.collections} colecciones, ${restored.menu} enlaces del menú, ${restored.sections} secciones y ${restored.products} nombres.`);
+      const restored = body.restored as { collections: number; menu: number; sections: number; products: number; descriptions?: number };
+      setNotice(
+        `Se volvió a como estaba: ${restored.collections} colecciones, ${restored.menu} enlaces del menú, ${restored.sections} secciones, ${restored.products} nombres${restored.descriptions ? `, ${restored.descriptions} fichas` : ""} y los ajustes del tema.`,
+      );
       setLastRun(body.lastRun as LastRun);
       setPlan(null);
       onApplied?.();
@@ -330,6 +412,40 @@ export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
               </p>
             )}
             {plan.notes && <p className="text-xs text-brand-ink-soft mt-1">Criterio de la IA: {plan.notes}</p>}
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-brand-ink-soft mb-1">Fichas de producto</p>
+            {plan.productDescriptions.length > 0 ? (
+              <>
+                <p className="text-xs">
+                  {plan.productDescriptions.length} fichas se reescriben con la línea directiva (qué es, qué gana quien compra, qué incluye, cómo se usa, datos
+                  reales){plan.descriptionsKept ? ` · ${plan.descriptionsKept} ya venden y se conservan` : ""}.{" "}
+                  <button type="button" onClick={() => setShowCopies((v) => !v)} className="font-medium text-brand-accent hover:underline">
+                    {showCopies ? "Ocultar ejemplos" : "Ver ejemplos"}
+                  </button>
+                </p>
+                {showCopies && (
+                  <ul className="mt-1 text-xs text-brand-ink-soft space-y-1 max-h-60 overflow-y-auto">
+                    {plan.productDescriptions.slice(0, 8).map((d) => (
+                      <li key={d.id}>
+                        <span className="text-brand-ink">{plan.productNames.find((n) => n.id === d.id)?.to ?? d.id}</span>: {d.summary}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-brand-ink-soft">
+                {plan.source === "ia" ? "Las fichas actuales ya venden: se conservan." : "Sin llave de IA las fichas no se tocan."}
+              </p>
+            )}
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-brand-ink-soft mb-1">Colecciones y ajustes</p>
+            <p className="text-xs">
+              {plan.collectionBanners ? "Banner pintado con el estilo de la tienda para cada colección principal que no tenga uno. " : ""}
+              {settingsText(plan.settings).length > 0 ? `Ajustes: ${settingsText(plan.settings).join(" · ")}.` : ""}
+            </p>
           </div>
           {plan.productNames.length > 0 && (
             <div>

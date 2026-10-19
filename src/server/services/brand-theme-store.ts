@@ -126,3 +126,15 @@ export async function patchPublishedTheme(
   });
   return published;
 }
+
+/// Deja el borrador y lo publicado exactamente como estaban (la copia que
+/// guardó el organizador antes de sus ajustes — ver undoStoreOrganizer).
+export async function restoreThemeConfigs(brandId: string, draft: unknown, published: unknown): Promise<void> {
+  const draftConfig = parseThemeConfig(draft) as unknown as Prisma.InputJsonValue;
+  const publishedConfig = parseThemeConfig(published) as unknown as Prisma.InputJsonValue;
+  await prisma.brandTheme.upsert({
+    where: { brandId },
+    create: { brandId, draftConfig, publishedConfig, publishedAt: new Date() },
+    update: { draftConfig, publishedConfig, publishedAt: new Date() },
+  });
+}

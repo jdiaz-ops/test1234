@@ -28,6 +28,8 @@ export type OrganizerProduct = {
   stock: number | null;
   hasVariants: boolean;
   variantStocks: (number | null)[];
+  /// Valores de las variantes (tonos, tamaños…), para la ficha.
+  variantLabels: string[];
   /// Se vende hoy (activo y disponible). Un borrador se organiza pero no
   /// pesa en el orden ni sale en la portada.
   active: boolean;
@@ -50,6 +52,8 @@ export type OrganizerCollection = {
   slug: string;
   description: string | null;
   imageUrl: string | null;
+  /// Banner propio de la página de la colección (importado o subido).
+  bannerUrl: string | null;
   position: number;
   productIds: string[];
 };
@@ -139,6 +143,13 @@ export type OrganizerPlan = {
   announcement: string | null;
   /// Por qué la portada quedó así (lo explica la IA; null por reglas).
   notes: string | null;
+  /// Fichas de producto reescritas por la IA (ver describeProductsWithClaude).
+  productDescriptions: PlannedDescription[];
+  /// Las colecciones principales sin banner reciben uno pintado con el
+  /// estilo de la tienda (ver banner-image.ts).
+  collectionBanners: boolean;
+  /// Ajustes del tema que ayudan a vender (ver planSettings).
+  settings: StoreSettingsPlan;
   stats: {
     products: number;
     active: number;
@@ -535,6 +546,8 @@ export type BuildPlanOptions = {
   /// Las secciones activas que la portada ya tiene: lo importado con foto
   /// o video se conserva (KEEP) y, si hay un banner ancho, no se arma otro.
   existingSections?: ExistingSectionSummary[];
+  /// Datos de la tienda para los ajustes de conversión (ver planSettings).
+  store?: StoreFacts;
 };
 
 function uniqueKey(base: string, taken: Set<string>) {
@@ -644,6 +657,9 @@ export function buildPlan(
     home,
     announcement: null,
     notes: null,
+    productDescriptions: [],
+    collectionBanners: true,
+    settings: planSettings(options.store, planned),
     stats: {
       products: products.length,
       active: products.filter((p) => p.active).length,
@@ -876,7 +892,14 @@ export function summarizeExistingSection(
 /// (vacío lo demás), colecciones por nombre y las secciones existentes
 /// por su número (S1, S2…) o su id.
 export type RawHomeSection = { type: string; keepId: string; collections: string[]; title: string; subtitle: string; buttonText: string; body: string };
-export type RawHomeComposition = { sections: RawHomeSection[]; announcement: string; notes: string };
+export type RawHomeComposition = {
+  sections: RawHomeSection[];
+  announcement: string;
+  notes: string;
+  /// "Nosotros" del pie de página (título y una o dos frases).
+  aboutTitle?: string;
+  aboutText?: string;
+};
 
 export type HomeCompositionContext = {
   collections: PlannedCollection[];
@@ -888,11 +911,15 @@ export type HomeCompositionContext = {
   discounted: number;
   /// La tienda ya tiene barra de anuncio: no se propone otra.
   hasAnnouncement: boolean;
+  /// El pie de página ya tiene un "Nosotros" escrito por la marca.
+  hasAbout?: boolean;
 };
 
 export const MAX_HOME_SECTIONS = 12;
 export const MAX_FEATURED_COLLECTIONS = 2;
 export const ANNOUNCEMENT_MAX = 90;
+export const ABOUT_MAX = 300;
+export const ABOUT_TITLE = "Nosotros";
 /// Con menos secciones válidas que esto, la respuesta de la IA no sirve
 /// y se usa la portada por reglas.
 export const MIN_COMPOSED_SECTIONS = 3;
@@ -913,10 +940,14 @@ function isUnverifiablePromise(text: string) {
 /// existen, una sola cabecera (de primera), los más vendidos, los sellos
 /// de confianza una vez y el catálogo de último. Si queda muy poco de lo
 /// que propuso, devuelve null y se usa la portada por reglas.
-export function sanitizeHomeComposition(
-  raw: RawHomeComposition,
-  ctx: HomeCompositionContext,
-): { home: HomeSectionPlan[]; announcement: string | null; notes: string | null } | null {
+export type HomeComposition = {
+  home: HomeSectionPlan[];
+  announcement: string | null;
+  notes: string | null;
+  about: { title: string; description: string } | null;
+};
+
+export function sanitizeHomeComposition(raw: RawHomeComposition, ctx: HomeCompositionContext): HomeComposition | null {
   const all = flattenPlanned(ctx.collections);
   const byName = new Map(all.map((c) => [collectionNameKey(c.name), c]));
   const surviving = survivingCollectionIds(ctx.collections);
@@ -1072,5 +1103,127 @@ export function sanitizeHomeComposition(
 
   let announcement: string | null = ctx.hasAnnouncement ? null : cleanText(raw.announcement, ANNOUNCEMENT_MAX) || null;
   if (announcement && isUnverifiablePromise(announcement)) announcement = null;
-  return { home: trimmed, announcement, notes: cleanText(raw.notes, 300) || null };
+  const aboutText = ctx.hasAbout ? "" : cleanText(raw.aboutText, ABOUT_MAX);
+  const about = aboutText.length >= 60 && !isUnverifiablePromise(aboutText) ? { title: cleanText(raw.aboutTitle, 40) || ABOUT_TITLE, description: aboutText } : null;
+  return { home: trimmed, announcement, notes: cleanText(raw.notes, 300) || null, about };
+}
+
+// ---------------------------------------------------------------------------
+// El resto de la tienda: fichas de producto y ajustes de conversión
+// ---------------------------------------------------------------------------
+// Pedido el 2026-10-19: "estas filosofías deben existir en toda la tienda,
+// no solo en la portada". La misma línea directiva de conversión manda en
+// la ficha de producto (qué es, qué gana quien compra, qué incluye, cómo
+// se usa, datos reales), en las páginas de colección (banner con el
+// estilo de la tienda, descripción) y en los ajustes del tema (sellos de
+// confianza, últimas unidades, sugerencias en el carrito, pie de página).
+
+/// Ficha de producto escrita por la IA (ver describeProductsWithClaude).
+export type ProductCopy = {
+  /// Qué es y el beneficio principal (una o dos frases).
+  summary: string;
+  /// Puntos concretos: qué resuelve, resultado, duración, facilidad.
+  benefits: string[];
+  /// Qué trae (cantidad, piezas, contenido), si se sabe.
+  includes: string;
+  /// Cómo se usa, si aplica.
+  usage: string;
+  /// Datos técnicos que estén en la información original.
+  specs: string[];
+  /// Cuidado o advertencia real, si la hay.
+  note: string;
+};
+
+export type PlannedDescription = { id: string; html: string; summary: string };
+
+export const COPY_LIMITS = { summary: 240, benefit: 100, benefits: 5, includes: 200, usage: 240, spec: 80, specs: 6, note: 160 } as const;
+
+/// Valida lo que respondió la IA para un producto; null si no alcanza
+/// para una ficha (se conserva la descripción actual).
+export function sanitizeProductCopy(raw: unknown): ProductCopy | null {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const list = (v: unknown, max: number, count: number) =>
+    Array.isArray(v)
+      ? v
+          .map((x) => cleanText(x, max).replace(/[.;,]\s*$/, ""))
+          .filter((x) => x.length >= 3)
+          .slice(0, count)
+      : [];
+  const summary = cleanText(r.summary, COPY_LIMITS.summary);
+  const benefits = list(r.benefits, COPY_LIMITS.benefit, COPY_LIMITS.benefits);
+  if (summary.length < 30 || benefits.length < 2) return null;
+  return {
+    summary,
+    benefits,
+    includes: cleanText(r.includes, COPY_LIMITS.includes),
+    usage: cleanText(r.usage, COPY_LIMITS.usage),
+    specs: list(r.specs, COPY_LIMITS.spec, COPY_LIMITS.specs),
+    note: cleanText(r.note, COPY_LIMITS.note),
+  };
+}
+
+function escapeHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/// La ficha en HTML simple (párrafos y listas; se sanea al guardar).
+export function renderProductCopy(copy: ProductCopy): string {
+  const parts = [`<p>${escapeHtml(copy.summary)}</p>`, `<ul>${copy.benefits.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>`];
+  if (copy.includes) parts.push(`<p><strong>Incluye:</strong> ${escapeHtml(copy.includes)}</p>`);
+  if (copy.usage) parts.push(`<p><strong>Cómo se usa:</strong> ${escapeHtml(copy.usage)}</p>`);
+  if (copy.specs.length > 0) parts.push(`<p><strong>Características</strong></p><ul>${copy.specs.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ul>`);
+  if (copy.note) parts.push(`<p><em>${escapeHtml(copy.note)}</em></p>`);
+  return parts.join("\n");
+}
+
+/// Datos de la tienda que deciden los ajustes (ver planSettings).
+export type StoreFacts = {
+  /// La mayoría de los productos activos lleva inventario.
+  tracksStock: boolean;
+  /// Tiene páginas propias (políticas, nosotros, preguntas).
+  hasPages: boolean;
+  /// La marca ya puso sus sellos en la ficha de producto (no se pisan).
+  hasPurchaseInfo: boolean;
+  /// El pie de página ya tiene un "Nosotros" (no se pisa).
+  hasAbout: boolean;
+};
+
+export type StoreSettingsPlan = {
+  /// Tres sellos de confianza en la ficha de producto (envíos, pagos,
+  /// cambios o asesoría por WhatsApp).
+  purchaseInfo: boolean;
+  /// Aviso de "últimas unidades" con el inventario real.
+  lowStock: boolean;
+  /// "Completa tu compra" en el carrito (productos de las mismas colecciones).
+  cartSuggestions: boolean;
+  /// Pie de página: datos de contacto y las páginas de información.
+  footerContact: boolean;
+  footerPages: boolean;
+  /// "Nosotros" del pie de página (lo escribe la IA; null por reglas).
+  about: { title: string; description: string } | null;
+};
+
+/// Ajustes de conversión por reglas: solo con sustento (inventario real
+/// para "últimas unidades", páginas que existan) y sin pisar lo que la
+/// marca ya configuró.
+export function planSettings(facts: StoreFacts | undefined, collections: PlannedCollection[]): StoreSettingsPlan {
+  const f: StoreFacts = facts ?? { tracksStock: false, hasPages: false, hasPurchaseInfo: false, hasAbout: false };
+  return {
+    purchaseInfo: !f.hasPurchaseInfo,
+    lowStock: f.tracksStock,
+    cartSuggestions: collections.length >= 2,
+    footerContact: true,
+    footerPages: f.hasPages,
+    about: null,
+  };
+}
+
+/// Si la mayoría de los productos activos lleva inventario (stock no
+/// nulo, propio o de sus variantes), el aviso de últimas unidades dice la
+/// verdad.
+export function tracksStock(products: OrganizerProduct[]): boolean {
+  const active = products.filter((p) => p.active);
+  if (active.length === 0) return false;
+  const tracked = active.filter((p) => (p.hasVariants ? p.variantStocks.some((s) => s != null) : p.stock != null)).length;
+  return tracked * 2 >= active.length;
 }

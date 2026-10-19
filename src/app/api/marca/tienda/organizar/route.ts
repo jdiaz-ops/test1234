@@ -5,6 +5,7 @@ import { limitOrReject } from "@/lib/rate-limit";
 import {
   applyStoreOrganizer,
   classifyStoreOrganizer,
+  describeStoreOrganizer,
   lastOrganizerRun,
   planStoreOrganizer,
   prepareStoreOrganizer,
@@ -16,8 +17,9 @@ import {
 /// store-organizer-service.ts). El navegador va por pasos para que ninguna
 /// petición se pase del tiempo máximo: "prepare" (define las colecciones
 /// con IA, o devuelve el plan por reglas), "classify" por tandas, "plan"
-/// (arma el plan sin tocar nada), "apply" (lo aplica tal como se mostró)
-/// y "undo". GET solo dice si hay algo para deshacer.
+/// (arma el plan sin tocar nada), "describe" (fichas de producto por
+/// tandas, que el navegador suma al plan), "apply" (lo aplica tal como se
+/// mostró) y "undo". GET solo dice si hay algo para deshacer.
 export const maxDuration = 60;
 
 const FORBIDDEN = { error: "Solo el administrador de Marcolini puede usar esta herramienta." };
@@ -77,6 +79,18 @@ const planSchema = z.object({
   home: z.array(homeSection).max(12),
   announcement: z.string().max(200).nullable().optional(),
   notes: z.string().max(400).nullable().optional(),
+  productDescriptions: z.array(z.object({ id: z.string(), html: z.string().max(8000), summary: z.string().max(300) })).max(5000).default([]),
+  collectionBanners: z.boolean().default(true),
+  settings: z
+    .object({
+      purchaseInfo: z.boolean(),
+      lowStock: z.boolean(),
+      cartSuggestions: z.boolean(),
+      footerContact: z.boolean(),
+      footerPages: z.boolean(),
+      about: z.object({ title: z.string().max(100), description: z.string().max(500) }).nullable(),
+    })
+    .default({ purchaseInfo: false, lowStock: false, cartSuggestions: false, footerContact: false, footerPages: false, about: null }),
   stats: z.object({
     products: z.number(),
     active: z.number(),
@@ -93,6 +107,7 @@ const planSchema = z.object({
 const definedCollection = z.object({ name: z.string().min(2).max(40), description: z.string().max(160), children: z.array(z.string().min(2).max(40)).max(8) });
 const assignment = z.object({ id: z.string(), collection: z.string().max(60), child: z.string().max(60).nullable() });
 const productName = z.object({ id: z.string(), name: z.string().min(2).max(255) });
+const describeItem = z.object({ id: z.string(), collection: z.string().max(80) });
 
 const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("prepare") }),
@@ -106,6 +121,7 @@ const bodySchema = z.discriminatedUnion("action", [
     assignments: z.array(assignment).max(5000).optional(),
     productNames: z.array(productName).max(5000).optional(),
   }),
+  z.object({ action: z.literal("describe"), items: z.array(describeItem).min(1).max(20) }),
   z.object({ action: z.literal("apply"), plan: planSchema }),
   z.object({ action: z.literal("undo") }),
 ]);
@@ -144,6 +160,11 @@ export async function POST(req: Request) {
             : { mode: "ia", definitions: data.definitions ?? [], assignments: data.assignments ?? [], productNames: data.productNames ?? [] },
         );
         return NextResponse.json({ ok: true, plan, lastRun: await lastOrganizerRun(profile.id) });
+      }
+      case "describe": {
+        const result = await describeStoreOrganizer(profile.id, data.items);
+        if (!result) return NextResponse.json({ error: "La IA no respondió para esta tanda de fichas." }, { status: 422 });
+        return NextResponse.json({ ok: true, ...result });
       }
       case "undo": {
         const result = await undoStoreOrganizer(profile.id);

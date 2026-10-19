@@ -86,6 +86,11 @@ describe.skipIf(!hasDb)("organizador automático de tienda", () => {
     expect(plan.productNames.find((n) => n.from === "PUSHER METALICO")?.to).toBe("Pusher metalico");
     expect(plan.menu.map((m) => m.label)).toEqual(["Inicio", "Esmaltes", "Herramientas", "Otros productos", "Todos los productos"]);
     expect(plan.stats).toMatchObject({ products: 7, active: 6, soldOut: 1, withSales: 2, collectionsBefore: 4, collectionsAfter: 3 });
+    // Ajustes por reglas: la tienda lleva inventario y no tiene páginas ni
+    // sellos propios.
+    expect(plan.settings).toEqual({ purchaseInfo: true, lowStock: true, cartSuggestions: true, footerContact: true, footerPages: false, about: null });
+    expect(plan.productDescriptions).toEqual([]);
+    expect(plan.collectionBanners).toBe(true);
     expect(plan.home.map((s) => (s.type === "KEEP" ? `KEEP:${s.sectionId === promo.id ? "promo" : s.sectionId}` : s.type))).toEqual([
       "BANNER",
       "CATEGORY_GRID",
@@ -95,10 +100,49 @@ describe.skipIf(!hasDb)("organizador automático de tienda", () => {
       "PRODUCT_CATALOG",
     ]);
 
-    // La frase de la barra de anuncio la propone la IA; acá se simula.
-    const summary = await applyStoreOrganizer(brand.id, { ...plan, announcement: "Asesoría por WhatsApp antes de comprar" });
-    expect(summary).toMatchObject({ source: "reglas", collections: { created: 2, updated: 1, removed: 3 }, products: { placed: 7 }, menu: 5, home: 6, kept: 1, banners: 1, announcement: true });
+    // La frase de la barra, el "Nosotros" y las fichas los escribe la IA;
+    // acá se simulan.
+    const azul = products["ESMALTE SEMIPERMANENTE AZUL"].id;
+    const summary = await applyStoreOrganizer(brand.id, {
+      ...plan,
+      announcement: "Asesoría por WhatsApp antes de comprar",
+      settings: { ...plan.settings, about: { title: "Nosotros", description: "Tienda de esmaltes y herramientas para manicuristas." } },
+      productDescriptions: [{ id: azul, html: "<p>Color intenso que dura semanas.</p><ul><li>Cubre en dos capas</li></ul><script>alert(1)</script>", summary: "Color intenso que dura semanas." }],
+    });
+    expect(summary).toMatchObject({
+      source: "reglas",
+      collections: { created: 2, updated: 1, removed: 3 },
+      products: { placed: 7 },
+      menu: 5,
+      home: 6,
+      kept: 1,
+      banners: 1,
+      announcement: true,
+      descriptions: 1,
+      collectionBanners: 2,
+    });
+    expect(summary.settings).toEqual(
+      expect.arrayContaining(["sellos de confianza en la ficha", "aviso de últimas unidades", "sugerencias en el carrito", "\"Nosotros\" en el pie de página"]),
+    );
     expect(summary.products.renamed).toBeGreaterThan(0);
+
+    // La ficha entra saneada; las colecciones principales con foto reciben
+    // su banner en los dos formatos; el tema queda con los ajustes.
+    const azulAfter = await prisma.product.findUniqueOrThrow({ where: { id: azul }, select: { description: true } });
+    expect(azulAfter.description).toContain("<li>Cubre en dos capas</li>");
+    expect(azulAfter.description).not.toContain("script");
+    const esmaltes = await prisma.brandCollection.findFirstOrThrow({ where: { brandId: brand.id, slug: "esmaltes" } });
+    const collectionWide = new URL(esmaltes.bannerUrl!, "https://tienda.test").searchParams;
+    expect(verifyBanner(collectionWide.get("s")!, collectionWide.get("sig")!)).toMatchObject({ layout: "wide", title: "Esmaltes", cta: "", image: `https://fotos.test/${azul}.jpg` });
+    const collectionMobile = new URL(esmaltes.bannerMobileUrl!, "https://tienda.test").searchParams;
+    expect(verifyBanner(collectionMobile.get("s")!, collectionMobile.get("sig")!)).toMatchObject({ layout: "mobile", title: "Esmaltes" });
+    expect((await prisma.brandCollection.findFirstOrThrow({ where: { brandId: brand.id, slug: "otros-productos" } })).bannerUrl).toBeNull();
+    const themeAfter = await getPublishedTheme(brand.id);
+    expect(themeAfter.productDetail.purchaseInfo[0]).toMatchObject({ show: true, icon: "SHIPPING", title: "Envíos a todo el país" });
+    expect(themeAfter.productDetail.lowStock).toMatchObject({ enabled: true, threshold: 3 });
+    expect(themeAfter.cart.suggestComplementary).toBe(true);
+    expect(themeAfter.footer.contact.show).toBe(true);
+    expect(themeAfter.footer.aboutUs).toMatchObject({ show: true, title: "Nosotros" });
 
     const collections = await prisma.brandCollection.findMany({
       where: { brandId: brand.id },
@@ -160,7 +204,13 @@ describe.skipIf(!hasDb)("organizador automático de tienda", () => {
 
     // Deshacer: vuelve todo como estaba.
     const undone = await undoStoreOrganizer(brand.id);
-    expect(undone.restored).toEqual({ collections: 4, menu: 1, sections: 2, products: 7 });
+    expect(undone.restored).toEqual({ collections: 4, menu: 1, sections: 2, products: 7, descriptions: 1 });
+    expect((await prisma.product.findUniqueOrThrow({ where: { id: azul }, select: { description: true } })).description).toBeNull();
+    const themeBack = await getPublishedTheme(brand.id);
+    expect(themeBack.productDetail.purchaseInfo.every((i) => !i.show)).toBe(true);
+    expect(themeBack.productDetail.lowStock.enabled).toBe(false);
+    expect(themeBack.cart.suggestComplementary).toBe(false);
+    expect(themeBack.footer.aboutUs.show).toBe(false);
     const restored = await prisma.brandCollection.findMany({ where: { brandId: brand.id }, orderBy: { position: "asc" }, select: { name: true } });
     expect(restored.map((c) => c.name).sort()).toEqual(["Herramientas", "Semi Azules", "Semi Nude", "Semi Rojos"]);
     expect((await prisma.product.findUniqueOrThrow({ where: { id: products["PUSHER METALICO"].id } })).name).toBe("PUSHER METALICO");
