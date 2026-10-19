@@ -22,6 +22,12 @@ on:
           - portada
           - productos
           - url
+          - buscar
+      patron:
+        description: Expresión regular para el modo "buscar" (opcional)
+        required: false
+        default: ""
+        type: string
 
 jobs:
   leer:
@@ -42,4 +48,5 @@ jobs:
         env:
           TIENDA_URL: ${{ inputs.url }}
           MODO: ${{ inputs.modo }}
+          PATRON: ${{ inputs.patron }}
         run: npx tsx scripts/diagnostico-portada.ts "$TIENDA_URL" "$MODO"

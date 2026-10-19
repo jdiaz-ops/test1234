@@ -173,6 +173,27 @@ async function main() {
     console.log("---- fin ----");
     return;
   }
+  if (process.argv[3] === "buscar") {
+    // Modo "buscar": baja una o varias direcciones (separadas por espacios
+    // o comas — por ejemplo los archivos JavaScript de una tienda) y muestra
+    // solo los pedazos que coinciden con un patrón (expresión regular, en
+    // PATRON), con contexto. Sirve para descubrir cómo una plataforma llama
+    // a su API sin tener que leer todo el archivo.
+    const pattern = new RegExp(process.env.PATRON || "apiv2|/api/|fetch\\(", "gi");
+    for (const target of url.split(/[\s,]+/).filter(Boolean)) {
+      const res = await fetchWithWww(target);
+      const text = await res.text();
+      console.log(`==== ${target} · Estado ${res.status} · ${text.length} caracteres`);
+      let shown = 0;
+      for (const m of text.matchAll(pattern)) {
+        if (shown++ >= 150) break;
+        const start = Math.max(0, m.index - 220);
+        console.log(`@${m.index}: ${text.slice(start, m.index + 260).replace(/\s+/g, " ")}`);
+      }
+    }
+    console.log("---- fin ----");
+    return;
+  }
   if (process.argv[3] === "url") {
     // Modo "url": muestra lo que responde una dirección cualquiera (por
     // ejemplo /api/salud de la plataforma), sin interpretar nada.
