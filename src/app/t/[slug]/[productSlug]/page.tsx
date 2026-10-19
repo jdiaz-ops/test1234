@@ -16,6 +16,7 @@ import { REVIEWS_ENABLED } from "@/lib/features";
 import { VariantPicker } from "@/components/storefront/variant-picker";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { FloatingAddToCartBar } from "@/components/storefront/floating-add-to-cart-bar";
+import { PurchaseQuantityProvider } from "@/components/storefront/purchase-quantity";
 import { ProductCard, ProductPrice, toCardProduct } from "@/components/storefront/product-card";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
@@ -96,6 +97,8 @@ export default async function StorefrontProductPage({
   const activePurchaseInfo = productDetail.purchaseInfo.filter((i) => i.show && (i.title || i.description));
 
   return (
+    // La cantidad (− 1 +) la comparten la fila de compra y la barra flotante.
+    <PurchaseQuantityProvider>
     <div className="min-h-screen bg-brand-bg">
         <TrackViewContent id={product.id} name={product.name} price={Number(product.price)} />
         <StoreHeader
@@ -321,7 +324,6 @@ export default async function StorefrontProductPage({
         {productDetail.floatingAddToCart && (
           <FloatingAddToCartBar
             sentinelId="pdp-cta-sentinel"
-            basePath={basePath}
             hasVariants={product.hasVariants}
             bottomOffsetClass={theme.mobileNav.enabled ? "bottom-16 sm:bottom-0" : "bottom-0"}
             product={{
@@ -349,5 +351,6 @@ export default async function StorefrontProductPage({
           </div>
         )}
     </div>
+    </PurchaseQuantityProvider>
   );
 }

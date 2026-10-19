@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { QuantityAddToCart } from "@/components/storefront/quantity-add-to-cart";
 
 type Product = {
   id: string;
@@ -13,13 +13,15 @@ type Product = {
   type?: "PHYSICAL" | "SERVICE" | "DIGITAL";
 };
 
-/// Barra flotante fija abajo con solo el botón "Agregar al carrito",
-/// centrado — aparece cuando el comprador scrollea y pierde de vista el
-/// botón principal de la ficha (observa `sentinelId`, un <div> vacío que
-/// la página pone justo debajo de ese botón). Ver
+/// Barra flotante fija abajo con el "− 1 +" y el botón "Agregar al
+/// carrito", centrados — aparece cuando el comprador scrollea y pierde de
+/// vista el botón principal de la ficha (observa `sentinelId`, un <div>
+/// vacío que la página pone justo debajo de ese botón). Ver
 /// theme.productDetail.floatingAddToCart — habilitada por defecto. Antes
 /// llevaba también la foto, el nombre y el precio; la marca pidió solo el
-/// botón. Ver conversación del 2026-09-30.
+/// botón. Ver conversación del 2026-09-30. El "− 1 +" a la izquierda se
+/// sumó el 2026-10-19 y comparte la cantidad con el de la ficha (ver
+/// PurchaseQuantityProvider).
 ///
 /// Con variantes no repite el selector acá (evita duplicar ese estado) —
 /// en su lugar el botón lleva de vuelta arriba a elegir la combinación.
@@ -27,13 +29,11 @@ type Product = {
 /// mobile-bottom-nav.tsx) cuando ambos están activos a la vez.
 export function FloatingAddToCartBar({
   sentinelId,
-  basePath,
   product,
   hasVariants,
   bottomOffsetClass = "bottom-0",
 }: {
   sentinelId: string;
-  basePath: string;
   product: Product;
   hasVariants: boolean;
   bottomOffsetClass?: string;
@@ -70,15 +70,17 @@ export function FloatingAddToCartBar({
         visible ? "translate-y-0" : "translate-y-full pointer-events-none"
       }`}
     >
-      <div className="flex justify-center">
-        {hasVariants ? (
+      {hasVariants ? (
+        <div className="flex justify-center">
           <button type="button" onClick={scrollToOptions} className={buttonClass}>
             Elegir opciones
           </button>
-        ) : (
-          <AddToCartButton basePath={basePath} product={product} className={buttonClass} />
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="mx-auto max-w-md">
+          <QuantityAddToCart product={product} floating />
+        </div>
+      )}
     </div>
   );
 }
