@@ -194,6 +194,9 @@ export function AllyMonthsTable({ overview, actions }: { overview: AllyOverview;
                       {formatCop(m.payout.amount)} el {shortDate(m.payout.paidAt)}
                     </p>
                   )}
+                  {(m.state === "en-curso" || m.state === "por-pagar") && (
+                    <p className="text-xs text-brand-ink-soft mt-1">Se paga el {shortDate(m.payDate)}</p>
+                  )}
                 </td>
                 {actions && <td className="py-3 pl-3 text-right">{actions(m)}</td>}
               </tr>

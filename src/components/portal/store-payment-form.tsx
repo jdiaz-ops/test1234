@@ -4,7 +4,6 @@ import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   PAYMENT_PROVIDERS,
-  PAYMENT_PROVIDER_IDS,
   PAYU_SANDBOX_CREDENTIALS,
   type CredentialField,
   type CredentialScope,
@@ -13,6 +12,9 @@ import {
 } from "@/lib/payment-providers";
 
 type Status = "NOT_CONNECTED" | "ACTIVE" | "TEST" | "INCOMPLETE";
+
+/// Columnas del selector según cuántas pasarelas se ofrecen.
+const GRID_COLS: Record<number, string> = { 1: "sm:grid-cols-1", 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-4", 5: "sm:grid-cols-5" };
 type Secret = { saved: boolean; last4: string };
 /// Lo guardado de un juego de llaves, como lo manda la página: las
 /// públicas completas, las secretas enmascaradas.
@@ -28,6 +30,8 @@ export type StorePaymentInitial = {
   activeProvider: PaymentProviderId | null;
   paymentMode: PaymentModeId;
   providers: Record<PaymentProviderId, ProviderInitial>;
+  /// Las que se muestran para elegir (ver offeredPaymentProviders).
+  offered: PaymentProviderId[];
 };
 
 const STATUS_CHIP: Record<Status, { label: string; className: string }> = {
@@ -254,14 +258,15 @@ function KeysSection({
   );
 }
 
-/// Pagos: la marca elige con qué pasarela cobra (su propia cuenta: Wompi,
-/// Mercado Pago, PayU, ePayco o Bold), ve el estado y los medios de pago,
+/// Pagos: la marca elige con qué pasarela cobra (su propia cuenta: hoy se
+/// ofrecen Wompi, Mercado Pago y ePayco — ver OFFERED_PAYMENT_PROVIDER_IDS
+/// en payment-providers.ts), ve el estado y los medios de pago,
 /// prende el modo de prueba y pega sus llaves — las secretas enmascaradas.
 /// Antes solo existía Wompi ("no puedo obligar a que abra Wompi"). Ver
 /// conversación del 2026-10-18.
 export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) {
   const router = useRouter();
-  const [provider, setProvider] = useState<PaymentProviderId>(initial.activeProvider ?? "WOMPI");
+  const [provider, setProvider] = useState<PaymentProviderId>(initial.activeProvider ?? initial.offered[0] ?? "WOMPI");
   const [testMode, setTestMode] = useState(initial.paymentMode === "TEST");
   const spec = PAYMENT_PROVIDERS[provider];
   const current = initial.providers[provider];
@@ -389,8 +394,8 @@ export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) 
 
       <Card>
         <p className="text-sm font-medium text-brand-ink mb-3">¿Con qué pasarela cobras?</p>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          {PAYMENT_PROVIDER_IDS.map((id) => {
+        <div className={`grid grid-cols-2 gap-2 ${GRID_COLS[initial.offered.length] ?? "sm:grid-cols-5"}`}>
+          {initial.offered.map((id) => {
             const st = initial.providers[id].status;
             const selected = id === provider;
             const live = id === initial.activeProvider;

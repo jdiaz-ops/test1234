@@ -47,7 +47,9 @@ export const CAMPAIGNS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CAMPAIGNS === "
 /// Invita y gana (referidos entre creadores — referral-service.ts).
 /// Escondido mientras Marcolini se enfoca en lo esencial: sale del menú del
 /// creador y del Admin, y su página da 404. Los links de invitación que ya
-/// circulan (/registro/creador?ref=...) siguen sirviendo para registrarse.
+/// circulan (/registro/creador?ref=...) siguen sirviendo para registrarse,
+/// pero apagado no se crea ni se califica ningún bono de $20.000 (pedido
+/// del 2026-10-19: "el bono de 20.000 no va por ahora").
 /// Para encenderlo: NEXT_PUBLIC_FEATURE_REFERRALS=true. Ver conversación
 /// del 2026-10-01.
 export const REFERRALS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_REFERRALS === "true";

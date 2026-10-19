@@ -36,6 +36,49 @@ export function productLines(products: { id: string; name: string }[]): ProductL
     .sort((a, b) => b.products.length - a.products.length || a.line.localeCompare(b.line, "es"));
 }
 
+/// Palabras de color (sin tildes, en minúscula) que suelen ir al final de
+/// una línea agrupada por color: "Gel Polish Cafés y Nudes".
+const COLOR_WORDS = new Set(
+  (
+    "nude nudes rosa rosas rosado rosados rojo rojos coral corales naranja naranjas anaranjados amarillo amarillos " +
+    "verde verdes azul azules morado morados lila lilas violeta violetas purpura purpuras cafe cafes marron marrones " +
+    "chocolate chocolates gris grises negro negros blanco blancos glitter glitters escarchados transparente transparentes " +
+    "multicolor multicolores dorado dorados plateado plateados metalicos metalizados neon neones pastel pasteles beige beiges " +
+    "terracota terracotas tierra tierras vinotinto vinotintos vino fucsia fucsias turquesa turquesas mostaza ocre ocres " +
+    "crema cremas neutro neutros oscuro oscuros claro claros tono tonos color colores salmon salmones durazno duraznos " +
+    "melon melones menta lavanda magenta borgona ciruela berenjena oliva militar esmeralda celeste celestes aqua cielo " +
+    "marino marinos arena canela caramelo mocca kaki hueso marfil perla perlas nacar plata oro bronce cobre champana " +
+    "rubi cereza cerezas mora moras uva pistacho fluorescente fluorescentes fluor metalico holograficos"
+  ).split(" "),
+);
+const COLOR_CONNECTORS = new Set(["y", "e", "o", "&", "/", "+", "-"]);
+
+function bareWord(word: string) {
+  return word
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[,.;:]+$/, "");
+}
+
+/// El comienzo corto que se le propone a una línea: sin lo que va después
+/// de una barra ("Gel Polish Platinum | Platinum Gel Profesional" → "Gel
+/// Polish Platinum") y sin los colores del final ("Gel Polish Blancos,
+/// Negros y Grises" → "Gel Polish"). Null si no hay nada que acortar.
+export function suggestLineName(line: string): string | null {
+  const words = line.split(/\s+\|\s+/)[0].trim().split(/\s+/);
+  let end = words.length;
+  let colors = 0;
+  while (end > 1) {
+    const word = bareWord(words[end - 1]);
+    if (COLOR_WORDS.has(word)) colors++;
+    else if (!COLOR_CONNECTORS.has(word) && word !== "") break;
+    end--;
+  }
+  const kept = (colors > 0 ? words.slice(0, end) : words).join(" ").replace(/[\s,;:|/&+-]+$/, "");
+  return kept.length >= 2 && kept !== line.trim() ? kept : null;
+}
+
 const UNITS = new Set(["ml", "gr", "g", "kg", "oz", "und", "unds", "cc", "mm", "cm", "x"]);
 const SMALL_WORDS = new Set(["de", "del", "la", "las", "el", "los", "y", "e", "o", "u", "con", "sin", "para", "por", "a", "en"]);
 

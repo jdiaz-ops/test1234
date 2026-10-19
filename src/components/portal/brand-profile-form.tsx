@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileUploadField } from "@/components/portal/file-upload-field";
 import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
+import { brandLogoSrc } from "@/lib/logo-src";
 
 type Values = {
   companyName: string;
@@ -73,6 +74,7 @@ export function BrandProfileForm({
   files,
   onSaved,
   storeUrl = null,
+  storefrontSlug = null,
 }: {
   initial: Values;
   files: Files;
@@ -80,6 +82,8 @@ export function BrandProfileForm({
   // Link de su tienda en Marcolini: es el que ven los creadores en el
   // marketplace (la web externa solo si todavía no tiene tienda).
   storeUrl?: string | null;
+  // Para mostrar el logo recortado, igual que en el marketplace.
+  storefrontSlug?: string | null;
 }) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
@@ -178,7 +182,7 @@ export function BrandProfileForm({
           <div className="rounded-2xl border border-brand-line bg-brand-surface p-4">
             <BrandMiniProfile
               companyName={form.companyName}
-              logoUrl={files.logoUrl}
+              logoUrl={brandLogoSrc({ storefrontSlug, logoUrl: files.logoUrl })}
               description={form.description}
               websiteUrl={storeUrl ?? form.websiteUrl}
             />

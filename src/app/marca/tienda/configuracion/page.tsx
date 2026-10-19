@@ -18,6 +18,7 @@ export default async function TiendaConfiguracionPage() {
       <h3 className="font-display font-semibold text-brand-ink mb-3">Perfil del negocio</h3>
       <BrandProfileForm
         storeUrl={publicStoreUrl(profile)}
+        storefrontSlug={profile.storefrontSlug}
         initial={{
           companyName: profile.companyName,
           legalName: profile.legalName ?? "",

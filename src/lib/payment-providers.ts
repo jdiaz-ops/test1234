@@ -239,6 +239,22 @@ export const PAYMENT_PROVIDERS: Record<PaymentProviderId, PaymentProviderSpec> =
 
 export const PAYMENT_PROVIDER_IDS: PaymentProviderId[] = ["WOMPI", "MERCADO_PAGO", "PAYU", "EPAYCO", "BOLD"];
 
+/// Las que se ofrecen hoy en Configuración → Pagos: las tres con las que
+/// Juan tiene cuenta para probar (pedido del 2026-10-19). PayU y Bold
+/// siguen integradas: una tienda que ya cobra con una de ellas la sigue
+/// viendo, y a una marca puntual se le da con PAYMENT_PROVIDERS_BY_STORE.
+export const OFFERED_PAYMENT_PROVIDER_IDS: PaymentProviderId[] = ["WOMPI", "MERCADO_PAGO", "EPAYCO"];
+
+/// Pasarelas extra para una tienda puntual, por su link ({slug} de
+/// {slug}.marcolini.lat) — ej. { "mitienda": ["PAYU"] }.
+export const PAYMENT_PROVIDERS_BY_STORE: Record<string, PaymentProviderId[]> = {};
+
+/// Las pasarelas que ve una tienda en Pagos, en el orden de siempre.
+export function offeredPaymentProviders(storefrontSlug: string | null, activeProvider: PaymentProviderId | null): PaymentProviderId[] {
+  const extra = (storefrontSlug && PAYMENT_PROVIDERS_BY_STORE[storefrontSlug]) || [];
+  return PAYMENT_PROVIDER_IDS.filter((id) => OFFERED_PAYMENT_PROVIDER_IDS.includes(id) || extra.includes(id) || id === activeProvider);
+}
+
 export function isPaymentProviderId(value: unknown): value is PaymentProviderId {
   return typeof value === "string" && (PAYMENT_PROVIDER_IDS as string[]).includes(value);
 }

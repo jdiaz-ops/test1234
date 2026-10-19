@@ -1,11 +1,13 @@
-import { bogotaDate, bogotaMidnight } from "@/lib/payout-calendar";
+import { bogotaDate, bogotaMidnight, payoutDateForSale } from "@/lib/payout-calendar";
 
 /// Cuánto gana un aliado comercial (ver AllyProfile en el schema): un % de
 /// las ventas de cada marca o creadora que trajo, durante unos meses desde su
 /// primera venta. Acá vive lo puro — ventanas, meses y redondeo — para
 /// probarlo sin base de datos (ver ally-service.ts). Acordado el 2026-10-19:
 /// 2,5 % de las ventas de cada marca y 1,25 % de cada creadora, 6 meses, sin
-/// comisión después; si trajo la marca y la creadora, gana por las dos.
+/// comisión después; si trajo la marca y la creadora, gana por las dos. Se
+/// le paga cada mes igual que a las creadoras (ver allyPayDate), y las
+/// licencias de contenido y el contenido pagado no cuentan: no son ventas.
 
 export const ALLY_BRAND_RATE_BPS = 250;
 export const ALLY_CREATOR_RATE_BPS = 125;
@@ -48,6 +50,17 @@ export function monthKey(date: Date) {
 export function monthStart(key: string) {
   const [year, month] = key.split("-").map(Number);
   return bogotaMidnight(year, month - 1, 1);
+}
+
+/// El día en que se le paga lo ganado en un mes: el mismo de las creadoras
+/// (ver payout-calendar.ts) — el día de pago del mes siguiente, o el de
+/// después si la última venta del mes no alcanzó a cumplir la espera por
+/// devoluciones. Pedido del 2026-10-19: "pago mensual, igual que los
+/// creadores".
+export function allyPayDate(key: string, payoutDay: number, holdDays: number) {
+  const [year, month] = key.split("-").map(Number);
+  const lastMoment = new Date(bogotaMidnight(year, month, 1).getTime() - 1);
+  return payoutDateForSale(lastMoment, payoutDay, holdDays);
 }
 
 /// La comisión de una venta, en pesos enteros.

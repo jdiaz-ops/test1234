@@ -7,6 +7,7 @@ import { getCreatorProfileByUserId } from "@/server/services/creator-profile-ser
 import { listActiveOffers, getEnrollmentsForCreator } from "@/server/services/marketplace-service";
 import { CreatorOnboardingWizard } from "@/components/portal/creator-onboarding-wizard";
 import { publicStoreUrl } from "@/lib/store-url";
+import { brandLogoSrc } from "@/lib/logo-src";
 import { creatorVitrinaUrl } from "@/lib/creator-identity";
 
 export default async function CreatorOnboardingPage() {
@@ -97,7 +98,7 @@ export default async function CreatorOnboardingPage() {
               enrollmentId: enrollmentByOffer.get(offer.id)?.id ?? null,
               brand: {
                 companyName: offer.brand.companyName,
-                logoUrl: offer.brand.logoUrl,
+                logoUrl: brandLogoSrc(offer.brand),
                 description: offer.brand.description,
                 websiteUrl: publicStoreUrl(offer.brand) ?? offer.brand.websiteUrl,
               },

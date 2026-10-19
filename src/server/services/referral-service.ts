@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/server/services/notification-service";
 import { flagPotentialFraud } from "@/server/services/admin-fraud-service";
+import { REFERRALS_ENABLED } from "@/lib/features";
 
 export class ReferralError extends Error {}
 
@@ -15,6 +16,10 @@ function formatCOP(amount: number) {
 /// existe o si alguien intenta "invitarse a sí mismo" — un registro nunca
 /// se debe caer por un código mal escrito o copiado de otra parte.
 export async function createReferralFromCode(refCode: string, referredCreatorId: string) {
+  // Con el programa apagado el bono de $20.000 no va (pedido del
+  // 2026-10-19): el link sigue sirviendo para registrarse, pero no queda
+  // invitación ni bono.
+  if (!REFERRALS_ENABLED) return null;
   const code = refCode.trim().toUpperCase();
   if (!code) return null;
 
@@ -38,6 +43,8 @@ export async function createReferralFromCode(refCode: string, referredCreatorId:
 /// alguien y todavía está PENDING, esta es su primera venta real: el bono
 /// del que lo invitó queda calificado para pagar.
 export async function checkReferralQualification(creatorId: string) {
+  // Apagado: tampoco califica (ni avisa) una invitación vieja.
+  if (!REFERRALS_ENABLED) return;
   const referral = await prisma.creatorReferral.findUnique({
     where: { referredId: creatorId },
     include: { referred: true },

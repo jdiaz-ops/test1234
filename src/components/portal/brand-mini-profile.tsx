@@ -34,12 +34,13 @@ export function BrandMiniProfile({
     <div>
       <div className="flex items-center gap-3">
         {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={logoUrl}
-            alt={companyName}
-            className="w-12 h-12 rounded-full object-cover shrink-0 border border-brand-line bg-white"
-          />
+          // Un recuadro que toma la forma del logo (ya sin bordes vacíos,
+          // ver brandLogoSrc en logo-src.ts): los logos anchos se leen
+          // enteros en vez de quedar cortados en un círculo.
+          <span className="flex h-12 min-w-12 max-w-[9.5rem] shrink-0 items-center justify-center rounded-xl border border-brand-line bg-white px-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoUrl} alt={companyName} className="h-8 w-auto max-w-[8rem] object-contain" />
+          </span>
         ) : (
           <div className="w-12 h-12 rounded-full bg-brand-accent-soft text-brand-accent font-display font-semibold text-sm flex items-center justify-center shrink-0">
             {initials(companyName) || "?"}

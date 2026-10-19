@@ -135,7 +135,7 @@ function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
           ? "Tienes las llaves de producción; pasa a modo real para cobrar de verdad."
           : anyKeys
             ? "Solo tienes llaves de prueba: pega las de producción."
-            : "Pega las llaves de tu pasarela: Wompi, Mercado Pago, PayU, ePayco o Bold.",
+            : "Pega las llaves de tu pasarela: Wompi, Mercado Pago o ePayco.",
       done: live,
       manual: false,
       href: "/marca/tienda/pagos",

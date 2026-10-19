@@ -5,7 +5,7 @@ import { normalizeEmail } from "@/lib/normalize-email";
 import { slugify } from "@/lib/shopify-csv";
 import { portalUrl } from "@/lib/store-url";
 import { sendAllyLoginEmail } from "@/lib/email";
-import { daysLeft, monthKey, monthStart, monthlyEarnings, windowEnd, type AllySale, type MonthEarnings } from "@/lib/ally-earnings";
+import { allyPayDate, daysLeft, monthKey, monthStart, monthlyEarnings, windowEnd, type AllySale, type MonthEarnings } from "@/lib/ally-earnings";
 import { createNotification } from "@/server/services/notification-service";
 import { createAllyLoginToken } from "@/lib/ally-login-token";
 
@@ -157,7 +157,9 @@ type ReferralRef = { id: string; brandId: string | null; creatorId: string | nul
 
 /// Las ventas que cuentan, sin envío y ya con descuento — la misma base de
 /// la tarifa de Marcolini: las de la tienda sin creadora (StoreSaleFee) y
-/// las que llevan creadora (Transaction). Lo devuelto o anulado no cuenta.
+/// las que llevan creadora (Transaction). Lo devuelto o anulado no cuenta, y
+/// las licencias de contenido y el contenido pagado (ContentLicense,
+/// PaidContentRequest) tampoco: no son ventas (acordado el 2026-10-19).
 async function salesOf(ref: ReferralRef, from?: Date, to?: Date): Promise<AllySale[]> {
   const range = from || to ? { ...(from ? { gte: from } : {}), ...(to ? { lt: to } : {}) } : undefined;
   const commissionOk: Prisma.TransactionWhereInput = {
@@ -239,6 +241,8 @@ export type AllyMonthRow = {
   sales: number;
   commission: number;
   state: "en-curso" | "por-pagar" | "pagado" | "sin-comision";
+  /// Cuándo se paga (ver allyPayDate): el mismo día que a las creadoras.
+  payDate: Date;
   payout: { amount: number; paidAt: Date; reference: string | null } | null;
 };
 
@@ -256,6 +260,9 @@ export async function allyOverview(allyId: string, now = new Date()) {
     },
   });
   if (!ally) return null;
+  const config = await prisma.platformConfig.findUnique({ where: { id: "singleton" }, select: { payoutDayOfMonth: true, refundHoldDays: true } });
+  const payoutDay = config?.payoutDayOfMonth ?? 15;
+  const holdDays = config?.refundHoldDays ?? 15;
 
   const referrals: AllyReferralRow[] = [];
   for (const r of ally.referrals) {
@@ -300,7 +307,7 @@ export async function allyOverview(allyId: string, now = new Date()) {
       const paid = ally.payouts.find((p) => monthKey(p.period) === key);
       const payout = paid ? { amount: Number(paid.amount), paidAt: paid.paidAt, reference: paid.reference } : null;
       const state: AllyMonthRow["state"] = payout ? "pagado" : key === current ? "en-curso" : commission > 0 ? "por-pagar" : "sin-comision";
-      return { key, period: monthStart(key), sales, commission, state, payout };
+      return { key, period: monthStart(key), sales, commission, state, payDate: allyPayDate(key, payoutDay, holdDays), payout };
     });
 
   const leads: AllyLeadRow[] = ally.leads
@@ -331,6 +338,7 @@ export async function allyOverview(allyId: string, now = new Date()) {
       },
     },
     link: `${portalUrl()}/unete/${ally.code}`,
+    payoutDay,
     referrals,
     leads,
     months,

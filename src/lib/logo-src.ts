@@ -11,3 +11,11 @@ export function storefrontLogoSrc(slug: string, logoUrl: string | null): string 
   for (let i = 0; i < logoUrl.length; i++) hash = ((hash * 33) ^ logoUrl.charCodeAt(i)) >>> 0;
   return `/api/tienda/${encodeURIComponent(slug)}/logo?v=${hash.toString(36)}`;
 }
+
+/// El logo de una marca fuera de su tienda (marketplace, perfil del
+/// negocio): recortado igual que en el encabezado si tiene tienda; si no,
+/// tal cual. Pedido del 2026-10-19: "el logo no se ve bien ahí" — un logo
+/// ancho en un lienzo grande quedaba diminuto y cortado en el círculo.
+export function brandLogoSrc(brand: { storefrontSlug: string | null; logoUrl: string | null }): string | null {
+  return brand.storefrontSlug ? storefrontLogoSrc(brand.storefrontSlug, brand.logoUrl) : brand.logoUrl;
+}

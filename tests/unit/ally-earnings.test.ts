@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonths, commissionFor, daysLeft, formatRate, monthKey, monthStart, monthlyEarnings } from "@/lib/ally-earnings";
+import { addMonths, allyPayDate, commissionFor, daysLeft, formatRate, monthKey, monthStart, monthlyEarnings } from "@/lib/ally-earnings";
 
 describe("lo que gana un aliado", () => {
   it("cuenta 6 meses desde la primera venta, sin pasarse de mes", () => {
@@ -36,5 +36,14 @@ describe("lo que gana un aliado", () => {
     expect(commissionFor(33_333, 125)).toBe(417);
     expect(formatRate(250)).toBe("2,5 %");
     expect(formatRate(125)).toBe("1,25 %");
+  });
+
+  it("se le paga cada mes el mismo día que a las creadoras", () => {
+    // Lo de octubre, el 15 de noviembre (00:00 en Colombia).
+    expect(allyPayDate("2026-10", 15, 15).toISOString()).toBe("2026-11-15T05:00:00.000Z");
+    // Lo de diciembre, en enero del año siguiente.
+    expect(allyPayDate("2026-12", 15, 15).toISOString()).toBe("2027-01-15T05:00:00.000Z");
+    // Si la última venta del mes no alcanza a cumplir la espera, al pago siguiente.
+    expect(allyPayDate("2026-10", 15, 20).toISOString()).toBe("2026-12-15T05:00:00.000Z");
   });
 });

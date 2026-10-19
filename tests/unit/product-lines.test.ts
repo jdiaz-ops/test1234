@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lineProductName, productLines, sentenceCaseReference, splitLineName } from "@/lib/product-lines";
+import { lineProductName, productLines, sentenceCaseReference, splitLineName, suggestLineName } from "@/lib/product-lines";
 
 describe("nombres por línea", () => {
   it("separa la línea de la referencia por el último guion", () => {
@@ -18,6 +18,19 @@ describe("nombres por línea", () => {
       { id: "4", name: "Top Coat 10 ml" },
     ]);
     expect(lines.map((l) => [l.line, l.products.length])).toEqual([["Gel Polish Blancos, Negros y Grises", 2]]);
+  });
+
+  it("propone el comienzo corto: sin los colores del final ni lo de después de la barra", () => {
+    expect(suggestLineName("Gel Polish Blancos, Negros y Grises")).toBe("Gel Polish");
+    expect(suggestLineName("Gel Polish Cafés y Nudes")).toBe("Gel Polish");
+    expect(suggestLineName("Gel Polish Verdes")).toBe("Gel Polish");
+    expect(suggestLineName("Gel Polish Rojos & Corales")).toBe("Gel Polish");
+    expect(suggestLineName("Gel Polish Salmón y Naranjas")).toBe("Gel Polish");
+    expect(suggestLineName("Gel Polish Platinum | Platinum Gel Profesional")).toBe("Gel Polish Platinum");
+    // Nada que acortar.
+    expect(suggestLineName("Gel Polish")).toBeNull();
+    expect(suggestLineName("Kit - Uñas")).toBeNull();
+    expect(suggestLineName("Rosados")).toBeNull();
   });
 
   it("arma el nombre nuevo y deja los tamaños como están", () => {

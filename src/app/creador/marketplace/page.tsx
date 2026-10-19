@@ -11,6 +11,7 @@ import { BrandMiniProfile } from "@/components/portal/brand-mini-profile";
 import { InvitationsPanel } from "@/components/portal/invitations-panel";
 import { SAMPLES_ENABLED } from "@/lib/features";
 import { publicStoreUrl } from "@/lib/store-url";
+import { brandLogoSrc } from "@/lib/logo-src";
 import Link from "next/link";
 
 export default async function MarketplacePage({
@@ -75,7 +76,7 @@ export default async function MarketplacePage({
       <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 flex flex-col">
         <BrandMiniProfile
           companyName={offer.brand.companyName}
-          logoUrl={offer.brand.logoUrl}
+          logoUrl={brandLogoSrc(offer.brand)}
           description={offer.brand.description}
           // La tienda de la marca dentro de Marcolini (donde de verdad
           // compran con el código del creador); la web externa solo si

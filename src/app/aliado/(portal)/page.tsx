@@ -22,6 +22,7 @@ export default async function AllyHomePage() {
         <p className="text-sm text-brand-ink-soft mt-1 max-w-xl">
           Ganas {formatRate(overview.ally.brandRateBps)} de las ventas de cada marca y {formatRate(overview.ally.creatorRateBps)} de las de cada
           creadora que traigas, durante {overview.ally.windowMonths} meses desde su primera venta. Si traes la marca y la creadora, ganas por las dos.
+          Cuentan las ventas de productos; las licencias de contenido y el contenido pagado no cuentan.
         </p>
       </div>
 
@@ -43,7 +44,8 @@ export default async function AllyHomePage() {
         <div>
           <h2 className="text-sm font-medium text-brand-ink">Lo ganado por mes</h2>
           <p className="text-xs text-brand-ink-soft">
-            Se paga mes vencido, a la cuenta de tus datos de pago. Las ventas que se devuelven no cuentan.
+            Se paga cada mes, igual que a las creadoras: lo de un mes, el día {overview.payoutDay} del mes siguiente, a la cuenta de tus datos de
+            pago. Las ventas que se devuelven no cuentan.
           </p>
         </div>
         <AllyMonthsTable overview={overview} />
