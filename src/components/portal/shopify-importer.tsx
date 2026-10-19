@@ -38,6 +38,7 @@ import {
   type StorePlatform,
 } from "@/lib/store-scrape";
 import type { ScanResult, ScanStep } from "@/server/services/other-store-reader";
+import { summaryText, type OrganizerSummary } from "@/components/portal/store-organizer-tool";
 import { CatalogFilesReader, type FilesRead } from "@/components/portal/catalog-files-reader";
 
 type ImportResult = {
@@ -92,6 +93,10 @@ type ImportOptions = {
   shipping: boolean;
   photos: boolean;
   profile: boolean;
+  /// Al terminar, el organizador automático deja la tienda lista para
+  /// vender (colecciones, orden, menú y portada) — ver
+  /// store-organizer-service.ts. Se puede deshacer.
+  organize: boolean;
 };
 
 /// Datos del perfil leídos de las políticas y páginas (ver
@@ -120,6 +125,7 @@ type ExtrasResult = {
   /// Pasarelas que Marcolini no tiene y por las que se avisó al equipo.
   gateways: string[] | null;
   errors: string[];
+  organizer: OrganizerSummary | null;
 };
 
 const BATCH_SIZE = 10;
@@ -144,6 +150,7 @@ const API_DESIGN = "/api/marca/tienda/diseno/importar-shopify";
 const API_SHIPPING = "/api/marca/tienda/envios/importar-shopify";
 const API_PAGES = "/api/marca/tienda/paginas/importar-shopify";
 const API_SECTIONS = "/api/marca/tienda/secciones/importar-shopify";
+const API_ORGANIZE = "/api/marca/tienda/organizar";
 const API_PROFILE_READ = "/api/marca/tienda/perfil/leer";
 const API_PROFILE_IMPORT = "/api/marca/tienda/perfil/importar";
 const API_GATEWAYS = "/api/marca/tienda/pagos/pasarelas";
@@ -313,6 +320,7 @@ export function ShopifyImporter({
     shipping: true,
     photos: true,
     profile: true,
+    organize: true,
   });
   const [parseError, setParseError] = useState<string | null>(null);
   const [phase, setPhase] = useState<"pick" | "importing" | "done">("pick");
@@ -479,6 +487,7 @@ export function ShopifyImporter({
       design: Boolean(read.theme && (read.theme.colors || read.theme.logoUrl)),
       shipping: false,
       photos: false,
+      organize: true,
       profile: false,
     });
   }
@@ -641,6 +650,7 @@ export function ShopifyImporter({
       shipping: false,
       photos: true,
       profile: Boolean(profileRead),
+      organize: true,
     });
   }
 
@@ -847,7 +857,8 @@ export function ShopifyImporter({
         shipping: Boolean(shipping),
         // Siempre: también hay fotos en la portada y en las páginas.
         photos: true,
-        profile: Boolean(profileRead),
+        organize: true,
+      profile: Boolean(profileRead),
       });
     } catch (err) {
       setParseError(message(err));
@@ -905,6 +916,7 @@ export function ShopifyImporter({
       photos: null,
       profile: null,
       gateways: null,
+      organizer: null,
       errors: [],
     };
     const pageLinks: { handle: string; slug: string }[] = [];
@@ -1105,6 +1117,24 @@ export function ShopifyImporter({
         );
       } catch (err) {
         result.errors.push(`Fotos: ${message(err)}`);
+      }
+    }
+
+    // Organizador automático: con todo ya guardado, arma la tienda para
+    // vender (colecciones claras, lo más pedido arriba, menú y portada)
+    // y la deja aplicada; se puede deshacer desde Productos.
+    if (options.organize) {
+      setExtraStep("Organizando la tienda: colecciones, orden, menú y portada… (puede tardar un minuto)");
+      try {
+        const preview = await fetch(API_ORGANIZE).then(async (res) => {
+          const body = await res.json().catch(() => null);
+          if (!res.ok || !body?.ok) throw new Error(body?.error ?? "No se pudo armar el plan.");
+          return body;
+        });
+        const applied = await postJson(API_ORGANIZE, { action: "apply", plan: preview.plan });
+        result.organizer = applied.summary as OrganizerSummary;
+      } catch (err) {
+        result.errors.push(`Organizar la tienda: ${message(err)}`);
       }
     }
 
@@ -1352,6 +1382,19 @@ export function ShopifyImporter({
                     </span>
                   </label>
                 )}
+                <label className="flex items-start gap-2 text-xs text-brand-ink">
+                  <input
+                    type="checkbox"
+                    checked={options.organize}
+                    onChange={(e) => setOptions({ ...options, organize: e.target.checked })}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Organizar la tienda al terminar: pocas colecciones claras con buenos nombres, cada producto en la
+                    suya, lo más pedido arriba y lo agotado al final, menú en orden de demanda y una portada completa.
+                    Reemplaza las colecciones, el menú y la portada importados; se puede deshacer desde Productos.
+                  </span>
+                </label>
                 {parsed.warnings.length > 0 && (
                   <ul className="text-xs text-amber-700 list-disc pl-4 space-y-0.5">
                     {parsed.warnings.slice(0, 8).map((warning, i) => (
@@ -1603,7 +1646,7 @@ export function ShopifyImporter({
                     <input
                       type="checkbox"
                       checked={options.profile}
-                      onChange={(e) => setOptions({ ...options, profile: e.target.checked })}
+                      onChange={(e) => setOptions({ ...options, organize: true, profile: e.target.checked })}
                       className="mt-1"
                     />
                     <span>Datos de la marca para el perfil</span>
@@ -1804,6 +1847,12 @@ export function ShopifyImporter({
           {extrasResult?.menu && (
             <p className="text-sm text-brand-ink">
               Menú: {extrasResult.menu.items} enlaces{extrasResult.menu.replaced ? " (reemplazó el anterior)" : ""}
+            </p>
+          )}
+          {extrasResult?.organizer && (
+            <p className="text-sm text-brand-ink">
+              Tienda organizada: {summaryText(extrasResult.organizer)}. Si algo no convence, en Productos → Organizar la
+              tienda está &quot;Deshacer la última&quot;.
             </p>
           )}
           {extrasResult?.home && (

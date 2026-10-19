@@ -780,6 +780,8 @@ model BrandProfile {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  organizerRuns StoreOrganizerRun[]
 }
 
 // ----------------------------------------------------------------------------
@@ -2688,6 +2690,36 @@ model ProductReview {
 // Vercel cada petición puede caer en una instancia distinta y un contador
 // en memoria no serviría. Ver src/lib/rate-limit.ts.
 // ----------------------------------------------------------------------------
+
+/// Una corrida del organizador automático de tienda (ver
+/// store-organizer-service.ts): qué se aplicó y la copia de cómo estaba
+/// todo antes (colecciones con sus productos, menú, portada y nombres de
+/// productos) para poder deshacerlo con un clic. La última APPLIED de una
+/// marca es también la señal de que el reorden nocturno por ventas la
+/// debe tocar. Ver conversación del 2026-10-19.
+model StoreOrganizerRun {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  status   StoreOrganizerRunStatus @default(APPLIED)
+  /// "ia" o "reglas" — de dónde salió la estructura.
+  source   String
+  /// Resumen de lo aplicado (conteos), para mostrarlo.
+  summary  Json
+  /// Cómo estaba la tienda antes de aplicar.
+  snapshot Json
+
+  createdAt  DateTime  @default(now())
+  revertedAt DateTime?
+
+  @@index([brandId, createdAt])
+}
+
+enum StoreOrganizerRunStatus {
+  APPLIED
+  REVERTED
+}
 
 model RateLimit {
   key         String   @id

@@ -11,6 +11,7 @@ import { ShopifyImporter } from "@/components/portal/shopify-importer";
 import { RehostImagesNotice } from "@/components/portal/rehost-images-notice";
 import { ProductFamiliesTool } from "@/components/portal/product-families-tool";
 import { CatalogAuditTool } from "@/components/portal/catalog-audit-tool";
+import { StoreOrganizerTool } from "@/components/portal/store-organizer-tool";
 
 /// Lista de productos de "Mi tienda" con Agregar (a mano) e Importar desde
 /// Shopify (por el link de la tienda o el CSV). El viejo "Importar producto" — elegir uno ya
@@ -488,6 +489,7 @@ export function StoreProductsPanel({
       </div>
 
       {importTools && <RehostImagesNotice />}
+      {importTools && <StoreOrganizerTool onApplied={reloadProducts} />}
       {importTools && <CatalogAuditTool storeUrl={storeUrl} />}
       {importTools && <ProductFamiliesTool />}
 
