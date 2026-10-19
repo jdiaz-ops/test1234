@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   PAYMENT_PROVIDERS,
   PAYU_SANDBOX_CREDENTIALS,
+  credentialScopeFor,
   requiredCredentialFields,
   type CredentialField,
   type CredentialScope,
@@ -221,6 +222,42 @@ function initialEdits(fields: CredentialField[], saved: SavedSet | undefined): E
   return edits;
 }
 
+function hasSavedKeys(set: SavedSet | undefined) {
+  return Object.values(set ?? {}).some((v) => (typeof v === "string" ? v.length > 0 : v.saved));
+}
+
+/// "Quitar estas llaves", con un segundo toque para confirmar (ver
+/// removeGatewayCredentials).
+function RemoveKeysButton({ what, disabled, onConfirm }: { what: string; disabled: boolean; onConfirm: () => void }) {
+  const [asking, setAsking] = useState(false);
+  if (!asking) {
+    return (
+      <button type="button" disabled={disabled} onClick={() => setAsking(true)} className="text-xs text-brand-ink-soft hover:text-red-600 hover:underline disabled:opacity-40">
+        Quitar estas llaves
+      </button>
+    );
+  }
+  return (
+    <p className="text-xs text-brand-ink">
+      ¿Quitar {what}?{" "}
+      <button
+        type="button"
+        onClick={() => {
+          setAsking(false);
+          onConfirm();
+        }}
+        className="font-medium text-red-600 hover:underline"
+      >
+        Sí, quitarlas
+      </button>
+      {" · "}
+      <button type="button" onClick={() => setAsking(false)} className="text-brand-ink-soft hover:underline">
+        No
+      </button>
+    </p>
+  );
+}
+
 /// Los pasos cortos de cada pasarela (ver PaymentProviderSpec.steps), en
 /// un recuadro para que no se pierdan. «{guardar}» es el botón de guardar
 /// de donde se muestran.
@@ -326,6 +363,7 @@ export function StorePaymentForm({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   function choose(id: PaymentProviderId) {
     if (id === provider) return;
@@ -340,10 +378,12 @@ export function StorePaymentForm({
     setAboutOpen(c.status === "NOT_CONNECTED");
     setSaved(false);
     setError(null);
+    setNotice(null);
   }
 
   function setField(scope: CredentialScope, key: string, value: string | undefined) {
     setSaved(false);
+    setNotice(null);
     setEdits((prev) => {
       const next = { ...(prev[scope] ?? {}) };
       if (value === undefined) delete next[key];
@@ -412,6 +452,32 @@ export function StorePaymentForm({
       router.refresh();
     } catch {
       setError("No se pudo guardar — revisa tu conexión e intenta de nuevo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const keysLabel = (mode: PaymentModeId) =>
+    spec.scopes === "SHARED" ? `las llaves de ${spec.name}` : mode === "TEST" ? `las llaves de prueba de ${spec.name}` : `las llaves de producción de ${spec.name}`;
+
+  async function removeKeys(mode: PaymentModeId) {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/marca/tienda/pagos?provider=${provider}&mode=${mode}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "No se pudieron quitar las llaves.");
+        return;
+      }
+      const scope = credentialScopeFor(provider, mode);
+      setEdits((prev) => ({ ...prev, [scope]: initialEdits(spec.fields, undefined) }));
+      setNotice(`Listo: quitamos ${keysLabel(mode)}.`);
+      router.refresh();
+    } catch {
+      setError("No se pudieron quitar las llaves — revisa tu conexión e intenta de nuevo.");
     } finally {
       setSaving(false);
     }
@@ -492,6 +558,9 @@ export function StorePaymentForm({
             onChange={(key, v) => setField(keysScope, key, v)}
             compact
           />
+          {hasSavedKeys(current.credentials[keysScope]) && (
+            <RemoveKeysButton what={keysLabel(testMode ? "TEST" : "PRODUCTION")} disabled={saving} onConfirm={() => removeKeys(testMode ? "TEST" : "PRODUCTION")} />
+          )}
           {spec.webhook && !spec.webhook.optional && current.webhookUrl && (
             <div>
               <p className="mb-1 text-xs text-brand-ink">{spec.steps ? "Tu URL de avisos" : `Pega esta URL en ${spec.webhook.where}`}</p>
@@ -506,6 +575,7 @@ export function StorePaymentForm({
           </p>
         )}
         {error && <p className="text-sm text-red-600">{error}</p>}
+        {notice && <p className="text-sm text-emerald-700">{notice}</p>}
         {saved && !dirty && (
           <p className="text-sm text-emerald-700">
             {testMode ? "Guardado: tu tienda quedó en modo de prueba. Cuando termines de probar, toca «Mejor cobrar de verdad»." : "Guardado."}
@@ -683,6 +753,11 @@ export function StorePaymentForm({
               edits={edits.TEST ?? {}}
               onChange={(key, v) => setField("TEST", key, v)}
             />
+            {hasSavedKeys(current.credentials.TEST) && (
+              <div className="mt-3">
+                <RemoveKeysButton what={keysLabel("TEST")} disabled={saving} onConfirm={() => removeKeys("TEST")} />
+              </div>
+            )}
           </div>
         )}
       </Card>
@@ -699,6 +774,11 @@ export function StorePaymentForm({
           edits={edits[spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION"] ?? {}}
           onChange={(key, v) => setField(spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION", key, v)}
         />
+        {hasSavedKeys(current.credentials[spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION"]) && (
+          <div className="mt-3">
+            <RemoveKeysButton what={keysLabel("PRODUCTION")} disabled={saving} onConfirm={() => removeKeys("PRODUCTION")} />
+          </div>
+        )}
       </Card>
 
       {spec.webhook && current.webhookUrl && (
@@ -718,6 +798,7 @@ export function StorePaymentForm({
 
       <div className="flex items-center justify-end gap-3 pt-1">
         {error && <p className="text-sm text-red-600 mr-auto">{error}</p>}
+        {notice && <p className="text-sm text-emerald-700 mr-auto">{notice}</p>}
         {saved && !dirty && <p className="text-sm text-emerald-700 mr-auto">Guardado.</p>}
         <button
           type="button"

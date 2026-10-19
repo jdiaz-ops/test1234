@@ -6,7 +6,7 @@ import {
   createStoreOrder,
   reconcilePendingOrders,
 } from "@/server/services/store-order-service";
-import { BrandPaymentError, saveGatewayCredentials } from "@/server/services/brand-payment-service";
+import { BrandPaymentError, removeGatewayCredentials, saveGatewayCredentials } from "@/server/services/brand-payment-service";
 import { gatewayStatus, getActivePaymentGateway, storedCredentials } from "@/server/payments/credentials";
 import { payuConfirmationSignature } from "@/server/payments/providers/payu";
 import { epaycoSignature } from "@/server/payments/providers/epayco";
@@ -160,6 +160,37 @@ describe.skipIf(!hasDb)("Mercado Pago: llave de prueba o de verdad", () => {
     await save("PRODUCTION");
     profile = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id } });
     expect(profile.paymentMode).toBe("PRODUCTION");
+  });
+});
+
+describe.skipIf(!hasDb)("quitar llaves", () => {
+  // "¿Cómo hago para quitar mi cuenta de prueba?" (2026-10-19).
+  it("sin llaves completas la tienda vuelve a sin pasarela; sin las de producción deja de cobrar de verdad", async () => {
+    stubMercadoPagoUser("live");
+    const brand = await createBrand();
+    await saveGatewayCredentials(brand.userId, {
+      provider: "MERCADO_PAGO",
+      paymentMode: "PRODUCTION",
+      credentials: { TEST: { accessToken: "TEST-1" }, PRODUCTION: { accessToken: "APP_USR-2" } },
+    });
+
+    let profile = await removeGatewayCredentials(brand.userId, "MERCADO_PAGO", "PRODUCTION");
+    expect(profile).toMatchObject({ paymentProvider: "MERCADO_PAGO", paymentMode: "TEST" });
+    expect(storedCredentials(profile, "MERCADO_PAGO", "PRODUCTION")).toBeNull();
+    expect(storedCredentials(profile, "MERCADO_PAGO", "TEST")).toEqual({ accessToken: "TEST-1" });
+
+    profile = await removeGatewayCredentials(brand.userId, "MERCADO_PAGO", "TEST");
+    expect(profile).toMatchObject({ paymentProvider: "NONE", paymentMode: "TEST" });
+    expect(storedCredentials(profile, "MERCADO_PAGO", "TEST")).toBeNull();
+
+    // Wompi va en sus columnas.
+    await saveGatewayCredentials(brand.userId, {
+      provider: "WOMPI",
+      paymentMode: "TEST",
+      credentials: { TEST: { publicKey: "pub_test_1", privateKey: "prv_test_1", eventsKey: "test_events_1", integrityKey: "test_integrity_1" } },
+    });
+    profile = await removeGatewayCredentials(brand.userId, "WOMPI", "TEST");
+    expect(profile).toMatchObject({ paymentProvider: "NONE", wompiPublicKeyTest: null, wompiPrivateKeyTest: null });
   });
 });
 

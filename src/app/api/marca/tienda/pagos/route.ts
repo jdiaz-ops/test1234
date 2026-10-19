@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { gatewayCredentialsSchema } from "@/lib/validation/brand";
-import { saveGatewayCredentials, BrandPaymentError } from "@/server/services/brand-payment-service";
+import { isPaymentProviderId } from "@/lib/payment-providers";
+import { removeGatewayCredentials, saveGatewayCredentials, BrandPaymentError } from "@/server/services/brand-payment-service";
 
 /// Guarda las llaves de la pasarela elegida y la deja activa (ver
 /// saveGatewayCredentials). Las secretas que no cambiaron no viajan: la
@@ -27,5 +28,22 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     throw err;
   }
+  return NextResponse.json({ ok: true });
+}
+
+/// DELETE ?provider=MERCADO_PAGO&mode=TEST → quita esas llaves (ver
+/// removeGatewayCredentials).
+export async function DELETE(req: Request) {
+  const profile = await requireBrandProfile();
+  if (!profile)
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const params = new URL(req.url).searchParams;
+  const provider = params.get("provider");
+  const mode = params.get("mode");
+  if (!isPaymentProviderId(provider) || (mode !== "TEST" && mode !== "PRODUCTION")) {
+    return NextResponse.json({ error: "Pasarela o modo no válido" }, { status: 400 });
+  }
+  await removeGatewayCredentials(profile.userId, provider, mode);
   return NextResponse.json({ ok: true });
 }

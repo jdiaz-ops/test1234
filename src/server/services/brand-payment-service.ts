@@ -5,9 +5,10 @@ import {
   credentialScopeFor,
   isCredentialSetComplete,
   type CredentialScope,
+  type PaymentModeId,
   type PaymentProviderId,
 } from "@/lib/payment-providers";
-import { mergeCredentials, readCredentialStore, storedCredentials } from "@/server/payments/credentials";
+import { credentialsFor, mergeCredentials, readCredentialStore, storedCredentials } from "@/server/payments/credentials";
 import { mercadoPagoTokenKind } from "@/server/payments/providers/mercado-pago";
 
 export class BrandPaymentError extends Error {}
@@ -94,6 +95,44 @@ async function checkMercadoPagoTokens(credentials: Partial<Record<CredentialScop
       );
     }
   }
+}
+
+const WOMPI_COLUMNS = {
+  TEST: { wompiPublicKeyTest: null, wompiPrivateKeyTest: null, wompiEventsKeyTest: null, wompiIntegrityKeyTest: null },
+  PRODUCTION: { wompiPublicKeyProd: null, wompiPrivateKeyProd: null, wompiEventsKeyProd: null, wompiIntegrityKeyProd: null },
+} as const;
+
+/// Quita las llaves guardadas de una pasarela en un entorno ("¿cómo hago
+/// para quitar mi cuenta de prueba?", 2026-10-19; antes no había cómo: un
+/// campo vacío conserva la guardada). Si era la pasarela con la que cobra
+/// y se queda sin llaves completas, la tienda vuelve a "sin pasarela"; si
+/// solo le quedan las de prueba, deja de cobrar de verdad.
+export async function removeGatewayCredentials(userId: string, provider: PaymentProviderId, mode: PaymentModeId) {
+  const current = await prisma.brandProfile.findUniqueOrThrow({ where: { userId } });
+  const removed = await prisma.brandProfile.update({
+    where: { userId },
+    data:
+      provider === "WOMPI"
+        ? WOMPI_COLUMNS[mode]
+        : {
+            gatewayCredentials: mergeCredentials(
+              readCredentialStore(current.gatewayCredentials),
+              provider,
+              credentialScopeFor(provider, mode),
+              Object.fromEntries(PAYMENT_PROVIDERS[provider].fields.map((f) => [f.key, ""])),
+            ) as unknown as Prisma.InputJsonValue,
+          },
+  });
+  if (removed.paymentProvider !== provider) return removed;
+  const canTest = credentialsFor(removed, provider, "TEST") !== null;
+  const canCharge = credentialsFor(removed, provider, "PRODUCTION") !== null;
+  if (!canTest && !canCharge) {
+    return prisma.brandProfile.update({ where: { userId }, data: { paymentProvider: "NONE", paymentMode: "TEST" } });
+  }
+  if (removed.paymentMode === "PRODUCTION" && !canCharge) {
+    return prisma.brandProfile.update({ where: { userId }, data: { paymentMode: "TEST" } });
+  }
+  return removed;
 }
 
 /// Las llaves guardadas de cualquier pasarela, para la página de Pagos.
