@@ -41,6 +41,7 @@ export async function GET(req: Request) {
       // Sus redes (lo que ella misma puso en su perfil), para verla antes
       // de reclutarla — en vez del score (pedido del 2026-10-19).
       socialLinks: c.socialLinks,
+      proof: c.proof,
       scoreData: c.scoreData,
     })),
   });

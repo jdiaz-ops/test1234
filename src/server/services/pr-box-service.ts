@@ -238,33 +238,37 @@ export async function respondToPrBoxRequest(brandId: string, requestId: string, 
   return updated;
 }
 
-/// Las creadoras a las que se la puede proponer: las que ya trabajan con la
-/// marca y, si escribe un nombre, también las que se dejan encontrar en el
-/// buscador (las mismas reglas que "Ofrecer muestra").
+/// Las creadoras a las que se la puede proponer: solo las de su programa
+/// (pedido del 2026-10-19: "primero se invita al programa; si acepta, ahí sí
+/// se habilita para proponer caja PR"), con lo que le han vendido a la marca
+/// para elegir sin conocerlas por nombre. Las que más venden, primero.
 export async function listProposableCreators(brandId: string, boxId: string, query?: string | null) {
   const q = query?.trim().slice(0, 80) || "";
-  const byName = q ? { displayName: { contains: q, mode: "insensitive" as const } } : {};
   const linked = await prisma.creatorOfferEnrollment.findMany({
-    where: { status: "ACTIVE", offer: { brandId }, creator: { suspended: false, ...byName } },
+    where: { status: "ACTIVE", offer: { brandId }, creator: { suspended: false, ...(q ? { displayName: { contains: q, mode: "insensitive" } } : {}) } },
     select: { creatorId: true },
     distinct: ["creatorId"],
     take: 200,
   });
-  const linkedIds = new Set(linked.map((l) => l.creatorId));
-  const creators = await prisma.creatorProfile.findMany({
-    where: { suspended: false, OR: [{ id: { in: [...linkedIds] } }, ...(q ? [{ discoverable: true, ...byName }] : [])] },
-    select: { id: true, displayName: true, photoUrl: true, city: true, socialLinks: { select: { platform: true, handle: true, approxFollowers: true } } },
-    orderBy: { displayName: "asc" },
-    take: 60,
-  });
-  const existing = await prisma.prBoxRequest.findMany({
-    where: { boxId, box: { brandId }, creatorId: { in: creators.map((c) => c.id) } },
-    select: { creatorId: true, status: true },
-  });
+  const ids = linked.map((l) => l.creatorId);
+  const [creators, existing, sales] = await Promise.all([
+    prisma.creatorProfile.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, displayName: true, photoUrl: true, city: true, socialLinks: { select: { platform: true, handle: true, approxFollowers: true } } },
+    }),
+    prisma.prBoxRequest.findMany({ where: { boxId, box: { brandId }, creatorId: { in: ids } }, select: { creatorId: true, status: true } }),
+    prisma.transaction.groupBy({
+      by: ["creatorId"],
+      where: { brandId, creatorId: { in: ids }, status: { not: "REFUNDED" } },
+      _count: { _all: true },
+      _sum: { netAmount: true },
+    }),
+  ]);
   const statusBy = new Map(existing.map((e) => [e.creatorId, e.status]));
+  const salesBy = new Map(sales.map((r) => [r.creatorId, { count: r._count._all, amount: Number(r._sum.netAmount ?? 0) }]));
   return creators
-    .map((c) => ({ ...c, linked: linkedIds.has(c.id), requestStatus: statusBy.get(c.id) ?? null }))
-    .sort((a, b) => Number(b.linked) - Number(a.linked));
+    .map((c) => ({ ...c, requestStatus: statusBy.get(c.id) ?? null, sales: salesBy.get(c.id) ?? { count: 0, amount: 0 } }))
+    .sort((a, b) => b.sales.amount - a.sales.amount || a.displayName.localeCompare(b.displayName, "es"));
 }
 
 export async function proposePrBox(brandId: string, boxId: string, creatorIds: string[], message?: string | null) {
@@ -277,15 +281,14 @@ export async function proposePrBox(brandId: string, boxId: string, creatorIds: s
   if (ids.length === 0) throw new PrBoxError("Elige al menos una creadora.");
 
   const [creators, linked, existing] = await Promise.all([
-    prisma.creatorProfile.findMany({ where: { id: { in: ids }, suspended: false }, select: { id: true, userId: true, discoverable: true } }),
+    prisma.creatorProfile.findMany({ where: { id: { in: ids }, suspended: false }, select: { id: true, userId: true } }),
     prisma.creatorOfferEnrollment.findMany({ where: { creatorId: { in: ids }, status: "ACTIVE", offer: { brandId } }, select: { creatorId: true } }),
     prisma.prBoxRequest.findMany({ where: { boxId: box.id, creatorId: { in: ids } }, select: { creatorId: true } }),
   ]);
   const linkedIds = new Set(linked.map((l) => l.creatorId));
   const taken = new Set(existing.map((e) => e.creatorId));
-  // Como "Ofrecer muestra": las que se dejan encontrar, o las que ya
-  // trabajan con la marca.
-  const chosen = creators.filter((c) => !taken.has(c.id) && (c.discoverable || linkedIds.has(c.id)));
+  // Solo a las de su programa (ver listProposableCreators).
+  const chosen = creators.filter((c) => !taken.has(c.id) && linkedIds.has(c.id));
   const note = message?.trim().slice(0, 500) || null;
   await prisma.prBoxRequest.createMany({
     data: chosen.map((c) => ({ boxId: box.id, creatorId: c.id, initiatedBy: "BRAND" as const, status: "PROPOSED" as const, message: note })),

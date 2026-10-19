@@ -28,6 +28,91 @@ type SampleProductOption = {
   sampleStock: number;
 };
 
+/// Una Caja PR activa que se puede proponer (ver pr-box-service.ts).
+type PrBoxOption = { id: string; name: string; left: number };
+
+/// Proponerle una Caja PR a una creadora del programa: después de que
+/// acepta la invitación (pedido del 2026-10-19: "primero se invita al
+/// programa; si acepta, ahí sí se habilita para proponer caja PR").
+function ProposeBoxForm({ creatorId, boxes, onDone }: { creatorId: string; boxes: PrBoxOption[]; onDone: () => void }) {
+  const [boxId, setBoxId] = useState(boxes[0]?.id ?? "");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+
+  async function send() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/marca/tienda/cajas-pr/${boxId}/proponer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creatorIds: [creatorId], message }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "No se pudo proponer la caja.");
+        return;
+      }
+      if (body?.proposed === 0) {
+        setError("Esta creadora ya tiene esta caja (pedida o propuesta).");
+        return;
+      }
+      setSent(true);
+    } catch {
+      setError("No se pudo enviar — revisa tu conexión.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-brand-accent">Caja propuesta — te avisamos cuando la acepte.</p>
+        <button type="button" onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
+          Cerrar
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3 max-w-lg">
+      <div>
+        <label className="block text-xs text-brand-ink mb-1">Caja PR</label>
+        <select value={boxId} onChange={(e) => setBoxId(e.target.value)} className="input text-sm">
+          {boxes.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name} (quedan {b.left})
+            </option>
+          ))}
+        </select>
+      </div>
+      <textarea
+        value={message}
+        onChange={(e) => setMessage(e.target.value.slice(0, 500))}
+        placeholder="Mensaje (opcional). Ej. queremos que seas de las primeras en probar la colección..."
+        className="input text-sm min-h-16"
+      />
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={send}
+          disabled={busy || !boxId}
+          className="bg-brand-accent text-white rounded-full px-5 py-2 text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+        >
+          {busy ? "Enviando..." : "Proponer la caja"}
+        </button>
+        <button type="button" onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /// Ofrecer una muestra a un creador YA vinculado (ACTIVE) — a diferencia
 /// del buscador, acá nunca importa si el creador está en modo discoverable
 /// (ver offerSampleToCreator en sample-service.ts): ya trabaja con esta
@@ -356,10 +441,13 @@ function OverrideEditor({
 export function EnrollmentsPanel({
   enrollments,
   sampleProducts,
+  prBoxes = [],
   openSamples = {},
 }: {
   enrollments: Enrollment[];
   sampleProducts: SampleProductOption[];
+  /// Cajas PR que se le pueden proponer a las creadoras del programa.
+  prBoxes?: PrBoxOption[];
   /// Muestra abierta por creador (ver listOpenSamplesByCreator): en vez del
   /// botón "Ofrecer muestra" se muestra en qué va.
   openSamples?: Record<string, { status: "PENDING" | "OFFERED"; productName: string }>;
@@ -368,6 +456,7 @@ export function EnrollmentsPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [offeringSampleId, setOfferingSampleId] = useState<string | null>(null);
+  const [proposingBoxId, setProposingBoxId] = useState<string | null>(null);
   const [requestingContentId, setRequestingContentId] = useState<string | null>(null);
 
   async function decide(enrollmentId: string, decision: "APPROVE" | "REJECT") {
@@ -483,13 +572,25 @@ export function EnrollmentsPanel({
                           Pidió una muestra → Revisar
                         </Link>
                       )}
+                      {SAMPLES_ENABLED && prBoxes.length > 0 && (
+                        <button
+                          onClick={() => {
+                            setProposingBoxId(proposingBoxId === e.id ? null : e.id);
+                            setOfferingSampleId(null);
+                          }}
+                          className="text-xs text-brand-accent font-medium hover:underline whitespace-nowrap"
+                        >
+                          Proponer Caja PR
+                        </button>
+                      )}
                       {SAMPLES_ENABLED && !openSamples[e.creatorId] && (
                         <button
                           onClick={() => {
                             setOfferingSampleId(offeringSampleId === e.id ? null : e.id);
                             setRequestingContentId(null);
+                            setProposingBoxId(null);
                           }}
-                          className="text-xs text-brand-accent font-medium hover:underline"
+                          className="text-xs text-brand-accent font-medium hover:underline whitespace-nowrap"
                         >
                           Ofrecer muestra
                         </button>
@@ -503,6 +604,13 @@ export function EnrollmentsPanel({
                   )}
                 </td>
               </tr>
+              {proposingBoxId === e.id && (
+                <tr className="bg-brand-bg">
+                  <td colSpan={7} className="px-5 py-3">
+                    <ProposeBoxForm creatorId={e.creatorId} boxes={prBoxes} onDone={() => setProposingBoxId(null)} />
+                  </td>
+                </tr>
+              )}
               {offeringSampleId === e.id && (
                 <tr className="bg-brand-bg">
                   <td colSpan={7} className="px-5 py-3">

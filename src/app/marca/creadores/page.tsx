@@ -14,10 +14,18 @@ export default async function CreadoresVinculadosPage() {
   const profile = await prisma.brandProfile.findUniqueOrThrow({
     where: { userId: session!.user.id },
   });
-  const [enrollments, products, openSampleRows] = await Promise.all([
+  const [enrollments, products, openSampleRows, prBoxes] = await Promise.all([
     listEnrollmentsForBrand(profile.id),
     listBrandSampleCatalog(profile.id),
     SAMPLES_ENABLED ? listOpenSamplesByCreator(profile.id) : [],
+    // Cajas PR que se les pueden proponer (ver pr-box-service.ts).
+    SAMPLES_ENABLED
+      ? prisma.prBox.findMany({
+          where: { brandId: profile.id, status: "OPEN", allowProposals: true, unitsUsed: { lt: prisma.prBox.fields.units } },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, name: true, units: true, unitsUsed: true },
+        })
+      : Promise.resolve([]),
   ]);
   // Sin productos para muestras mientras la función está apagada (ver
   // src/lib/features.ts): el botón "Ofrecer muestra" no aparece.
@@ -33,7 +41,7 @@ export default async function CreadoresVinculadosPage() {
       <CreatorsTabs active="vinculados" />
       <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
         Los creadores que ya están en tu programa, con su código, sus ventas y
-        su comisión.
+        su comisión. Desde acá les propones Cajas PR y muestras.
       </p>
 
       <EnrollmentsPanel
@@ -67,6 +75,7 @@ export default async function CreadoresVinculadosPage() {
           name: p.name,
           sampleStock: p.sampleStock,
         }))}
+        prBoxes={prBoxes.map((b) => ({ id: b.id, name: b.name, left: b.units - b.unitsUsed }))}
       />
     </div>
   );

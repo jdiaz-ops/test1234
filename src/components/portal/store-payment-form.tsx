@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   PAYMENT_PROVIDERS,
@@ -104,6 +105,12 @@ function PublicKeyField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={prefix ? `${prefix}...` : ""}
         spellCheck={false}
+        // Que el navegador no meta acá el correo de la cuenta (lo hacía con
+        // la llave pública y el P_CUST_ID_CLIENTE, 2026-10-19).
+        name={`llave-${id}`}
+        autoComplete="off"
+        data-1p-ignore
+        data-lpignore="true"
         className="input font-mono text-sm"
       />
       <PrefixWarning value={value} prefix={prefix} />
@@ -146,7 +153,12 @@ function SecretKeyField({
               value={value ?? ""}
               onChange={(e) => onChange(e.target.value)}
               placeholder={prefix ? `${prefix}...` : ""}
-              autoComplete="off"
+              // "new-password": el navegador no llena acá la contraseña
+              // guardada de Marcolini (con "off" la llenaba igual).
+              name={`llave-secreta-${id}`}
+              autoComplete="new-password"
+              data-1p-ignore
+              data-lpignore="true"
               spellCheck={false}
               className="input font-mono text-sm flex-1"
             />
@@ -215,16 +227,19 @@ function KeysSection({
   saved,
   edits,
   onChange,
+  compact = false,
 }: {
   provider: PaymentProviderId;
   mode: PaymentModeId;
   saved: SavedSet | undefined;
   edits: Edits;
   onChange: (key: string, value: string | undefined) => void;
+  /// En el Dashboard: en dos columnas y sin las ayudas de cada campo.
+  compact?: boolean;
 }) {
   const spec = PAYMENT_PROVIDERS[provider];
   return (
-    <div className="space-y-4">
+    <div className={compact ? "grid gap-3 sm:grid-cols-2" : "space-y-4"}>
       {spec.fields.map((field) => {
         const prefix = field.prefix?.[mode];
         const label = field.optional ? `${field.label} (opcional)` : field.label;
@@ -235,7 +250,7 @@ function KeysSection({
               label={label}
               value={edits[field.key] ?? ""}
               prefix={prefix}
-              help={field.help}
+              help={compact ? undefined : field.help}
               onChange={(v) => onChange(field.key, v)}
             />
           );
@@ -248,7 +263,7 @@ function KeysSection({
             label={label}
             saved={secret}
             prefix={prefix}
-            help={field.help}
+            help={compact ? undefined : field.help}
             value={edits[field.key]}
             onChange={(v) => onChange(field.key, v)}
           />
@@ -270,12 +285,14 @@ export function StorePaymentForm({
 }: {
   initial: StorePaymentInitial;
   /// Dentro del paso "Conecta tus pagos" del Dashboard (ver go-live-card):
-  /// sin el título de la página.
+  /// solo la pasarela, las llaves de producción y la URL de avisos — lo que
+  /// hace falta para cobrar de verdad. El modo de prueba queda en
+  /// Configuración → Pagos ("¿esto tiene que ser así de largo?", 2026-10-19).
   compact?: boolean;
 }) {
   const router = useRouter();
   const [provider, setProvider] = useState<PaymentProviderId>(initial.activeProvider ?? initial.offered[0] ?? "WOMPI");
-  const [testMode, setTestMode] = useState(initial.paymentMode === "TEST");
+  const [testMode, setTestMode] = useState(compact ? false : initial.paymentMode === "TEST");
   const spec = PAYMENT_PROVIDERS[provider];
   const current = initial.providers[provider];
   const scopes: CredentialScope[] = spec.scopes === "SHARED" ? ["SHARED"] : ["TEST", "PRODUCTION"];
@@ -390,19 +407,85 @@ export function StorePaymentForm({
     setEdits((prev) => ({ ...prev, TEST: { ...(prev.TEST ?? {}), ...PAYU_SANDBOX_CREDENTIALS } }));
   }
 
+  if (compact) {
+    const keysScope: CredentialScope = spec.scopes === "SHARED" ? "SHARED" : "PRODUCTION";
+    return (
+      <div className="space-y-4">
+        <div>
+          <p className="mb-2 text-xs text-brand-ink">Tu pasarela</p>
+          <div className={`grid grid-cols-2 gap-2 ${GRID_COLS[initial.offered.length] ?? "sm:grid-cols-5"}`}>
+            {initial.offered.map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => choose(id)}
+                aria-pressed={id === provider}
+                className={`rounded-xl border bg-brand-surface px-3 py-2 text-sm font-medium transition-colors ${
+                  id === provider ? "border-brand-ink text-brand-ink" : "border-brand-line text-brand-ink-soft hover:text-brand-ink"
+                }`}
+              >
+                {PAYMENT_PROVIDERS[id].name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-brand-line bg-brand-surface p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <p className="text-sm font-medium text-brand-ink">{spec.scopes === "SHARED" ? `Llaves de ${spec.name}` : `Llaves de producción de ${spec.name}`}</p>
+            <a href={spec.signupUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-accent hover:underline">
+              ¿No tienes cuenta? Créala →
+            </a>
+          </div>
+          <p className="-mt-1 text-xs text-brand-ink-soft">{spec.keysHint}</p>
+          <KeysSection
+            provider={provider}
+            mode="PRODUCTION"
+            saved={current.credentials[keysScope]}
+            edits={edits[keysScope] ?? {}}
+            onChange={(key, v) => setField(keysScope, key, v)}
+            compact
+          />
+          {spec.webhook && current.webhookUrl && (
+            <div>
+              <p className="mb-1 text-xs text-brand-ink">Pega esta URL en {spec.webhook.where}</p>
+              <CopyField value={current.webhookUrl} />
+            </div>
+          )}
+        </div>
+
+        {!isActive && activeName && (
+          <p className="text-xs text-amber-700">
+            Al guardar, tu tienda pasa a cobrar con {spec.name} en vez de {activeName}.
+          </p>
+        )}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || !dirty}
+            className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+          >
+            {saving ? "Guardando…" : "Guardar y empezar a cobrar"}
+          </button>
+          <Link href="/marca/tienda/pagos" className="text-xs text-brand-ink-soft hover:underline">
+            ¿Quieres probar antes? Usa el modo de prueba en Pagos
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 max-w-2xl">
-      {compact ? (
-        <p className="text-sm text-brand-ink-soft">Cobras con tu propia cuenta: el dinero llega directo a ti, Marcolini nunca lo recibe.</p>
-      ) : (
-        <div>
-          <h2 className="font-display text-xl font-semibold text-brand-ink">Pagos</h2>
-          <p className="text-sm text-brand-ink-soft mt-1">
-            Cobras con tu propia cuenta: el dinero llega directo a ti, Marcolini nunca lo recibe.
-            {activeName ? ` Hoy tu tienda cobra con ${activeName}.` : " Elige tu pasarela y pega sus llaves para empezar a cobrar."}
-          </p>
-        </div>
-      )}
+      <div>
+        <h2 className="font-display text-xl font-semibold text-brand-ink">Pagos</h2>
+        <p className="text-sm text-brand-ink-soft mt-1">
+          Cobras con tu propia cuenta: el dinero llega directo a ti, Marcolini nunca lo recibe.
+          {activeName ? ` Hoy tu tienda cobra con ${activeName}.` : " Elige tu pasarela y pega sus llaves para empezar a cobrar."}
+        </p>
+      </div>
 
       <Card>
         <p className="text-sm font-medium text-brand-ink mb-3">¿Con qué pasarela cobras?</p>
@@ -476,7 +559,6 @@ export function StorePaymentForm({
         )}
       </Card>
 
-      {!compact && (
       <Card className="!p-0 overflow-hidden">
         <div className="px-5 pt-4 pb-3">
           <p className="text-sm font-medium text-brand-ink">Métodos de pago</p>
@@ -498,7 +580,6 @@ export function StorePaymentForm({
           ))}
         </ul>
       </Card>
-      )}
 
       <Card>
         <div className="flex items-start justify-between gap-4">

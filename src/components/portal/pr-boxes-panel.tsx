@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { prepareImageForUpload } from "@/lib/prepare-image-upload";
+import { socialProfileUrl, sortSocialLinks } from "@/lib/social-links";
 import { PR_BOX_AUDIENCE, PR_BOX_DISCLAIMER, PR_BOX_STAGE, dayInputValue, formatDay, prBoxAudience, prBoxContentsList, type PrBoxStage } from "@/lib/pr-box";
 
 /// Cajas PR en Muestras (ver pr-box-service.ts): la marca arma la caja con
@@ -331,8 +332,9 @@ type Proposable = {
   photoUrl: string | null;
   city: string | null;
   socialLinks: PrBoxSocial[];
-  linked: boolean;
   requestStatus: string | null;
+  /// Lo que le ha vendido a la marca (sin devoluciones).
+  sales: { count: number; amount: number };
 };
 
 const TAKEN_LABEL: Record<string, string> = {
@@ -343,6 +345,13 @@ const TAKEN_LABEL: Record<string, string> = {
   DECLINED: "No la aceptó",
 };
 
+function cop(amount: number) {
+  return `$${Math.round(amount).toLocaleString("es-CO")}`;
+}
+
+/// Solo a las creadoras de tu programa (primero se invita), en tarjetas con
+/// lo que te han vendido y sus redes: se eligen sin tener que conocerlas
+/// por nombre (pedido del 2026-10-19).
 function ProposePanel({ box, onClose }: { box: PrBoxView; onClose: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -358,11 +367,12 @@ function ProposePanel({ box, onClose }: { box: PrBoxView; onClose: () => void })
       const res = await fetch(`/api/marca/tienda/cajas-pr/${box.id}/creadoras?q=${encodeURIComponent(query.trim())}`);
       const body = await res.json().catch(() => null);
       setCreators(res.ok ? body.creators : []);
-    }, 300);
+    }, 250);
     return () => clearTimeout(timer);
   }, [box.id, query]);
 
   const ids = Object.keys(chosen).filter((id) => chosen[id]);
+  const free = (creators ?? []).filter((c) => !c.requestStatus);
 
   async function propose() {
     setBusy(true);
@@ -379,67 +389,116 @@ function ProposePanel({ box, onClose }: { box: PrBoxView; onClose: () => void })
     }
   }
 
+  const noProgram = creators !== null && creators.length === 0 && !query.trim();
+
   return (
     <div className="space-y-3 rounded-xl border border-brand-line bg-brand-bg p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-brand-ink">Proponer a creadoras</p>
+          <p className="text-sm font-medium text-brand-ink">Proponer a creadoras de tu programa</p>
           <p className="text-xs text-brand-ink-soft">
-            Primero salen las que ya trabajan contigo; escribe un nombre para buscar otras. Quedan {left} {left === 1 ? "caja" : "cajas"}: se usa una cuando una creadora acepta.
+            Primero salen las que más te venden. Quedan {left} {left === 1 ? "caja" : "cajas"}: se usa una cuando una creadora acepta.
           </p>
         </div>
         <button type="button" onClick={onClose} className="text-xs text-brand-ink-soft hover:underline">
           Cerrar
         </button>
       </div>
-      <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar creadora por nombre…" className="input text-sm" />
-      {creators === null ? (
-        <p className="text-sm text-brand-ink-soft">Buscando…</p>
-      ) : creators.length === 0 ? (
-        <p className="text-sm text-brand-ink-soft">{query.trim() ? "Ninguna creadora coincide con ese nombre." : "Todavía no tienes creadoras en tu programa. Busca por nombre."}</p>
+      {noProgram ? (
+        <p className="text-sm text-brand-ink-soft">
+          Todavía no tienes creadoras en tu programa.{" "}
+          <Link href="/marca/creadores/buscar" className="font-medium text-brand-accent hover:underline">
+            Invítalas desde Buscar creadores →
+          </Link>
+        </p>
       ) : (
-        <ul className="max-h-72 divide-y divide-brand-line overflow-y-auto rounded-lg border border-brand-line bg-brand-surface">
-          {creators.map((c) => {
-            const taken = c.requestStatus ? TAKEN_LABEL[c.requestStatus] : null;
-            const main = c.socialLinks[0];
-            return (
-              <li key={c.id}>
-                <label className={`flex items-center gap-3 px-3 py-2 ${taken ? "opacity-60" : "cursor-pointer hover:bg-brand-accent-soft/30"}`}>
-                  <input type="checkbox" disabled={Boolean(taken)} checked={Boolean(chosen[c.id])} onChange={(e) => setChosen((prev) => ({ ...prev, [c.id]: e.target.checked }))} />
-                  <Avatar name={c.displayName} photoUrl={c.photoUrl} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-brand-ink">
-                      {c.displayName}
-                      {c.linked && <span className="ml-2 rounded-full bg-brand-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-brand-accent">Trabaja contigo</span>}
-                    </span>
-                    <span className="block truncate text-xs text-brand-ink-soft">
-                      {[main ? `@${main.handle.replace(/^@/, "")}${followers(main.approxFollowers)}` : null, c.city].filter(Boolean).join(" · ")}
-                    </span>
-                  </span>
-                  {taken && <span className="shrink-0 text-xs text-brand-ink-soft">{taken}</span>}
-                </label>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtrar por nombre…" className="input min-w-0 flex-1 text-sm" />
+            {free.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setChosen(ids.length === free.length ? {} : Object.fromEntries(free.map((c) => [c.id, true])))}
+                className="text-xs font-medium text-brand-accent hover:underline"
+              >
+                {ids.length === free.length ? "Quitar todas" : "Elegir todas"}
+              </button>
+            )}
+          </div>
+          {creators === null ? (
+            <p className="text-sm text-brand-ink-soft">Un momento…</p>
+          ) : creators.length === 0 ? (
+            <p className="text-sm text-brand-ink-soft">Ninguna creadora de tu programa coincide con ese nombre.</p>
+          ) : (
+            <ul className="grid max-h-96 gap-2 overflow-y-auto sm:grid-cols-2">
+              {creators.map((c) => {
+                const taken = c.requestStatus ? TAKEN_LABEL[c.requestStatus] : null;
+                const on = Boolean(chosen[c.id]);
+                return (
+                  <li key={c.id}>
+                    <label
+                      className={`flex h-full gap-3 rounded-xl border bg-brand-surface p-3 ${
+                        taken ? "opacity-60" : on ? "cursor-pointer border-brand-accent ring-1 ring-brand-accent" : "cursor-pointer border-brand-line hover:border-brand-accent/50"
+                      }`}
+                    >
+                      <input type="checkbox" disabled={Boolean(taken)} checked={on} onChange={(e) => setChosen((prev) => ({ ...prev, [c.id]: e.target.checked }))} className="mt-1" />
+                      <Avatar name={c.displayName} photoUrl={c.photoUrl} />
+                      <span className="min-w-0 flex-1 space-y-1">
+                        <span className="block truncate text-sm font-medium text-brand-ink">{c.displayName}</span>
+                        <span className="block text-xs text-brand-ink">
+                          {c.sales.count > 0 ? `Te vendió ${cop(c.sales.amount)} en ${c.sales.count} ${c.sales.count === 1 ? "venta" : "ventas"}` : "Todavía no te ha vendido"}
+                        </span>
+                        <SocialMini links={c.socialLinks} city={c.city} />
+                        {taken && <span className="block text-xs text-brand-ink-soft">{taken}</span>}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            maxLength={500}
+            placeholder="Mensaje para ellas (opcional). Ej. Nos encanta tu nail art: queremos que seas de las primeras en probar la colección."
+            className="input min-h-16 text-sm"
+          />
+          {notice && <p className="text-sm text-brand-ink">{notice}</p>}
+          <button
+            type="button"
+            onClick={propose}
+            disabled={busy || ids.length === 0}
+            className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {busy ? "Proponiendo…" : ids.length > 1 ? `Proponer a ${ids.length} creadoras` : "Proponer"}
+          </button>
+        </>
       )}
-      <textarea
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        maxLength={500}
-        placeholder="Mensaje para ellas (opcional). Ej. Nos encanta tu nail art: queremos que seas de las primeras en probar la colección."
-        className="input min-h-16 text-sm"
-      />
-      {notice && <p className="text-sm text-brand-ink">{notice}</p>}
-      <button
-        type="button"
-        onClick={propose}
-        disabled={busy || ids.length === 0}
-        className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-      >
-        {busy ? "Proponiendo…" : ids.length > 1 ? `Proponer a ${ids.length} creadoras` : "Proponer"}
-      </button>
     </div>
+  );
+}
+
+/// Sus redes (con link) y su ciudad, en una línea.
+function SocialMini({ links, city }: { links: PrBoxSocial[]; city: string | null }) {
+  const shown = sortSocialLinks(links)
+    .filter((l) => l.handle.trim())
+    .slice(0, 2);
+  return (
+    <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-brand-ink-soft">
+      {shown.map((l) => {
+        const url = socialProfileUrl(l.platform, l.handle);
+        const text = `${l.platform}${followers(l.approxFollowers)}`;
+        return url ? (
+          <a key={`${l.platform}-${l.handle}`} href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="hover:text-brand-accent hover:underline">
+            {text} ↗
+          </a>
+        ) : (
+          <span key={`${l.platform}-${l.handle}`}>{text}</span>
+        );
+      })}
+      {city && <span>{city}</span>}
+    </span>
   );
 }
 

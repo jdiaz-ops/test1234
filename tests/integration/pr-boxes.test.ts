@@ -44,6 +44,14 @@ async function createCreator(opts: { discoverable?: boolean } = {}) {
   });
 }
 
+/// La creadora entra al programa de la marca (aceptó la invitación).
+async function link(brandId: string, creatorId: string) {
+  const offer =
+    (await prisma.offer.findFirst({ where: { brandId } })) ??
+    (await prisma.offer.create({ data: { brandId, name: "Programa", defaultCommissionPercent: 8, defaultDiscountPercent: 10 } }));
+  await prisma.creatorOfferEnrollment.create({ data: { creatorId, offerId: offer.id, discountCode: `C${randomUUID().slice(0, 8)}`.toUpperCase(), status: "ACTIVE" } });
+}
+
 /// Lo que manda el formulario de la marca.
 function rawBox(overrides: Record<string, unknown> = {}) {
   return {
@@ -120,13 +128,15 @@ describe.skipIf(!hasDb)("cajas PR", () => {
     const box = await createPrBox(brand.id, boxInput({ units: 1, inMarketplace: false, launchOn: "", shipsOn: "" }));
     expect((await listOpenPrBoxes()).some((b) => b.id === box.id)).toBe(false);
 
-    const [sara, vale, hidden, third] = await Promise.all([createCreator(), createCreator(), createCreator({ discoverable: false }), createCreator()]);
-    const result = await proposePrBox(brand.id, box.id, [sara.id, vale.id, hidden.id, third.id], "Queremos que la pruebes");
-    // La que no se deja encontrar (y no trabaja con la marca) se salta.
+    const [sara, vale, outsider, third] = await Promise.all([createCreator(), createCreator(), createCreator(), createCreator()]);
+    for (const c of [sara, vale, third]) await link(brand.id, c.id);
+    const result = await proposePrBox(brand.id, box.id, [sara.id, vale.id, outsider.id, third.id], "Queremos que la pruebes");
+    // Solo a las de su programa: la que no está se salta (primero se invita).
     expect(result).toEqual({ proposed: 3, skipped: 1 });
+    expect((await listProposableCreators(brand.id, box.id)).map((c) => c.id).sort()).toEqual([sara.id, vale.id, third.id].sort());
 
     const found = await listProposableCreators(brand.id, box.id, sara.displayName);
-    expect(found.find((c) => c.id === sara.id)?.requestStatus).toBe("PROPOSED");
+    expect(found.find((c) => c.id === sara.id)).toMatchObject({ requestStatus: "PROPOSED", sales: { count: 0, amount: 0 } });
 
     const proposal = (await listCreatorPrBoxRequests(sara.id))[0];
     expect(proposal).toMatchObject({ status: "PROPOSED", message: "Queremos que la pruebes" });
