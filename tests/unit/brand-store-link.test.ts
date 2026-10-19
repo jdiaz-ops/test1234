@@ -7,7 +7,7 @@ const shopify = {
   storeUrl: "https://marca-vieja.myshopify.com",
   websiteUrl: "https://marca.com",
   customDomain: null,
-  customDomainVerifiedAt: null,
+  customDomainActiveAt: null,
 };
 
 describe("link a la tienda de la marca desde la vitrina", () => {

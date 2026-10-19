@@ -15,7 +15,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const { slug } = await params;
   const brand = await prisma.brandProfile.findUnique({
     where: { storefrontSlug: slug },
-    select: { id: true, storefrontSlug: true, customDomain: true, customDomainVerifiedAt: true, updatedAt: true },
+    select: { id: true, storefrontSlug: true, customDomain: true, customDomainActiveAt: true, updatedAt: true },
   });
   const base = brand ? publicStoreUrl(brand) : null;
   if (!brand || !base) return new Response("No encontrada", { status: 404 });

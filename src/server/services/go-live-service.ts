@@ -49,7 +49,7 @@ export type GoLiveChecklist = {
 type BrandFields = {
   storefrontSlug: string | null;
   customDomain: string | null;
-  customDomainVerifiedAt: Date | null;
+  customDomainActiveAt: Date | null;
   goLiveChecks: string[];
   paymentProvider: string;
   paymentMode: string;
@@ -71,7 +71,7 @@ type Counts = { noStock: number; zones: number; pendingRates: number; activeOffe
 const BRAND_SELECT = {
   storefrontSlug: true,
   customDomain: true,
-  customDomainVerifiedAt: true,
+  customDomainActiveAt: true,
   goLiveChecks: true,
   paymentProvider: true,
   paymentMode: true,

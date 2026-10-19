@@ -40,16 +40,35 @@ describe("vercel-domains", () => {
     expect(vercelDomainsConfigured()).toBe(false);
   });
 
-  it("registros recomendados: CNAME para subdominio, A para el dominio raíz", () => {
+  it("registros recomendados: CNAME para subdominio, A para el dominio raíz (con su www)", () => {
+    const www = { type: "CNAME", name: "www", value: "cname.vercel-dns.com" };
     expect(recommendedDnsRecords("tienda.marca.com", "marca.com", null)).toEqual([{ type: "CNAME", name: "tienda", value: "cname.vercel-dns.com" }]);
-    expect(recommendedDnsRecords("marca.com", "marca.com", null)).toEqual([{ type: "A", name: "@", value: "76.76.21.21" }]);
-    expect(recommendedDnsRecords("marca.com", null, null)).toEqual([{ type: "A", name: "@", value: "76.76.21.21" }]);
+    expect(recommendedDnsRecords("marca.com", "marca.com", null)).toEqual([{ type: "A", name: "@", value: "76.76.21.21" }, www]);
+    expect(recommendedDnsRecords("marca.com", null, null)).toEqual([{ type: "A", name: "@", value: "76.76.21.21" }, www]);
+    // Sin respuesta de Vercel, el dominio principal se calcula: antes un
+    // subdominio salía como registro A en "@".
+    expect(recommendedDnsRecords("tienda.marca.com", null, null)).toEqual([{ type: "CNAME", name: "tienda", value: "cname.vercel-dns.com" }]);
+    expect(recommendedDnsRecords("tienda.marca.com.co", null, null)).toEqual([{ type: "CNAME", name: "tienda", value: "cname.vercel-dns.com" }]);
+    expect(recommendedDnsRecords("www.marca.com.co", null, null)).toEqual([{ type: "A", name: "@", value: "76.76.21.21" }, www]);
     expect(
       recommendedDnsRecords("tienda.marca.com", "marca.com", { recommendedCNAME: [{ rank: 1, value: "abc.vercel-dns-017.com" }] }),
     ).toEqual([{ type: "CNAME", name: "tienda", value: "abc.vercel-dns-017.com" }]);
     expect(recommendedDnsRecords("marca.com", "marca.com", { recommendedIPv4: [{ rank: 1, value: ["216.198.79.1"] }] })).toEqual([
       { type: "A", name: "@", value: "216.198.79.1" },
+      www,
     ]);
+  });
+
+  it("la www se agrega llevando al dominio principal", async () => {
+    const api = fakeApi({
+      "GET /v9/projects/prj_1/domains/www.marca.com": () => ({ status: 404 }),
+      "POST /v10/projects/prj_1/domains": (call) => {
+        expect(call.body).toEqual({ name: "www.marca.com", redirect: "marca.com", redirectStatusCode: 308 });
+        return { status: 200, json: { name: "www.marca.com", apexName: "marca.com" } };
+      },
+    });
+    await addDomainToVercel("www.marca.com", api.fetchImpl, "marca.com");
+    expect(api.calls.filter((c) => c.method === "POST")).toHaveLength(1);
   });
 
   it("agrega el dominio al proyecto con el equipo y el token, y no lo repite si ya estaba", async () => {
@@ -98,7 +117,14 @@ describe("vercel-domains", () => {
       records: [{ type: "CNAME", name: "tienda", value: "x.vercel-dns-017.com" }],
     });
     const none = fakeApi({ "GET /v9/projects/prj_1/domains/nueva.com": () => ({ status: 404 }) });
-    expect(await getVercelDomainStatus("nueva.com", none.fetchImpl)).toMatchObject({ registered: false, configured: false, records: [{ type: "A", name: "@", value: "76.76.21.21" }] });
+    expect(await getVercelDomainStatus("nueva.com", none.fetchImpl)).toMatchObject({
+      registered: false,
+      configured: false,
+      records: [
+        { type: "A", name: "@", value: "76.76.21.21" },
+        { type: "CNAME", name: "www", value: "cname.vercel-dns.com" },
+      ],
+    });
   });
 
   it("quitar un dominio que no estaba no es error", async () => {

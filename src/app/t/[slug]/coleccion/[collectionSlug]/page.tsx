@@ -10,6 +10,7 @@ import { StoreHeader } from "@/components/storefront/store-header";
 import { CollectionBrowser } from "@/components/storefront/collection-browser";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { stripHtml } from "@/lib/sanitize-html";
+import { storeCanonical } from "@/lib/store-url";
 
 export async function generateMetadata({
   params,
@@ -24,6 +25,7 @@ export async function generateMetadata({
   return {
     title: `${collection.name} — ${brand.companyName}`,
     description: collection.description ? stripHtml(collection.description) : undefined,
+    alternates: storeCanonical(brand, `/coleccion/${collection.slug}`),
   };
 }
 

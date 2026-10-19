@@ -8,6 +8,7 @@ import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu
 import { StoreHeader } from "@/components/storefront/store-header";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
+import { storeCanonical } from "@/lib/store-url";
 
 export async function generateMetadata({
   params,
@@ -22,6 +23,7 @@ export async function generateMetadata({
   return {
     title: `${page.title} — ${brand.companyName}`,
     description: page.body ? stripHtml(page.body) : undefined,
+    alternates: storeCanonical(brand, `/pagina/${page.slug}`),
   };
 }
 

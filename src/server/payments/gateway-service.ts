@@ -44,7 +44,7 @@ import { createBoldLink, fetchBoldLink, mapBoldLinkStatus, type BoldValues } fro
 /// producción, y quedaba "http://localhost:3000/…" — el firewall de Wompi
 /// rechazaba el pago. Ver conversación del 2026-10-01.
 export function paymentReturnUrl(
-  brand: { customDomain: string | null; customDomainVerifiedAt: Date | null; storefrontSlug: string | null },
+  brand: { customDomain: string | null; customDomainActiveAt: Date | null; storefrontSlug: string | null },
   orderId: string,
 ) {
   const store = publicStoreUrl(brand);

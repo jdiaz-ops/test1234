@@ -34,7 +34,7 @@ async function loadOrder(orderId: string) {
           logoUrl: true,
           storefrontSlug: true,
           customDomain: true,
-          customDomainVerifiedAt: true,
+          customDomainActiveAt: true,
           user: { select: { email: true } },
         },
       },

@@ -24,6 +24,7 @@ import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { getSiblingProducts } from "@/server/services/product-sibling-service";
 import { SiblingProducts } from "@/components/storefront/sibling-products";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
+import { storeCanonical } from "@/lib/store-url";
 
 export async function generateMetadata({
   params,
@@ -40,6 +41,7 @@ export async function generateMetadata({
     description: product.description
       ? stripHtml(product.description)
       : undefined,
+    alternates: storeCanonical(brand, `/${product.slug ?? productSlug}`),
   };
 }
 

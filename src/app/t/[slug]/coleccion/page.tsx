@@ -7,6 +7,7 @@ import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { getStoreBasePath } from "@/lib/store-base-path";
+import { storeCanonical } from "@/lib/store-url";
 
 export async function generateMetadata({
   params,
@@ -16,7 +17,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const brand = await getStorefrontBrand(slug);
   if (!brand) return {};
-  return { title: `Categorías — ${brand.companyName}` };
+  return { title: `Categorías — ${brand.companyName}`, alternates: storeCanonical(brand, "/coleccion") };
 }
 
 /// Landing "todas las categorías" — el destino por defecto del ítem

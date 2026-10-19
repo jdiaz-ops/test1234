@@ -10,6 +10,8 @@
 /// token no se llama a nada y conectar el dominio sigue siendo manual.
 /// Ver conversación del 2026-10-18.
 
+import { apexOf, companionDomain } from "@/lib/custom-domain";
+
 const API = "https://api.vercel.com";
 /// Valores de siempre de Vercel, por si la API no manda los recomendados.
 const DEFAULT_CNAME = "cname.vercel-dns.com";
@@ -80,17 +82,22 @@ function errorMessage(json: { error?: { code?: string; message?: string } } | nu
 }
 
 /// Los registros que la marca debe poner: un subdominio va con CNAME; el
-/// dominio raíz, con un registro A.
+/// dominio raíz, con un registro A. Con el dominio raíz (o su www) van los
+/// dos, para que tumarca.com y www.tumarca.com abran la tienda (ver
+/// companionDomain). Sin respuesta de Vercel, el dominio principal se
+/// calcula con apexOf.
 export function recommendedDnsRecords(domain: string, apexName: string | null | undefined, config: DomainConfig | null): DnsRecord[] {
-  const apex = (apexName || domain).toLowerCase();
   const name = domain.toLowerCase();
-  if (name === apex) {
-    const ip = config?.recommendedIPv4?.[0]?.value?.[0] || DEFAULT_IPV4;
-    return [{ type: "A", name: "@", value: ip }];
-  }
+  const apex = (apexName || apexOf(name)).toLowerCase();
+  const ip = config?.recommendedIPv4?.[0]?.value?.[0] || DEFAULT_IPV4;
   const cname = config?.recommendedCNAME?.[0]?.value || DEFAULT_CNAME;
-  const host = name.endsWith(`.${apex}`) ? name.slice(0, -(apex.length + 1)) : name;
-  return [{ type: "CNAME", name: host, value: cname }];
+  const record = (host: string): DnsRecord =>
+    host === apex
+      ? { type: "A", name: "@", value: ip }
+      : { type: "CNAME", name: host.endsWith(`.${apex}`) ? host.slice(0, -(apex.length + 1)) : host, value: cname };
+  const companion = companionDomain(name);
+  // El dominio raíz primero: es el que más se demora en los paneles.
+  return companion ? [record(apex), record(`www.${apex}`)] : [record(name)];
 }
 
 function verificationRecords(domain: ProjectDomain | null): DnsRecord[] {
@@ -106,11 +113,14 @@ async function getProjectDomain(domain: string, fetchImpl: FetchLike): Promise<P
   return json as unknown as ProjectDomain;
 }
 
-/// Agrega el dominio al proyecto (si ya estaba, no pasa nada).
-export async function addDomainToVercel(domain: string, fetchImpl: FetchLike = fetch): Promise<ProjectDomain> {
+/// Agrega el dominio al proyecto (si ya estaba, no pasa nada). Con
+/// `redirectTo`, Vercel lo lleva a ese otro dominio (www.tumarca.com →
+/// tumarca.com) sin pasar por Marcolini.
+export async function addDomainToVercel(domain: string, fetchImpl: FetchLike = fetch, redirectTo?: string): Promise<ProjectDomain> {
   const existing = await getProjectDomain(domain, fetchImpl);
   if (existing) return existing;
-  const { status, json } = await call(fetchImpl, "POST", `/v10/projects/${encodeURIComponent(projectId())}/domains`, { name: domain });
+  const body = redirectTo ? { name: domain, redirect: redirectTo, redirectStatusCode: 308 } : { name: domain };
+  const { status, json } = await call(fetchImpl, "POST", `/v10/projects/${encodeURIComponent(projectId())}/domains`, body);
   if (status === 409 && json?.error?.code === "domain_already_in_use") {
     throw new VercelDomainError("Ese dominio está en uso en otro proyecto de Vercel.");
   }

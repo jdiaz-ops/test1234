@@ -9,7 +9,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const { slug } = await params;
   const brand = await prisma.brandProfile.findUnique({
     where: { storefrontSlug: slug },
-    select: { storefrontSlug: true, customDomain: true, customDomainVerifiedAt: true },
+    select: { storefrontSlug: true, customDomain: true, customDomainActiveAt: true },
   });
   const base = brand ? publicStoreUrl(brand) : null;
   if (!base) return new Response("User-agent: *\nDisallow: /\n", { headers: { "Content-Type": "text/plain; charset=utf-8" } });

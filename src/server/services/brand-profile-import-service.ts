@@ -21,7 +21,7 @@ export async function applyExtractedProfile(brandId: string, raw: ExtractedProfi
       websiteUrl: true,
       storefrontSlug: true,
       customDomain: true,
-      customDomainVerifiedAt: true,
+      customDomainActiveAt: true,
     },
   });
   const fill: Record<string, string> = {};

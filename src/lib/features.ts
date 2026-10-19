@@ -35,11 +35,17 @@ export const STORE_CONNECTION_ENABLED =
   process.env.NEXT_PUBLIC_FEATURE_STORE_CONNECTION === "true";
 
 /// Dominio propio (Configuración → General → CustomDomainForm). Escondido
-/// por ahora: todas las tiendas van en {slug}.marcolini.lat. Un dominio ya
-/// verificado sigue funcionando; solo no se ofrece en el panel. Para
-/// encenderlo: NEXT_PUBLIC_FEATURE_CUSTOM_DOMAIN=true. Ver conversación
-/// del 2026-10-01.
-export const CUSTOM_DOMAIN_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CUSTOM_DOMAIN === "true";
+/// desde el 2026-10-01 y encendido para todas las marcas el 2026-10-19
+/// ("necesito que construyas lo del dominio propio para marcas"), con lo
+/// que faltaba para que no se rompa nada: los links cambian solo cuando el
+/// dominio de verdad abre la tienda, el subdominio redirige con la
+/// atribución de las creadoras y hay revisión diaria (ver
+/// custom-domain-service.ts). Para que Marcolini registre los dominios en
+/// Vercel solo hacen falta VERCEL_API_TOKEN y VERCEL_TEAM_ID; sin ellos se
+/// le avisa al equipo para hacerlo a mano. Para apagarlo:
+/// NEXT_PUBLIC_FEATURE_CUSTOM_DOMAIN=false (un dominio ya activo sigue
+/// funcionando; solo no se ofrece en el panel).
+export const CUSTOM_DOMAIN_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CUSTOM_DOMAIN !== "false";
 
 /// Campañas y misiones (retos: Misión, Flash Sale, Mix — challenge-service.ts).
 /// Escondidas: Marcolini se enfoca 100% en lo esencial (códigos, comisiones,

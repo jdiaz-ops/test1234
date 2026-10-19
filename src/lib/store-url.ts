@@ -1,17 +1,30 @@
 import { ROOT_DOMAIN } from "@/lib/subdomain";
 
 /// Dirección pública de la tienda de una marca: el dominio propio si ya
-/// está verificado, si no el subdominio gratis. null si todavía no tiene
+/// está activo (abre la tienda de verdad, ver customDomainActiveAt), si no
+/// el subdominio gratis. Con el dominio solo verificado todavía no: el DNS
+/// puede no apuntar y los links quedarían rotos. null si todavía no tiene
 /// storefrontSlug. Una sola definición para links de productos,
-/// colecciones y correos.
+/// colecciones, correos, pagos y el mapa del sitio.
 export function publicStoreUrl(brand: {
   customDomain: string | null;
-  customDomainVerifiedAt: Date | null;
+  customDomainActiveAt: Date | null;
   storefrontSlug: string | null;
 }): string | null {
-  if (brand.customDomain && brand.customDomainVerifiedAt) return `https://${brand.customDomain}`;
+  if (brand.customDomain && brand.customDomainActiveAt) return `https://${brand.customDomain}`;
   if (brand.storefrontSlug) return `https://${brand.storefrontSlug}.${ROOT_DOMAIN}`;
   return null;
+}
+
+/// La dirección oficial de una página de la tienda (<link rel="canonical">),
+/// para que Google no parta el posicionamiento entre el subdominio y el
+/// dominio propio: siempre la de publicStoreUrl. `path` empieza con "/".
+export function storeCanonical(
+  brand: Parameters<typeof publicStoreUrl>[0],
+  path: string,
+): { canonical: string } | undefined {
+  const store = publicStoreUrl(brand);
+  return store ? { canonical: `${store}${path}` } : undefined;
 }
 
 /// Dirección del portal (donde entra la marca), para los links de los

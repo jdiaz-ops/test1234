@@ -327,6 +327,24 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "creador,caja",
   },
   {
+    key: "CUSTOM_DOMAIN_ACTIVE",
+    label: "Tu dominio propio quedó activo",
+    audience: "BRAND",
+    channelEmail: true,
+    messageTemplate:
+      "¡Tu dominio {dominio} ya está activo! Tu tienda abre ahí y los links de {subdominio} llevan a la misma página en tu dominio.",
+    placeholders: "dominio,subdominio",
+  },
+  {
+    key: "CUSTOM_DOMAIN_DOWN",
+    label: "Tu dominio propio dejó de responder",
+    audience: "BRAND",
+    channelEmail: true,
+    messageTemplate:
+      "Tu dominio {dominio} dejó de abrir tu tienda. Mientras lo revisas, todo sigue funcionando en {subdominio}. Revisa el DNS en Configuración → General → Dominio propio.",
+    placeholders: "dominio,subdominio",
+  },
+  {
     key: "PAID_CONTENT_REQUEST_ACCEPTED",
     label: "Creador aceptó tu encargo de contenido",
     audience: "BRAND",
@@ -498,6 +516,14 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     channelEmail: true,
     messageTemplate: "Nueva solicitud por el link de {aliado}: {tipo} {nombre} ({celular}). Revísala en Admin → Aliados.",
     placeholders: "aliado,tipo,nombre,celular",
+  },
+  {
+    key: "CUSTOM_DOMAIN_ADMIN",
+    label: "Un dominio propio necesita un paso en Vercel",
+    audience: "ADMIN",
+    channelEmail: true,
+    messageTemplate: "{marca} verificó su dominio {dominio}. {detalle}",
+    placeholders: "marca,dominio,detalle",
   },
   {
     key: "SUGGESTION_ADMIN",

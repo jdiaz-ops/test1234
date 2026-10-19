@@ -5,7 +5,7 @@ import {
   toManualProductSummary,
 } from "@/server/services/brand-store-product-service";
 import { StoreProductsPanel } from "@/components/portal/store-products-panel";
-import { ROOT_DOMAIN } from "@/lib/subdomain";
+import { publicStoreUrl } from "@/lib/store-url";
 
 export default async function TiendaProductosPage() {
   const profile = await requireBrandProfile();
@@ -17,13 +17,8 @@ export default async function TiendaProductosPage() {
   const importTools = await isAdminActingAsBrand();
 
   // Para el link "Ver en la tienda" de cada producto — mismo criterio que
-  // en Colecciones (dominio propio verificado, si no el subdominio).
-  const storeUrl =
-    profile.customDomain && profile.customDomainVerifiedAt
-      ? `https://${profile.customDomain}`
-      : profile.storefrontSlug
-        ? `https://${profile.storefrontSlug}.${ROOT_DOMAIN}`
-        : null;
+  // en Colecciones (dominio propio activo, si no el subdominio).
+  const storeUrl = publicStoreUrl(profile);
 
   return (
     <div>

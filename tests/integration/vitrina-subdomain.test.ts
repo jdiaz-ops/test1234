@@ -8,7 +8,7 @@ import { ROOT_DOMAIN } from "@/lib/subdomain";
 import { createBrand, hasDb } from "./helpers";
 
 describe("links de producto desde la vitrina", () => {
-  const brand = { storeType: "OTHER", storefrontSlug: "hlacosedora", customDomain: null, customDomainVerifiedAt: null };
+  const brand = { storeType: "OTHER", storefrontSlug: "hlacosedora", customDomain: null, customDomainActiveAt: null };
 
   it("un producto de Mi tienda va a la tienda actual de la marca con el código", () => {
     // Guardado con el link provisional de antes de que la marca eligiera el suyo.

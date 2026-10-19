@@ -7,6 +7,7 @@ import { getStoreBasePath } from "@/lib/store-base-path";
 import { listEnabledStorefrontSections } from "@/server/services/storefront-section-service";
 import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
+import { storeCanonical } from "@/lib/store-url";
 
 export async function generateMetadata({
   params,
@@ -23,6 +24,7 @@ export async function generateMetadata({
     title,
     description,
     openGraph: { title, description, type: "website" },
+    alternates: storeCanonical(brand, "/"),
   };
 }
 

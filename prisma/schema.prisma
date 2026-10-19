@@ -733,6 +733,16 @@ model BrandProfile {
   /// verifyCustomDomain en custom-domain-service.ts.
   customDomainVerificationToken String?
   customDomainVerifiedAt        DateTime?
+  /// Desde cuándo el dominio propio de verdad abre la tienda: responde por
+  /// https desde Marcolini (ver checkCustomDomainLive en
+  /// custom-domain-service.ts). Recién ahí los links, correos, pagos y el
+  /// mapa del sitio pasan al dominio propio, y el subdominio redirige a la
+  /// misma página allá. Verificar el TXT solo prueba que es de la marca.
+  /// Vuelve a null si deja de responder (la tienda sigue en el subdominio).
+  customDomainActiveAt  DateTime?
+  /// Última revisión de la conexión (al abrir Configuración, con "Revisar
+  /// conexión" y cada día, ver /api/cron/dominios).
+  customDomainCheckedAt DateTime?
 
   /// Plantilla del catálogo de Mi tienda — ver enum StorefrontTemplate.
   storefrontTemplate StorefrontTemplate @default(CLASICA)

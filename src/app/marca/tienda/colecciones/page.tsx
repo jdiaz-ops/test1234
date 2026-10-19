@@ -2,7 +2,7 @@ import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { StoreCollectionsPanel } from "@/components/portal/store-collections-panel";
 import { listBrandCollections } from "@/server/services/brand-collection-service";
-import { ROOT_DOMAIN } from "@/lib/subdomain";
+import { publicStoreUrl } from "@/lib/store-url";
 
 export default async function TiendaColeccionesPage() {
   const profile = await requireBrandProfile();
@@ -12,14 +12,9 @@ export default async function TiendaColeccionesPage() {
 
   // La dirección pública de la tienda, para armar el link de cada colección
   // (la marca lo copia para pegarlo en Instagram, el menú, etc.) — el
-  // dominio propio si ya está verificado, si no el subdominio gratis. Sin
+  // dominio propio si ya está activo, si no el subdominio gratis. Sin
   // storefrontSlug todavía no hay link. Ver conversación del 2026-09-30.
-  const storeUrl =
-    profile.customDomain && profile.customDomainVerifiedAt
-      ? `https://${profile.customDomain}`
-      : profile.storefrontSlug
-        ? `https://${profile.storefrontSlug}.${ROOT_DOMAIN}`
-        : null;
+  const storeUrl = publicStoreUrl(profile);
 
   return (
     <div>

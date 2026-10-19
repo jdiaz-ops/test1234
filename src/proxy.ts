@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { extractSubdomainSlug, isPlatformHost, ROOT_DOMAIN } from "@/lib/subdomain";
 import { prisma } from "@/lib/prisma";
 import { slugTakenByBrand } from "@/lib/creator-identity";
+import { apexOf, customDomainRedirectUrl, REF_AT_COOKIE, REF_COOKIE, REF_MAX_AGE, refRemainingSeconds } from "@/lib/custom-domain";
 
 const roleHome: Record<string, string> = {
   CREATOR: "/creador",
@@ -17,17 +18,22 @@ const roleHome: Record<string, string> = {
 /// lib/brand-store-link.ts), se lo guardamos en una cookie propia de este
 /// origen — subdominio o dominio propio, cada marca ya vive en el suyo,
 /// así que Path=/ no se cruza entre marcas — por 30 días. Si compra sin
-/// escribir el código a mano, igual se le atribuye a este creador.
-const REF_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
-
+/// escribir el código a mano, igual se le atribuye a este creador. Al
+/// lado va cuándo se guardó (mkl_ref_at): si viene del subdominio rumbo al
+/// dominio propio (?ref_at, ver customDomainRedirectUrl), la cookie dura lo
+/// que le quedaba, no 30 días de nuevo.
 function withRefCookie(response: NextResponse, req: NextRequest) {
   const ref = req.nextUrl.searchParams.get("ref");
   if (ref) {
-    response.cookies.set("mkl_ref", ref, {
-      path: "/",
-      maxAge: REF_COOKIE_MAX_AGE,
-      sameSite: "lax",
-    });
+    const now = Math.floor(Date.now() / 1000);
+    const at = Number(req.nextUrl.searchParams.get("ref_at")) || null;
+    const maxAge = refRemainingSeconds(at, now);
+    if (maxAge > 0) {
+      const options = { path: "/", maxAge, sameSite: "lax" as const };
+      response.cookies.set(REF_COOKIE, ref, options);
+      // Desde cuándo cuenta: el ref_at que traía o, con un link nuevo, ahora.
+      response.cookies.set(REF_AT_COOKIE, String(now - (REF_MAX_AGE - maxAge)), options);
+    }
   }
   return response;
 }
@@ -42,6 +48,12 @@ export default auth(async (req) => {
   // subdominio (ej. /api/tienda/{slug}/ordenes) terminaría buscando
   // /t/{slug}/api/tienda/{slug}/ordenes, que no existe.
   const isApiRoute = pathname.startsWith("/api/");
+  // Dentro de un iframe no se redirige: la vista previa del editor de
+  // Diseño carga /t/{slug} en el mismo dominio del portal para que viaje
+  // la sesión de la marca y la vitrina muestre el borrador (ver
+  // getStorefrontTheme) — al subdominio la cookie de sesión no llega. Ver
+  // conversación del 2026-09-30.
+  const inIframe = req.headers.get("sec-fetch-dest") === "iframe";
 
   // ---- Subdominio de marca ({slug}.marcolini.lat) ----
   // Se resuelve ANTES que el resto — un subdominio de marca nunca es el
@@ -83,6 +95,30 @@ export default auth(async (req) => {
   }
 
   if (subdomainSlug) {
+    // ---- Con dominio propio activo, el subdominio lleva allá ----
+    // A la misma página, con la atribución de la creadora que traía el
+    // comprador en este subdominio (ver customDomainRedirectUrl). Solo
+    // cuando el dominio ya abre la tienda (customDomainActiveAt): antes,
+    // el subdominio sigue siendo la tienda. Así los links ya compartidos,
+    // los QR y lo que tiene Google siguen sirviendo.
+    if (!inIframe) {
+      const brand = await prisma.brandProfile.findUnique({
+        where: { storefrontSlug: subdomainSlug },
+        select: { customDomain: true, customDomainActiveAt: true },
+      });
+      if (brand?.customDomain && brand.customDomainActiveAt) {
+        const target = customDomainRedirectUrl({
+          customDomain: brand.customDomain,
+          slug: subdomainSlug,
+          pathname,
+          search,
+          ref: req.cookies.get(REF_COOKIE)?.value,
+          refAt: req.cookies.get(REF_AT_COOKIE)?.value,
+        });
+        return NextResponse.redirect(target, 308);
+      }
+    }
+
     // Ya viene con el prefijo /t/{slug} (un link viejo absoluto que quedó
     // en el HTML, o alguien navegando a mano) — se reescribe tal cual, sin
     // volver a anteponer el prefijo.
@@ -107,16 +143,32 @@ export default auth(async (req) => {
   // ---- Dominio propio de una marca (ya verificado) ----
   // Cualquier host que no sea de Marcolini es candidato — si corresponde a
   // una marca con customDomainVerifiedAt puesto, se resuelve igual que un
-  // subdominio (mismo rewrite a /t/{slug}). Si no existe o no está
-  // verificado, se deja pasar tal cual — normalmente termina en 404, que
-  // es lo correcto: nunca hay que reclamar tráfico de un dominio ajeno o
-  // sin verificar.
+  // subdominio (mismo rewrite a /t/{slug}). Desde que es suyo abre la
+  // tienda, aunque los links todavía no lo usen (eso espera a que esté
+  // activo, ver publicStoreUrl): así se puede comprobar que ya funciona.
+  // Si no existe o no está verificado, se deja pasar tal cual —
+  // normalmente termina en 404, que es lo correcto: nunca hay que reclamar
+  // tráfico de un dominio ajeno o sin verificar.
   if (!isApiRoute && !isPlatformHost(host)) {
     const hostname = host?.split(":")[0].toLowerCase() ?? "";
     const brand = await prisma.brandProfile.findUnique({
       where: { customDomain: hostname },
       select: { storefrontSlug: true, customDomainVerifiedAt: true },
     });
+    // La otra forma del dominio (www.tumarca.com si la marca puso
+    // tumarca.com, o al revés) lleva al que eligió la marca, por si Vercel
+    // todavía no tiene esa redirección — solo cuando ese ya abre la tienda.
+    if (!brand) {
+      const apex = apexOf(hostname);
+      const main = hostname === apex ? `www.${apex}` : hostname === `www.${apex}` ? apex : null;
+      const owner = main
+        ? await prisma.brandProfile.findUnique({ where: { customDomain: main }, select: { customDomainActiveAt: true } })
+        : null;
+      if (main && owner?.customDomainActiveAt) {
+        const url = new URL(`https://${main}${pathname}${search}`);
+        return NextResponse.redirect(url, 308);
+      }
+    }
     if (brand?.customDomainVerifiedAt && brand.storefrontSlug) {
       const slug = brand.storefrontSlug;
       const alreadyPrefixed = pathname === `/t/${slug}` || pathname.startsWith(`/t/${slug}/`);
@@ -133,12 +185,7 @@ export default auth(async (req) => {
   // funcionando — solo que ahora mandan al comprador al subdominio nuevo,
   // que es el que se sigue promocionando de acá en adelante.
   const legacyMatch = !isApiRoute ? pathname.match(/^\/t\/([a-z0-9-]+)(\/.*)?$/) : null;
-  // Dentro de un iframe no se redirige: la vista previa del editor de
-  // Diseño carga /t/{slug} en el mismo dominio del portal para que viaje
-  // la sesión de la marca y la vitrina muestre el borrador (ver
-  // getStorefrontTheme) — al subdominio la cookie de sesión no llega. Ver
-  // conversación del 2026-09-30.
-  const inIframe = req.headers.get("sec-fetch-dest") === "iframe";
+  // (Si la marca tiene dominio propio activo, el subdominio lleva allá.)
   if (legacyMatch && !inIframe) {
     const [, slug, rest] = legacyMatch;
     const url = req.nextUrl.clone();

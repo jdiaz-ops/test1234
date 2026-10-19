@@ -22,7 +22,7 @@ export function buildBrandStoreLink(
     websiteUrl?: string | null;
     storefrontSlug: string | null;
     customDomain: string | null;
-    customDomainVerifiedAt: Date | null;
+    customDomainActiveAt: Date | null;
   },
   discountCode: string
 ): string | null {
@@ -58,7 +58,7 @@ export function buildProductLink(
     storeType: string;
     storefrontSlug: string | null;
     customDomain: string | null;
-    customDomainVerifiedAt: Date | null;
+    customDomainActiveAt: Date | null;
   },
   product: { url: string; slug: string | null; manual: boolean },
   discountCode: string | null,

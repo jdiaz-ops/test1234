@@ -7,6 +7,7 @@ import { StoreConfigForm } from "@/components/portal/store-config-form";
 import { CustomDomainForm } from "@/components/portal/custom-domain-form";
 import { TaxConfigForm } from "@/components/portal/tax-config-form";
 import { CUSTOM_DOMAIN_ENABLED } from "@/lib/features";
+import { ROOT_DOMAIN } from "@/lib/subdomain";
 
 export default async function TiendaConfiguracionPage() {
   const profile = await requireBrandProfile();
@@ -67,6 +68,8 @@ export default async function TiendaConfiguracionPage() {
           initialDomain={profile.customDomain}
           initialToken={profile.customDomainVerificationToken}
           initialVerified={profile.customDomainVerifiedAt != null}
+          initialActive={Boolean(profile.customDomain && profile.customDomainActiveAt)}
+          storeSubdomain={profile.storefrontSlug ? `${profile.storefrontSlug}.${ROOT_DOMAIN}` : null}
         />
       )}
 
