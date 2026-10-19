@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { GOOGLE_LOGIN_ENABLED } from "@/lib/features";
 
 const roleHome: Record<string, string> = {
   // Pasa por /creador/inicio: "Empieza aquí" si no ha terminado el
@@ -109,20 +110,26 @@ function LoginForm() {
         </button>
       </form>
 
-      <div className="flex items-center gap-3 my-5">
-        <div className="h-px bg-brand-line flex-1" />
-        <span className="text-xs text-brand-ink-soft">o</span>
-        <div className="h-px bg-brand-line flex-1" />
-      </div>
+      {/* Escondido mientras GOOGLE_LOGIN_ENABLED esté apagado (ver
+          lib/features.ts). */}
+      {GOOGLE_LOGIN_ENABLED && (
+        <>
+          <div className="flex items-center gap-3 my-5">
+            <div className="h-px bg-brand-line flex-1" />
+            <span className="text-xs text-brand-ink-soft">o</span>
+            <div className="h-px bg-brand-line flex-1" />
+          </div>
 
-      <button
-        onClick={() =>
-          signIn("google", { callbackUrl: explicitCallbackUrl ?? "/creador/inicio" })
-        }
-        className="w-full border border-brand-line rounded-md py-2 text-sm font-medium hover:bg-brand-accent-soft"
-      >
-        Continuar con Google
-      </button>
+          <button
+            onClick={() =>
+              signIn("google", { callbackUrl: explicitCallbackUrl ?? "/creador/inicio" })
+            }
+            className="w-full border border-brand-line rounded-md py-2 text-sm font-medium hover:bg-brand-accent-soft"
+          >
+            Continuar con Google
+          </button>
+        </>
+      )}
 
       <p className="text-center text-sm text-brand-ink-soft mt-6">
         ¿No tienes cuenta?{" "}
