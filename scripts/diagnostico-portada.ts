@@ -7,7 +7,8 @@
 ///
 /// Uso: npx tsx scripts/diagnostico-portada.ts https://tienda.com [productos]
 /// Con "productos" baja el catálogo (products.json / Store API) en vez de
-/// la portada; con "url" solo muestra lo que responde esa dirección.
+/// la portada; con "url" solo muestra lo que responde esa dirección; con
+/// "esquema", lo que recibe la IA para copiar la portada.
 import { gzipSync } from "node:zlib";
 import { parseShopifyStorefront } from "@/lib/shopify-theme";
 import { readShopifyStorefront } from "@/server/services/shopify-store-reader";
@@ -254,6 +255,27 @@ async function main() {
     const text = await res.text();
     console.log(`Estado ${res.status} · ${res.headers.get("content-type") ?? "?"} · ${text.length} caracteres · URL final ${res.url}`);
     console.log(text.slice(0, 300_000));
+    console.log("---- fin ----");
+    return;
+  }
+  if (process.argv[3] === "esquema") {
+    // Modo "esquema": el esquema de la portada que recibe la IA en la copia
+    // fiel de Duplicar tienda (ver home-copy.ts), tal cual, y la letra que
+    // quedaría. Pedido el 2026-10-19: "una copia fiel de la tienda original".
+    const { buildHomeOutline } = await import("@/lib/shopify-theme");
+    const { outlineForPrompt } = await import("@/lib/home-copy");
+    const { readStorefrontDocument } = await import("@/server/services/shopify-store-reader");
+    const doc = await readStorefrontDocument(url);
+    const outline = buildHomeOutline(doc.html, doc.storeUrl, doc.css);
+    const kinds = new Map<string, number>();
+    for (const item of outline.items) kinds.set(item.kind, (kinds.get(item.kind) ?? 0) + 1);
+    console.log(`Tienda ${doc.storeUrl} · HTML ${doc.html.length} · CSS ${doc.css.length} · elementos ${outline.items.length}${outline.truncated ? " (cortado)" : ""}`);
+    console.log("Por tipo:", JSON.stringify(Object.fromEntries(kinds)));
+    console.log("---- esquema ----");
+    console.log(outlineForPrompt(outline));
+    const { theme } = await readShopifyStorefront(url);
+    console.log("---- letra y colores ----");
+    console.log(JSON.stringify({ fonts: theme.fonts, colors: theme.colors }, null, 1));
     console.log("---- fin ----");
     return;
   }
