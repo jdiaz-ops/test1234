@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /// Herramienta del administrador (solo con "Entrar como"): el organizador
 /// automático de tienda. "Ver propuesta" arma el plan (colecciones,
@@ -65,6 +65,76 @@ const SECTION_LABEL: Record<string, string> = {
   PRODUCT_CATALOG: "Todos los productos",
 };
 
+const API = "/api/marca/tienda/organizar";
+
+/// Una petición al organizador. La página de error de Vercel (cuando una
+/// función se pasa del tiempo) no es JSON: se traduce a algo entendible.
+export async function organizerRequest(body: unknown): Promise<Record<string, unknown>> {
+  const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const text = await res.text();
+  let data: Record<string, unknown> | null = null;
+  try {
+    data = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data?.ok) {
+    const error = typeof data?.error === "string" ? data.error : null;
+    throw new Error(error ?? (res.status === 504 || /An error o/.test(text) ? "El servidor tardó demasiado en este paso. Intenta de nuevo." : "No se pudo completar este paso."));
+  }
+  return data;
+}
+
+type DefinedCollection = { name: string; description: string; children: string[] };
+type Assignment = { id: string; collection: string; child: string | null };
+
+const CLASSIFY_CONCURRENCY = 3;
+
+/// Arma el plan por pasos: "prepare" (con IA define las colecciones; sin
+/// IA ya devuelve el plan), "classify" por tandas en paralelo, y "plan".
+/// Si una tanda falla dos veces, todo se arma por reglas.
+export async function buildOrganizerPlan(onStep: (step: string) => void): Promise<{ plan: OrganizerPlanView; lastRun: LastRun }> {
+  onStep("Leyendo el catálogo, las ventas y las reseñas, y definiendo las colecciones con la IA…");
+  const prepared = (await organizerRequest({ action: "prepare" })) as unknown as
+    | { mode: "reglas"; plan: OrganizerPlanView; lastRun: LastRun }
+    | { mode: "ia"; collections: DefinedCollection[]; batches: string[][]; total: number; lastRun: LastRun };
+  if (prepared.mode === "reglas") return { plan: prepared.plan, lastRun: prepared.lastRun };
+  const ia = prepared;
+
+  const queue = ia.batches.slice();
+  const assignments: Assignment[] = [];
+  const productNames: { id: string; name: string }[] = [];
+  let done = 0;
+  let failed = false;
+  onStep(`Colecciones: ${ia.collections.map((c) => c.name).join(", ")}. Clasificando productos… 0 de ${ia.total}`);
+  async function worker() {
+    while (queue.length > 0 && !failed) {
+      const ids = queue.shift()!;
+      const classify = () => organizerRequest({ action: "classify", collections: ia.collections, ids }) as Promise<unknown>;
+      let result = await classify().catch(() => null);
+      if (!result) result = await classify().catch(() => null);
+      if (!result) {
+        failed = true;
+        return;
+      }
+      const r = result as { assignments: Assignment[]; productNames: { id: string; name: string }[] };
+      assignments.push(...r.assignments);
+      productNames.push(...r.productNames);
+      done += ids.length;
+      onStep(`Clasificando productos con la IA… ${Math.min(done, ia.total)} de ${ia.total}`);
+    }
+  }
+  await Promise.all(Array.from({ length: CLASSIFY_CONCURRENCY }, worker));
+  if (failed) {
+    onStep("La IA no respondió en alguna tanda: se arma por reglas…");
+    const rules = (await organizerRequest({ action: "plan", mode: "reglas" })) as unknown as { plan: OrganizerPlanView; lastRun: LastRun };
+    return { plan: rules.plan, lastRun: rules.lastRun };
+  }
+  onStep("Armando el plan: orden, menú y portada…");
+  const planned = (await organizerRequest({ action: "plan", mode: "ia", definitions: ia.collections, assignments, productNames })) as unknown as { plan: OrganizerPlanView; lastRun: LastRun };
+  return { plan: planned.plan, lastRun: planned.lastRun };
+}
+
 export function summaryText(s: OrganizerSummary) {
   return `${s.collections.created + s.collections.updated} colecciones (${s.collections.created} nuevas, ${s.collections.updated} conservadas, ${s.collections.removed} quitadas${s.collections.subcollections > 0 ? `, ${s.collections.subcollections} subcolecciones` : ""}) · ${s.products.placed} productos ubicados · ${s.products.renamed} nombres arreglados · menú de ${s.menu} enlaces · portada con ${s.home} secciones${s.families > 0 ? ` · ${s.families} familias` : ""} · estructura por ${s.source === "ia" ? "IA" : "reglas"}`;
 }
@@ -72,7 +142,14 @@ export function summaryText(s: OrganizerSummary) {
 export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
   const [plan, setPlan] = useState<OrganizerPlanView | null>(null);
   const [lastRun, setLastRun] = useState<LastRun>(null);
+  useEffect(() => {
+    fetch(API)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => body && setLastRun(body.lastRun as LastRun))
+      .catch(() => {});
+  }, []);
   const [busy, setBusy] = useState<"preview" | "apply" | "undo" | null>(null);
+  const [step, setStep] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showNames, setShowNames] = useState(false);
@@ -82,15 +159,14 @@ export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch("/api/marca/tienda/organizar");
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "No se pudo armar el plan.");
-      setPlan(body.plan);
-      setLastRun(body.lastRun);
+      const built = await buildOrganizerPlan(setStep);
+      setPlan(built.plan);
+      setLastRun(built.lastRun);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo armar el plan.");
     } finally {
       setBusy(null);
+      setStep(null);
     }
   }
 
@@ -99,15 +175,9 @@ export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
     setBusy("apply");
     setError(null);
     try {
-      const res = await fetch("/api/marca/tienda/organizar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "apply", plan }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "No se pudo aplicar.");
+      const body = await organizerRequest({ action: "apply", plan });
       setNotice(`Listo: ${summaryText(body.summary as OrganizerSummary)}.`);
-      setLastRun(body.lastRun);
+      setLastRun(body.lastRun as LastRun);
       setPlan(null);
       onApplied?.();
     } catch (err) {
@@ -121,15 +191,10 @@ export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
     setBusy("undo");
     setError(null);
     try {
-      const res = await fetch("/api/marca/tienda/organizar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "undo" }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "No se pudo deshacer.");
-      setNotice(`Se volvió a como estaba: ${body.restored.collections} colecciones, ${body.restored.menu} enlaces del menú, ${body.restored.sections} secciones y ${body.restored.products} nombres.`);
-      setLastRun(body.lastRun);
+      const body = await organizerRequest({ action: "undo" });
+      const restored = body.restored as { collections: number; menu: number; sections: number; products: number };
+      setNotice(`Se volvió a como estaba: ${restored.collections} colecciones, ${restored.menu} enlaces del menú, ${restored.sections} secciones y ${restored.products} nombres.`);
+      setLastRun(body.lastRun as LastRun);
       setPlan(null);
       onApplied?.();
     } catch (err) {
@@ -176,9 +241,7 @@ export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {notice && <p className="text-sm text-green-700">{notice}</p>}
-      {busy === "preview" && (
-        <p className="text-xs text-brand-ink-soft">Leyendo el catálogo, las ventas y las reseñas, y pidiéndole a la IA la estructura… puede tardar hasta un minuto.</p>
-      )}
+      {busy === "preview" && <p className="text-xs text-brand-ink-soft">{step ?? "Armando el plan…"} Una tienda grande tarda unos minutos.</p>}
       {plan && (
         <div className="space-y-3 text-sm text-brand-ink">
           <p>

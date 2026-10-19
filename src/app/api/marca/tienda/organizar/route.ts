@@ -4,15 +4,20 @@ import { requireAdminActingAsBrand } from "@/lib/current-brand";
 import { limitOrReject } from "@/lib/rate-limit";
 import {
   applyStoreOrganizer,
+  classifyStoreOrganizer,
   lastOrganizerRun,
-  previewStoreOrganizer,
+  planStoreOrganizer,
+  prepareStoreOrganizer,
   StoreOrganizerError,
   undoStoreOrganizer,
 } from "@/server/services/store-organizer-service";
 
 /// Organizador automático de tienda (solo admin con "Entrar como" — ver
-/// store-organizer-service.ts): GET arma el plan (con IA si hay llave) sin
-/// tocar nada; POST lo aplica tal como se mostró, o deshace el último.
+/// store-organizer-service.ts). El navegador va por pasos para que ninguna
+/// petición se pase del tiempo máximo: "prepare" (define las colecciones
+/// con IA, o devuelve el plan por reglas), "classify" por tandas, "plan"
+/// (arma el plan sin tocar nada), "apply" (lo aplica tal como se mostró)
+/// y "undo". GET solo dice si hay algo para deshacer.
 export const maxDuration = 60;
 
 const FORBIDDEN = { error: "Solo el administrador de Marcolini puede usar esta herramienta." };
@@ -79,7 +84,21 @@ const planSchema = z.object({
   }),
 });
 
+const definedCollection = z.object({ name: z.string().min(2).max(40), description: z.string().max(160), children: z.array(z.string().min(2).max(40)).max(8) });
+const assignment = z.object({ id: z.string(), collection: z.string().max(60), child: z.string().max(60).nullable() });
+const productName = z.object({ id: z.string(), name: z.string().min(2).max(255) });
+
 const bodySchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("prepare") }),
+  z.object({ action: z.literal("classify"), collections: z.array(definedCollection).min(1).max(12), ids: z.array(z.string()).min(1).max(200) }),
+  z.object({ action: z.literal("plan"), mode: z.literal("reglas") }),
+  z.object({
+    action: z.literal("plan"),
+    mode: z.literal("ia"),
+    definitions: z.array(definedCollection).min(1).max(12),
+    assignments: z.array(assignment).max(5000),
+    productNames: z.array(productName).max(5000),
+  }),
   z.object({ action: z.literal("apply"), plan: planSchema }),
   z.object({ action: z.literal("undo") }),
 ]);
@@ -87,14 +106,7 @@ const bodySchema = z.discriminatedUnion("action", [
 export async function GET() {
   const profile = await requireAdminActingAsBrand();
   if (!profile) return NextResponse.json(FORBIDDEN, { status: 403 });
-  try {
-    const [plan, lastRun] = await Promise.all([previewStoreOrganizer(profile.id), lastOrganizerRun(profile.id)]);
-    return NextResponse.json({ ok: true, plan, lastRun });
-  } catch (err) {
-    if (err instanceof StoreOrganizerError) return NextResponse.json({ error: err.message }, { status: 422 });
-    console.error("[organizar]", err);
-    return NextResponse.json({ error: "No se pudo armar el plan." }, { status: 500 });
-  }
+  return NextResponse.json({ ok: true, lastRun: await lastOrganizerRun(profile.id) });
 }
 
 export async function POST(req: Request) {
@@ -105,12 +117,28 @@ export async function POST(req: Request) {
   const body = bodySchema.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "El plan no es válido. Vuelve a generarlo." }, { status: 400 });
   try {
-    if (body.data.action === "undo") {
-      const result = await undoStoreOrganizer(profile.id);
-      return NextResponse.json({ ok: true, ...result, lastRun: await lastOrganizerRun(profile.id) });
+    const data = body.data;
+    switch (data.action) {
+      case "prepare":
+        return NextResponse.json({ ok: true, ...(await prepareStoreOrganizer(profile.id)), lastRun: await lastOrganizerRun(profile.id) });
+      case "classify": {
+        const result = await classifyStoreOrganizer(profile.id, { collections: data.collections, ids: data.ids });
+        if (!result) return NextResponse.json({ error: "La IA no respondió para esta tanda." }, { status: 422 });
+        return NextResponse.json({ ok: true, ...result });
+      }
+      case "plan": {
+        const plan = await planStoreOrganizer(profile.id, data.mode === "reglas" ? { mode: "reglas" } : { mode: "ia", definitions: data.definitions, assignments: data.assignments, productNames: data.productNames });
+        return NextResponse.json({ ok: true, plan, lastRun: await lastOrganizerRun(profile.id) });
+      }
+      case "undo": {
+        const result = await undoStoreOrganizer(profile.id);
+        return NextResponse.json({ ok: true, ...result, lastRun: await lastOrganizerRun(profile.id) });
+      }
+      case "apply": {
+        const summary = await applyStoreOrganizer(profile.id, data.plan as never);
+        return NextResponse.json({ ok: true, summary, lastRun: await lastOrganizerRun(profile.id) });
+      }
     }
-    const summary = await applyStoreOrganizer(profile.id, body.data.plan as never);
-    return NextResponse.json({ ok: true, summary, lastRun: await lastOrganizerRun(profile.id) });
   } catch (err) {
     if (err instanceof StoreOrganizerError) return NextResponse.json({ error: err.message }, { status: 422 });
     console.error("[organizar]", err);

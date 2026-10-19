@@ -391,6 +391,45 @@ export function proposeStructureByRules(products: OrganizerProduct[], collection
 }
 
 // ---------------------------------------------------------------------------
+// Armar la propuesta con lo que la IA respondió por pasos
+// ---------------------------------------------------------------------------
+
+export type StructureDefinition = { name: string; description: string; children: string[] };
+export type StructureAssignment = { id: string; collection: string; child: string | null };
+
+/// Junta las colecciones definidas (paso 1) con las asignaciones de cada
+/// tanda (paso 2) en una propuesta; lo que no se asignó cae en "Otros
+/// productos" al limpiar (sanitizeStructure).
+export function structureFromAssignments(
+  definitions: StructureDefinition[],
+  assignments: StructureAssignment[],
+  productNames: { id: string; name: string }[],
+): StructureProposal {
+  const collections = definitions.map((d) => ({
+    name: d.name,
+    description: d.description,
+    productIds: [] as string[],
+    children: d.children.map((name) => ({ name, productIds: [] as string[] })),
+  }));
+  const byName = new Map(collections.map((c) => [collectionNameKey(c.name), c]));
+  let others: ProposedStructureCollection | null = null;
+  for (const a of assignments) {
+    const target = byName.get(collectionNameKey(a.collection));
+    if (!target) {
+      others ??= { name: OTHER_COLLECTION_NAME, productIds: [] };
+      others.productIds.push(a.id);
+      continue;
+    }
+    target.productIds.push(a.id);
+    if (a.child) target.children.find((ch) => collectionNameKey(ch.name) === collectionNameKey(a.child!))?.productIds.push(a.id);
+  }
+  return {
+    collections: [...collections.map((c) => ({ name: c.name, description: c.description, productIds: c.productIds, children: c.children })), ...(others ? [others] : [])],
+    productNames,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Limpieza de lo que propone la IA
 // ---------------------------------------------------------------------------
 

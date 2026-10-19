@@ -38,7 +38,7 @@ import {
   type StorePlatform,
 } from "@/lib/store-scrape";
 import type { ScanResult, ScanStep } from "@/server/services/other-store-reader";
-import { summaryText, type OrganizerSummary } from "@/components/portal/store-organizer-tool";
+import { buildOrganizerPlan, organizerRequest, summaryText, type OrganizerSummary } from "@/components/portal/store-organizer-tool";
 import { CatalogFilesReader, type FilesRead } from "@/components/portal/catalog-files-reader";
 
 type ImportResult = {
@@ -150,7 +150,6 @@ const API_DESIGN = "/api/marca/tienda/diseno/importar-shopify";
 const API_SHIPPING = "/api/marca/tienda/envios/importar-shopify";
 const API_PAGES = "/api/marca/tienda/paginas/importar-shopify";
 const API_SECTIONS = "/api/marca/tienda/secciones/importar-shopify";
-const API_ORGANIZE = "/api/marca/tienda/organizar";
 const API_PROFILE_READ = "/api/marca/tienda/perfil/leer";
 const API_PROFILE_IMPORT = "/api/marca/tienda/perfil/importar";
 const API_GATEWAYS = "/api/marca/tienda/pagos/pasarelas";
@@ -1126,12 +1125,9 @@ export function ShopifyImporter({
     if (options.organize) {
       setExtraStep("Organizando la tienda: colecciones, orden, menú y portada… (puede tardar un minuto)");
       try {
-        const preview = await fetch(API_ORGANIZE).then(async (res) => {
-          const body = await res.json().catch(() => null);
-          if (!res.ok || !body?.ok) throw new Error(body?.error ?? "No se pudo armar el plan.");
-          return body;
-        });
-        const applied = await postJson(API_ORGANIZE, { action: "apply", plan: preview.plan });
+        const built = await buildOrganizerPlan((step) => setExtraStep(`Organizando la tienda: ${step}`));
+        setExtraStep("Organizando la tienda: aplicando colecciones, orden, menú y portada…");
+        const applied = await organizerRequest({ action: "apply", plan: built.plan });
         result.organizer = applied.summary as OrganizerSummary;
       } catch (err) {
         result.errors.push(`Organizar la tienda: ${message(err)}`);

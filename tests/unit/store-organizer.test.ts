@@ -14,6 +14,7 @@ import {
   rankProductIds,
   sanitizeStructure,
   scoreProducts,
+  structureFromAssignments,
   type OrganizerCollection,
   type OrganizerProduct,
 } from "@/lib/store-organizer";
@@ -172,6 +173,32 @@ describe("estructura por reglas", () => {
       ["Esmaltes", 2],
       ["Herramientas y equipos", 2],
     ]);
+  });
+});
+
+describe("armar la propuesta con las respuestas por pasos de la IA", () => {
+  it("junta definiciones y asignaciones; lo desconocido va a Otros", () => {
+    const proposal = structureFromAssignments(
+      [
+        { name: "Semipermanente", description: "Color que dura.", children: ["Colores", "Bases y tops"] },
+        { name: "Herramientas", description: "", children: [] },
+      ],
+      [
+        { id: "p1", collection: "semipermanente", child: "Colores" },
+        { id: "p2", collection: "Semipermanente", child: "bases y tops" },
+        { id: "p3", collection: "Semipermanente", child: null },
+        { id: "p4", collection: "Herramientas", child: "Colores" },
+        { id: "p5", collection: "Otros productos", child: null },
+        { id: "p6", collection: "Inventada", child: null },
+      ],
+      [{ id: "p1", name: "Esmalte rojo" }],
+    );
+    expect(proposal.collections.map((c) => [c.name, c.productIds, c.children?.map((ch) => [ch.name, ch.productIds])])).toEqual([
+      ["Semipermanente", ["p1", "p2", "p3"], [["Colores", ["p1"]], ["Bases y tops", ["p2"]]]],
+      ["Herramientas", ["p4"], []],
+      ["Otros productos", ["p5", "p6"], undefined],
+    ]);
+    expect(proposal.productNames).toEqual([{ id: "p1", name: "Esmalte rojo" }]);
   });
 });
 

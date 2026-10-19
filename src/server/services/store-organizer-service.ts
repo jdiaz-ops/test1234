@@ -9,17 +9,30 @@ import {
   buildPlan,
   collectionDemand,
   FEATURED_TITLE,
+  proposeStructureByRules,
   rankProductIds,
   scoreProducts,
+  structureFromAssignments,
   type HomeSectionPlan,
   type OrganizerCollection,
   type OrganizerPlan,
   type OrganizerProduct,
   type PlannedCollection,
   type PlannedMenuItem,
+  type StructureAssignment,
+  type StructureDefinition,
+  type StructureProposal,
 } from "@/lib/store-organizer";
 import { normalizeText, OTHER_COLLECTION_NAME } from "@/lib/shopify-categorize";
-import { proposeStructure, sectorFromVertical } from "@/server/services/store-organizer-ai-service";
+import {
+  aiAvailable,
+  CLASSIFY_BATCH_SIZE,
+  classifyWithClaude,
+  defineCollectionsWithClaude,
+  sectorFromVertical,
+  type ClassifyResult,
+  type DefinedCollection,
+} from "@/server/services/store-organizer-ai-service";
 import { replaceStorefrontMenu, type BuiltMenuItem } from "@/server/services/shopify-collections-import-service";
 import { applyProductFamilies } from "@/server/services/product-family-service";
 import { saveRedirects } from "@/server/services/storefront-redirect-service";
@@ -165,22 +178,91 @@ export async function lastOrganizerRun(brandId: string): Promise<OrganizerLastRu
   return run ? { id: run.id, status: run.status, source: run.source, createdAt: run.createdAt, summary: run.summary as ApplySummary } : null;
 }
 
-/// El plan completo, sin tocar nada.
-export async function previewStoreOrganizer(brandId: string): Promise<OrganizerPlan> {
-  const catalog = await loadCatalog(brandId);
-  if (catalog.products.length === 0) throw new StoreOrganizerError("La tienda no tiene productos todavía.");
-  const { proposal, source } = await proposeStructure({
-    products: catalog.products,
-    collections: catalog.collections,
-    storeName: catalog.brand.companyName,
-    sector: catalog.brand.sector,
-  });
+function planFrom(catalog: Catalog, proposal: StructureProposal, source: OrganizerPlan["source"]): OrganizerPlan {
   return buildPlan(catalog.products, catalog.collections, proposal, {
     source,
     instagram: Boolean(catalog.brand.instagramHandle),
     whatsapp: Boolean(catalog.brand.phone),
     keepsBanner: catalog.keepsBanner,
   });
+}
+
+async function loadCatalogOrThrow(brandId: string) {
+  const catalog = await loadCatalog(brandId);
+  if (catalog.products.length === 0) throw new StoreOrganizerError("La tienda no tiene productos todavía.");
+  return catalog;
+}
+
+/// Paso 1 del navegador: con IA, define las colecciones y devuelve las
+/// tandas de productos por clasificar; sin IA (o si falla), devuelve de
+/// una vez el plan por reglas.
+export type PrepareResult =
+  | { mode: "ia"; collections: DefinedCollection[]; batches: string[][]; total: number }
+  | { mode: "reglas"; plan: OrganizerPlan };
+
+export async function prepareStoreOrganizer(brandId: string): Promise<PrepareResult> {
+  const catalog = await loadCatalogOrThrow(brandId);
+  if (aiAvailable()) {
+    try {
+      const collections = await defineCollectionsWithClaude({
+        products: catalog.products,
+        collections: catalog.collections,
+        storeName: catalog.brand.companyName,
+        sector: catalog.brand.sector,
+      });
+      if (collections) {
+        const ids = catalog.products.map((p) => p.id);
+        const batches: string[][] = [];
+        for (let i = 0; i < ids.length; i += CLASSIFY_BATCH_SIZE) batches.push(ids.slice(i, i + CLASSIFY_BATCH_SIZE));
+        return { mode: "ia", collections, batches, total: ids.length };
+      }
+    } catch (err) {
+      console.error("[organizador] definir con IA falló, se usan las reglas:", err instanceof Error ? err.message : err);
+    }
+  }
+  return { mode: "reglas", plan: planFrom(catalog, proposeStructureByRules(catalog.products, catalog.collections), "reglas") };
+}
+
+/// Paso 2: clasifica una tanda (ids de productos de la marca) en las
+/// colecciones definidas. null si la IA no respondió.
+export async function classifyStoreOrganizer(brandId: string, input: { collections: DefinedCollection[]; ids: string[] }): Promise<ClassifyResult | null> {
+  const catalog = await loadCatalogOrThrow(brandId);
+  const wanted = new Set(input.ids);
+  const products = catalog.products.filter((p) => wanted.has(p.id)).slice(0, CLASSIFY_BATCH_SIZE);
+  if (products.length === 0) return { assignments: [], productNames: [] };
+  const currentNames = new Map(catalog.collections.map((c) => [c.id, c.name]));
+  try {
+    return await classifyWithClaude({ products, currentNames, collections: input.collections, sector: catalog.brand.sector });
+  } catch (err) {
+    console.error("[organizador] clasificar con IA falló:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/// Paso 3: arma el plan con lo que respondió la IA (o por reglas).
+export async function planStoreOrganizer(
+  brandId: string,
+  structure: { mode: "reglas" } | { mode: "ia"; definitions: StructureDefinition[]; assignments: StructureAssignment[]; productNames: { id: string; name: string }[] },
+): Promise<OrganizerPlan> {
+  const catalog = await loadCatalogOrThrow(brandId);
+  if (structure.mode === "reglas") return planFrom(catalog, proposeStructureByRules(catalog.products, catalog.collections), "reglas");
+  return planFrom(catalog, structureFromAssignments(structure.definitions, structure.assignments, structure.productNames), "ia");
+}
+
+/// El plan completo en una sola llamada (pruebas y scripts): con llave
+/// encadena los pasos de la IA; sin llave, reglas.
+export async function previewStoreOrganizer(brandId: string): Promise<OrganizerPlan> {
+  const prepared = await prepareStoreOrganizer(brandId);
+  if (prepared.mode === "reglas") return prepared.plan;
+  const assignments: StructureAssignment[] = [];
+  const productNames: { id: string; name: string }[] = [];
+  for (const ids of prepared.batches) {
+    const result = await classifyStoreOrganizer(brandId, { collections: prepared.collections, ids });
+    if (!result) return planStoreOrganizer(brandId, { mode: "reglas" });
+    assignments.push(...result.assignments);
+    productNames.push(...result.productNames);
+  }
+  return planStoreOrganizer(brandId, { mode: "ia", definitions: prepared.collections, assignments, productNames });
 }
 
 // ---------------------------------------------------------------------------
@@ -423,11 +505,12 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
     snapshot.redirects = redirects.map((r) => r.fromPath);
   }
 
-  // 4. Nombres de producto.
-  for (const rename of plan.productNames) {
-    if (!ownedProducts.has(rename.id) || rename.to.trim().length < 2) continue;
-    await prisma.product.update({ where: { id: rename.id }, data: { name: rename.to.trim().slice(0, 255) } });
-    summary.products.renamed++;
+  // 4. Nombres de producto (por tandas, en una sola ida a la base cada una).
+  const renames = plan.productNames.filter((r) => ownedProducts.has(r.id) && r.to.trim().length >= 2);
+  for (let i = 0; i < renames.length; i += 100) {
+    const chunk = renames.slice(i, i + 100);
+    await prisma.$transaction(chunk.map((r) => prisma.product.update({ where: { id: r.id }, data: { name: r.to.trim().slice(0, 255) } })));
+    summary.products.renamed += chunk.length;
   }
 
   // 5. Menú.
