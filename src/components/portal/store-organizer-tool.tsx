@@ -32,9 +32,9 @@ export type OrganizerPlanView = {
   home: { type: string; title?: string; label?: string; heading?: string }[];
   announcement?: string | null;
   notes?: string | null;
+  /// Productos sin ficha: solo para esos la IA escribe una.
+  productsWithoutDescription: string[];
   productDescriptions: { id: string; html: string; summary: string }[];
-  /// Cuántas fichas ya vendían y se conservan (solo en el navegador).
-  descriptionsKept?: number;
   collectionBanners: boolean;
   settings: {
     purchaseInfo: boolean;
@@ -42,7 +42,6 @@ export type OrganizerPlanView = {
     cartSuggestions: boolean;
     footerContact: boolean;
     footerPages: boolean;
-    about: { title: string; description: string } | null;
   };
   stats: {
     products: number;
@@ -84,7 +83,7 @@ const SECTION_LABEL: Record<string, string> = {
   ON_SALE_PRODUCTS: "Ofertas",
   NEW_PRODUCTS: "Novedades",
   TEXT: "Texto de bienvenida",
-  SHIPPING_INFO_BANNERS: "Sellos de confianza (envíos, pagos, cambios, WhatsApp)",
+  SHIPPING_INFO_BANNERS: "Sellos de confianza (envíos, pagos, cambios)",
   INSTAGRAM_CTA: "Instagram",
   PRODUCT_CATALOG: "Todos los productos",
 };
@@ -124,16 +123,17 @@ type Assignment = { id: string; collection: string; child: string | null };
 const CLASSIFY_CONCURRENCY = 3;
 const DESCRIBE_BATCH = 8;
 
-/// Fichas de producto por tandas (después del plan, con la colección en la
-/// que queda cada producto). Una tanda que falla dos veces se salta: esos
-/// productos conservan su descripción.
+/// Fichas por tandas, solo para los productos que no tienen ninguna
+/// (después del plan, con la colección en la que queda cada uno). Una
+/// tanda que falla dos veces se salta: esos quedan sin ficha.
 async function describeProducts(plan: OrganizerPlanView, onStep: (step: string) => void): Promise<{ descriptions: OrganizerPlanView["productDescriptions"]; kept: number }> {
   const items: { id: string; collection: string }[] = [];
+  const without = new Set(plan.productsWithoutDescription ?? []);
   const seen = new Set<string>();
   const walk = (list: PlannedCollection[], parent?: string) => {
     for (const c of list) {
       for (const id of c.productIds) {
-        if (seen.has(id)) continue;
+        if (!without.has(id) || seen.has(id)) continue;
         seen.add(id);
         items.push({ id, collection: parent ? `${parent} / ${c.name}` : c.name });
       }
@@ -141,12 +141,13 @@ async function describeProducts(plan: OrganizerPlanView, onStep: (step: string) 
     }
   };
   walk(plan.collections);
+  if (items.length === 0) return { descriptions: [], kept: 0 };
   const queue: { id: string; collection: string }[][] = [];
   for (let i = 0; i < items.length; i += DESCRIBE_BATCH) queue.push(items.slice(i, i + DESCRIBE_BATCH));
   const descriptions: OrganizerPlanView["productDescriptions"] = [];
   let kept = 0;
   let done = 0;
-  onStep(`Escribiendo las fichas de producto con la IA… 0 de ${items.length}`);
+  onStep(`Escribiendo las fichas de los productos que no tienen… 0 de ${items.length}`);
   async function worker() {
     while (queue.length > 0) {
       const batch = queue.shift()!;
@@ -159,7 +160,7 @@ async function describeProducts(plan: OrganizerPlanView, onStep: (step: string) 
         kept += r.kept;
       }
       done += batch.length;
-      onStep(`Escribiendo las fichas de producto con la IA… ${Math.min(done, items.length)} de ${items.length}`);
+      onStep(`Escribiendo las fichas de los productos que no tienen… ${Math.min(done, items.length)} de ${items.length}`);
     }
   }
   await Promise.all(Array.from({ length: CLASSIFY_CONCURRENCY }, worker));
@@ -209,7 +210,7 @@ export async function buildOrganizerPlan(onStep: (step: string) => void): Promis
   onStep("Armando el plan: orden, menú y portada…");
   const planned = (await organizerRequest({ action: "plan", mode: "ia", definitions: ia.collections, assignments, productNames })) as unknown as { plan: OrganizerPlanView; lastRun: LastRun };
   const described = await describeProducts(planned.plan, onStep);
-  return { plan: { ...planned.plan, productDescriptions: described.descriptions, descriptionsKept: described.kept }, lastRun: planned.lastRun };
+  return { plan: { ...planned.plan, productDescriptions: described.descriptions }, lastRun: planned.lastRun };
 }
 
 export function summaryText(s: OrganizerSummary) {
@@ -240,7 +241,6 @@ function settingsText(settings: OrganizerPlanView["settings"]) {
     settings.cartSuggestions ? "sugerencias en el carrito" : "",
     settings.footerContact ? "contacto en el pie de página" : "",
     settings.footerPages ? "páginas de información en el pie de página" : "",
-    settings.about ? `"${settings.about.title}" en el pie de página` : "",
   ].filter(Boolean);
 }
 
@@ -418,8 +418,8 @@ export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
             {plan.productDescriptions.length > 0 ? (
               <>
                 <p className="text-xs">
-                  {plan.productDescriptions.length} fichas se reescriben con la línea directiva (qué es, qué gana quien compra, qué incluye, cómo se usa, datos
-                  reales){plan.descriptionsKept ? ` · ${plan.descriptionsKept} ya venden y se conservan` : ""}.{" "}
+                  {plan.productDescriptions.length} productos sin ficha reciben una escrita con la línea directiva (qué es, qué gana quien compra, qué incluye,
+                  cómo se usa, datos reales). Las fichas que ya existen no se tocan.{" "}
                   <button type="button" onClick={() => setShowCopies((v) => !v)} className="font-medium text-brand-accent hover:underline">
                     {showCopies ? "Ocultar ejemplos" : "Ver ejemplos"}
                   </button>
@@ -436,7 +436,11 @@ export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
               </>
             ) : (
               <p className="text-xs text-brand-ink-soft">
-                {plan.source === "ia" ? "Las fichas actuales ya venden: se conservan." : "Sin llave de IA las fichas no se tocan."}
+                {plan.source === "ia"
+                  ? plan.productsWithoutDescription.length > 0
+                    ? `${plan.productsWithoutDescription.length} productos no tienen ficha y la IA no alcanzó a escribirla; las demás no se tocan.`
+                    : "Todos los productos ya tienen ficha: no se toca ninguna."
+                  : "Sin llave de IA las fichas no se tocan."}
               </p>
             )}
           </div>

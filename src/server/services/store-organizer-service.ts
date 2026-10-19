@@ -69,7 +69,7 @@ const SALES_WINDOW_DAYS = 90;
 type Catalog = {
   products: OrganizerProduct[];
   collections: OrganizerCollection[];
-  brand: { companyName: string; instagramHandle: string | null; phone: string | null; sector: string };
+  brand: { companyName: string; instagramHandle: string | null; sector: string };
   /// Las secciones activas de la portada, resumidas (ver summarizeExistingSection).
   sections: ExistingSectionSummary[];
   /// Datos para los ajustes de conversión (ver planSettings).
@@ -92,7 +92,7 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
   const [brand, rows, collections, sales, reviews, sections, theme, pages] = await Promise.all([
     prisma.brandProfile.findUnique({
       where: { id: brandId },
-      select: { companyName: true, instagramHandle: true, phone: true, vertical: { select: { name: true } } },
+      select: { companyName: true, instagramHandle: true, vertical: { select: { name: true } } },
     }),
     prisma.product.findMany({
       where: { brandId, manual: true },
@@ -195,7 +195,6 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
     brand: {
       companyName: brand.companyName,
       instagramHandle: brand.instagramHandle,
-      phone: brand.phone,
       sector: sectorFromVertical(brand.vertical?.name),
     },
     sections: sections.map((s) => summarizeExistingSection(s, collectionNameById)),
@@ -203,7 +202,6 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
       tracksStock: tracksStock(products),
       hasPages: pages > 0,
       hasPurchaseInfo: theme.productDetail.purchaseInfo.some((i) => i.show && Boolean(i.title || i.description)),
-      hasAbout: theme.footer.aboutUs.show && Boolean(theme.footer.aboutUs.title || theme.footer.aboutUs.description),
     },
     theme,
   };
@@ -220,7 +218,6 @@ function planFrom(catalog: Catalog, proposal: StructureProposal, source: Organiz
   return buildPlan(catalog.products, catalog.collections, proposal, {
     source,
     instagram: Boolean(catalog.brand.instagramHandle),
-    whatsapp: Boolean(catalog.brand.phone),
     existingSections: catalog.sections,
     store: catalog.facts,
   });
@@ -278,17 +275,18 @@ export async function classifyStoreOrganizer(brandId: string, input: { collectio
   }
 }
 
-/// Paso 4 (después del plan): fichas de producto por tandas — cada id
-/// con el nombre de la colección en la que va a quedar. La IA conserva
-/// las fichas que ya venden y escribe las demás (ver
-/// describeProductsWithClaude); acá se vuelven HTML. null si no respondió.
+/// Paso 4 (después del plan): fichas por tandas, SOLO para productos sin
+/// descripción — cada id con el nombre de la colección en la que va a
+/// quedar. Las fichas que ya existen no se tocan (pedido del 2026-10-19).
+/// Ver describeProductsWithClaude; acá se vuelven HTML. null si no
+/// respondió.
 export async function describeStoreOrganizer(
   brandId: string,
   items: { id: string; collection: string }[],
 ): Promise<{ descriptions: PlannedDescription[]; kept: number } | null> {
   const catalog = await loadCatalogOrThrow(brandId);
   const collectionOf = new Map(items.map((i) => [i.id, i.collection]));
-  const products = catalog.products.filter((p) => collectionOf.has(p.id)).slice(0, DESCRIBE_BATCH_SIZE);
+  const products = catalog.products.filter((p) => collectionOf.has(p.id) && p.description.trim().length === 0).slice(0, DESCRIBE_BATCH_SIZE);
   if (products.length === 0) return { descriptions: [], kept: 0 };
   try {
     const result = await describeProductsWithClaude({ products, collectionOf, storeName: catalog.brand.companyName, sector: catalog.brand.sector });
@@ -326,7 +324,6 @@ async function composeHome(brandId: string, catalog: Catalog, plan: OrganizerPla
   try {
     const current = announcementText(catalog.theme);
     const instagram = Boolean(catalog.brand.instagramHandle);
-    const whatsapp = Boolean(catalog.brand.phone);
     const raw = await composeHomeWithClaude({
       storeName: catalog.brand.companyName,
       sector: catalog.brand.sector,
@@ -334,7 +331,6 @@ async function composeHome(brandId: string, catalog: Catalog, plan: OrganizerPla
       products: catalog.products,
       existingSections: catalog.sections,
       instagram,
-      whatsapp,
       announcement: current,
     });
     if (!raw) return plan;
@@ -344,19 +340,11 @@ async function composeHome(brandId: string, catalog: Catalog, plan: OrganizerPla
       scores: scoreProducts(catalog.products),
       existingSections: catalog.sections,
       instagram,
-      whatsapp,
       discounted: plan.stats.discounted,
       hasAnnouncement: current !== null,
-      hasAbout: catalog.facts.hasAbout,
     });
     if (!composed) return plan;
-    return {
-      ...plan,
-      home: composed.home,
-      announcement: composed.announcement,
-      notes: composed.notes,
-      settings: { ...plan.settings, about: composed.about },
-    };
+    return { ...plan, home: composed.home, announcement: composed.announcement, notes: composed.notes };
   } catch (err) {
     console.error("[organizador] componer la portada con IA falló, queda la portada por reglas:", err instanceof Error ? err.message : err);
     return plan;
@@ -494,7 +482,6 @@ type SectionContext = {
   idByKey: Map<string, string>;
   slugByKey: Map<string, string>;
   imageByKey: Map<string, string | null>;
-  whatsapp: string | null;
   /// El tema publicado, para pintar el banner con sus colores y su letra.
   theme: ThemeConfig | null;
 };
@@ -600,8 +587,7 @@ function sectionConfig(section: HomeSectionPlan, ctx: SectionContext): { type: S
       return { type: "ON_SALE_PRODUCTS", config: { title: section.title, display: "carousel", source: "auto", collectionId: null, productIds: [] } };
     case "NEW_PRODUCTS":
       return { type: "NEW_PRODUCTS", config: { title: section.title, display: "carousel" } };
-    case "SHIPPING_INFO_BANNERS": {
-      const whatsapp = section.whatsapp && ctx.whatsapp ? ctx.whatsapp.replace(/\D/g, "") : "";
+    case "SHIPPING_INFO_BANNERS":
       return {
         type: "SHIPPING_INFO_BANNERS",
         config: {
@@ -609,13 +595,10 @@ function sectionConfig(section: HomeSectionPlan, ctx: SectionContext): { type: S
             { show: true, icon: "SHIPPING", imageUrl: null, title: "Envíos a todo el país", description: "Despachamos a cualquier ciudad de Colombia.", link: "" },
             { show: true, icon: "PAYMENT", imageUrl: null, title: "Pagos seguros", description: "Tarjeta, PSE y más, con confirmación al instante.", link: "" },
             { show: true, icon: "RETURNS", imageUrl: null, title: "Cambios y garantía", description: "Si algo llega mal, lo resolvemos.", link: "" },
-            whatsapp
-              ? { show: true, icon: "SECURITY", imageUrl: null, title: "Asesoría por WhatsApp", description: "Te ayudamos a elegir antes de comprar.", link: `https://wa.me/${whatsapp}` }
-              : { show: true, icon: "SECURITY", imageUrl: null, title: "Compra protegida", description: "Tus datos y tu pago van cifrados.", link: "" },
+            { show: true, icon: "SECURITY", imageUrl: null, title: "Compra protegida", description: "Tus datos y tu pago van cifrados.", link: "" },
           ],
         },
       };
-    }
     case "INSTAGRAM_CTA":
       return { type: "INSTAGRAM_CTA", config: { title: "Síguenos en Instagram", description: "Novedades, ideas y lanzamientos primero allá." } };
     case "PRODUCT_CATALOG":
@@ -626,19 +609,17 @@ function sectionConfig(section: HomeSectionPlan, ctx: SectionContext): { type: S
 /// Los ajustes del tema que ayudan a vender, solo donde falten (ver
 /// planSettings): sellos de confianza en la ficha, aviso de últimas
 /// unidades, botón de compra flotante y ahorro visible, sugerencias en el
-/// carrito, buscador, y el pie con contacto, páginas y "Nosotros".
+/// carrito, buscador, y el pie con contacto y páginas. El "Nosotros" lo
+/// escribe la marca, no la IA (pedido del 2026-10-19).
 function settingsPatch(settings: StoreSettingsPlan, catalog: Catalog, summary: ApplySummary): Record<string, unknown> {
   const theme = catalog.theme;
   const patch: Record<string, unknown> = {};
   const productDetail: Record<string, unknown> = {};
   if (settings.purchaseInfo && !catalog.facts.hasPurchaseInfo) {
-    const whatsapp = catalog.brand.phone?.replace(/\D/g, "");
     productDetail.purchaseInfo = [
       { show: true, icon: "SHIPPING", title: "Envíos a todo el país", description: "Despachamos a cualquier ciudad de Colombia." },
       { show: true, icon: "PAYMENT", title: "Pagos seguros", description: "Tarjeta, PSE y más, con confirmación al instante." },
-      whatsapp
-        ? { show: true, icon: "SECURITY", title: "Asesoría por WhatsApp", description: "Te ayudamos a elegir antes de comprar." }
-        : { show: true, icon: "RETURNS", title: "Cambios y garantía", description: "Si algo llega mal, lo resolvemos." },
+      { show: true, icon: "RETURNS", title: "Cambios y garantía", description: "Si algo llega mal, lo resolvemos." },
     ];
     summary.settings.push("sellos de confianza en la ficha");
   }
@@ -671,10 +652,6 @@ function settingsPatch(settings: StoreSettingsPlan, catalog: Catalog, summary: A
   if (settings.footerPages && !theme.footer.menuSecondary.show) {
     footer.menuSecondary = { show: true, title: theme.footer.menuSecondary.title || "Información" };
     summary.settings.push("páginas de información en el pie de página");
-  }
-  if (settings.about && !catalog.facts.hasAbout) {
-    footer.aboutUs = { show: true, title: settings.about.title.slice(0, 100), description: settings.about.description.slice(0, 500) };
-    summary.settings.push("\"Nosotros\" en el pie de página");
   }
   if (Object.keys(footer).length > 0) patch.footer = footer;
   return patch;
@@ -798,12 +775,15 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
     summary.products.renamed += chunk.length;
   }
 
-  // 4b. Fichas de producto escritas por la IA (las anteriores quedan en
-  // la copia). Se sanean como cualquier descripción que entra.
-  const descriptions = plan.productDescriptions.filter((d) => ownedProducts.has(d.id) && d.html.trim().length > 0);
-  if (descriptions.length > 0) {
-    const previous = await prisma.product.findMany({ where: { brandId, id: { in: descriptions.map((d) => d.id) } }, select: { id: true, description: true } });
-    snapshot.productDescriptions = previous.map((p) => ({ id: p.id, description: p.description }));
+  // 4b. Fichas escritas por la IA, solo para productos que hoy no tienen
+  // ninguna (una ficha existente nunca se toca). Lo anterior queda en la
+  // copia y el HTML se sanea como cualquier descripción que entra.
+  const proposed = plan.productDescriptions.filter((d) => ownedProducts.has(d.id) && d.html.trim().length > 0);
+  if (proposed.length > 0) {
+    const current = await prisma.product.findMany({ where: { brandId, id: { in: proposed.map((d) => d.id) } }, select: { id: true, description: true } });
+    const empty = new Set(current.filter((p) => stripHtml(p.description ?? "", 50).trim().length === 0).map((p) => p.id));
+    const descriptions = proposed.filter((d) => empty.has(d.id));
+    snapshot.productDescriptions = current.filter((p) => empty.has(p.id)).map((p) => ({ id: p.id, description: p.description }));
     for (let i = 0; i < descriptions.length; i += 50) {
       const chunk = descriptions.slice(i, i + 50);
       await prisma.$transaction(chunk.map((d) => prisma.product.update({ where: { id: d.id }, data: { description: sanitizeProductDescription(d.html).slice(0, 20000) } })));
@@ -830,7 +810,7 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
       summary.home++;
       continue;
     }
-    const built = sectionConfig(section, { idByKey, slugByKey, imageByKey, whatsapp: catalog.brand.phone, theme });
+    const built = sectionConfig(section, { idByKey, slugByKey, imageByKey, theme });
     if (!built) continue;
     let config: unknown;
     try {

@@ -248,7 +248,7 @@ describe("el plan", () => {
   const products = [
     product("p1", "SEMI ROJO", { sold90: 30, soldAll: 60 }),
     product("p2", "SEMI AZUL", { sold90: 10, soldAll: 20 }),
-    product("p3", "Base rubber", { sold90: 5, soldAll: 5 }),
+    product("p3", "Base rubber", { sold90: 5, soldAll: 5, description: "Base de caucho que protege y nivela la uña." }),
     product("p4", "Lima", { stock: 0 }),
     product("p5", "Pincel", { compareAtPrice: 20000 }),
     product("p6", "Pusher", { compareAtPrice: 20000 }),
@@ -269,8 +269,11 @@ describe("el plan", () => {
   };
 
   it("ordena por demanda, conserva la colección que ya existía, renombra y arma menú y portada", () => {
-    const plan = buildPlan(products, existing, proposal, { source: "ia", now: NOW, instagram: true, whatsapp: true });
+    const plan = buildPlan(products, existing, proposal, { source: "ia", now: NOW, instagram: true });
     expect(plan.collections.map((c) => c.name)).toEqual(["Semipermanente", "Herramientas", "Otros productos"]);
+    // Solo los productos sin ficha reciben una (p3 ya tiene).
+    expect(plan.productsWithoutDescription).toEqual(["p1", "p2", "p4", "p5", "p6", "p7", "p8"]);
+    expect(plan.productDescriptions).toEqual([]);
     const semi = plan.collections[0];
     expect(semi.existingId).toBeNull();
     expect(semi.productIds).toEqual(["p1", "p2", "p3"]);
@@ -418,14 +421,13 @@ describe("la portada compuesta por la IA", () => {
     section("s4", "CATEGORY_BANNERS", { visual: true, collectionIds: ["c2"], label: "Banners con foto de 1 categoría (Promociones)" }),
     section("s5", "VIDEO", { visual: true, label: "Video" }),
   ];
-  const plan = buildPlan(products, existing, proposal, { source: "ia", now: NOW, instagram: true, whatsapp: true, existingSections: imported });
+  const plan = buildPlan(products, existing, proposal, { source: "ia", now: NOW, instagram: true, existingSections: imported });
   const ctx = {
     collections: plan.collections,
     products,
     scores: scoreProducts(products, NOW),
     existingSections: imported,
     instagram: true,
-    whatsapp: true,
     discounted: plan.stats.discounted,
     hasAnnouncement: false,
   };
@@ -439,22 +441,16 @@ describe("la portada compuesta por la IA", () => {
           rawSection({ type: "CATEGORY_GRID", collections: ["Semipermanente", "Herramientas"], title: "Elige por categoría" }),
           rawSection({ type: "FEATURED_COLLECTION", collections: ["Herramientas"], title: "Para tu mesa de trabajo" }),
           rawSection({ type: "KEEP", keepId: "S5" }),
-          rawSection({ type: "TEXT", title: "Bienvenida", body: "Esmaltes semipermanentes y herramientas para manicuristas, con envío a todo el país y asesoría por WhatsApp." }),
+          rawSection({ type: "TEXT", title: "Bienvenida", body: "Esmaltes semipermanentes y herramientas para manicuristas, con envío a todo el país y cambios sin complicaciones." }),
           rawSection({ type: "INSTAGRAM_CTA" }),
           rawSection({ type: "PRODUCT_CATALOG" }),
         ],
-        announcement: "Asesoría por WhatsApp antes de comprar 💅",
+        announcement: "Novedades cada semana en esmaltes 💅",
         notes: "La colección estrella arriba y las categorías después.",
-        aboutTitle: "Quiénes somos",
-        aboutText: "Vendemos esmaltes semipermanentes y herramientas para manicuristas de toda Colombia, con asesoría por WhatsApp para elegir bien.",
       },
       ctx,
     );
     expect(composed).not.toBeNull();
-    expect(composed!.about).toEqual({
-      title: "Quiénes somos",
-      description: "Vendemos esmaltes semipermanentes y herramientas para manicuristas de toda Colombia, con asesoría por WhatsApp para elegir bien.",
-    });
     // Los más vendidos se agregan después de las categorías y los sellos
     // de confianza antes de Instagram.
     expect(types(composed!.home)).toEqual([
@@ -473,21 +469,14 @@ describe("la portada compuesta por la IA", () => {
     expect(composed!.home[3]).toMatchObject({ collectionKey: "herramientas", title: "Para tu mesa de trabajo" });
     expect(composed!.home[5]).toMatchObject({ heading: "Bienvenida" });
     expect(composed!.home[8]).toMatchObject({ title: "Todos los productos" });
-    expect(composed!.announcement).toBe("Asesoría por WhatsApp antes de comprar");
+    expect(composed!.announcement).toBe("Novedades cada semana en esmaltes");
     expect(composed!.notes).toBe("La colección estrella arriba y las categorías después.");
-    // Con barra de anuncio y "Nosotros" ya puestos, no se proponen otros;
-    // y un "Nosotros" con promesas sin sustento se descarta.
+    // Con barra de anuncio ya puesta, no se propone otra.
     const withBar = sanitizeHomeComposition(
-      { sections: [rawSection({ type: "KEEP", keepId: "S2" }), rawSection({ type: "CATEGORY_GRID" }), rawSection({ type: "TEXT", body: "x".repeat(50) })], announcement: "Novedades cada semana", notes: "", aboutTitle: "Nosotros", aboutText: "y".repeat(100) },
-      { ...ctx, hasAnnouncement: true, hasAbout: true },
+      { sections: [rawSection({ type: "KEEP", keepId: "S2" }), rawSection({ type: "CATEGORY_GRID" }), rawSection({ type: "TEXT", body: "x".repeat(50) })], announcement: "Novedades cada semana", notes: "" },
+      { ...ctx, hasAnnouncement: true },
     );
     expect(withBar?.announcement).toBeNull();
-    expect(withBar?.about).toBeNull();
-    const promising = sanitizeHomeComposition(
-      { sections: [rawSection({ type: "KEEP", keepId: "S2" }), rawSection({ type: "CATEGORY_GRID" }), rawSection({ type: "TEXT", body: "x".repeat(50) })], announcement: "", notes: "", aboutTitle: "", aboutText: "Somos la tienda con envío gratis a toda Colombia y los mejores precios del mercado para manicuristas." },
-      ctx,
-    );
-    expect(promising?.about).toBeNull();
   });
 
   it("descarta lo inválido: colecciones que no existen, repetidos, dos cabeceras, promesas y textos cortos; el catálogo va de último", () => {
@@ -576,21 +565,19 @@ describe("ajustes de conversión", () => {
   const planned = (key: string): PlannedCollection => ({ key, existingId: null, name: key, slug: key, description: "", imageUrl: null, productIds: ["p1"], demand: 1, sold: 0, children: [] });
 
   it("solo con sustento y sin pisar lo que la marca ya configuró", () => {
-    expect(planSettings({ tracksStock: true, hasPages: true, hasPurchaseInfo: false, hasAbout: false }, [planned("a"), planned("b")])).toEqual({
+    expect(planSettings({ tracksStock: true, hasPages: true, hasPurchaseInfo: false }, [planned("a"), planned("b")])).toEqual({
       purchaseInfo: true,
       lowStock: true,
       cartSuggestions: true,
       footerContact: true,
       footerPages: true,
-      about: null,
     });
-    expect(planSettings({ tracksStock: false, hasPages: false, hasPurchaseInfo: true, hasAbout: true }, [planned("a")])).toEqual({
+    expect(planSettings({ tracksStock: false, hasPages: false, hasPurchaseInfo: true }, [planned("a")])).toEqual({
       purchaseInfo: false,
       lowStock: false,
       cartSuggestions: false,
       footerContact: true,
       footerPages: false,
-      about: null,
     });
     expect(planSettings(undefined, [planned("a"), planned("b")])).toMatchObject({ purchaseInfo: true, lowStock: false, footerPages: false });
   });

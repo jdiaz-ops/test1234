@@ -65,7 +65,7 @@ const homeSection = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ON_SALE_PRODUCTS"), title: z.string().max(80) }),
   z.object({ type: z.literal("NEW_PRODUCTS"), title: z.string().max(80) }),
   z.object({ type: z.literal("TEXT"), heading: z.string().max(120), body: z.string().max(2000) }),
-  z.object({ type: z.literal("SHIPPING_INFO_BANNERS"), whatsapp: z.boolean() }),
+  z.object({ type: z.literal("SHIPPING_INFO_BANNERS") }),
   z.object({ type: z.literal("INSTAGRAM_CTA") }),
   z.object({ type: z.literal("PRODUCT_CATALOG"), title: z.string().max(120) }),
 ]);
@@ -79,6 +79,7 @@ const planSchema = z.object({
   home: z.array(homeSection).max(12),
   announcement: z.string().max(200).nullable().optional(),
   notes: z.string().max(400).nullable().optional(),
+  productsWithoutDescription: z.array(z.string()).max(5000).default([]),
   productDescriptions: z.array(z.object({ id: z.string(), html: z.string().max(8000), summary: z.string().max(300) })).max(5000).default([]),
   collectionBanners: z.boolean().default(true),
   settings: z
@@ -88,9 +89,8 @@ const planSchema = z.object({
       cartSuggestions: z.boolean(),
       footerContact: z.boolean(),
       footerPages: z.boolean(),
-      about: z.object({ title: z.string().max(100), description: z.string().max(500) }).nullable(),
     })
-    .default({ purchaseInfo: false, lowStock: false, cartSuggestions: false, footerContact: false, footerPages: false, about: null }),
+    .default({ purchaseInfo: false, lowStock: false, cartSuggestions: false, footerContact: false, footerPages: false }),
   stats: z.object({
     products: z.number(),
     active: z.number(),

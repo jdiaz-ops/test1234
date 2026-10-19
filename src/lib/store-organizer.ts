@@ -108,7 +108,7 @@ export type HomeSectionPlan =
   | { type: "ON_SALE_PRODUCTS"; title: string }
   | { type: "NEW_PRODUCTS"; title: string }
   | { type: "TEXT"; heading: string; body: string }
-  | { type: "SHIPPING_INFO_BANNERS"; whatsapp: boolean }
+  | { type: "SHIPPING_INFO_BANNERS" }
   | { type: "INSTAGRAM_CTA" }
   | { type: "PRODUCT_CATALOG"; title: string };
 
@@ -143,7 +143,11 @@ export type OrganizerPlan = {
   announcement: string | null;
   /// Por qué la portada quedó así (lo explica la IA; null por reglas).
   notes: string | null;
-  /// Fichas de producto reescritas por la IA (ver describeProductsWithClaude).
+  /// Productos sin ficha (descripción vacía): solo para esos la IA escribe
+  /// una (ver describeProductsWithClaude). Las fichas que existen no se
+  /// tocan — pedido del 2026-10-19.
+  productsWithoutDescription: string[];
+  /// Fichas escritas por la IA para los productos que no tenían.
   productDescriptions: PlannedDescription[];
   /// Las colecciones principales sin banner reciben uno pintado con el
   /// estilo de la tienda (ver banner-image.ts).
@@ -542,7 +546,6 @@ export type BuildPlanOptions = {
   source: OrganizerPlan["source"];
   now?: Date;
   instagram?: boolean;
-  whatsapp?: boolean;
   /// Las secciones activas que la portada ya tiene: lo importado con foto
   /// o video se conserva (KEEP) y, si hay un banner ancho, no se arma otro.
   existingSections?: ExistingSectionSummary[];
@@ -657,6 +660,7 @@ export function buildPlan(
     home,
     announcement: null,
     notes: null,
+    productsWithoutDescription: products.filter((p) => p.description.trim().length === 0).map((p) => p.id),
     productDescriptions: [],
     collectionBanners: true,
     settings: planSettings(options.store, planned),
@@ -741,7 +745,7 @@ export function planHome(
   }
   if (options.discounted >= 3) home.push({ type: "ON_SALE_PRODUCTS", title: ON_SALE_TITLE });
   if (products.filter((p) => p.active).length >= 8) home.push({ type: "NEW_PRODUCTS", title: NEW_PRODUCTS_TITLE });
-  home.push({ type: "SHIPPING_INFO_BANNERS", whatsapp: Boolean(options.whatsapp) });
+  home.push({ type: "SHIPPING_INFO_BANNERS" });
   if (options.instagram) home.push({ type: "INSTAGRAM_CTA" });
   home.push({ type: "PRODUCT_CATALOG", title: CATALOG_TITLE });
   return home;
@@ -896,9 +900,6 @@ export type RawHomeComposition = {
   sections: RawHomeSection[];
   announcement: string;
   notes: string;
-  /// "Nosotros" del pie de página (título y una o dos frases).
-  aboutTitle?: string;
-  aboutText?: string;
 };
 
 export type HomeCompositionContext = {
@@ -907,19 +908,14 @@ export type HomeCompositionContext = {
   scores: Map<string, ProductScore>;
   existingSections: ExistingSectionSummary[];
   instagram: boolean;
-  whatsapp: boolean;
   discounted: number;
   /// La tienda ya tiene barra de anuncio: no se propone otra.
   hasAnnouncement: boolean;
-  /// El pie de página ya tiene un "Nosotros" escrito por la marca.
-  hasAbout?: boolean;
 };
 
 export const MAX_HOME_SECTIONS = 12;
 export const MAX_FEATURED_COLLECTIONS = 2;
 export const ANNOUNCEMENT_MAX = 90;
-export const ABOUT_MAX = 300;
-export const ABOUT_TITLE = "Nosotros";
 /// Con menos secciones válidas que esto, la respuesta de la IA no sirve
 /// y se usa la portada por reglas.
 export const MIN_COMPOSED_SECTIONS = 3;
@@ -944,7 +940,6 @@ export type HomeComposition = {
   home: HomeSectionPlan[];
   announcement: string | null;
   notes: string | null;
-  about: { title: string; description: string } | null;
 };
 
 export function sanitizeHomeComposition(raw: RawHomeComposition, ctx: HomeCompositionContext): HomeComposition | null {
@@ -1053,7 +1048,7 @@ export function sanitizeHomeComposition(raw: RawHomeComposition, ctx: HomeCompos
       case "SHIPPING_INFO_BANNERS": {
         if (once.has(type)) break;
         once.add(type);
-        home.push({ type: "SHIPPING_INFO_BANNERS", whatsapp: ctx.whatsapp });
+        home.push({ type: "SHIPPING_INFO_BANNERS" });
         break;
       }
       case "INSTAGRAM_CTA": {
@@ -1094,7 +1089,7 @@ export function sanitizeHomeComposition(raw: RawHomeComposition, ctx: HomeCompos
   if (!home.some((h) => h.type === "SHIPPING_INFO_BANNERS")) {
     let at = home.length;
     while (at > 0 && (home[at - 1].type === "INSTAGRAM_CTA" || home[at - 1].type === "PRODUCT_CATALOG")) at--;
-    home.splice(at, 0, { type: "SHIPPING_INFO_BANNERS", whatsapp: ctx.whatsapp });
+    home.splice(at, 0, { type: "SHIPPING_INFO_BANNERS" });
   }
   const catalogIndex = home.findIndex((h) => h.type === "PRODUCT_CATALOG");
   const catalog: HomeSectionPlan = catalogIndex >= 0 ? home.splice(catalogIndex, 1)[0] : { type: "PRODUCT_CATALOG", title: CATALOG_TITLE };
@@ -1103,9 +1098,7 @@ export function sanitizeHomeComposition(raw: RawHomeComposition, ctx: HomeCompos
 
   let announcement: string | null = ctx.hasAnnouncement ? null : cleanText(raw.announcement, ANNOUNCEMENT_MAX) || null;
   if (announcement && isUnverifiablePromise(announcement)) announcement = null;
-  const aboutText = ctx.hasAbout ? "" : cleanText(raw.aboutText, ABOUT_MAX);
-  const about = aboutText.length >= 60 && !isUnverifiablePromise(aboutText) ? { title: cleanText(raw.aboutTitle, 40) || ABOUT_TITLE, description: aboutText } : null;
-  return { home: trimmed, announcement, notes: cleanText(raw.notes, 300) || null, about };
+  return { home: trimmed, announcement, notes: cleanText(raw.notes, 300) || null };
 }
 
 // ---------------------------------------------------------------------------
@@ -1118,7 +1111,8 @@ export function sanitizeHomeComposition(raw: RawHomeComposition, ctx: HomeCompos
 // estilo de la tienda, descripción) y en los ajustes del tema (sellos de
 // confianza, últimas unidades, sugerencias en el carrito, pie de página).
 
-/// Ficha de producto escrita por la IA (ver describeProductsWithClaude).
+/// Ficha escrita por la IA para un producto que no tenía (ver
+/// describeProductsWithClaude).
 export type ProductCopy = {
   /// Qué es y el beneficio principal (una o dos frases).
   summary: string;
@@ -1184,13 +1178,11 @@ export type StoreFacts = {
   hasPages: boolean;
   /// La marca ya puso sus sellos en la ficha de producto (no se pisan).
   hasPurchaseInfo: boolean;
-  /// El pie de página ya tiene un "Nosotros" (no se pisa).
-  hasAbout: boolean;
 };
 
 export type StoreSettingsPlan = {
   /// Tres sellos de confianza en la ficha de producto (envíos, pagos,
-  /// cambios o asesoría por WhatsApp).
+  /// cambios y garantía).
   purchaseInfo: boolean;
   /// Aviso de "últimas unidades" con el inventario real.
   lowStock: boolean;
@@ -1199,22 +1191,19 @@ export type StoreSettingsPlan = {
   /// Pie de página: datos de contacto y las páginas de información.
   footerContact: boolean;
   footerPages: boolean;
-  /// "Nosotros" del pie de página (lo escribe la IA; null por reglas).
-  about: { title: string; description: string } | null;
 };
 
 /// Ajustes de conversión por reglas: solo con sustento (inventario real
 /// para "últimas unidades", páginas que existan) y sin pisar lo que la
 /// marca ya configuró.
 export function planSettings(facts: StoreFacts | undefined, collections: PlannedCollection[]): StoreSettingsPlan {
-  const f: StoreFacts = facts ?? { tracksStock: false, hasPages: false, hasPurchaseInfo: false, hasAbout: false };
+  const f: StoreFacts = facts ?? { tracksStock: false, hasPages: false, hasPurchaseInfo: false };
   return {
     purchaseInfo: !f.hasPurchaseInfo,
     lowStock: f.tracksStock,
     cartSuggestions: collections.length >= 2,
     footerContact: true,
     footerPages: f.hasPages,
-    about: null,
   };
 }
 
