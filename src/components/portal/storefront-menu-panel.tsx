@@ -38,7 +38,7 @@ function ItemForm({
   const [url, setUrl] = useState(initialUrl);
   return (
     <div className="space-y-2">
-      <div className="grid sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nombre (ej. Sobre nosotros)" className="input text-sm" />
         <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Link (ej. /coleccion/esmaltes, o # si solo abre el submenú)" className="input text-sm" />
       </div>

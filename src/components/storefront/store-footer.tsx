@@ -53,7 +53,7 @@ export function StoreFooter({
 
   return (
     <footer style={{ background: bg, color: text }} className="mt-16">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 grid sm:grid-cols-3 gap-8 text-sm">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 grid grid-cols-1 sm:grid-cols-3 gap-8 text-sm">
         {config.aboutUs.show && (
           <div>
             {config.aboutUs.title && (

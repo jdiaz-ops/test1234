@@ -72,7 +72,7 @@ export function DistributionCenterForm({
           de entregarlos al transportador.
         </p>
       </div>
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="sm:col-span-2">
           <label className="block text-xs text-brand-ink mb-1">Dirección</label>
           <input

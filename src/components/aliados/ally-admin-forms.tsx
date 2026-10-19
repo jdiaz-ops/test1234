@@ -41,7 +41,7 @@ export function NewAllyForm() {
   return (
     <form onSubmit={submit} className="rounded-2xl border border-brand-line bg-brand-surface p-5 space-y-3">
       <p className="text-sm font-medium text-brand-ink">Nuevo aliado</p>
-      <div className="grid sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nombre" className="input text-sm" aria-label="Nombre del aliado" />
         <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Correo (con este entra a su portal)" className="input text-sm" aria-label="Correo del aliado" />
         <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Celular (opcional)" className="input text-sm" aria-label="Celular del aliado" />

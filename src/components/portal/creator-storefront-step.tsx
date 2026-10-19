@@ -176,7 +176,7 @@ export function CreatorStorefrontStep({
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_240px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-6 items-start">
         <div className="space-y-6 min-w-0">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className={sectionClass}>

@@ -82,7 +82,7 @@ function ConfirmBookingForm({
 
   return (
     <div className="rounded-lg bg-brand-bg p-3 mt-2 space-y-2">
-      <div className="grid sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label className="block text-xs text-brand-ink mb-1">
             Fecha y hora confirmada
@@ -212,7 +212,7 @@ export function OrderFulfillmentPanel({
           ))}
         </select>
       </div>
-      <div className="grid sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label className="block text-xs text-brand-ink mb-1">Transportadora</label>
           <select

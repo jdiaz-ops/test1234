@@ -51,7 +51,11 @@ export default async function CreadorLayout({
           </>
         }
       >
-        <div className="max-w-4xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
+        {/* w-full: dentro del <main> (flex-col), con mx-auto solo se
+            encogía al ancho de lo más ancho que trajera la página (una
+            tabla, una fila que no se parte) y en el celular los textos
+            quedaban cortados a la derecha (Muestras, 2026-10-19). */}
+        <div className="w-full max-w-4xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
           {children}
         </div>
       </PortalShell>

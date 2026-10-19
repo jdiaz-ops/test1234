@@ -296,7 +296,7 @@ export function CreatorDirectoryPanel({
 
   return (
     <div>
-      <div className="grid sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}

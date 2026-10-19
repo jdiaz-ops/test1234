@@ -45,7 +45,7 @@ export function SettingsShell({
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CONFIGURACIÓN</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-6">Configuración</h1>
-      <div className="grid md:grid-cols-[200px_minmax(0,1fr)] gap-6 md:gap-10 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-6 md:gap-10 items-start">
         {/* En el celular, una fila deslizable; en pantallas anchas, la
             lista a la izquierda. */}
         <nav

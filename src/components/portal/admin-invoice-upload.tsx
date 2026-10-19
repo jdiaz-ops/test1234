@@ -58,7 +58,7 @@ export function AdminInvoiceUpload({ brands }: { brands: { id: string; companyNa
 
   return (
     <form onSubmit={handleSubmit} className="rounded-2xl border border-brand-line bg-brand-surface p-6 space-y-4 max-w-lg mb-10">
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-sm text-brand-ink mb-1">Marca</label>
           <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className="input">

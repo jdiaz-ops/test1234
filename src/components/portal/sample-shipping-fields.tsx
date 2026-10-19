@@ -94,7 +94,7 @@ export function SampleShippingFields({
 
   return (
     <div className="space-y-3">
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {field("shippingName", "Nombre completo", { autoComplete: "name" })}
         {field("shippingDocument", "Cédula", { inputMode: "numeric" })}
         {field("shippingEmail", "Correo", { type: "email", autoComplete: "email" })}

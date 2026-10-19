@@ -172,7 +172,7 @@ export function DataicoConnectionCard({
             Encuentras el Account ID y el Auth Token en Dataico, en la configuración de tu empresa.
           </p>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-xs text-brand-ink mb-1">Dataico Account ID</label>
               <input
@@ -216,7 +216,7 @@ export function DataicoConnectionCard({
             <span className="text-xs text-brand-ink-soft">Trae tus numeraciones de factura de Dataico.</span>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="sm:col-span-2">
               <label className="block text-xs text-brand-ink mb-1">Numeración</label>
               {numberings && numberings.length > 0 ? (

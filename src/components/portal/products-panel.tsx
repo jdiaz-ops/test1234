@@ -131,7 +131,7 @@ export function ProductsPanel({
       ) : filtered.length === 0 ? (
         <p className="text-sm text-brand-ink-soft">No hay productos con ese filtro.</p>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((p) => (
             <div
               key={p.id}

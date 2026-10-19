@@ -169,7 +169,7 @@ export function BrandLicensesPanel({
           licenciar todavía.
         </p>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-3 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
           {initialCatalog.map((item) => (
             <CatalogCard
               key={item.id}

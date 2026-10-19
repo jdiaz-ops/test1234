@@ -51,7 +51,7 @@ export function LegalStep({ initial, onSaved }: { initial: { legalName: string; 
 
   return (
     <form onSubmit={save} className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-[1fr_13rem]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_13rem]">
         <div>
           <label htmlFor="go-live-legal-name" className="mb-1 block text-xs text-brand-ink">
             Razón social

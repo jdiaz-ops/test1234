@@ -154,7 +154,7 @@ export default async function TiendaPedidoDetallePage({
         <span className="font-mono">{order.reference}</span>
       </p>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
             <p className="text-sm font-medium text-brand-ink mb-3">

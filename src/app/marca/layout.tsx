@@ -117,7 +117,11 @@ export default async function MarcaLayout({
         {/* 1280px en vez de 896px — el editor de Diseño (panel + vista previa
             real) necesita el ancho; el resto de páginas acota sus textos
             con max-w propios. Ver conversación del 2026-09-30. */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
+        {/* w-full: dentro del <main> (flex-col), con mx-auto solo se
+            encogía al ancho de lo más ancho que trajera la página (una
+            tabla, una fila que no se parte) y en el celular los textos
+            quedaban cortados a la derecha (Muestras, 2026-10-19). */}
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
           {children}
         </div>
       </PortalShell>

@@ -161,7 +161,7 @@ function ProductRow({
       )}
 
       {enabled && (
-        <div className="mt-3 pt-3 border-t border-brand-line grid sm:grid-cols-2 gap-3">
+        <div className="mt-3 pt-3 border-t border-brand-line grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-brand-ink mb-1">
               Tipo de contenido esperado (opcional)

@@ -350,7 +350,7 @@ export function CreatorPrBoxesPanel({
         {boxes.length === 0 ? (
           <p className="text-sm text-brand-ink-soft">Por ahora no hay cajas abiertas. Cuando una marca arme una, aparece aquí.</p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {boxes.map((box) => (
               <OpenBoxCard key={box.id} box={box} defaultShipping={defaultShipping} />
             ))}

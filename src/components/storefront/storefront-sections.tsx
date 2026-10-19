@@ -831,7 +831,7 @@ function CustomBlockSection({ config, basePath }: { config: CustomBlockConfig; b
 
   const inner =
     layout === "image-text" ? (
-      <div className="grid md:grid-cols-2 gap-6 md:gap-12 items-center">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12 items-center">
         {image && (
           <div className={`rounded-2xl overflow-hidden ${config.imagePosition === "right" ? "md:order-2" : ""}`}>
             <StoreImage src={image} alt="" natural sizes="(min-width: 768px) 50vw, 100vw" />

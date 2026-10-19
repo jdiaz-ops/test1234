@@ -41,7 +41,7 @@ export default function HomePage() {
           {/* Las dos tarjetas comparten filas (subgrid): ícono, etiqueta,
               título, texto y "Quiero saber más" quedan a la misma altura en
               ambas aunque una tenga más texto (2026-10-03). */}
-          <div className="grid sm:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
             {/* Tarjeta creador */}
             <Link
               href="/para-creadores"

@@ -309,7 +309,7 @@ export default async function MarcaDashboardPage() {
           <h2 className="font-display font-semibold text-brand-ink mb-4">
             Tus creadores top
           </h2>
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {topCreators.map((c) => (
               <div
                 key={c.id}

@@ -74,7 +74,7 @@ function NotificationTypeCard({ config }: { config: TypeConfig }) {
         </label>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
           <label className="block text-xs text-brand-ink-soft mb-1">Modo de envío</label>
           <select

@@ -197,7 +197,7 @@ function CreateWebhookForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={submit} className="px-5 py-4 space-y-3 bg-brand-bg/60">
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,14rem)_1fr]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,14rem)_1fr]">
         <div>
           <label className="block text-xs text-brand-ink mb-1">Evento</label>
           <select value={topic} onChange={(e) => setTopic(e.target.value)} className="input text-sm">

@@ -35,7 +35,7 @@ export function EarningsSimulator() {
         <span className="text-xs text-brand-ink">cuánto podrías ganar al mes</span>
       </div>
       <div className="p-6 sm:p-8">
-        <div className="grid sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div>
             <label className="block text-xs text-brand-ink-soft mb-1">Ventas al mes</label>
             <input

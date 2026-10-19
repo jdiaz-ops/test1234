@@ -125,7 +125,7 @@ function NewContentForm({ onCreated }: { onCreated: (c: LicensableContentRow) =>
       onSubmit={handleSubmit}
       className="space-y-4 rounded-2xl border border-brand-line bg-brand-surface p-5 mb-8"
     >
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-brand-ink mb-1">Red social</label>
           <select
@@ -387,7 +387,7 @@ export function CreatorLicensesPanel({
           Todavía no has publicado ningún contenido para licenciar.
         </p>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-3 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
           {content.map((c) => (
             <ContentCard
               key={c.id}

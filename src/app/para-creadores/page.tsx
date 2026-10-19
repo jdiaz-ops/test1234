@@ -176,7 +176,7 @@ export default function ParaCreadoresPage() {
                 "radial-gradient(closest-side, var(--brand-accent-soft), transparent)",
             }}
           />
-          <div className="relative max-w-6xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-14 items-center">
+          <div className="relative max-w-6xl mx-auto px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
             <div className="text-center lg:text-left">
               <div className="flex justify-center lg:justify-start mb-6">
                 <span className="inline-flex items-center bg-brand-surface border border-brand-line rounded-full px-5 py-2.5 font-mono text-xs font-medium text-brand-accent tracking-widest">
@@ -324,7 +324,7 @@ export default function ParaCreadoresPage() {
               producto no te paga nada aunque tu comunidad compre — no hay
               forma de que esa venta te llegue de vuelta. Con Marcolini, esa
               misma recomendación se convierte en comisión cobrada sola. */}
-          <div className="grid sm:grid-cols-2 gap-5 max-w-3xl mx-auto mb-20">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl mx-auto mb-20">
             <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
               <div className="flex items-center gap-2.5 pb-4 border-b border-brand-line mb-4">
                 <span className="w-6 h-6 rounded-full border border-brand-line text-brand-ink-soft flex items-center justify-center text-xs shrink-0">
@@ -409,7 +409,7 @@ export default function ParaCreadoresPage() {
                 este programa") — acá es solo visual, sin acción real
                 detrás. Dos marcas en vez de tres para que la ilustración
                 no quede tan larga. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">
                   Marketplace de marcas
@@ -477,7 +477,7 @@ export default function ParaCreadoresPage() {
                 marcas te pueden ofrecer producto directamente, o tú lo
                 solicitas explorando el catálogo de muestras disponibles —
                 una forma más de conocer marcas antes incluso de vender. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Muestras<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="space-y-3">
@@ -531,7 +531,7 @@ export default function ParaCreadoresPage() {
                 (Aurora Beauty) para que la ilustración no quede tan
                 larga — el mecanismo es el mismo sin importar cuántas
                 marcas tenga la creadora. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">
                   Mis códigos y links
@@ -808,7 +808,7 @@ export default function ParaCreadoresPage() {
             {/* 5 — campañas y bonos: escondida mientras CAMPAIGNS_ENABLED
                 esté apagado (ver src/lib/features.ts). */}
             {CAMPAIGNS_ENABLED && (
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-3 py-1">
@@ -856,7 +856,7 @@ export default function ParaCreadoresPage() {
                 no un campo que el dashboard real calcule — el resto
                 (saldo, comisión por marca, estado) sí son datos reales
                 que ya muestra /creador y /creador/transacciones. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-2.5">Tu saldo<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-4">

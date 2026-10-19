@@ -74,7 +74,7 @@ export function AllyPayoutForm({ initial }: { initial: Details }) {
         ))}
       </div>
       {form.payoutMethod === "BANK" ? (
-        <div className="grid sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <input value={form.bankName} onChange={(e) => set({ bankName: e.target.value })} placeholder="Banco" className="input text-sm" aria-label="Banco" />
           <select value={form.bankAccountType} onChange={(e) => set({ bankAccountType: e.target.value })} className="input text-sm" aria-label="Tipo de cuenta">
             <option value="AHORROS">Ahorros</option>

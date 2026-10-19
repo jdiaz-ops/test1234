@@ -361,7 +361,7 @@ export function CreatorSamplesPanel({
           <p className="text-sm text-brand-ink-soft mb-4">
             Marcas que te quieren regalar una muestra directamente a ti.
           </p>
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {offers.map((o) => (
               <OfferCard
                 key={o.id}
@@ -390,7 +390,7 @@ export function CreatorSamplesPanel({
             Todavía no hay muestras disponibles — vuelve pronto.
           </p>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {initialProducts.map((p) => {
               const requested = pendingProductIds.has(p.id);
               return (

@@ -226,7 +226,7 @@ export function ChallengeForm({ offers, onCreated }: { offers: Offer[]; onCreate
 
       <div>
         <label className="block text-sm text-brand-ink mb-2">Tipo de campaña</label>
-        <div className="grid sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {PICKER_CARDS.map((card) => (
             <button
               key={card.type}

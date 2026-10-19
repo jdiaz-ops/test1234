@@ -152,7 +152,7 @@ function BannerFields({ config: rawConfig, onChange }: { config: BannerConfig; o
           onChange={(url) => url && onChange({ ...config, slides: [...config.slides, { imageUrl: url, mobileImageUrl: "", link: "" }] })}
         />
       )}
-      <div className="grid sm:grid-cols-2 gap-2 pt-3 border-t border-brand-line">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-3 border-t border-brand-line">
         <input value={config.title} onChange={(e) => onChange({ ...config, title: e.target.value })} placeholder="Título (opcional, arriba de todas las imágenes)" className="input text-sm" />
         <input value={config.subtitle} onChange={(e) => onChange({ ...config, subtitle: e.target.value })} placeholder="Subtítulo (opcional)" className="input text-sm" />
         <input value={config.buttonText} onChange={(e) => onChange({ ...config, buttonText: e.target.value })} placeholder="Texto del botón (opcional)" className="input text-sm" />
@@ -172,7 +172,7 @@ function FeaturedCollectionFields({
   collections: CollectionOption[];
 }) {
   return (
-    <div className="grid sm:grid-cols-2 gap-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <select value={config.collectionId ?? ""} onChange={(e) => onChange({ ...config, collectionId: e.target.value || null })} className="input text-sm">
         <option value="">Elige una colección</option>
         {collections.map((c) => (
@@ -229,7 +229,7 @@ function ShippingInfoBannersFields({ config, onChange }: { config: ShippingInfoB
           {item.show && (
             <>
               <ImagePicker imageUrl={item.imageUrl} onChange={(url) => updateItem(i, { imageUrl: url })} small />
-              <div className="grid sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <select value={item.icon} onChange={(e) => updateItem(i, { icon: e.target.value })} className="input text-sm">
                   {TRUST_ICON_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -402,7 +402,7 @@ function ProductGroupFields({
   onDisplayChange: (v: "grid" | "carousel") => void;
 }) {
   return (
-    <div className="grid sm:grid-cols-2 gap-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <select value={display} onChange={(e) => onDisplayChange(e.target.value as "grid" | "carousel")} className="input text-sm">
         <option value="grid">Grilla</option>
         <option value="carousel">Carrusel</option>
@@ -579,7 +579,7 @@ function BrandCarouselFields({ config, onChange }: { config: BrandCarouselConfig
 
 function VideoFields({ config, onChange }: { config: VideoConfig; onChange: (next: VideoConfig) => void }) {
   return (
-    <div className="grid sm:grid-cols-2 gap-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <input value={config.url} onChange={(e) => onChange({ ...config, url: e.target.value })} placeholder="Link de YouTube o Vimeo" className="input text-sm" />
       <input value={config.title} onChange={(e) => onChange({ ...config, title: e.target.value })} placeholder="Título (opcional)" className="input text-sm" />
     </div>
@@ -675,7 +675,7 @@ function CustomBlockFields({ config: raw, onChange }: { config: CustomBlockConfi
   }
   return (
     <div className="space-y-3">
-      <div className="grid sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <select
           value={config.layout}
           onChange={(e) => onChange({ ...config, layout: e.target.value as CustomBlockLayout })}
@@ -702,7 +702,7 @@ function CustomBlockFields({ config: raw, onChange }: { config: CustomBlockConfi
         placeholder="Texto (opcional)"
         className="input text-sm min-h-20"
       />
-      <div className="grid sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <input
           value={config.buttonText}
           onChange={(e) => onChange({ ...config, buttonText: e.target.value.slice(0, 40) })}
@@ -730,7 +730,7 @@ function CustomBlockFields({ config: raw, onChange }: { config: CustomBlockConfi
           </select>
         </div>
       )}
-      <div className="grid sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <select
           value={config.align}
           onChange={(e) => onChange({ ...config, align: e.target.value as CustomBlockConfig["align"] })}
@@ -786,7 +786,7 @@ function CustomBlockFields({ config: raw, onChange }: { config: CustomBlockConfi
           {labels.image && <ImagePicker imageUrl={item.imageUrl || null} onChange={(url) => updateItem(i, { imageUrl: url ?? "" })} small />}
           <input value={item.title} onChange={(e) => updateItem(i, { title: e.target.value.slice(0, 160) })} placeholder={labels.title} className="input text-sm" />
           <textarea value={item.text} onChange={(e) => updateItem(i, { text: e.target.value.slice(0, 1200) })} placeholder={labels.text} className="input text-sm min-h-16" />
-          <div className="grid sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {labels.button && (
               <input
                 value={item.buttonText}

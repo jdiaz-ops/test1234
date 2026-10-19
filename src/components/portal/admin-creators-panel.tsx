@@ -53,7 +53,7 @@ function AddCreatorForm({ onDone }: { onDone: () => void }) {
       onSubmit={handleSubmit}
       className="p-5 border-b border-brand-line bg-brand-accent-soft/40 space-y-3"
     >
-      <div className="grid sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <input
           type="email"
           required

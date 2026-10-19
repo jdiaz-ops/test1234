@@ -121,7 +121,7 @@ export default async function TiendaClientesPage({
                   <Link
                     key={c.email}
                     href={`/marca/tienda/clientes/${encodeURIComponent(c.email)}`}
-                    className="grid sm:grid-cols-[1.5fr_1fr_1fr_0.7fr_1fr] gap-1 sm:gap-3 px-4 py-3 text-sm hover:bg-brand-bg"
+                    className="grid grid-cols-1 sm:grid-cols-[1.5fr_1fr_1fr_0.7fr_1fr] gap-1 sm:gap-3 px-4 py-3 text-sm hover:bg-brand-bg"
                   >
                     <div className="min-w-0">
                       <p className="font-medium text-brand-ink truncate">{c.name || c.email}</p>

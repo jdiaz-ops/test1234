@@ -150,7 +150,7 @@ export default function ParaMarcasPage() {
             className="pointer-events-none absolute -top-32 -right-20 h-[420px] w-[560px] rounded-full opacity-50 blur-3xl"
             style={{ background: "radial-gradient(closest-side, var(--brand-accent-soft), transparent)" }}
           />
-          <div className="relative max-w-6xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-14 items-center">
+          <div className="relative max-w-6xl mx-auto px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
             {/* Vuelve al alineado original (izquierda) por defecto — el
                 centrado es SOLO para la versión web (lg+), vía lg:text-center,
                 no en mobile. */}
@@ -324,7 +324,7 @@ export default function ParaMarcasPage() {
           {/* Comparación de riesgo: la misma idea del hero (pago por
               resultados) pero mostrada, no explicada — dos tarjetas una al
               lado de la otra en vez de un párrafo más. */}
-          <div className="grid sm:grid-cols-2 gap-5 max-w-3xl mx-auto mb-20">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl mx-auto mb-20">
             <div className="rounded-2xl border border-brand-line bg-brand-surface p-6">
               <div className="flex items-center gap-2.5 pb-4 border-b border-brand-line mb-4">
                 <span className="w-6 h-6 rounded-full border border-brand-line text-brand-ink-soft flex items-center justify-center text-xs shrink-0">
@@ -401,7 +401,7 @@ export default function ParaMarcasPage() {
                 (sin el detalle de IVA que sí se explica ya dentro del
                 portal) — el label "+ IVA" del componente es condicional a
                 vatPercent > 0, así que desaparece solo. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <CostCalculator commission={8} discount={10} platformFeePercent={5} vatPercent={0} editableRates />
               </div>
@@ -441,7 +441,7 @@ export default function ParaMarcasPage() {
                 ver previewTalento) fusionados en un solo bloque: son las dos
                 caras de "conseguir creadores para tu marca" — antes eran dos
                 bloques separados y quedaban repetitivos uno detrás del otro. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-3">Tu red</p>
                 <div className="grid grid-cols-2 gap-2 mb-5">
@@ -501,7 +501,7 @@ export default function ParaMarcasPage() {
                 plataforma (sample-service.ts): la marca regala producto a
                 creadores para que los prueben y los muestren en su
                 contenido, sin salir de Marcolini. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Muestras<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="space-y-3">
@@ -538,7 +538,7 @@ export default function ParaMarcasPage() {
             )}
 
             {/* 4 — código de descuento único por creador */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Creadoras de tu marca<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="space-y-3">
@@ -583,7 +583,7 @@ export default function ParaMarcasPage() {
             {/* 5 — motivar creadores con campañas: escondida mientras
                 CAMPAIGNS_ENABLED esté apagado (ver src/lib/features.ts). */}
             {CAMPAIGNS_ENABLED && (
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-mono text-xs font-medium text-brand-accent tracking-widest bg-brand-accent-soft rounded-full px-3 py-1">
@@ -633,7 +633,7 @@ export default function ParaMarcasPage() {
                 campaña, así que se esconde con ellas (CAMPAIGNS_ENABLED,
                 ver src/lib/features.ts). */}
             {CAMPAIGNS_ENABLED && (
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-3">Resultado de la campaña</p>
                 <div className="rounded-xl bg-brand-accent-soft px-4 py-3 mb-3">
@@ -684,7 +684,7 @@ export default function ParaMarcasPage() {
             )}
 
             {/* 7 — trazabilidad total / reporte de transacciones */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="lg:order-2 rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Transacciones<span className="ml-1.5 align-middle font-mono text-[9px] font-semibold tracking-wider text-brand-accent bg-brand-accent-soft rounded px-1.5 py-0.5">EJEMPLO</span></p>
                 <div className="space-y-2">
@@ -723,7 +723,7 @@ export default function ParaMarcasPage() {
                 convencida). Antes era "conecta Shopify/WooCommerce" — hoy
                 la marca no depende de un e-commerce externo, publica su
                 catálogo directamente en Marcolini. */}
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="rounded-2xl bg-brand-surface border border-brand-line p-6 sm:p-7">
                 <p className="text-xs text-brand-ink-soft mb-4">Tu tienda</p>
                 <div className="rounded-xl bg-brand-bg px-4 py-4 mb-3">

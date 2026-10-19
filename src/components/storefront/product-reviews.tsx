@@ -140,7 +140,7 @@ export function ProductReviews({
             <p className="text-xs text-brand-ink-soft">
               Solo pueden opinar quienes compraron este producto: usa el mismo correo de tu pedido.
             </p>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
