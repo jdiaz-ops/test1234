@@ -1,8 +1,9 @@
 import { requireCreatorProfile } from "@/lib/current-creator";
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { CreatorSamplesPanel } from "@/components/portal/creator-samples-panel";
+import { CreatorPrBoxesPanel } from "@/components/portal/creator-pr-boxes-panel";
+import { creatorPrBoxesView } from "@/server/services/creator-pr-box-view";
 import {
   listSampleEligibleProducts,
   listCreatorSampleRequests,
@@ -18,12 +19,14 @@ export default async function CreadorMuestrasPage() {
   const profile = await requireCreatorProfile();
   if (!profile) redirect("/login");
 
-  const [products, requests, offers, user] = await Promise.all([
+  const [products, requests, offers, user, prBoxes] = await Promise.all([
     listSampleEligibleProducts(),
     listCreatorSampleRequests(profile.id),
     listCreatorSampleOffers(profile.id),
     prisma.user.findUniqueOrThrow({ where: { id: profile.userId }, select: { email: true } }),
+    creatorPrBoxesView(profile.id),
   ]);
+  const defaultShipping = defaultShippingFor(profile, user.email);
 
   return (
     <div>
@@ -34,14 +37,15 @@ export default async function CreadorMuestrasPage() {
         Solicitar muestras
       </h1>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Productos que las marcas de Marcolini regalan a creadoras para que los
-        prueben y los muestren en su contenido. Las Cajas PR de lanzamientos
-        están en{" "}
-        <Link href="/creador/marketplace?pestana=cajas" className="text-brand-accent font-medium hover:underline">
-          Marketplace → Cajas PR
-        </Link>
-        .
+        Lo que las marcas de Marcolini regalan a creadoras para que lo prueben
+        y lo muestren en su contenido.
       </p>
+      {/* Arriba las muestras (antes Cajas PR, también en Marketplace →
+          Muestras) y abajo los productos sueltos del catálogo de cada marca
+          (pedido del 2026-10-19: dejar las dos, con nombres distintos). */}
+      <div className="mb-12">
+        <CreatorPrBoxesPanel boxes={prBoxes.boxes} requests={prBoxes.requests} defaultShipping={defaultShipping} />
+      </div>
       <CreatorSamplesPanel
         initialProducts={products.map((p) => ({
           id: p.id,
@@ -74,7 +78,7 @@ export default async function CreadorMuestrasPage() {
           product: { name: o.product.name, imageUrl: o.product.imageUrl },
           brand: { companyName: o.brand.companyName },
         }))}
-        defaultShipping={defaultShippingFor(profile, user.email)}
+        defaultShipping={defaultShipping}
       />
     </div>
   );

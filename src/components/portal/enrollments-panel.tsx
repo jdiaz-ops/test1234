@@ -28,10 +28,10 @@ type SampleProductOption = {
   sampleStock: number;
 };
 
-/// Una Caja PR activa que se puede proponer (ver pr-box-service.ts).
+/// Una muestra (antes Caja PR) activa que se puede proponer (ver pr-box-service.ts).
 type PrBoxOption = { id: string; name: string; left: number };
 
-/// Proponerle una Caja PR a una creadora del programa: después de que
+/// Proponerle una muestra a una creadora del programa: después de que
 /// acepta la invitación (pedido del 2026-10-19: "primero se invita al
 /// programa; si acepta, ahí sí se habilita para proponer caja PR").
 function ProposeBoxForm({ creatorId, boxes, onDone }: { creatorId: string; boxes: PrBoxOption[]; onDone: () => void }) {
@@ -52,11 +52,11 @@ function ProposeBoxForm({ creatorId, boxes, onDone }: { creatorId: string; boxes
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(body?.error ?? "No se pudo proponer la caja.");
+        setError(body?.error ?? "No se pudo proponer la muestra.");
         return;
       }
       if (body?.proposed === 0) {
-        setError("Esta creadora ya tiene esta caja (pedida o propuesta).");
+        setError("Esta creadora ya tiene esta muestra (pedida o propuesta).");
         return;
       }
       setSent(true);
@@ -70,7 +70,7 @@ function ProposeBoxForm({ creatorId, boxes, onDone }: { creatorId: string; boxes
   if (sent) {
     return (
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-brand-accent">Caja propuesta — te avisamos cuando la acepte.</p>
+        <p className="text-sm text-brand-accent">Muestra propuesta — te avisamos cuando la acepte.</p>
         <button type="button" onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
           Cerrar
         </button>
@@ -80,7 +80,7 @@ function ProposeBoxForm({ creatorId, boxes, onDone }: { creatorId: string; boxes
   return (
     <div className="space-y-3 max-w-lg">
       <div>
-        <label className="block text-xs text-brand-ink mb-1">Caja PR</label>
+        <label className="block text-xs text-brand-ink mb-1">Muestra</label>
         <select value={boxId} onChange={(e) => setBoxId(e.target.value)} className="input text-sm">
           {boxes.map((b) => (
             <option key={b.id} value={b.id}>
@@ -103,7 +103,7 @@ function ProposeBoxForm({ creatorId, boxes, onDone }: { creatorId: string; boxes
           disabled={busy || !boxId}
           className="bg-brand-accent text-white rounded-full px-5 py-2 text-xs font-semibold hover:opacity-90 disabled:opacity-50"
         >
-          {busy ? "Enviando..." : "Proponer la caja"}
+          {busy ? "Enviando..." : "Proponer la muestra"}
         </button>
         <button type="button" onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
           Cancelar
@@ -164,7 +164,7 @@ function OfferSampleForm({
     return (
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-brand-ink-soft">
-          No tienes ningún producto habilitado para muestras — agrégalo en
+          No tienes productos sueltos para regalar — agrégalos en
           Muestras.
         </p>
         <button onClick={onDone} className="text-xs text-brand-ink-soft hover:underline shrink-0">
@@ -178,7 +178,7 @@ function OfferSampleForm({
     return (
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-brand-accent">
-          Oferta de muestra enviada — te avisamos si la acepta.
+          Producto ofrecido — te avisamos si lo acepta.
         </p>
         <button onClick={onDone} className="text-xs text-brand-ink-soft hover:underline shrink-0">
           Cerrar
@@ -231,7 +231,7 @@ function OfferSampleForm({
         disabled={busy}
         className="bg-brand-accent text-white rounded-full px-4 py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-50"
       >
-        {busy ? "Enviando..." : "Ofrecer muestra"}
+        {busy ? "Enviando..." : "Ofrecer producto suelto"}
       </button>
       <button onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
         Cancelar
@@ -446,7 +446,7 @@ export function EnrollmentsPanel({
 }: {
   enrollments: Enrollment[];
   sampleProducts: SampleProductOption[];
-  /// Cajas PR que se le pueden proponer a las creadoras del programa.
+  /// Muestras que se le pueden proponer a las creadoras del programa.
   prBoxes?: PrBoxOption[];
   /// Muestra abierta por creador (ver listOpenSamplesByCreator): en vez del
   /// botón "Ofrecer muestra" se muestra en qué va.
@@ -560,7 +560,7 @@ export function EnrollmentsPanel({
                           title={openSamples[e.creatorId].productName}
                           className="text-xs font-medium rounded-full px-2.5 py-1 bg-purple-100 text-purple-700 whitespace-nowrap"
                         >
-                          Muestra ofrecida · esperando respuesta
+                          Producto ofrecido · esperando respuesta
                         </span>
                       )}
                       {SAMPLES_ENABLED && openSamples[e.creatorId]?.status === "PENDING" && (
@@ -569,7 +569,7 @@ export function EnrollmentsPanel({
                           title={openSamples[e.creatorId].productName}
                           className="text-xs text-brand-accent font-medium hover:underline whitespace-nowrap"
                         >
-                          Pidió una muestra → Revisar
+                          Pidió un producto suelto → Revisar
                         </Link>
                       )}
                       {SAMPLES_ENABLED && prBoxes.length > 0 && (
@@ -580,7 +580,7 @@ export function EnrollmentsPanel({
                           }}
                           className="text-xs text-brand-accent font-medium hover:underline whitespace-nowrap"
                         >
-                          Proponer Caja PR
+                          Proponer muestra
                         </button>
                       )}
                       {SAMPLES_ENABLED && !openSamples[e.creatorId] && (
@@ -592,7 +592,7 @@ export function EnrollmentsPanel({
                           }}
                           className="text-xs text-brand-accent font-medium hover:underline whitespace-nowrap"
                         >
-                          Ofrecer muestra
+                          Ofrecer producto suelto
                         </button>
                       )}
                       {/* "Encargar contenido" oculto desde el 2026-09-14 — no

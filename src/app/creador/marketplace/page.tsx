@@ -13,9 +13,8 @@ import { SAMPLES_ENABLED } from "@/lib/features";
 import { publicStoreUrl } from "@/lib/store-url";
 import { brandLogoSrc } from "@/lib/logo-src";
 import { defaultShippingFor } from "@/lib/sample-shipping";
-import { prBoxStage } from "@/lib/pr-box";
-import { listCreatorPrBoxRequests, listOpenPrBoxes, orderShipped } from "@/server/services/pr-box-service";
-import { CreatorPrBoxesPanel, type CreatorPrBox } from "@/components/portal/creator-pr-boxes-panel";
+import { creatorPrBoxesView } from "@/server/services/creator-pr-box-view";
+import { CreatorPrBoxesPanel } from "@/components/portal/creator-pr-boxes-panel";
 import Link from "next/link";
 
 export default async function MarketplacePage({
@@ -29,7 +28,7 @@ export default async function MarketplacePage({
     where: { userId: session!.user.id },
   });
 
-  const [allOffers, enrollments, verticals, invitations, openBoxes, boxRequests, user] = await Promise.all([
+  const [allOffers, enrollments, verticals, invitations, prBoxes, user] = await Promise.all([
     listActiveOffers({
       verticalIds: params.vertical ? [params.vertical] : undefined,
       search: params.buscar,
@@ -37,8 +36,7 @@ export default async function MarketplacePage({
     getEnrollmentsForCreator(profile.id),
     prisma.vertical.findMany({ orderBy: { name: "asc" } }),
     listCreatorInvitations(profile.id),
-    SAMPLES_ENABLED ? listOpenPrBoxes() : Promise.resolve([]),
-    SAMPLES_ENABLED ? listCreatorPrBoxRequests(profile.id) : Promise.resolve([]),
+    SAMPLES_ENABLED ? creatorPrBoxesView(profile.id) : Promise.resolve({ boxes: [], requests: [] }),
     prisma.user.findUniqueOrThrow({ where: { id: profile.userId }, select: { email: true } }),
   ]);
 
@@ -66,27 +64,9 @@ export default async function MarketplacePage({
   const exploreOffers = offers.filter((o) => !enrollmentByOffer.has(o.id));
   const tab = params.pestana === "tuyas" ? "tuyas" : params.pestana === "cajas" && SAMPLES_ENABLED ? "cajas" : "explorar";
 
-  // Cajas PR (ver pr-box-service.ts): su código con cada marca para
-  // recordárselo en el brief, y en qué va cada caja suya.
-  const codeByBrand = new Map(enrollments.filter((e) => e.status === "ACTIVE").map((e) => [e.offer.brandId, e.discountCode]));
-  function boxView(box: (typeof openBoxes)[number]): CreatorPrBox {
-    return {
-      id: box.id,
-      name: box.name,
-      contents: box.contents,
-      images: box.images,
-      contentBrief: box.contentBrief,
-      keyMessages: box.keyMessages,
-      requestUntil: box.requestUntil?.toISOString() ?? null,
-      shipsOn: box.shipsOn?.toISOString() ?? null,
-      launchOn: box.launchOn?.toISOString() ?? null,
-      brand: { name: box.brand.companyName, logoSrc: brandLogoSrc(box.brand) },
-      code: codeByBrand.get(box.brandId) ?? null,
-    };
-  }
-  const requestedBoxIds = new Set(boxRequests.map((r) => r.boxId));
-  const boxesToRequest = openBoxes.filter((b) => !requestedBoxIds.has(b.id));
-  const proposals = boxRequests.filter((r) => r.status === "PROPOSED");
+  // Muestras (antes Cajas PR, ver creator-pr-box-view.ts): las que puede
+  // pedir y las que le propusieron.
+  const proposals = prBoxes.requests.filter((r) => r.stage === "propuesta");
   const filtered = Boolean(params.buscar || params.vertical || soloMuestras);
   function tabHref(target: "explorar" | "tuyas" | "cajas") {
     if (target === "cajas") return "/creador/marketplace?pestana=cajas";
@@ -123,7 +103,7 @@ export default async function MarketplacePage({
         {SAMPLES_ENABLED && offer.brand.products.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
             <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-purple-100 text-purple-700">
-              Puedes solicitar muestras
+              Regala productos sueltos
             </span>
           </div>
         )}
@@ -197,8 +177,8 @@ export default async function MarketplacePage({
         >
           <span>
             {proposals.length === 1
-              ? `${proposals[0].box.brand.companyName} te propuso su Caja PR "${proposals[0].box.name}".`
-              : `Tienes ${proposals.length} Cajas PR que te propusieron las marcas.`}
+              ? `${proposals[0].box.brand.name} te propuso su muestra "${proposals[0].box.name}".`
+              : `Tienes ${proposals.length} muestras que te propusieron las marcas.`}
           </span>
           <span className="shrink-0 font-medium">Ver →</span>
         </Link>
@@ -234,7 +214,7 @@ export default async function MarketplacePage({
               value="1"
               defaultChecked={soloMuestras}
             />
-            Solo con muestras para solicitar
+            Solo con productos sueltos para pedir
           </label>
         )}
         <button
@@ -277,7 +257,7 @@ export default async function MarketplacePage({
           [
             { key: "explorar", label: "Explorar marcas", count: exploreOffers.length },
             { key: "tuyas", label: "Tus marcas", count: joinedOffers.length },
-            ...(SAMPLES_ENABLED ? [{ key: "cajas" as const, label: "Cajas PR", count: boxesToRequest.length + proposals.length }] : []),
+            ...(SAMPLES_ENABLED ? [{ key: "cajas" as const, label: "Muestras", count: prBoxes.boxes.length + proposals.length }] : []),
           ] as const
         ).map((t) => (
           <Link
@@ -298,15 +278,8 @@ export default async function MarketplacePage({
 
       {tab === "cajas" ? (
         <CreatorPrBoxesPanel
-          boxes={boxesToRequest.map(boxView)}
-          requests={boxRequests.map((r) => ({
-            id: r.id,
-            stage: prBoxStage({ status: r.status, shipped: orderShipped(r.order) }),
-            message: r.message,
-            rejectedReason: r.rejectedReason,
-            order: r.order ? { carrier: r.order.carrier, trackingNumber: r.order.trackingNumber, shippedAt: r.order.shippedAt?.toISOString() ?? null } : null,
-            box: boxView(r.box),
-          }))}
+          boxes={prBoxes.boxes}
+          requests={prBoxes.requests}
           defaultShipping={defaultShippingFor(profile, user.email)}
         />
       ) : shownOffers.length === 0 ? (

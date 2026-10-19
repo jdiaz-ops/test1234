@@ -43,56 +43,56 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
   },
   {
     key: "SAMPLE_APPROVED",
-    label: "Muestra aprobada",
+    label: "Producto suelto aprobado",
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
-      '{marca} aprobó tu muestra de "{producto}" y pronto te la envía.',
+      '{marca} aprobó tu pedido de "{producto}" y pronto te lo envía.',
     placeholders: "marca,producto",
   },
   {
     key: "SAMPLE_REJECTED",
-    label: "Muestra rechazada",
+    label: "Producto suelto rechazado",
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
-      '{marca} no puede enviarte la muestra de "{producto}" esta vez.{razon}',
+      '{marca} no puede enviarte "{producto}" esta vez.{razon}',
     placeholders: "marca,producto,razon",
   },
   {
     key: "SAMPLE_OFFERED",
-    label: "Una marca te ofreció una muestra",
+    label: "Una marca te ofreció un producto suelto",
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
-      '{marca} te quiere regalar "{producto}". Acéptala en Solicitar muestras y déjale tu dirección de envío.',
+      '{marca} te quiere regalar "{producto}". Acéptalo en Solicitar muestras y déjale tu dirección de envío.',
     placeholders: "marca,producto",
   },
   {
     key: "PR_BOX_PROPOSED",
-    label: "Una marca te propuso su Caja PR",
+    label: "Una marca te propuso su muestra",
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
-      '{marca} te propone su Caja PR "{caja}". Mira el brief y acéptala en Marketplace → Cajas PR.',
+      '{marca} te propone su muestra "{caja}". Mira el brief y acéptala en Solicitar muestras.',
     placeholders: "marca,caja",
   },
   {
     key: "PR_BOX_APPROVED",
-    label: "Caja PR aprobada",
+    label: "Muestra aprobada",
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
-      '{marca} aprobó tu Caja PR "{caja}". {detalle}',
+      '{marca} aprobó tu muestra "{caja}". {detalle}',
     placeholders: "marca,caja,detalle",
   },
   {
     key: "PR_BOX_REJECTED",
-    label: "Caja PR no aprobada",
+    label: "Muestra no aprobada",
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
-      '{marca} no puede enviarte la Caja PR "{caja}" esta vez.{razon}',
+      '{marca} no puede enviarte la muestra "{caja}" esta vez.{razon}',
     placeholders: "marca,caja,razon",
   },
   {
@@ -284,46 +284,46 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
   },
   {
     key: "SAMPLE_REQUESTED",
-    label: "Una creadora solicitó una muestra",
+    label: "Una creadora pidió un producto suelto",
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:
-      '{creador} quiere probar "{producto}". Aprueba o rechaza la muestra en Muestras.',
+      '{creador} quiere probar "{producto}". Apruébalo o recházalo en Muestras.',
     placeholders: "creador,producto",
   },
   {
     key: "SAMPLE_OFFER_ACCEPTED",
-    label: "Una creadora aceptó tu oferta de muestra",
+    label: "Una creadora aceptó tu producto suelto",
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:
-      '{creador} aceptó tu muestra de "{producto}". Ya está en Pedidos, lista para despachar.',
+      '{creador} aceptó "{producto}". Ya está en Pedidos, listo para despachar.',
     placeholders: "creador,producto",
   },
   {
     key: "PR_BOX_REQUESTED",
-    label: "Una creadora pidió tu Caja PR",
+    label: "Una creadora pidió tu muestra",
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:
-      '{creador} pidió tu Caja PR "{caja}". Apruébala o recházala en Muestras.',
+      '{creador} pidió tu muestra "{caja}". Apruébala o recházala en Muestras.',
     placeholders: "creador,caja",
   },
   {
     key: "PR_BOX_ACCEPTED",
-    label: "Una creadora aceptó tu Caja PR",
+    label: "Una creadora aceptó tu muestra",
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:
-      '{creador} aceptó tu Caja PR "{caja}". Ya puedes enviarla: la dirección está en Muestras.',
+      '{creador} aceptó tu muestra "{caja}". Ya puedes enviarla: la dirección está en Muestras.',
     placeholders: "creador,caja",
   },
   {
     key: "PR_BOX_DECLINED",
-    label: "Una creadora no aceptó tu Caja PR",
+    label: "Una creadora no aceptó tu muestra",
     audience: "BRAND",
     messageTemplate:
-      '{creador} no aceptó tu Caja PR "{caja}".',
+      '{creador} no aceptó tu muestra "{caja}".',
     placeholders: "creador,caja",
   },
   {

@@ -218,7 +218,7 @@ function InvitePanel({
         <button type="button" onClick={onClose} className="text-xs text-brand-ink-soft hover:underline">
           Cerrar
         </button>
-        <p className="text-xs text-brand-ink-soft">Cuando acepte, en Vinculados le puedes proponer Cajas PR y muestras.</p>
+        <p className="text-xs text-brand-ink-soft">Cuando acepte, en Vinculados le puedes proponer muestras y productos sueltos.</p>
       </div>
     </div>
   );

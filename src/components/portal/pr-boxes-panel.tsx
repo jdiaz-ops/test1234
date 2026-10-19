@@ -7,7 +7,8 @@ import { prepareImageForUpload } from "@/lib/prepare-image-upload";
 import { socialProfileUrl, sortSocialLinks } from "@/lib/social-links";
 import { PR_BOX_AUDIENCE, PR_BOX_DISCLAIMER, PR_BOX_STAGE, dayInputValue, formatDay, prBoxAudience, prBoxContentsList, type PrBoxStage } from "@/lib/pr-box";
 
-/// Cajas PR en Muestras (ver pr-box-service.ts): la marca arma la caja con
+/// Muestras (antes "Cajas PR", ver pr-box-service.ts; pedido del
+/// 2026-10-19: "ya no son PR sino muestras"): la marca arma la muestra con
 /// su brief, ve en qué va cada creadora (pedida → por enviar → enviada),
 /// aprueba, la envía con su guía y se la propone a creadoras puntuales. Las
 /// unidades solo las ve la marca. Marcolini no sigue lo que ellas publiquen
@@ -86,6 +87,16 @@ function Avatar({ name, photoUrl }: { name: string; photoUrl: string | null }) {
   );
 }
 
+/// Cuando la muestra no tiene foto.
+function GiftIcon({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="3.5" y="8" width="17" height="4" rx="1" />
+      <path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3-5-3.5-5-1.25C7 8 9.5 8 12 8zM12 8c1.5-3 5-3.5 5-1.25C17 8 14.5 8 12 8z" />
+    </svg>
+  );
+}
+
 async function send(url: string, method: string, body?: unknown) {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
   const data = await res.json().catch(() => null);
@@ -151,7 +162,7 @@ function PhotosField({ images, onChange }: { images: string[]; onChange: (images
   }
   return (
     <div>
-      <p className="mb-1 text-sm text-brand-ink">Fotos de la caja</p>
+      <p className="mb-1 text-sm text-brand-ink">Fotos de la muestra</p>
       <div className="flex flex-wrap gap-2">
         {images.map((url, i) => (
           <div key={url} className="relative">
@@ -216,19 +227,19 @@ function PrBoxEditor({ box, onDone }: { box?: PrBoxView; onDone: () => void }) {
 
   return (
     <div className="space-y-5 rounded-2xl border border-brand-accent/30 bg-brand-surface p-5">
-      <p className="font-display font-semibold text-brand-ink">{box ? "Editar caja" : "Nueva Caja PR"}</p>
+      <p className="font-display font-semibold text-brand-ink">{box ? "Editar muestra" : "Nueva muestra"}</p>
       <PhotosField images={draft.images} onChange={(images) => set("images", images)} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_10rem]">
         <div>
-          <label className="mb-1 block text-sm text-brand-ink">Nombre de la caja</label>
-          <input value={draft.name} onChange={(e) => set("name", e.target.value)} maxLength={80} placeholder="Ej. Caja lanzamiento Navidad" className="input" />
+          <label className="mb-1 block text-sm text-brand-ink">Nombre de la muestra</label>
+          <input value={draft.name} onChange={(e) => set("name", e.target.value)} maxLength={80} placeholder="Ej. Kit de lanzamiento Navidad" className="input" />
         </div>
         <div>
           <label className="mb-1 block text-sm text-brand-ink">Unidades para regalar</label>
           <input type="number" min={Math.max(1, box?.unitsUsed ?? 1)} value={draft.units} onChange={(e) => set("units", e.target.value)} placeholder="Ej. 100" className="input" />
         </div>
       </div>
-      <p className="-mt-3 text-xs text-brand-ink-soft">Las creadoras no ven cuántas hay. Cada caja que apruebas usa una.</p>
+      <p className="-mt-3 text-xs text-brand-ink-soft">Las creadoras no ven cuántas hay. Cada muestra que apruebas usa una.</p>
       <div>
         <label className="mb-1 block text-sm text-brand-ink">Qué incluye</label>
         <textarea
@@ -251,7 +262,7 @@ function PrBoxEditor({ box, onDone }: { box?: PrBoxView; onDone: () => void }) {
             value={draft.contentBrief}
             onChange={(e) => set("contentBrief", e.target.value)}
             maxLength={1500}
-            placeholder="Ej. Un Reel o TikTok abriendo la caja y mostrando el resultado en las uñas."
+            placeholder="Ej. Un Reel o TikTok mostrando los productos y el resultado en las uñas."
             className="input min-h-20"
           />
         </div>
@@ -309,7 +320,7 @@ function PrBoxEditor({ box, onDone }: { box?: PrBoxView; onDone: () => void }) {
         ) : (
           <>
             <button type="button" onClick={() => save("OPEN")} disabled={saving !== null} className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
-              {saving === "OPEN" ? "Publicando…" : "Publicar caja"}
+              {saving === "OPEN" ? "Publicando…" : "Publicar muestra"}
             </button>
             <button type="button" onClick={() => save("DRAFT")} disabled={saving !== null} className="rounded-full border border-brand-line px-5 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft disabled:opacity-50">
               {saving === "DRAFT" ? "Guardando…" : "Guardar borrador"}
@@ -397,7 +408,7 @@ function ProposePanel({ box, onClose }: { box: PrBoxView; onClose: () => void })
         <div>
           <p className="text-sm font-medium text-brand-ink">Proponer a creadoras de tu programa</p>
           <p className="text-xs text-brand-ink-soft">
-            Primero salen las que más te venden. Quedan {left} {left === 1 ? "caja" : "cajas"}: se usa una cuando una creadora acepta.
+            Primero salen las que más te venden. Quedan {left} {left === 1 ? "muestra" : "muestras"}: se usa una cuando una creadora acepta.
           </p>
         </div>
         <button type="button" onClick={onClose} className="text-xs text-brand-ink-soft hover:underline">
@@ -502,7 +513,7 @@ function SocialMini({ links, city }: { links: PrBoxSocial[]; city: string | null
   );
 }
 
-// -------------------------------------------------- Cada creadora con su caja
+// ----------------------------------------------- Cada creadora con su muestra
 
 function RequestRow({ request, box }: { request: PrBoxRequestView; box: PrBoxView }) {
   const router = useRouter();
@@ -583,7 +594,7 @@ function RequestRow({ request, box }: { request: PrBoxRequestView; box: PrBoxVie
               >
                 Rechazar
               </button>
-              {box.unitsUsed >= box.units && <span className="self-center text-xs text-amber-700">No quedan cajas: súbele unidades.</span>}
+              {box.unitsUsed >= box.units && <span className="self-center text-xs text-amber-700">No quedan muestras: súbele unidades.</span>}
             </div>
           ))}
 
@@ -637,9 +648,9 @@ function RequestRow({ request, box }: { request: PrBoxRequestView; box: PrBoxVie
   );
 }
 
-// ------------------------------------------------------------- Cada caja
+// ---------------------------------------------------------- Cada muestra
 
-/// Al lado del estado de la caja.
+/// Al lado del estado de la muestra.
 const AUDIENCE_SHORT: Record<(typeof PR_BOX_AUDIENCE)[number]["key"], string> = {
   both: "En el marketplace y por invitación",
   marketplace: "Solo en el marketplace",
@@ -686,7 +697,9 @@ function PrBoxCard({ box }: { box: PrBoxView }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={box.images[0]} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-brand-line object-cover" />
         ) : (
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-accent-soft text-[10px] font-mono tracking-widest text-brand-accent">PR</div>
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-accent-soft text-brand-accent">
+            <GiftIcon className="h-7 w-7" />
+          </div>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -751,7 +764,7 @@ function PrBoxCard({ box }: { box: PrBoxView }) {
           <button
             type="button"
             onClick={() => {
-              if (window.confirm(`¿Borrar la caja "${box.name}"?`)) change("DELETE");
+              if (window.confirm(`¿Borrar la muestra "${box.name}"?`)) change("DELETE");
             }}
             disabled={busy}
             className="text-brand-ink-soft hover:text-red-700 hover:underline disabled:opacity-50"
@@ -780,7 +793,7 @@ function PrBoxCard({ box }: { box: PrBoxView }) {
 // ------------------------------------------------------------------ Panel
 
 const HOW_IT_WORKS = [
-  { title: "Arma la caja", text: "Fotos, qué trae, cuántas tienes y el brief: qué contenido quieres y las fechas." },
+  { title: "Arma la muestra", text: "Fotos, qué trae, cuántas tienes y el brief: qué contenido quieres y las fechas." },
   { title: "Apruebas y la envías", text: "Las creadoras la piden (o se la propones tú). Al aprobar ves su dirección y la envías con su guía." },
 ];
 
@@ -790,11 +803,11 @@ export function PrBoxesPanel({ boxes }: { boxes: PrBoxView[] }) {
     <section className="space-y-4">
       <div className="max-w-xl">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="font-display text-base font-semibold text-brand-ink">Cajas PR</h2>
+          <h2 className="font-display text-base font-semibold text-brand-ink">Tus muestras</h2>
           {/* Bien a la vista (pedido del 2026-10-19). */}
           <span className="rounded-full bg-brand-ink px-2.5 py-1 text-[11px] font-medium text-white">No sale en tu tienda</span>
         </div>
-        <p className="mt-1 text-sm text-brand-ink-soft">Para un lanzamiento o una campaña: una caja armada solo para creadoras, con su brief.</p>
+        <p className="mt-1 text-sm text-brand-ink-soft">Puede ser una caja PR, un swag bag, un kit de lanzamiento o productos individuales, con su brief.</p>
       </div>
 
       {boxes.length === 0 && !creating && (
@@ -821,13 +834,13 @@ export function PrBoxesPanel({ boxes }: { boxes: PrBoxView[] }) {
         {PR_BOX_DISCLAIMER}
       </p>
 
-      {/* "Crear Caja PR" va después de los pasos (pedido del 2026-10-19);
+      {/* "Crear muestra" va después de los pasos (pedido del 2026-10-19);
           el formulario se abre ahí mismo, donde estaba el botón. */}
       {creating ? (
         <PrBoxEditor onDone={() => setCreating(false)} />
       ) : (
         <button type="button" onClick={() => setCreating(true)} className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90">
-          + Crear Caja PR
+          + Crear muestra
         </button>
       )}
     </section>

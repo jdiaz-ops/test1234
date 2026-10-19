@@ -433,7 +433,7 @@ function AddProductSearch({
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Busca un producto para agregarlo a muestras…"
+        placeholder="Busca un producto para agregarlo…"
         className="input text-sm"
       />
       {q && (
@@ -500,10 +500,10 @@ export function StoreSamplesPanel({
     <div className="space-y-10">
       <div>
         <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
-          Solicitudes de muestra
+          Productos sueltos que te pidieron
         </h2>
         <p className="text-sm text-brand-ink-soft mb-4">
-          Creadoras que pidieron una muestra de tu catálogo.
+          Creadoras que pidieron un producto de tu catálogo.
         </p>
         {requests.length === 0 ? (
           <p className="text-sm text-brand-ink-soft">
@@ -528,11 +528,12 @@ export function StoreSamplesPanel({
 
       <div>
         <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
-          Productos para muestras
+          Productos sueltos para regalar
         </h2>
         <p className="text-sm text-brand-ink-soft mb-4">
-          Agrega los productos que quieres regalar y cuántas unidades tienes —
-          solo los ven las creadoras, nunca tu tienda pública.
+          Productos de tu catálogo que las creadoras te pueden pedir uno por
+          uno, sin brief. Agrega cuáles y cuántas unidades tienes — solo los
+          ven las creadoras, nunca tu tienda pública.
         </p>
         {products.length === 0 ? (
           <p className="text-sm text-brand-ink-soft">

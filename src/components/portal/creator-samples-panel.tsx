@@ -356,10 +356,10 @@ export function CreatorSamplesPanel({
       {offers.length > 0 && (
         <div>
           <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
-            Ofertas recibidas
+            Productos sueltos que te ofrecieron
           </h2>
           <p className="text-sm text-brand-ink-soft mb-4">
-            Marcas que te quieren regalar una muestra directamente a ti.
+            Marcas que te quieren regalar un producto directamente a ti.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {offers.map((o) => (
@@ -379,15 +379,16 @@ export function CreatorSamplesPanel({
 
       <div>
         <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
-          Muestras disponibles
+          Productos sueltos
         </h2>
         <p className="text-sm text-brand-ink-soft mb-4">
-          Productos que las marcas ofrecen como muestra. Solicita la que te
-          interese: cada marca revisa tu solicitud y decide si te la envía.
+          Productos del catálogo de cada marca, uno por uno y sin brief. Pide
+          el que te interese: cada marca revisa tu solicitud y decide si te lo
+          envía.
         </p>
         {initialProducts.length === 0 ? (
           <p className="text-sm text-brand-ink-soft">
-            Todavía no hay muestras disponibles — vuelve pronto.
+            Todavía no hay productos sueltos — vuelve pronto.
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -436,7 +437,7 @@ export function CreatorSamplesPanel({
                           <span className="text-brand-ink font-medium">
                             Plazo:
                           </span>{" "}
-                          {p.sampleDeadlineDays} días después de recibirla
+                          {p.sampleDeadlineDays} días después de recibirlo
                         </p>
                       )}
                       {p.sampleInstructions && <p>{p.sampleInstructions}</p>}
@@ -477,7 +478,7 @@ export function CreatorSamplesPanel({
                       onClick={() => setOpenProductId(p.id)}
                       className="mt-3 w-full bg-brand-accent text-white rounded-full px-4 py-2 text-xs font-semibold hover:opacity-90"
                     >
-                      Solicitar muestra
+                      Pedir producto
                     </button>
                   )}
                 </div>
@@ -489,11 +490,11 @@ export function CreatorSamplesPanel({
 
       <div>
         <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
-          Tus solicitudes
+          Productos sueltos que pediste
         </h2>
         {requests.length === 0 ? (
           <p className="text-sm text-brand-ink-soft">
-            Todavía no has pedido ninguna muestra.
+            Todavía no has pedido ningún producto suelto.
           </p>
         ) : (
           <div className="space-y-2">

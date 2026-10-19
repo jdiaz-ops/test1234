@@ -83,7 +83,7 @@ describe.skipIf(!hasDb)("cajas PR", () => {
 
     const request = await requestPrBox(laura.id, box.id, SHIPPING, "Me encantaría mostrarla en mi Reel de Navidad");
     expect(request.status).toBe("REQUESTED");
-    await expect(requestPrBox(laura.id, box.id, SHIPPING)).rejects.toThrow("Ya pediste esta caja.");
+    await expect(requestPrBox(laura.id, box.id, SHIPPING)).rejects.toThrow("Ya pediste esta muestra.");
     const brandUser = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id }, select: { userId: true } });
     expect(await prisma.notification.count({ where: { userId: brandUser.userId, type: "PR_BOX_REQUESTED" } })).toBe(1);
 
@@ -92,7 +92,7 @@ describe.skipIf(!hasDb)("cajas PR", () => {
     expect((await prisma.prBox.findUniqueOrThrow({ where: { id: box.id } })).unitsUsed).toBe(1);
     const order = await prisma.storeOrder.findUniqueOrThrow({ where: { id: approved.orderId! }, include: { items: true } });
     expect(order).toMatchObject({ kind: "SAMPLE", totalCents: 0, status: "PAID", buyerName: "Laura Gómez", shippingCity: "Medellín", billingIdNumber: "1020304050" });
-    expect(order.items.map((i) => [i.name, i.quantity, i.unitPriceCents, i.productId])).toEqual([["Caja PR: Caja lanzamiento Navidad", 1, 0, null]]);
+    expect(order.items.map((i) => [i.name, i.quantity, i.unitPriceCents, i.productId])).toEqual([["Muestra: Caja lanzamiento Navidad", 1, 0, null]]);
     const lauraUser = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: laura.id }, select: { userId: true } });
     const approvedNote = await prisma.notification.findFirstOrThrow({ where: { userId: lauraUser.userId, type: "PR_BOX_APPROVED" } });
     expect(approvedNote.message).toContain("El lanzamiento es el 15 de diciembre");
@@ -102,7 +102,7 @@ describe.skipIf(!hasDb)("cajas PR", () => {
     await respondToPrBoxRequest(brand.id, (await requestPrBox(ana.id, box.id, SHIPPING)).id, "APPROVED");
     expect((await listOpenPrBoxes()).some((b) => b.id === box.id)).toBe(false);
     const sofi = await createCreator();
-    await expect(requestPrBox(sofi.id, box.id, SHIPPING)).rejects.toThrow("Esta caja ya no se puede pedir.");
+    await expect(requestPrBox(sofi.id, box.id, SHIPPING)).rejects.toThrow("Esta muestra ya no se puede pedir.");
 
     let mine = (await listCreatorPrBoxRequests(laura.id))[0];
     expect(prBoxStage({ status: mine.status, shipped: orderShipped(mine.order) })).toBe("por-enviar");

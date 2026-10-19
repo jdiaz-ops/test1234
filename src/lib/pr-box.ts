@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { bogotaDate, bogotaMidnight } from "@/lib/payout-calendar";
 
-/// Cajas PR (ver PrBox en el schema y pr-box-service.ts): lo puro — fechas
+/// Muestras, antes "Cajas PR" (ver PrBox en el schema y pr-box-service.ts;
+/// desde el 2026-10-19 se llaman muestras: "puede ser caja PR o swag bag,
+/// kit de lanzamiento, productos individuales"): lo puro — fechas
 /// del brief, en qué va cada creadora y el formulario de la marca — para
 /// usarlo igual en el servidor y en las pantallas. Pedido del 2026-10-19:
 /// "la marca crea la Caja PR con fotos, qué incluye y unidades… el brief…
@@ -113,10 +115,10 @@ const imageUrl = z
 
 export const prBoxInputSchema = z
   .object({
-    name: z.string().trim().min(2, "Ponle un nombre a la caja.").max(80, "El nombre puede tener hasta 80 letras."),
-    contents: z.string().trim().min(2, "Escribe qué trae la caja.").max(1500),
+    name: z.string().trim().min(2, "Ponle un nombre a la muestra.").max(80, "El nombre puede tener hasta 80 letras."),
+    contents: z.string().trim().min(2, "Escribe qué trae la muestra.").max(1500),
     images: z.array(imageUrl).max(6, "Hasta 6 fotos.").default([]),
-    units: z.coerce.number().int("Las unidades van en números enteros.").min(1, "Pon cuántas cajas tienes para regalar.").max(10000),
+    units: z.coerce.number().int("Las unidades van en números enteros.").min(1, "Pon cuántas muestras tienes para regalar.").max(10000),
     contentBrief: z.string().trim().min(5, "Cuéntales qué contenido quieres.").max(1500),
     keyMessages: z.string().trim().max(1500).default(""),
     requestUntil: optionalDay,

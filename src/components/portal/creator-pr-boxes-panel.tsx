@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { SampleShippingFields, isShippingComplete, type SampleShipping } from "@/components/portal/sample-shipping-fields";
 import { PR_BOX_STAGE, formatDay, prBoxContentsList, type PrBoxStage } from "@/lib/pr-box";
 
-/// Cajas PR en el marketplace de la creadora (ver pr-box-service.ts): las
-/// cajas abiertas con su brief para pedirlas, y "Tus cajas" con en qué va
-/// cada una — aceptar la que le propusieron y la guía cuando sale. Nunca ve
-/// cuántas unidades hay.
+/// Muestras (antes "Cajas PR", ver pr-box-service.ts) de la creadora, en
+/// Marketplace → Muestras y en Solicitar muestras: las disponibles con su
+/// brief para pedirlas, y "Tus muestras" con en qué va cada una — aceptar
+/// la que le propusieron y la guía cuando sale. Nunca ve cuántas unidades
+/// hay.
 
 export type CreatorPrBox = {
   id: string;
@@ -33,6 +34,16 @@ export type CreatorPrBoxRequest = {
   order: { carrier: string | null; trackingNumber: string | null; shippedAt: string | null } | null;
   box: CreatorPrBox;
 };
+
+/// Cuando la muestra no tiene foto.
+function GiftIcon({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="3.5" y="8" width="17" height="4" rx="1" />
+      <path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3-5-3.5-5-1.25C7 8 9.5 8 12 8zM12 8c1.5-3 5-3.5 5-1.25C17 8 14.5 8 12 8z" />
+    </svg>
+  );
+}
 
 async function send(url: string, method: string, body: unknown) {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -160,7 +171,7 @@ function RequestForm({ box, defaultShipping, onCancel }: { box: CreatorPrBox; de
           disabled={busy || !isShippingComplete(shipping)}
           className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
-          {busy ? "Pidiendo…" : "Pedir la caja"}
+          {busy ? "Pidiendo…" : "Pedir la muestra"}
         </button>
         <button type="button" onClick={onCancel} disabled={busy} className="text-sm text-brand-ink-soft hover:underline">
           Cancelar
@@ -180,8 +191,8 @@ function OpenBoxCard({ box, defaultShipping }: { box: CreatorPrBox; defaultShipp
         // eslint-disable-next-line @next/next/no-img-element
         <img src={box.images[0]} alt="" className={`w-full object-cover ${open ? "aspect-[16/7]" : "aspect-[4/3]"}`} />
       ) : (
-        <div className={`flex w-full items-center justify-center bg-brand-accent-soft font-mono text-xs tracking-widest text-brand-accent ${open ? "aspect-[16/7]" : "aspect-[4/3]"}`}>
-          CAJA PR
+        <div className={`flex w-full items-center justify-center bg-brand-accent-soft text-brand-accent ${open ? "aspect-[16/7]" : "aspect-[4/3]"}`}>
+          <GiftIcon className="h-10 w-10" />
         </div>
       )}
       <div className="flex flex-1 flex-col gap-3 p-4">
@@ -198,7 +209,7 @@ function OpenBoxCard({ box, defaultShipping }: { box: CreatorPrBox; defaultShipp
             ) : (
               <div className="flex flex-wrap items-center gap-3 border-t border-brand-line pt-4">
                 <button type="button" onClick={() => setAsking(true)} className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90">
-                  Quiero esta caja
+                  Quiero esta muestra
                 </button>
                 <button type="button" onClick={() => setOpen(false)} className="text-sm text-brand-ink-soft hover:underline">
                   Cerrar
@@ -245,7 +256,7 @@ function ProposalActions({ request, defaultShipping }: { request: CreatorPrBoxRe
           disabled={busy !== null || !isShippingComplete(shipping)}
           className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
-          {busy === "accept" ? "Aceptando…" : "Aceptar la caja"}
+          {busy === "accept" ? "Aceptando…" : "Aceptar la muestra"}
         </button>
         <button type="button" onClick={() => act("decline")} disabled={busy !== null} className="text-sm text-brand-ink-soft hover:underline disabled:opacity-50">
           {busy === "decline" ? "Un momento…" : "No, gracias"}
@@ -267,7 +278,9 @@ function MyBoxCard({ request, defaultShipping }: { request: CreatorPrBoxRequest;
           // eslint-disable-next-line @next/next/no-img-element
           <img src={box.images[0]} alt="" className="h-14 w-14 shrink-0 rounded-xl border border-brand-line object-cover" />
         ) : (
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-accent-soft text-[10px] font-mono tracking-widest text-brand-accent">PR</div>
+<div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-accent-soft text-brand-accent">
+            <GiftIcon className="h-6 w-6" />
+          </div>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -281,7 +294,7 @@ function MyBoxCard({ request, defaultShipping }: { request: CreatorPrBoxRequest;
       <div className="text-sm text-brand-ink-soft">
         {request.stage === "propuesta" && (
           <p>
-            {box.brand.name} te propone su caja. Mira el brief y, si te gusta, acéptala con tu dirección.
+            {box.brand.name} te propone su muestra. Mira el brief y, si te gusta, acéptala con tu dirección.
             {request.message ? <span className="mt-1 block italic">&ldquo;{request.message}&rdquo;</span> : null}
           </p>
         )}
@@ -330,13 +343,13 @@ export function CreatorPrBoxesPanel({
     <div className="space-y-10">
       <div className="max-w-xl">
         <p className="text-sm text-brand-ink-soft">
-          Cajas que arman las marcas para un lanzamiento o una campaña. Pídela y, si te la aprueban, te llega a tu casa con todo lo que trae.
+          Las arman las marcas: una caja PR, un swag bag, un kit de lanzamiento o productos individuales. Pídela y, si te la aprueban, te llega a tu casa con todo lo que trae.
         </p>
       </div>
 
       {requests.length > 0 && (
         <section className="space-y-3">
-          <h2 className="font-display text-base font-semibold text-brand-ink">Tus cajas</h2>
+          <h2 className="font-display text-base font-semibold text-brand-ink">Tus muestras</h2>
           <ul className="space-y-3">
             {requests.map((r) => (
               <MyBoxCard key={r.id} request={r} defaultShipping={defaultShipping} />
@@ -346,9 +359,9 @@ export function CreatorPrBoxesPanel({
       )}
 
       <section className="space-y-3">
-        <h2 className="font-display text-base font-semibold text-brand-ink">Cajas abiertas</h2>
+        <h2 className="font-display text-base font-semibold text-brand-ink">Muestras disponibles</h2>
         {boxes.length === 0 ? (
-          <p className="text-sm text-brand-ink-soft">Por ahora no hay cajas abiertas. Cuando una marca arme una, aparece aquí.</p>
+          <p className="text-sm text-brand-ink-soft">Por ahora no hay muestras disponibles. Cuando una marca arme una, aparece aquí.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {boxes.map((box) => (

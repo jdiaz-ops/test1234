@@ -8,11 +8,13 @@ import { rememberShipping, shippingColumns } from "@/server/services/sample-serv
 import { dayIsOver, formatDay, prBoxAcceptsRequests, prBoxStage, type PrBoxInput } from "@/lib/pr-box";
 import type { ShippingAddress } from "@/lib/validation/creator";
 
-/// Cajas PR (ver PrBox en el schema y lib/pr-box.ts): la marca arma la caja
+/// Muestras, antes "Cajas PR" (ver PrBox en el schema y lib/pr-box.ts): la
+/// marca arma la muestra (caja PR, swag bag, kit o productos individuales)
 /// con su brief; las creadoras la piden desde el marketplace (si la marca
 /// la dejó ahí) y la marca aprueba, o la marca se la propone a creadoras
 /// puntuales y ellas aceptan. Al aprobar se usa una unidad y se crea un
-/// pedido $0 (kind SAMPLE) con la dirección, como las muestras: la marca la
+/// pedido $0 (kind SAMPLE) con la dirección, como los productos sueltos
+/// (sample-service.ts): la marca la
 /// envía desde ahí y la creadora recibe la guía. Hasta ahí llega Marcolini:
 /// no sigue lo que ella publique (ver PR_BOX_DISCLAIMER; PrBoxRequest.postUrl
 /// quedó sin uso). Las unidades nunca salen hacia las creadoras.
@@ -132,25 +134,25 @@ export async function createPrBox(brandId: string, input: PrBoxInput) {
 
 export async function updatePrBox(brandId: string, boxId: string, input: PrBoxInput) {
   const box = await prisma.prBox.findFirst({ where: { id: boxId, brandId }, select: { id: true, unitsUsed: true } });
-  if (!box) throw new PrBoxError("No encontramos esa caja.");
+  if (!box) throw new PrBoxError("No encontramos esa muestra.");
   if (input.units < box.unitsUsed) throw new PrBoxError(`Ya aprobaste ${box.unitsUsed}: no puedes dejar menos unidades que esas.`);
   // Con la condición, una aprobación que entre al mismo tiempo no queda por
   // encima de las unidades nuevas.
   const updated = await prisma.prBox.updateMany({ where: { id: box.id, unitsUsed: { lte: input.units } }, data: boxData(input) });
-  if (updated.count === 0) throw new PrBoxError("Acabas de aprobar más cajas de las que pusiste. Revisa las unidades.");
+  if (updated.count === 0) throw new PrBoxError("Acabas de aprobar más muestras de las que pusiste. Revisa las unidades.");
   return prisma.prBox.findUniqueOrThrow({ where: { id: box.id } });
 }
 
 export async function setPrBoxStatus(brandId: string, boxId: string, status: "DRAFT" | "OPEN" | "CLOSED") {
   const updated = await prisma.prBox.updateMany({ where: { id: boxId, brandId }, data: { status } });
-  if (updated.count === 0) throw new PrBoxError("No encontramos esa caja.");
+  if (updated.count === 0) throw new PrBoxError("No encontramos esa muestra.");
 }
 
 /// Solo sin creadoras aprobadas (esas ya tienen su pedido): si no, se cierra.
 export async function deletePrBox(brandId: string, boxId: string) {
   const box = await prisma.prBox.findFirst({ where: { id: boxId, brandId }, select: { id: true, unitsUsed: true } });
-  if (!box) throw new PrBoxError("No encontramos esa caja.");
-  if (box.unitsUsed > 0) throw new PrBoxError("Esta caja ya tiene creadoras aprobadas: ciérrala en vez de borrarla.");
+  if (!box) throw new PrBoxError("No encontramos esa muestra.");
+  if (box.unitsUsed > 0) throw new PrBoxError("Esta muestra ya tiene creadoras aprobadas: ciérrala en vez de borrarla.");
   await prisma.prBox.delete({ where: { id: box.id } });
 }
 
@@ -170,7 +172,7 @@ async function approve(requestId: string, from: "REQUESTED" | "PROPOSED") {
       where: { id: request.boxId, unitsUsed: { lt: tx.prBox.fields.units } },
       data: { unitsUsed: { increment: 1 } },
     });
-    if (claimed.count === 0) throw new PrBoxError("Ya no quedan cajas para regalar. Súbele unidades para aprobar más.");
+    if (claimed.count === 0) throw new PrBoxError("Ya no quedan muestras para regalar. Súbele unidades para aprobar más.");
 
     const order = await tx.storeOrder.create({
       data: {
@@ -192,9 +194,9 @@ async function approve(requestId: string, from: "REQUESTED" | "PROPOSED") {
         paymentMode: request.box.brand.paymentMode,
         status: "PAID",
         paidAt: new Date(),
-        internalNotes: `Caja PR "${request.box.name}" para ${request.creator.displayName}.`,
+        internalNotes: `Muestra "${request.box.name}" para ${request.creator.displayName}.`,
         items: {
-          create: [{ name: `Caja PR: ${request.box.name}`.slice(0, 255), unitPriceCents: 0, quantity: 1, imageUrl: request.box.images[0] ?? null }],
+          create: [{ name: `Muestra: ${request.box.name}`.slice(0, 255), unitPriceCents: 0, quantity: 1, imageUrl: request.box.images[0] ?? null }],
         },
       },
     });
@@ -273,10 +275,10 @@ export async function listProposableCreators(brandId: string, boxId: string, que
 
 export async function proposePrBox(brandId: string, boxId: string, creatorIds: string[], message?: string | null) {
   const box = await prisma.prBox.findFirst({ where: { id: boxId, brandId }, include: { brand: { select: { companyName: true } } } });
-  if (!box) throw new PrBoxError("No encontramos esa caja.");
-  if (box.status !== "OPEN") throw new PrBoxError("Activa la caja antes de proponerla.");
-  if (!box.allowProposals) throw new PrBoxError("Esta caja es solo para pedir desde el marketplace. Cámbialo en Editar.");
-  if (box.unitsUsed >= box.units) throw new PrBoxError("Ya no quedan cajas para regalar. Súbele unidades para proponerla.");
+  if (!box) throw new PrBoxError("No encontramos esa muestra.");
+  if (box.status !== "OPEN") throw new PrBoxError("Activa la muestra antes de proponerla.");
+  if (!box.allowProposals) throw new PrBoxError("Esta muestra es solo para pedir desde el marketplace. Cámbialo en Editar.");
+  if (box.unitsUsed >= box.units) throw new PrBoxError("Ya no quedan muestras para regalar. Súbele unidades para proponerla.");
   const ids = [...new Set(creatorIds)].slice(0, MAX_PROPOSALS);
   if (ids.length === 0) throw new PrBoxError("Elige al menos una creadora.");
 
@@ -305,15 +307,15 @@ export async function markPrBoxShipped(brandId: string, requestId: string, data:
     where: { id: requestId, box: { brandId } },
     include: { box: { include: { brand: { select: { companyName: true } } } }, creator: { select: { userId: true } }, order: { select: ORDER_SELECT } },
   });
-  if (!request || request.status !== "APPROVED" || !request.orderId) throw new PrBoxError("Esta caja todavía no está aprobada.");
+  if (!request || request.status !== "APPROVED" || !request.orderId) throw new PrBoxError("Esta muestra todavía no está aprobada.");
   const wasShipped = orderShipped(request.order);
   const trackingNumber = data.trackingNumber?.trim().slice(0, 80) || null;
   await updateOrderFulfillment(brandId, { orderId: request.orderId, fulfillmentStatus: "SHIPPED", carrier: data.carrier?.trim().slice(0, 80) || null, trackingNumber });
   if (!wasShipped) {
     await notify(request.creator.userId, "PRODUCT_SENT", {
       marca: request.box.brand.companyName,
-      // "Caja lanzamiento Navidad" ya dice que es una caja.
-      descripcion: /^caja\b/i.test(request.box.name) ? request.box.name : `Caja PR ${request.box.name}`,
+      // "Caja lanzamiento Navidad" o "Kit de Navidad" ya dicen qué es.
+      descripcion: /^(muestra|caja|kit|swag|box)\b/i.test(request.box.name) ? request.box.name : `Muestra ${request.box.name}`,
       guia: trackingNumber ? ` (guía ${trackingNumber})` : "",
     });
   }
@@ -362,7 +364,7 @@ export async function requestPrBox(creatorId: string, boxId: string, shipping: S
   const existing = box ? await prisma.prBoxRequest.findUnique({ where: { boxId_creatorId: { boxId: box.id, creatorId } } }) : null;
   // Si la marca ya se la había propuesto, pedirla es aceptarla.
   if (existing?.status === "PROPOSED") return acceptPrBoxProposal(creatorId, existing.id, shipping);
-  if (existing) throw new PrBoxError("Ya pediste esta caja.");
+  if (existing) throw new PrBoxError("Ya pediste esta muestra.");
   if (
     !box ||
     !box.inMarketplace ||
@@ -371,7 +373,7 @@ export async function requestPrBox(creatorId: string, boxId: string, shipping: S
     box.brand.marketplaceVisibilityOverride === "FORCE_HIDDEN" ||
     (await isBrandServiceDeactivated(box.brandId))
   ) {
-    throw new PrBoxError("Esta caja ya no se puede pedir.");
+    throw new PrBoxError("Esta muestra ya no se puede pedir.");
   }
   const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: creatorId }, select: { displayName: true, suspended: true } });
   if (creator.suspended) throw new PrBoxError("Tu cuenta está suspendida.");
@@ -384,7 +386,7 @@ export async function requestPrBox(creatorId: string, boxId: string, shipping: S
     await notify(box.brand.user.id, "PR_BOX_REQUESTED", { creador: creator.displayName, caja: box.name });
     return request;
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw new PrBoxError("Ya pediste esta caja.");
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw new PrBoxError("Ya pediste esta muestra.");
     throw err;
   }
 }
@@ -395,7 +397,7 @@ export async function acceptPrBoxProposal(creatorId: string, requestId: string, 
     include: { box: { include: { brand: { select: { user: { select: { id: true } } } } } }, creator: { select: { displayName: true } } },
   });
   if (!request || request.status !== "PROPOSED") throw new PrBoxError("Esta propuesta ya no está disponible.");
-  if (request.box.status !== "OPEN") throw new PrBoxError("La marca ya cerró esta caja.");
+  if (request.box.status !== "OPEN") throw new PrBoxError("La marca ya cerró esta muestra.");
   await prisma.prBoxRequest.update({ where: { id: request.id }, data: shippingColumns(shipping) });
   await rememberShipping(creatorId, shipping);
   const updated = await approve(request.id, "PROPOSED");
