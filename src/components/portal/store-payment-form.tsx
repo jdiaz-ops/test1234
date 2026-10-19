@@ -250,13 +250,16 @@ function KeysSection({
   saved: SavedSet | undefined;
   edits: Edits;
   onChange: (key: string, value: string | undefined) => void;
-  /// En el Dashboard: en dos columnas y sin las ayudas de cada campo.
+  /// En el Dashboard: en dos columnas, sin las ayudas de cada campo y sin
+  /// los opcionales ("si la clave secreta es opcional quítalo",
+  /// 2026-10-19; siguen en Configuración → Pagos).
   compact?: boolean;
 }) {
   const spec = PAYMENT_PROVIDERS[provider];
+  const fields = compact ? spec.fields.filter((f) => !f.optional) : spec.fields;
   return (
     <div className={compact ? "grid gap-3 sm:grid-cols-2" : "space-y-4"}>
-      {spec.fields.map((field) => {
+      {fields.map((field) => {
         const prefix = field.prefix?.[mode];
         const label = field.optional ? `${field.label} (opcional)` : field.label;
         if (!field.secret) {
@@ -489,9 +492,9 @@ export function StorePaymentForm({
             onChange={(key, v) => setField(keysScope, key, v)}
             compact
           />
-          {spec.webhook && current.webhookUrl && (
+          {spec.webhook && !spec.webhook.optional && current.webhookUrl && (
             <div>
-              <p className="mb-1 text-xs text-brand-ink">{spec.steps ? (spec.webhook.optional ? "Tu URL de avisos (opcional)" : "Tu URL de avisos") : `Pega esta URL en ${spec.webhook.where}`}</p>
+              <p className="mb-1 text-xs text-brand-ink">{spec.steps ? "Tu URL de avisos" : `Pega esta URL en ${spec.webhook.where}`}</p>
               <CopyField value={current.webhookUrl} />
             </div>
           )}

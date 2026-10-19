@@ -45,7 +45,7 @@ export type PaymentProviderSpec = {
   /// cada pago (Wompi, Mercado Pago, Bold) — null cuando la URL de aviso
   /// va dentro de cada cobro (PayU, ePayco) y no hay nada que pegar.
   /// `optional`: la URL ya viaja en cada cobro y pegarla en el panel no es
-  /// obligatorio (Mercado Pago).
+  /// obligatorio (Mercado Pago): en el Dashboard ni se muestra.
   webhook: { path: (brandId: string) => string; where: string; optional?: boolean } | null;
   /// Dónde se devuelve el dinero de un pedido (el reembolso se hace en la
   /// pasarela; en Marcolini solo se registra).
@@ -171,7 +171,6 @@ export const PAYMENT_PROVIDERS: Record<PaymentProviderId, PaymentProviderSpec> =
       PRODUCTION: [
         "En mercadopago.com.co/developers → Tus integraciones → «Crear aplicación»: elige «Checkout Pro» y, en Tipo de API, «API de Preferences»; acepta y créala. Si ya la tienes, ábrela.",
         "En tu aplicación → Credenciales, pestaña «Productivas»: toca «Activar credenciales» (te pide industria y sitio web: pon el link de tu tienda), luego «Ver datos de la credencial» y copia el Access Token (empieza por APP_USR-). Pégalo aquí.",
-        "Opcional: en «Webhooks» pega tu URL de avisos (está abajo), marca el evento «Pagos», guarda y pega aquí la clave secreta que te muestra.",
         "Toca «{guardar}».",
       ],
       TEST: [
