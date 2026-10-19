@@ -44,6 +44,7 @@ export default async function TiendaPedidosPage() {
           kind: o.kind,
           status: o.status,
           fulfillmentStatus: o.fulfillmentStatus,
+          trackingNumber: o.trackingNumber,
           reference: o.reference,
           buyerName: o.buyerName,
           buyerEmail: o.buyerEmail,

@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CARRIERS } from "@/lib/carriers";
 
 export type StoreOrderRow = {
   id: string;
   kind: "PURCHASE" | "SAMPLE";
   status: "PENDING" | "PAID" | "FAILED" | "EXPIRED" | "REFUNDED";
   fulfillmentStatus: "UNFULFILLED" | "PREPARED" | "SHIPPED" | "DELIVERED";
+  /// Para saber si al marcarlo "Enviado" hay que pedir la guía primero.
+  trackingNumber: string | null;
   reference: string;
   buyerName: string;
   buyerEmail: string;
@@ -76,6 +79,122 @@ function deliveryPill(o: StoreOrderRow): Pill | null {
   if (o.fulfillmentStatus === "DELIVERED") return { label: "Entregado", className: "bg-brand-bg text-brand-ink", dot: true };
   if (o.fulfillmentStatus === "SHIPPED") return { label: "En camino", className: "bg-sky-100 text-sky-800", dot: true };
   return null;
+}
+
+type Fulfillment = StoreOrderRow["fulfillmentStatus"];
+
+const FULFILLMENT_CHOICES: { value: Fulfillment; label: string; className: string }[] = [
+  { value: "UNFULFILLED", label: "No preparado", className: "bg-amber-100 text-amber-900 ring-1 ring-amber-300" },
+  { value: "PREPARED", label: "Preparado", className: "bg-brand-bg text-brand-ink ring-1 ring-brand-line" },
+  { value: "SHIPPED", label: "Enviado", className: "bg-sky-100 text-sky-800 ring-1 ring-sky-200" },
+  { value: "DELIVERED", label: "Entregado", className: "bg-brand-bg text-brand-ink ring-1 ring-brand-line" },
+];
+
+/// El estado de preparación se cambia ahí mismo, sin abrir el pedido
+/// (pedido del 2026-10-19). Al pasar a Enviado o Entregado algo que no
+/// ha salido y no tiene guía, primero pide transportadora y número: el
+/// correo de "tu pedido salió" se manda una sola vez.
+function PreparationSelect({ order, onChanged }: { order: StoreOrderRow; onChanged: () => void }) {
+  const [status, setStatus] = useState<Fulfillment>(order.fulfillmentStatus);
+  const [shipping, setShipping] = useState<Fulfillment | null>(null);
+  const [carrier, setCarrier] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const choice = FULFILLMENT_CHOICES.find((c) => c.value === status) ?? FULFILLMENT_CHOICES[0];
+
+  async function save(next: Fulfillment, guide?: { carrier: string; trackingNumber: string }) {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/marca/tienda/pedidos/preparacion", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, fulfillmentStatus: next, ...(guide ?? {}) }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "No se pudo cambiar.");
+        return;
+      }
+      setStatus(next);
+      onChanged();
+    } catch {
+      setError("No se pudo cambiar — revisa tu conexión.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function pick(next: Fulfillment) {
+    if (next === status) return;
+    const notShippedYet = status === "UNFULFILLED" || status === "PREPARED";
+    if ((next === "SHIPPED" || next === "DELIVERED") && notShippedYet && !order.trackingNumber) {
+      setShipping(next);
+      return;
+    }
+    void save(next);
+  }
+
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <select
+        value={status}
+        disabled={saving}
+        onChange={(e) => pick(e.target.value as Fulfillment)}
+        aria-label={`Estado de preparación del pedido ${order.reference.slice(-8).toUpperCase()}`}
+        className={`cursor-pointer rounded-md border-0 py-0.5 pl-2 pr-6 text-xs font-medium disabled:opacity-50 ${choice.className}`}
+      >
+        {FULFILLMENT_CHOICES.map((c) => (
+          <option key={c.value} value={c.value}>
+            {c.label}
+          </option>
+        ))}
+      </select>
+      {error && <p className="mt-1 text-[11px] text-red-600">{error}</p>}
+      {shipping && (
+        <div role="dialog" aria-label="Datos del envío" className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setShipping(null)}>
+          <div className="w-full max-w-sm space-y-3 rounded-2xl bg-brand-surface p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div>
+              <p className="font-display text-base font-semibold text-brand-ink">
+                Pedido #{order.reference.slice(-8).toUpperCase()} {shipping === "SHIPPED" ? "enviado" : "entregado"}
+              </p>
+              <p className="text-xs text-brand-ink-soft">Con la guía, al cliente le llega el link para rastrear su pedido. Si no la tienes, déjala vacía.</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-brand-ink" htmlFor={`carrier-${order.id}`}>Transportadora</label>
+              <input id={`carrier-${order.id}`} list="transportadoras" value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="Ej. Servientrega" className="input text-sm" />
+              <datalist id="transportadoras">
+                {CARRIERS.map((c) => (
+                  <option key={c.name} value={c.name} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-brand-ink" htmlFor={`guia-${order.id}`}>Número de guía</label>
+              <input id={`guia-${order.id}`} value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)} className="input text-sm" />
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button type="button" onClick={() => setShipping(null)} className="text-sm text-brand-ink-soft hover:text-brand-ink">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = shipping;
+                  setShipping(null);
+                  void save(next, { carrier, trackingNumber });
+                }}
+                className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                {shipping === "SHIPPED" ? "Marcar enviado" : "Marcar entregado"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function PillView({ pill }: { pill: Pill | null }) {
@@ -346,7 +465,11 @@ export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderR
                         <PillView pill={paymentPill(o)} />
                       </td>
                       <td className="px-3 py-2.5">
-                        <PillView pill={preparationPill(o)} />
+                        {o.status === "PAID" && !isService(o) && !isDigital(o) ? (
+                          <PreparationSelect order={o} onChanged={() => router.refresh()} />
+                        ) : (
+                          <PillView pill={preparationPill(o)} />
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-brand-ink whitespace-nowrap">
                         {o.unitCount} {o.unitCount === 1 ? "artículo" : "artículos"}

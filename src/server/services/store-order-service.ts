@@ -782,8 +782,10 @@ export async function updateOrderFulfillment(
     where: { id: order.id },
     data: {
       fulfillmentStatus: data.fulfillmentStatus,
-      carrier: data.carrier?.trim() || null,
-      trackingNumber: data.trackingNumber?.trim() || null,
+      // Sin venir (el cambio rápido desde la lista de Pedidos) se conservan;
+      // "" las borra (el detalle del pedido siempre las manda).
+      carrier: data.carrier === undefined ? undefined : data.carrier?.trim() || null,
+      trackingNumber: data.trackingNumber === undefined ? undefined : data.trackingNumber?.trim() || null,
       preparedAt:
         order.preparedAt ??
         (data.fulfillmentStatus === "PREPARED" ||
