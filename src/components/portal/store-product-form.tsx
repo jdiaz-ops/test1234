@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { joinPromo, PROMO_NOT_LOWER, splitPromo } from "@/lib/promo-price";
 import { PRODUCT_TYPES_ENABLED } from "@/lib/features";
 import { PriceInput } from "@/components/portal/price-input";
 import { ProductImageUploader } from "@/components/portal/product-image-uploader";
@@ -138,10 +139,12 @@ export function StoreProductForm({
   const source = initial ?? seed;
   const [name, setName] = useState(source?.name ?? "");
   const [description, setDescription] = useState(source?.description ?? "");
-  const [price, setPrice] = useState<number | null>(source?.price ?? null);
-  const [compareAtPrice, setCompareAtPrice] = useState<number | null>(
-    source?.compareAtPrice ?? null,
-  );
+  // "Precio" y "Precio de promoción" (pedido del 2026-10-19): por dentro,
+  // con promoción, price es el de promoción y compareAtPrice el normal
+  // (el que la tienda muestra tachado). Ver lib/promo-price.ts.
+  const startPrices = splitPromo(source?.price ?? null, source?.compareAtPrice ?? null);
+  const [price, setPrice] = useState<number | null>(startPrices.regular);
+  const [promoPrice, setPromoPrice] = useState<number | null>(startPrices.promo);
   // Productos creados antes de la galería (ver ProductImage en el schema)
   // solo tienen imageUrl, sin filas en `images` — sin este respaldo, abrir
   // uno para editarlo y guardar sin tocar las fotos les borraría la
@@ -218,6 +221,10 @@ export function StoreProductForm({
       setError("Ingresa el precio.");
       return;
     }
+    if (!hasVariants && price != null && promoPrice != null && promoPrice >= price) {
+      setError(PROMO_NOT_LOWER);
+      return;
+    }
     if (!hasVariants && (stock === "" || Number(stock) < 0)) {
       setError("Ingresa el stock.");
       return;
@@ -239,8 +246,7 @@ export function StoreProductForm({
       // /back-to-basics-placa-stamping y vio un 404 después de guardar).
       // Ver conversación del 2026-09-30.
       slug: initial?.slug || slugify(name),
-      price: hasVariants ? 0 : price,
-      compareAtPrice: hasVariants ? null : compareAtPrice,
+      ...(hasVariants || price == null ? { price: 0, compareAtPrice: null } : joinPromo(price, promoPrice)),
       sku: hasVariants ? "" : sku,
       barcode: hasVariants ? "" : barcode,
       weight: hasVariants ? null : weight,
@@ -467,9 +473,9 @@ export function StoreProductForm({
             </div>
             <div>
               <label className="block text-sm text-brand-ink mb-1">
-                Precio antes (opcional)
+                Precio de promoción (opcional)
               </label>
-              <PriceInput value={compareAtPrice} onChange={setCompareAtPrice} />
+              <PriceInput value={promoPrice} onChange={setPromoPrice} />
             </div>
           </div>
 

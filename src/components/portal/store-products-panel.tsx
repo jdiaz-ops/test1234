@@ -14,6 +14,7 @@ import { ColorFamiliesTool } from "@/components/portal/color-families-tool";
 import { ProductLinesTool } from "@/components/portal/product-lines-tool";
 import { CatalogAuditTool } from "@/components/portal/catalog-audit-tool";
 import { StoreOrganizerTool } from "@/components/portal/store-organizer-tool";
+import { joinPromo, PROMO_NOT_LOWER, splitPromo } from "@/lib/promo-price";
 
 /// Lista de productos de "Mi tienda" con Agregar (a mano) e Importar desde
 /// Shopify (por el link de la tienda o el CSV). El viejo "Importar producto" — elegir uno ya
@@ -27,11 +28,14 @@ function StockCell({
   disabled,
   label,
   onSave,
+  compact = false,
 }: {
   value: number | null;
   disabled?: boolean;
   label: string;
   onSave: (stock: number) => void;
+  /// En la tarjeta del celular: a todo lo ancho y sin la palabra al lado.
+  compact?: boolean;
 }) {
   const [draft, setDraft] = useState(value == null ? "" : String(value));
   const [last, setLast] = useState(value);
@@ -61,10 +65,10 @@ function StockCell({
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
         placeholder="—"
-        aria-label="Inventario"
-        className="input text-sm py-1.5 !w-20 shrink-0 font-mono"
+        aria-label={label === "cupos" ? "Cupos" : "Unidades"}
+        className={`input text-sm py-1.5 font-mono ${compact ? "!w-full min-w-0" : "!w-20 shrink-0"}`}
       />
-      <span className="text-[11px] text-brand-ink-soft">{label}</span>
+      {!compact && <span className="text-[11px] text-brand-ink-soft">{label}</span>}
     </div>
   );
 }
@@ -157,6 +161,9 @@ export function StoreProductsPanel({
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");
   const [rowBusy, setRowBusy] = useState<string | null>(null);
+  // Vuelve a montar las casillas de precio cuando se rechaza un cambio
+  // (ver rejectPrice).
+  const [priceResetKey, setPriceResetKey] = useState(0);
   // Edición en grupo: productos marcados con la casilla de la fila. Ver
   // conversación del 2026-09-30.
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -461,6 +468,121 @@ export function StoreProductsPanel({
     );
   }
 
+
+  // "Precio" y "Precio de promoción" (pedido del 2026-10-19): ver
+  // lib/promo-price.ts. Si la promoción no queda por debajo del precio, no
+  // se guarda y la casilla vuelve a lo que había (resetKey).
+  function rejectPrice() {
+    setError(PROMO_NOT_LOWER);
+    setPriceResetKey((k) => k + 1);
+  }
+  function saveRegular(product: ManualProduct, regular: number | null) {
+    const { promo } = splitPromo(product.price, product.compareAtPrice);
+    if (regular == null) return;
+    if (promo != null && regular <= promo) return rejectPrice();
+    return quickUpdate(product.id, joinPromo(regular, promo));
+  }
+  function savePromo(product: ManualProduct, promo: number | null) {
+    const { regular } = splitPromo(product.price, product.compareAtPrice);
+    if (regular == null) return;
+    if (promo != null && promo >= regular) return rejectPrice();
+    return quickUpdate(product.id, joinPromo(regular, promo));
+  }
+
+  // Lo mismo en la tabla (computador) y en las tarjetas (celular).
+  function statusControl(product: ManualProduct, busy: boolean) {
+    const v = VISIBILITY_LABEL[visibilityOf(product)];
+    return (
+      <>
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${v.dot}`} title={v.text} />
+          <select
+            value={product.status}
+            disabled={busy}
+            onChange={(e) => quickUpdate(product.id, { status: e.target.value as ProductStatusValue })}
+            className="input text-xs py-1.5 !w-[132px] shrink-0"
+            aria-label={`Estado de ${product.name}`}
+          >
+            <option value="ACTIVE">Activo</option>
+            <option value="DRAFT">Oculto</option>
+            {product.status === "UNLISTED" && <option value="UNLISTED">No listado</option>}
+          </select>
+        </div>
+        {visibilityOf(product) === "soldout" && (
+          // Sin inventario el producto NO se esconde: sigue en la tienda
+          // marcado "Agotado" y sin poder comprarse. Ver conversación del
+          // 2026-09-30.
+          <span className="inline-block mt-1.5 ml-4 rounded-full bg-amber-100 text-amber-800 text-[11px] font-medium px-2 py-0.5">
+            Agotado en la tienda
+          </span>
+        )}
+      </>
+    );
+  }
+
+  function variantsNote(product: ManualProduct) {
+    return (
+      <button
+        type="button"
+        onClick={() => setMode({ kind: "edit", product })}
+        className="text-xs text-brand-ink-soft hover:underline text-left"
+        title="Con variantes el inventario y los precios se ajustan por variante"
+      >
+        {variantsStock(product.variants) ?? "Sin control"} en {product.variants.length} variantes
+      </button>
+    );
+  }
+
+  function stockCell(product: ManualProduct, busy: boolean, compact = false) {
+    return (
+      <StockCell
+        value={product.stock}
+        disabled={busy}
+        compact={compact}
+        label={product.type === "SERVICE" ? "cupos" : "unidades"}
+        onSave={(stock) => quickUpdate(product.id, { stock })}
+      />
+    );
+  }
+
+  function priceCells(product: ManualProduct, busy: boolean, compact = false) {
+    const { regular, promo } = splitPromo(product.price, product.compareAtPrice);
+    return {
+      regular: (
+        <MoneyCell key={`r-${priceResetKey}`} value={regular} disabled={busy} compact={compact} onSave={(v) => saveRegular(product, v)} />
+      ),
+      promo: (
+        <MoneyCell key={`p-${priceResetKey}`} value={promo} disabled={busy} compact={compact} allowEmpty onSave={(v) => savePromo(product, v)} />
+      ),
+    };
+  }
+
+  function rowActions(product: ManualProduct) {
+    return (
+      <>
+        <button type="button" onClick={() => setMode({ kind: "edit", product })} className="text-xs text-brand-accent hover:underline">
+          Editar
+        </button>
+        <button type="button" onClick={() => handleDuplicate(product)} className="text-xs text-brand-accent hover:underline">
+          Duplicar
+        </button>
+        <button
+          type="button"
+          onClick={() => handleDelete(product.id)}
+          disabled={deletingId === product.id}
+          className="text-xs text-red-600 hover:underline disabled:opacity-50"
+        >
+          {deletingId === product.id ? "Eliminando..." : "Eliminar"}
+        </button>
+        {storeUrl && product.slug && product.status !== "DRAFT" && (
+          <a href={`${storeUrl}/${product.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-ink-soft hover:underline">
+            Ver ↗
+          </a>
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -675,175 +797,154 @@ export function StoreProductsPanel({
       ) : shownProducts.length === 0 ? (
         <p className="text-sm text-brand-ink-soft">No hay productos que coincidan.</p>
       ) : (
-        // Tabla como la de Shopify (Producto · Estado · Inventario ·
-        // Precio · acciones): el estado se cambia con el selector de la fila
-        // y el inventario se escribe ahí mismo, sin abrir el formulario.
-        // Ver conversación del 2026-09-30.
-        <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-x-auto">
-          <table className="w-full text-sm min-w-[960px]">
-            <thead>
-              <tr className="text-left text-xs text-brand-ink-soft border-b border-brand-line">
-                <th className="pl-4 py-3 w-8">
-                  <input
-                    type="checkbox"
-                    aria-label="Seleccionar todos"
-                    checked={shownProducts.length > 0 && shownProducts.every((p) => selected.has(p.id))}
-                    onChange={(e) =>
-                      setSelected(e.target.checked ? new Set(shownProducts.map((p) => p.id)) : new Set())
-                    }
-                  />
-                </th>
-                <th className="font-medium px-4 py-3">Producto</th>
-                <th className="font-medium px-3 py-3 w-48">Estado</th>
-                <th className="font-medium px-3 py-3 w-32">Inventario</th>
-                <th className="font-medium px-3 py-3 w-36">Precio</th>
-                <th className="font-medium px-3 py-3 w-36">Precio antes</th>
-                <th className="px-4 py-3 w-56" />
-              </tr>
-            </thead>
-            <tbody>
-              {shownProducts.map((product) => {
-                const v = VISIBILITY_LABEL[visibilityOf(product)];
-                const busy = rowBusy === product.id;
-                return (
-                  <tr
-                    key={product.id}
-                    className={`border-b border-brand-line last:border-b-0 align-middle ${
-                      selected.has(product.id) ? "bg-brand-accent-soft/40" : ""
-                    }`}
-                  >
-                    <td className="pl-4 py-2.5">
-                      <input
-                        type="checkbox"
-                        aria-label={`Seleccionar ${product.name}`}
-                        checked={selected.has(product.id)}
-                        onChange={() => toggleSelected(product.id)}
-                      />
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-3 min-w-0">
-                        {product.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={product.imageUrl} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0 border border-brand-line" />
-                        ) : (
-                          <div className="w-11 h-11 rounded-lg bg-brand-bg shrink-0" />
-                        )}
-                        <div className="min-w-0">
-                          <button
-                            type="button"
-                            onClick={() => setMode({ kind: "edit", product })}
-                            className="font-medium text-brand-ink hover:underline text-left line-clamp-2 leading-snug"
-                          >
-                            {product.name}
-                          </button>
-                          {product.type !== "PHYSICAL" && (
-                            <p className="text-[10px] font-mono text-brand-ink-soft">
-                              {product.type === "SERVICE" ? "SERVICIO" : "DIGITAL"}
-                            </p>
+        <>
+          {/* Celular: una tarjeta por producto, con el nombre arriba y
+              unidades, precio y precio de promoción a la vista — sin
+              deslizar a los lados para saber de qué producto es (pedido
+              del 2026-10-19). */}
+          <ul className="sm:hidden divide-y divide-brand-line rounded-2xl border border-brand-line bg-brand-surface">
+            {shownProducts.map((product) => {
+              const busy = rowBusy === product.id;
+              const prices = priceCells(product, busy, true);
+              return (
+                <li key={product.id} className={`p-3 space-y-3 ${selected.has(product.id) ? "bg-brand-accent-soft/40" : ""}`}>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      aria-label={`Seleccionar ${product.name}`}
+                      checked={selected.has(product.id)}
+                      onChange={() => toggleSelected(product.id)}
+                      className="mt-1 shrink-0"
+                    />
+                    {product.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={product.imageUrl} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0 border border-brand-line" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-brand-bg shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setMode({ kind: "edit", product })}
+                        className="block text-left text-sm font-medium leading-snug text-brand-ink hover:underline"
+                      >
+                        {product.name}
+                      </button>
+                      {statusControl(product, busy)}
+                    </div>
+                  </div>
+                  {product.hasVariants ? (
+                    variantsNote(product)
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="min-w-0">
+                        <p className="mb-1 text-[11px] text-brand-ink-soft">{product.type === "SERVICE" ? "Cupos" : "Unidades"}</p>
+                        {stockCell(product, busy, true)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="mb-1 text-[11px] text-brand-ink-soft">Precio</p>
+                        {prices.regular}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="mb-1 text-[11px] text-brand-ink-soft">Promoción</p>
+                        {prices.promo}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">{rowActions(product)}</div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Computador: tabla como la de Shopify (Producto · Estado ·
+              Inventario · Precio · Promoción · acciones): el estado se
+              cambia con el selector de la fila y lo demás se escribe ahí
+              mismo, sin abrir el formulario. Ver conversación del
+              2026-09-30. */}
+          <div className="hidden sm:block rounded-2xl border border-brand-line bg-brand-surface overflow-x-auto">
+            <table className="w-full text-sm min-w-[960px]">
+              <thead>
+                <tr className="text-left text-xs text-brand-ink-soft border-b border-brand-line">
+                  <th className="pl-4 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      aria-label="Seleccionar todos"
+                      checked={shownProducts.length > 0 && shownProducts.every((p) => selected.has(p.id))}
+                      onChange={(e) =>
+                        setSelected(e.target.checked ? new Set(shownProducts.map((p) => p.id)) : new Set())
+                      }
+                    />
+                  </th>
+                  <th className="font-medium px-4 py-3">Producto</th>
+                  <th className="font-medium px-3 py-3 w-48">Estado</th>
+                  <th className="font-medium px-3 py-3 w-32">Inventario</th>
+                  <th className="font-medium px-3 py-3 w-36">Precio</th>
+                  <th className="font-medium px-3 py-3 w-36">Promoción</th>
+                  <th className="px-4 py-3 w-56" />
+                </tr>
+              </thead>
+              <tbody>
+                {shownProducts.map((product) => {
+                  const busy = rowBusy === product.id;
+                  const prices = priceCells(product, busy);
+                  return (
+                    <tr
+                      key={product.id}
+                      className={`border-b border-brand-line last:border-b-0 align-middle ${
+                        selected.has(product.id) ? "bg-brand-accent-soft/40" : ""
+                      }`}
+                    >
+                      <td className="pl-4 py-2.5">
+                        <input
+                          type="checkbox"
+                          aria-label={`Seleccionar ${product.name}`}
+                          checked={selected.has(product.id)}
+                          onChange={() => toggleSelected(product.id)}
+                        />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {product.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={product.imageUrl} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0 border border-brand-line" />
+                          ) : (
+                            <div className="w-11 h-11 rounded-lg bg-brand-bg shrink-0" />
                           )}
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => setMode({ kind: "edit", product })}
+                              className="font-medium text-brand-ink hover:underline text-left line-clamp-2 leading-snug"
+                            >
+                              {product.name}
+                            </button>
+                            {product.type !== "PHYSICAL" && (
+                              <p className="text-[10px] font-mono text-brand-ink-soft">
+                                {product.type === "SERVICE" ? "SERVICIO" : "DIGITAL"}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${v.dot}`} title={v.text} />
-                        <select
-                          value={product.status}
-                          disabled={busy}
-                          onChange={(e) => quickUpdate(product.id, { status: e.target.value as ProductStatusValue })}
-                          className="input text-xs py-1.5 !w-[132px] shrink-0"
-                          aria-label={`Estado de ${product.name}`}
-                        >
-                          <option value="ACTIVE">Activo</option>
-                          <option value="DRAFT">Oculto</option>
-                          {product.status === "UNLISTED" && <option value="UNLISTED">No listado</option>}
-                        </select>
-                      </div>
-                      {visibilityOf(product) === "soldout" && (
-                        // Sin inventario el producto NO se esconde: sigue
-                        // en la tienda marcado "Agotado" y sin poder
-                        // comprarse. Ver conversación del 2026-09-30.
-                        <span className="inline-block mt-1.5 ml-4 rounded-full bg-amber-100 text-amber-800 text-[11px] font-medium px-2 py-0.5">
-                          Agotado en la tienda
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {product.hasVariants ? (
-                        <button
-                          type="button"
-                          onClick={() => setMode({ kind: "edit", product })}
-                          className="text-xs text-brand-ink-soft hover:underline text-left"
-                          title="Con variantes el inventario se ajusta por variante"
-                        >
-                          {variantsStock(product.variants) ?? "Sin control"} en {product.variants.length} variantes
-                        </button>
-                      ) : (
-                        <StockCell
-                          value={product.stock}
-                          disabled={busy}
-                          label={product.type === "SERVICE" ? "cupos" : "unidades"}
-                          onSave={(stock) => quickUpdate(product.id, { stock })}
-                        />
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {product.hasVariants ? (
-                        <span className="text-xs text-brand-ink-soft">Varios</span>
-                      ) : (
-                        <MoneyCell
-                          value={product.price}
-                          disabled={busy}
-                          onSave={(price) => quickUpdate(product.id, { price: price ?? undefined })}
-                        />
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {product.hasVariants ? (
-                        <span className="text-xs text-brand-ink-soft">—</span>
-                      ) : (
-                        <MoneyCell
-                          value={product.compareAtPrice}
-                          disabled={busy}
-                          allowEmpty
-                          onSave={(compareAtPrice) => quickUpdate(product.id, { compareAtPrice })}
-                        />
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center justify-end gap-3 whitespace-nowrap">
-                        <button type="button" onClick={() => setMode({ kind: "edit", product })} className="text-xs text-brand-accent hover:underline">
-                          Editar
-                        </button>
-                        <button type="button" onClick={() => handleDuplicate(product)} className="text-xs text-brand-accent hover:underline">
-                          Duplicar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(product.id)}
-                          disabled={deletingId === product.id}
-                          className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                        >
-                          {deletingId === product.id ? "Eliminando..." : "Eliminar"}
-                        </button>
-                        {storeUrl && product.slug && product.status !== "DRAFT" && (
-                          <a
-                            href={`${storeUrl}/${product.slug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-brand-ink-soft hover:underline"
-                          >
-                            Ver ↗
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="px-3 py-2.5">{statusControl(product, busy)}</td>
+                      <td className="px-3 py-2.5">{product.hasVariants ? variantsNote(product) : stockCell(product, busy)}</td>
+                      <td className="px-3 py-2.5">
+                        {product.hasVariants ? <span className="text-xs text-brand-ink-soft">Varios</span> : prices.regular}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {product.hasVariants ? <span className="text-xs text-brand-ink-soft">—</span> : prices.promo}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-end gap-3 whitespace-nowrap">{rowActions(product)}</div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
@@ -853,20 +954,22 @@ function formatThousands(n: number) {
   return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(n);
 }
 
-/// Precio / precio antes en la fila — igual que StockCell: se guarda al
-/// salir del campo o con Enter, solo si cambió. Con `allowEmpty`, vaciar
-/// el campo quita el valor (el producto deja de estar en oferta). Acepta
-/// "15.000" o "15000".
+/// Precio / precio de promoción en la fila — igual que StockCell: se
+/// guarda al salir del campo o con Enter, solo si cambió. Con
+/// `allowEmpty`, vaciar el campo quita el valor (el producto deja de estar
+/// en promoción). Acepta "15.000" o "15000".
 function MoneyCell({
   value,
   disabled,
   allowEmpty,
   onSave,
+  compact = false,
 }: {
   value: number | null;
   disabled?: boolean;
   allowEmpty?: boolean;
   onSave: (v: number | null) => void;
+  compact?: boolean;
 }) {
   // Siempre con separador de miles, como pesos colombianos (4.000,
   // 15.000) — también mientras se escribe. Ver conversación del
@@ -914,8 +1017,8 @@ function MoneyCell({
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
         placeholder={allowEmpty ? "—" : ""}
-        aria-label={allowEmpty ? "Precio antes" : "Precio"}
-        className="input text-sm py-1.5 !w-28 shrink-0 font-mono"
+        aria-label={allowEmpty ? "Precio de promoción" : "Precio"}
+        className={`input text-sm py-1.5 font-mono ${compact ? "!w-full min-w-0" : "!w-28 shrink-0"}`}
       />
     </div>
   );
