@@ -95,3 +95,34 @@ export async function discardDraftTheme(brandId: string): Promise<ThemeConfig> {
   });
   return published;
 }
+
+/// Aplica un patch a lo publicado (lo que ve el comprador) y otro al
+/// borrador, sin publicar lo demás que la marca tenga a medias en el
+/// editor. Lo usa el organizador automático para la barra de anuncio
+/// (ver store-organizer-service.ts).
+export async function patchPublishedTheme(
+  brandId: string,
+  publishedPatch: Record<string, unknown>,
+  draftPatch: Record<string, unknown> = publishedPatch,
+): Promise<ThemeConfig> {
+  const existing = await prisma.brandTheme.findUnique({ where: { brandId } });
+  const currentDraft = existing ? parseThemeConfig(existing.draftConfig) : DEFAULT_THEME_CONFIG;
+  const currentPublished = existing?.publishedConfig ? parseThemeConfig(existing.publishedConfig) : DEFAULT_THEME_CONFIG;
+  const draft = parseThemeConfig(deepMergeThemeConfig(currentDraft as unknown as Record<string, unknown>, draftPatch));
+  const published = parseThemeConfig(deepMergeThemeConfig(currentPublished as unknown as Record<string, unknown>, publishedPatch));
+  await prisma.brandTheme.upsert({
+    where: { brandId },
+    create: {
+      brandId,
+      draftConfig: draft as unknown as Prisma.InputJsonValue,
+      publishedConfig: published as unknown as Prisma.InputJsonValue,
+      publishedAt: new Date(),
+    },
+    update: {
+      draftConfig: draft as unknown as Prisma.InputJsonValue,
+      publishedConfig: published as unknown as Prisma.InputJsonValue,
+      publishedAt: new Date(),
+    },
+  });
+  return published;
+}

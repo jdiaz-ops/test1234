@@ -1,6 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { MAX_MAIN_COLLECTIONS, type OrganizerCollection, type OrganizerProduct } from "@/lib/store-organizer";
+import {
+  ANNOUNCEMENT_MAX,
+  MAX_FEATURED_COLLECTIONS,
+  MAX_MAIN_COLLECTIONS,
+  RECENT_DAYS,
+  type ExistingSectionSummary,
+  type OrganizerCollection,
+  type OrganizerPlan,
+  type OrganizerProduct,
+  type RawHomeComposition,
+} from "@/lib/store-organizer";
 import { sectorFromVertical } from "@/server/services/shopify-categorize-service";
 
 /// La estructura del catálogo con Claude, en dos pasos cortos para que
@@ -13,6 +23,11 @@ import { sectorFromVertical } from "@/server/services/shopify-categorize-service
 ///    cada uno (y en qué subcolección), más los nombres que mejoran. Los
 ///    productos van numerados (#1, #2…) en vez de con sus ids largos, para
 ///    que la respuesta sea corta y rápida.
+/// 3. Componer la portada: con el catálogo ya organizado y lo que la
+///    portada tenía (banners, videos importados), qué secciones van y en
+///    qué orden, siguiendo una línea directiva de conversión (ver
+///    composeHomeWithClaude). Pedido el 2026-10-19: "que la IA se
+///    encargue pero con una línea directiva".
 /// El navegador encadena los pasos (ver store-organizer-tool.tsx). Sin
 /// llave, o si la IA falla, caen las reglas de store-organizer.ts.
 
@@ -218,4 +233,129 @@ export async function classifyWithClaude(input: ClassifyInput): Promise<Classify
     productNames.push({ id: product.id, name });
   }
   return { assignments, productNames };
+}
+
+// ---------------------------------------------------------------------------
+// Paso 3: componer la portada
+// ---------------------------------------------------------------------------
+
+const HOME_SECTION_TYPES = [
+  "BANNER",
+  "KEEP",
+  "CATEGORY_GRID",
+  "CATEGORY_BANNERS",
+  "FEATURED_COLLECTION",
+  "FEATURED_PRODUCTS",
+  "ON_SALE_PRODUCTS",
+  "NEW_PRODUCTS",
+  "TEXT",
+  "SHIPPING_INFO_BANNERS",
+  "INSTAGRAM_CTA",
+  "PRODUCT_CATALOG",
+] as const;
+
+const compositionSchema = z.object({
+  sections: z.array(
+    z.object({
+      type: z.string(),
+      keepId: z.string(),
+      collections: z.array(z.string()),
+      title: z.string(),
+      subtitle: z.string(),
+      buttonText: z.string(),
+      body: z.string(),
+    }),
+  ),
+  announcement: z.string(),
+  notes: z.string(),
+});
+
+const COMPOSITION_OUTPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    sections: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: HOME_SECTION_TYPES },
+          keepId: { type: "string" },
+          collections: { type: "array", items: { type: "string" } },
+          title: { type: "string" },
+          subtitle: { type: "string" },
+          buttonText: { type: "string" },
+          body: { type: "string" },
+        },
+        required: ["type", "keepId", "collections", "title", "subtitle", "buttonText", "body"],
+        additionalProperties: false,
+      },
+    },
+    announcement: { type: "string" },
+    notes: { type: "string" },
+  },
+  required: ["sections", "announcement", "notes"],
+  additionalProperties: false,
+} as const;
+
+export type ComposeInput = {
+  storeName: string;
+  sector?: string | null;
+  /// El plan ya armado (colecciones en orden de demanda y cifras).
+  plan: OrganizerPlan;
+  products: OrganizerProduct[];
+  /// Lo que la portada tiene hoy (activo), para conservar lo que aporte.
+  existingSections: ExistingSectionSummary[];
+  instagram: boolean;
+  whatsapp: boolean;
+  /// Texto de la barra de anuncio actual, o null si no tiene.
+  announcement: string | null;
+};
+
+/// La línea directiva: qué lleva una portada que convierte y en qué
+/// orden. La IA decide con los datos de la tienda qué secciones van, qué
+/// se conserva de lo importado y los textos; sanitizeHomeComposition
+/// (store-organizer.ts) valida lo que responde.
+export const HOME_DIRECTIVE = [
+  "Arma la portada con esta línea directiva (una portada que vende):",
+  "1. Cabecera, un solo mensaje. Si hay un banner o carrusel importado con fotos, consérvalo con KEEP (su número en keepId). Si no, una sección BANNER de la colección con más demanda que tenga foto (su nombre en collections): title de máximo 40 caracteres que diga qué es, subtitle de máximo 90 que diga qué gana quien compra, buttonText de máximo 25 que empiece con un verbo (\"Ver esmaltes\"). Nunca las dos cosas.",
+  "2. Cómo se compra: CATEGORY_GRID con las colecciones principales que tienen foto (de 2 a 6 nombres en collections) o, si solo hay 3 fuertes, CATEGORY_BANNERS con esas 3.",
+  "3. Prueba social: FEATURED_PRODUCTS (los más vendidos; el título lo pone el sistema).",
+  `4. Ganchos, solo con sustento: ON_SALE_PRODUCTS si hay 3 o más productos con descuento; NEW_PRODUCTS si hay productos nuevos y más de 8 activos; FEATURED_COLLECTION (máximo ${MAX_FEATURED_COLLECTIONS}) para una colección con 4 o más productos que valga la pena mostrar completa, con su nombre en collections y un title.`,
+  "5. Lo importado que aporte, en el lugar que le corresponda (KEEP): un video, fotos de marca o banners de categorías sí; un banner repetido, roto o de una promoción vieja no. Un texto importado solo si es un mensaje real de la marca.",
+  "6. Confianza: SHIPPING_INFO_BANNERS una vez; un TEXT de bienvenida (title de máximo 60 caracteres y body de 120 a 300: qué vende la tienda y por qué comprar ahí, con los datos de arriba, sin inventar premios, años ni cifras); INSTAGRAM_CTA solo si la tienda tiene Instagram.",
+  "7. PRODUCT_CATALOG siempre de último.",
+  "Entre 6 y 10 secciones. Cada tipo una sola vez, salvo KEEP y FEATURED_COLLECTION.",
+  "Textos en español de Colombia, directos y concretos, sin emojis, sin mayúsculas sostenidas, sin signos de admiración y sin palabras como exclusivo, premium, lujo, increíble o curado. No prometas lo que no esté en los datos: ni envío gratis, ni porcentajes, ni tiempos de entrega.",
+  `announcement: si la tienda no tiene barra de anuncio, una frase de máximo ${ANNOUNCEMENT_MAX - 10} caracteres con un dato real de arriba (ofertas, asesoría por WhatsApp, novedades, envíos a todo el país); si ya tiene barra o no hay nada que decir, vacía.`,
+  "notes: en una frase de máximo 200 caracteres, por qué la portada quedó así.",
+  "Campos que no apliquen: cadena vacía o lista vacía.",
+].join("\n");
+
+export async function composeHomeWithClaude(input: ComposeInput): Promise<RawHomeComposition | null> {
+  const sector = sectorOf(input.sector);
+  const since = Date.now() - RECENT_DAYS * 86_400_000;
+  const active = input.products.filter((p) => p.active);
+  const recent = active.filter((p) => p.createdAt.getTime() >= since).length;
+  const stats = input.plan.stats;
+  const activeIds = new Set(active.map((p) => p.id));
+  const collections = input.plan.collections.map((c) => {
+    const count = c.productIds.filter((id) => activeIds.has(id)).length;
+    return `${c.name} | ${count} | ${c.sold} | ${c.imageUrl ? "sí" : "no"} | ${c.description || "-"}`;
+  });
+  const existing = input.existingSections.map((s, i) => `S${i + 1} | ${s.type} | ${s.label}`);
+  const user = [
+    `Tienda "${input.storeName}" (${sector}). ${active.length} productos activos (${stats.withSales} con ventas en la tienda, ${stats.discounted} con descuento, ${recent} nuevos en el último mes). Instagram: ${input.instagram ? "sí" : "no"}. Asesoría por WhatsApp: ${input.whatsapp ? "sí" : "no"}. Barra de anuncio: ${input.announcement ? `ya tiene una ("${input.announcement}")` : "no tiene"}.`,
+    "",
+    "Colecciones nuevas, en orden de demanda (nombre | productos activos | vendidos | foto | descripción):",
+    ...collections,
+    "",
+    existing.length > 0
+      ? "Secciones que tiene hoy la portada (número | tipo | qué tiene). Se conservan con una sección KEEP y su número en keepId:"
+      : "La portada de hoy no tiene nada propio que conservar.",
+    ...existing,
+    "",
+    HOME_DIRECTIVE,
+  ].join("\n");
+  const system = `Eres quien arma la portada de una tienda en línea colombiana de ${sector} para que convierta visitas en compras. Respondes solo con el JSON pedido.`;
+  return ask(system, user, COMPOSITION_OUTPUT_SCHEMA, (r) => compositionSchema.safeParse(r).data ?? null, 3000);
 }

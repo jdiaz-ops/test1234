@@ -1,6 +1,7 @@
 import { nicheCategoryOf, normalizeText, proposeCollectionsByRules, OTHER_COLLECTION_NAME } from "@/lib/shopify-categorize";
 import { proposeMergeByRules } from "@/lib/collection-merge";
 import { slugify } from "@/lib/shopify-csv";
+import { normalizeBannerConfig, SECTION_TYPE_LABEL, type SectionType } from "@/lib/storefront-sections";
 
 /// Organizador automático de tienda — la parte pura (sin red ni base de
 /// datos). Recibe el catálogo tal como quedó (importado o armado a mano)
@@ -87,15 +88,43 @@ export type PlannedCollection = {
 
 export type PlannedMenuItem = { label: string; url: string; children: PlannedMenuItem[] };
 
+/// Una sección de la portada. BANNER es el banner que arma el organizador
+/// (lo pinta /api/banner con los colores y la letra del tema más la foto
+/// de la colección, ver banner-image.ts); KEEP conserva una sección que
+/// la tienda ya tenía (un banner, video o foto importada que aporta).
+/// Pedido el 2026-10-19: "que use imágenes que tengan sentido y que cree
+/// banners si es necesario usando el estilo fiel de la tienda duplicada".
 export type HomeSectionPlan =
   | { type: "BANNER"; collectionKey: string; imageUrl: string; title: string; subtitle: string; buttonText: string }
+  | { type: "KEEP"; sectionId: string; label: string }
   | { type: "CATEGORY_GRID"; title: string; collectionKeys: string[] }
+  | { type: "CATEGORY_BANNERS"; collectionKeys: string[] }
+  | { type: "FEATURED_COLLECTION"; collectionKey: string; title: string }
   | { type: "FEATURED_PRODUCTS"; title: string; productIds: string[] }
   | { type: "ON_SALE_PRODUCTS"; title: string }
   | { type: "NEW_PRODUCTS"; title: string }
+  | { type: "TEXT"; heading: string; body: string }
   | { type: "SHIPPING_INFO_BANNERS"; whatsapp: boolean }
   | { type: "INSTAGRAM_CTA" }
   | { type: "PRODUCT_CATALOG"; title: string };
+
+/// Resumen de una sección que la portada ya tiene (activa), con lo que
+/// hace falta para decidir si se conserva. Ver summarizeExistingSection.
+export type ExistingSectionSummary = {
+  id: string;
+  type: string;
+  /// Para la IA y la vista previa: "Banner ancho con 3 fotos".
+  label: string;
+  /// Tiene foto o video propio: vale la pena conservarla.
+  visual: boolean;
+  /// Banner ancho con foto: hace de cabecera, no se arma otra.
+  hero: boolean;
+  /// Colecciones a las que apunta; si alguna desaparece con el plan, la
+  /// sección no se conserva.
+  collectionIds: string[];
+  /// Texto propio (TEXT), para que la IA decida si es un mensaje de marca.
+  text: string;
+};
 
 export type OrganizerPlan = {
   source: "ia" | "reglas";
@@ -106,6 +135,10 @@ export type OrganizerPlan = {
   productNames: { id: string; from: string; to: string }[];
   menu: PlannedMenuItem[];
   home: HomeSectionPlan[];
+  /// Frase para la barra de anuncio (solo se pone si la tienda no tiene).
+  announcement: string | null;
+  /// Por qué la portada quedó así (lo explica la IA; null por reglas).
+  notes: string | null;
   stats: {
     products: number;
     active: number;
@@ -499,9 +532,9 @@ export type BuildPlanOptions = {
   now?: Date;
   instagram?: boolean;
   whatsapp?: boolean;
-  /// La portada ya tiene un banner con foto (importado): se conserva y
-  /// no se arma otro.
-  keepsBanner?: boolean;
+  /// Las secciones activas que la portada ya tiene: lo importado con foto
+  /// o video se conserva (KEEP) y, si hay un banner ancho, no se arma otro.
+  existingSections?: ExistingSectionSummary[];
 };
 
 function uniqueKey(base: string, taken: Set<string>) {
@@ -609,6 +642,8 @@ export function buildPlan(
     productNames,
     menu,
     home,
+    announcement: null,
+    notes: null,
     stats: {
       products: products.length,
       active: products.filter((p) => p.active).length,
@@ -661,9 +696,13 @@ export function bestSellerIds(products: OrganizerProduct[], scores: Map<string, 
   return { ids, title: withSales ? BEST_SELLERS_TITLE : FEATURED_TITLE };
 }
 
-/// Portada que vende: la colección estrella arriba, las categorías en
-/// orden de demanda, los más vendidos, ofertas si hay, novedades, los
-/// sellos de confianza, Instagram y el catálogo completo al final.
+/// Cuántas secciones importadas (aparte de la cabecera) se conservan.
+export const MAX_KEPT_VISUALS = 3;
+
+/// Portada que vende (por reglas): la cabecera importada si la hay o un
+/// banner de la colección estrella, las categorías en orden de demanda,
+/// los más vendidos, lo visual importado que aporte, ofertas si hay,
+/// novedades, los sellos de confianza, Instagram y el catálogo completo.
 export function planHome(
   collections: PlannedCollection[],
   products: OrganizerProduct[],
@@ -671,21 +710,19 @@ export function planHome(
   options: BuildPlanOptions & { discounted: number },
 ): HomeSectionPlan[] {
   const home: HomeSectionPlan[] = [];
+  const surviving = survivingCollectionIds(collections);
+  const existing = options.existingSections ?? [];
+  const hero = existing.find((s) => s.hero && keepableSection(s, surviving));
   const star = collections.find((c) => c.imageUrl && c.productIds.some((id) => byActive(products, id)));
-  if (star?.imageUrl && !options.keepsBanner) {
-    home.push({
-      type: "BANNER",
-      collectionKey: star.key,
-      imageUrl: star.imageUrl,
-      title: star.name,
-      subtitle: star.description || `Lo más pedido de la tienda`,
-      buttonText: `Ver ${star.name.toLowerCase()}`.slice(0, 40),
-    });
-  }
-  const withImage = collections.filter((c) => c.imageUrl && c.productIds.length > 0).slice(0, 6);
+  if (hero) home.push({ type: "KEEP", sectionId: hero.id, label: hero.label });
+  else if (star?.imageUrl) home.push(bannerFor(star));
+  const withImage = categoriesWithImage(collections).slice(0, 6);
   if (withImage.length >= 2) home.push({ type: "CATEGORY_GRID", title: CATEGORY_GRID_TITLE, collectionKeys: withImage.map((c) => c.key) });
   const best = bestSellerIds(products, scores);
   if (best.ids.length >= 4) home.push({ type: "FEATURED_PRODUCTS", title: best.title, productIds: best.ids });
+  for (const s of existing.filter((s) => s !== hero && keepableSection(s, surviving)).slice(0, MAX_KEPT_VISUALS)) {
+    home.push({ type: "KEEP", sectionId: s.id, label: s.label });
+  }
   if (options.discounted >= 3) home.push({ type: "ON_SALE_PRODUCTS", title: ON_SALE_TITLE });
   if (products.filter((p) => p.active).length >= 8) home.push({ type: "NEW_PRODUCTS", title: NEW_PRODUCTS_TITLE });
   home.push({ type: "SHIPPING_INFO_BANNERS", whatsapp: Boolean(options.whatsapp) });
@@ -694,6 +731,346 @@ export function planHome(
   return home;
 }
 
+/// El banner de la colección estrella (lo pinta /api/banner con el
+/// estilo de la tienda; los textos van dentro de la imagen).
+export type BannerPlan = Extract<HomeSectionPlan, { type: "BANNER" }>;
+
+export function bannerFor(star: PlannedCollection): BannerPlan {
+  return {
+    type: "BANNER",
+    collectionKey: star.key,
+    imageUrl: star.imageUrl ?? "",
+    title: star.name.slice(0, 60),
+    subtitle: (star.description || "Lo más pedido de la tienda").slice(0, 120),
+    buttonText: `Ver ${star.name.toLowerCase()}`.slice(0, 30),
+  };
+}
+
 function byActive(products: OrganizerProduct[], id: string) {
   return products.find((p) => p.id === id)?.active ?? false;
+}
+
+function isOtherCollection(c: PlannedCollection) {
+  return collectionNameKey(c.name) === collectionNameKey(OTHER_COLLECTION_NAME);
+}
+
+/// Colecciones con foto y productos para "Compra por categoría". "Otros
+/// productos" no es una categoría: solo entra si no hay otras dos.
+export function categoriesWithImage(collections: PlannedCollection[]): PlannedCollection[] {
+  const withImage = collections.filter((c) => c.imageUrl && c.productIds.length > 0);
+  const real = withImage.filter((c) => !isOtherCollection(c));
+  return real.length >= 2 ? real : withImage;
+}
+
+export function flattenPlanned(collections: PlannedCollection[]): PlannedCollection[] {
+  return collections.flatMap((c) => [c, ...flattenPlanned(c.children)]);
+}
+
+/// Ids de las colecciones actuales que siguen existiendo con el plan.
+function survivingCollectionIds(collections: PlannedCollection[]) {
+  return new Set(flattenPlanned(collections).map((c) => c.existingId).filter((id): id is string => Boolean(id)));
+}
+
+/// Una sección existente se conserva si tiene algo propio (foto o video;
+/// con `text`, también un texto de marca) y sus colecciones siguen
+/// existiendo.
+export function keepableSection(section: ExistingSectionSummary, survivingCollectionIds: Set<string>, options: { text?: boolean } = {}) {
+  if (!section.collectionIds.every((id) => survivingCollectionIds.has(id))) return false;
+  if (section.visual) return true;
+  return Boolean(options.text) && section.type === "TEXT" && section.text.length >= 40;
+}
+
+function itemsOf(config: Record<string, unknown>): Record<string, unknown>[] {
+  return Array.isArray(config.items) ? config.items.filter((i): i is Record<string, unknown> => Boolean(i) && typeof i === "object") : [];
+}
+
+function str(value: unknown, max = 200) {
+  return typeof value === "string" ? value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : "";
+}
+
+/// Resumen de una sección de la portada tal como está en la base, con lo
+/// que importa para decidir si se conserva (ver ExistingSectionSummary).
+export function summarizeExistingSection(
+  section: { id: string; type: string; config: unknown },
+  collectionNameById: Map<string, string>,
+): ExistingSectionSummary {
+  const config = (section.config && typeof section.config === "object" ? section.config : {}) as Record<string, unknown>;
+  const base: ExistingSectionSummary = {
+    id: section.id,
+    type: section.type,
+    label: SECTION_TYPE_LABEL[section.type as SectionType] ?? section.type,
+    visual: false,
+    hero: false,
+    collectionIds: [],
+    text: "",
+  };
+  const names = (ids: string[]) => ids.map((id) => collectionNameById.get(id) ?? "una colección que ya no existe").join(", ");
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  switch (section.type) {
+    case "BANNER": {
+      const banner = normalizeBannerConfig(config);
+      const slides = banner.slides.filter((s) => s.imageUrl);
+      const title = str(banner.title, 80);
+      if (slides.length === 0) return { ...base, label: title ? `Banner sin foto (título "${title}")` : "Banner vacío" };
+      const withTitle = title ? ` con el título "${title}"` : "";
+      return {
+        ...base,
+        visual: true,
+        hero: banner.aspectRatio !== "square",
+        label: slides.length === 1 ? `Banner ancho con una foto${withTitle}` : `Banner ancho con ${slides.length} fotos que se deslizan${withTitle}`,
+      };
+    }
+    case "IMAGE_CAROUSEL": {
+      const images = Array.isArray(config.images) ? config.images.filter((i) => typeof i === "string" && i) : [];
+      if (images.length === 0) return { ...base, label: "Carrusel de imágenes vacío" };
+      return { ...base, visual: true, hero: true, label: images.length === 1 ? "Imagen de ancho completo" : `Carrusel de ${images.length} imágenes de ancho completo` };
+    }
+    case "PROMO_BANNERS": {
+      const items = itemsOf(config).filter((i) => i.show !== false && typeof i.imageUrl === "string" && i.imageUrl);
+      if (items.length === 0) return { ...base, label: "Banners promocionales vacíos" };
+      return { ...base, visual: true, label: `${plural(items.length, "banner promocional", "banners promocionales")} con foto` };
+    }
+    case "CATEGORY_BANNERS": {
+      const items = itemsOf(config).filter((i) => i.show !== false && typeof i.imageUrl === "string" && i.imageUrl && typeof i.collectionId === "string" && i.collectionId);
+      const ids = items.map((i) => i.collectionId as string);
+      if (ids.length === 0) return { ...base, label: "Banners de categorías vacíos" };
+      return { ...base, visual: true, collectionIds: ids, label: `Banners con foto de ${plural(ids.length, "categoría", "categorías")} (${names(ids)})` };
+    }
+    case "VIDEO": {
+      const url = str(config.url, 300);
+      if (!url) return { ...base, label: "Video sin dirección" };
+      const title = str(config.title, 80);
+      return { ...base, visual: true, label: title ? `Video "${title}"` : "Video" };
+    }
+    case "BRAND_CAROUSEL": {
+      const items = itemsOf(config).filter((i) => typeof i.imageUrl === "string" && i.imageUrl);
+      if (items.length === 0) return { ...base, label: "Tira de logos vacía" };
+      return { ...base, visual: true, label: `Tira de ${plural(items.length, "logo o sello", "logos o sellos")}` };
+    }
+    case "TEXT": {
+      const text = [str(config.heading, 120), str(config.body, 600)].filter(Boolean).join(" — ");
+      if (!text) return { ...base, label: "Texto vacío" };
+      return { ...base, text, label: `Texto: "${text.slice(0, 140)}${text.length > 140 ? "…" : ""}"` };
+    }
+    case "FEATURED_COLLECTION": {
+      const id = typeof config.collectionId === "string" ? config.collectionId : "";
+      if (!id) return { ...base, label: "Colección destacada sin colección" };
+      return { ...base, collectionIds: [id], label: `Productos de la colección ${names([id])}` };
+    }
+    case "FEATURED_PRODUCTS": {
+      const ids = Array.isArray(config.productIds) ? config.productIds : [];
+      const title = str(config.title, 80);
+      return { ...base, label: `${plural(ids.length, "producto elegido a mano", "productos elegidos a mano")}${title ? ` ("${title}")` : ""}` };
+    }
+    default:
+      return base;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// La portada compuesta por la IA
+// ---------------------------------------------------------------------------
+
+/// Lo que responde la IA al componer la portada (ver
+/// composeHomeWithClaude): secciones en orden con los campos que apliquen
+/// (vacío lo demás), colecciones por nombre y las secciones existentes
+/// por su número (S1, S2…) o su id.
+export type RawHomeSection = { type: string; keepId: string; collections: string[]; title: string; subtitle: string; buttonText: string; body: string };
+export type RawHomeComposition = { sections: RawHomeSection[]; announcement: string; notes: string };
+
+export type HomeCompositionContext = {
+  collections: PlannedCollection[];
+  products: OrganizerProduct[];
+  scores: Map<string, ProductScore>;
+  existingSections: ExistingSectionSummary[];
+  instagram: boolean;
+  whatsapp: boolean;
+  discounted: number;
+  /// La tienda ya tiene barra de anuncio: no se propone otra.
+  hasAnnouncement: boolean;
+};
+
+export const MAX_HOME_SECTIONS = 12;
+export const MAX_FEATURED_COLLECTIONS = 2;
+export const ANNOUNCEMENT_MAX = 90;
+/// Con menos secciones válidas que esto, la respuesta de la IA no sirve
+/// y se usa la portada por reglas.
+export const MIN_COMPOSED_SECTIONS = 3;
+
+const EMOJI = /[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}]/gu;
+
+function cleanText(value: unknown, max: number) {
+  return typeof value === "string" ? value.replace(EMOJI, "").replace(/\s+/g, " ").trim().slice(0, max) : "";
+}
+
+/// Una promesa que no se puede comprobar (envío gratis, porcentajes,
+/// precios) no va en la barra de anuncio.
+function isUnverifiablePromise(text: string) {
+  return /grat[ií]s|%|\$|\d+\s*(por ciento|off|x\s*\d)|descuento del/i.test(text);
+}
+
+/// Valida y ordena lo que compuso la IA: solo colecciones y secciones que
+/// existen, una sola cabecera (de primera), los más vendidos, los sellos
+/// de confianza una vez y el catálogo de último. Si queda muy poco de lo
+/// que propuso, devuelve null y se usa la portada por reglas.
+export function sanitizeHomeComposition(
+  raw: RawHomeComposition,
+  ctx: HomeCompositionContext,
+): { home: HomeSectionPlan[]; announcement: string | null; notes: string | null } | null {
+  const all = flattenPlanned(ctx.collections);
+  const byName = new Map(all.map((c) => [collectionNameKey(c.name), c]));
+  const surviving = survivingCollectionIds(ctx.collections);
+  const existingById = new Map(ctx.existingSections.map((s) => [s.id, s]));
+  const existingByNumber = new Map(ctx.existingSections.map((s, i) => [`s${i + 1}`, s]));
+  const activeCount = (c: PlannedCollection) => c.productIds.filter((id) => byActive(ctx.products, id)).length;
+  const resolve = (names: unknown) => {
+    const out: PlannedCollection[] = [];
+    for (const n of Array.isArray(names) ? names : []) {
+      const c = byName.get(collectionNameKey(cleanText(n, 80)));
+      if (c && !out.includes(c)) out.push(c);
+    }
+    return out;
+  };
+  const isHero = (h: HomeSectionPlan) => h.type === "BANNER" || (h.type === "KEEP" && Boolean(existingById.get(h.sectionId)?.hero));
+  const best = bestSellerIds(ctx.products, ctx.scores);
+  const activeProducts = ctx.products.filter((p) => p.active).length;
+
+  const home: HomeSectionPlan[] = [];
+  const once = new Set<string>();
+  const kept = new Set<string>();
+  let featuredCollections = 0;
+  let proposed = 0;
+
+  for (const s of Array.isArray(raw.sections) ? raw.sections : []) {
+    if (home.length >= MAX_HOME_SECTIONS - 1) break;
+    const type = cleanText(s?.type, 40).toUpperCase();
+    const before = home.length;
+    switch (type) {
+      case "KEEP": {
+        const key = cleanText(s.keepId, 60);
+        const section = existingById.get(key) ?? existingByNumber.get(key.toLowerCase());
+        if (!section || kept.has(section.id) || !keepableSection(section, surviving, { text: true })) break;
+        if (section.hero && home.some(isHero)) break;
+        kept.add(section.id);
+        home.push({ type: "KEEP", sectionId: section.id, label: section.label });
+        break;
+      }
+      case "BANNER": {
+        if (home.some(isHero)) break;
+        const target = resolve(s.collections).find((c) => c.imageUrl && activeCount(c) > 0) ?? all.find((c) => c.imageUrl && activeCount(c) > 0);
+        if (!target) break;
+        const base = bannerFor(target);
+        home.push({
+          ...base,
+          title: cleanText(s.title, 60) || base.title,
+          subtitle: cleanText(s.subtitle, 120) || base.subtitle,
+          buttonText: cleanText(s.buttonText, 30) || base.buttonText,
+        });
+        break;
+      }
+      case "CATEGORY_GRID": {
+        if (once.has(type)) break;
+        let chosen = resolve(s.collections).filter((c) => c.imageUrl && c.productIds.length > 0).slice(0, 6);
+        if (chosen.length < 2) chosen = categoriesWithImage(ctx.collections).slice(0, 6);
+        if (chosen.length < 2) break;
+        once.add(type);
+        home.push({ type: "CATEGORY_GRID", title: cleanText(s.title, 60) || CATEGORY_GRID_TITLE, collectionKeys: chosen.map((c) => c.key) });
+        break;
+      }
+      case "CATEGORY_BANNERS": {
+        if (once.has(type)) break;
+        const chosen = resolve(s.collections).filter((c) => c.imageUrl && c.productIds.length > 0).slice(0, 3);
+        if (chosen.length < 2) break;
+        once.add(type);
+        home.push({ type: "CATEGORY_BANNERS", collectionKeys: chosen.map((c) => c.key) });
+        break;
+      }
+      case "FEATURED_COLLECTION": {
+        if (featuredCollections >= MAX_FEATURED_COLLECTIONS) break;
+        const target = resolve(s.collections).find((c) => activeCount(c) >= 4);
+        if (!target || home.some((h) => h.type === "FEATURED_COLLECTION" && h.collectionKey === target.key)) break;
+        featuredCollections++;
+        home.push({ type: "FEATURED_COLLECTION", collectionKey: target.key, title: cleanText(s.title, 60) || target.name });
+        break;
+      }
+      case "FEATURED_PRODUCTS": {
+        if (once.has(type) || best.ids.length < 4) break;
+        once.add(type);
+        home.push({ type: "FEATURED_PRODUCTS", title: best.title, productIds: best.ids });
+        break;
+      }
+      case "ON_SALE_PRODUCTS": {
+        if (once.has(type) || ctx.discounted < 3) break;
+        once.add(type);
+        home.push({ type: "ON_SALE_PRODUCTS", title: cleanText(s.title, 40) || ON_SALE_TITLE });
+        break;
+      }
+      case "NEW_PRODUCTS": {
+        if (once.has(type) || activeProducts < 8) break;
+        once.add(type);
+        home.push({ type: "NEW_PRODUCTS", title: cleanText(s.title, 40) || NEW_PRODUCTS_TITLE });
+        break;
+      }
+      case "TEXT": {
+        if (once.has(type)) break;
+        const body = cleanText(s.body, 400);
+        if (body.length < 40) break;
+        once.add(type);
+        home.push({ type: "TEXT", heading: cleanText(s.title, 60), body });
+        break;
+      }
+      case "SHIPPING_INFO_BANNERS": {
+        if (once.has(type)) break;
+        once.add(type);
+        home.push({ type: "SHIPPING_INFO_BANNERS", whatsapp: ctx.whatsapp });
+        break;
+      }
+      case "INSTAGRAM_CTA": {
+        if (once.has(type) || !ctx.instagram) break;
+        once.add(type);
+        home.push({ type: "INSTAGRAM_CTA" });
+        break;
+      }
+      case "PRODUCT_CATALOG": {
+        if (once.has(type)) break;
+        once.add(type);
+        home.push({ type: "PRODUCT_CATALOG", title: cleanText(s.title, 60) || CATALOG_TITLE });
+        break;
+      }
+      default:
+        break;
+    }
+    if (home.length > before) proposed++;
+  }
+  if (proposed < MIN_COMPOSED_SECTIONS) return null;
+
+  // Lo que no puede faltar: la cabecera de primera, los más vendidos
+  // después de las categorías, los sellos antes del cierre y el catálogo
+  // de último.
+  if (!home.some(isHero)) {
+    const hero = ctx.existingSections.find((s) => s.hero && !kept.has(s.id) && keepableSection(s, surviving));
+    const star = ctx.collections.find((c) => c.imageUrl && activeCount(c) > 0);
+    if (hero) home.unshift({ type: "KEEP", sectionId: hero.id, label: hero.label });
+    else if (star) home.unshift(bannerFor(star));
+  }
+  const heroIndex = home.findIndex(isHero);
+  if (heroIndex > 0) home.unshift(...home.splice(heroIndex, 1));
+  if (!home.some((h) => h.type === "FEATURED_PRODUCTS") && best.ids.length >= 4) {
+    let at = 0;
+    while (at < home.length && (isHero(home[at]) || home[at].type === "CATEGORY_GRID" || home[at].type === "CATEGORY_BANNERS")) at++;
+    home.splice(at, 0, { type: "FEATURED_PRODUCTS", title: best.title, productIds: best.ids });
+  }
+  if (!home.some((h) => h.type === "SHIPPING_INFO_BANNERS")) {
+    let at = home.length;
+    while (at > 0 && (home[at - 1].type === "INSTAGRAM_CTA" || home[at - 1].type === "PRODUCT_CATALOG")) at--;
+    home.splice(at, 0, { type: "SHIPPING_INFO_BANNERS", whatsapp: ctx.whatsapp });
+  }
+  const catalogIndex = home.findIndex((h) => h.type === "PRODUCT_CATALOG");
+  const catalog: HomeSectionPlan = catalogIndex >= 0 ? home.splice(catalogIndex, 1)[0] : { type: "PRODUCT_CATALOG", title: CATALOG_TITLE };
+  const trimmed = home.slice(0, MAX_HOME_SECTIONS - 1);
+  trimmed.push(catalog);
+
+  let announcement: string | null = ctx.hasAnnouncement ? null : cleanText(raw.announcement, ANNOUNCEMENT_MAX) || null;
+  if (announcement && isUnverifiablePromise(announcement)) announcement = null;
+  return { home: trimmed, announcement, notes: cleanText(raw.notes, 300) || null };
 }

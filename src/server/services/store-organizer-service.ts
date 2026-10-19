@@ -3,21 +3,28 @@ import { prisma } from "@/lib/prisma";
 import { stripHtml } from "@/lib/sanitize-html";
 import { slugify } from "@/lib/shopify-csv";
 import { parseSectionConfig, type SectionType } from "@/lib/storefront-sections";
+import { bannerImageUrl } from "@/lib/banner-image";
+import type { ThemeConfig } from "@/lib/brand-theme";
+import { getDraftTheme, getPublishedTheme, patchPublishedTheme } from "@/server/services/brand-theme-store";
 import {
   bestSellerIds,
   BEST_SELLERS_TITLE,
   buildPlan,
   collectionDemand,
   FEATURED_TITLE,
+  flattenPlanned,
   proposeStructureByRules,
   rankProductIds,
+  sanitizeHomeComposition,
   scoreProducts,
   structureFromAssignments,
+  summarizeExistingSection,
+  type BannerPlan,
+  type ExistingSectionSummary,
   type HomeSectionPlan,
   type OrganizerCollection,
   type OrganizerPlan,
   type OrganizerProduct,
-  type PlannedCollection,
   type PlannedMenuItem,
   type StructureAssignment,
   type StructureDefinition,
@@ -28,6 +35,7 @@ import {
   aiAvailable,
   CLASSIFY_BATCH_SIZE,
   classifyWithClaude,
+  composeHomeWithClaude,
   defineCollectionsWithClaude,
   sectorFromVertical,
   type ClassifyResult,
@@ -55,7 +63,8 @@ type Catalog = {
   products: OrganizerProduct[];
   collections: OrganizerCollection[];
   brand: { companyName: string; instagramHandle: string | null; phone: string | null; sector: string };
-  keepsBanner: boolean;
+  /// Las secciones activas de la portada, resumidas (ver summarizeExistingSection).
+  sections: ExistingSectionSummary[];
 };
 
 async function loadCatalog(brandId: string): Promise<Catalog> {
@@ -109,7 +118,7 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
       _count: { _all: true },
       _avg: { rating: true },
     }),
-    prisma.storefrontSection.findMany({ where: { brandId, enabled: true, type: "BANNER" }, select: { config: true } }),
+    prisma.storefrontSection.findMany({ where: { brandId, enabled: true }, orderBy: { position: "asc" }, select: { id: true, type: true, config: true } }),
   ]);
   if (!brand) throw new StoreOrganizerError("Marca no encontrada.");
 
@@ -145,10 +154,7 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
     rating: reviewsById.get(p.id)?.rating ?? null,
   }));
 
-  const keepsBanner = sections.some((s) => {
-    const config = s.config as { slides?: { imageUrl?: string }[]; imageUrl?: string } | null;
-    return Boolean(config?.slides?.some((slide) => slide.imageUrl) || config?.imageUrl);
-  });
+  const collectionNameById = new Map(collections.map((c) => [c.id, c.name]));
 
   return {
     products,
@@ -167,7 +173,7 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
       phone: brand.phone,
       sector: sectorFromVertical(brand.vertical?.name),
     },
-    keepsBanner,
+    sections: sections.map((s) => summarizeExistingSection(s, collectionNameById)),
   };
 }
 
@@ -183,7 +189,7 @@ function planFrom(catalog: Catalog, proposal: StructureProposal, source: Organiz
     source,
     instagram: Boolean(catalog.brand.instagramHandle),
     whatsapp: Boolean(catalog.brand.phone),
-    keepsBanner: catalog.keepsBanner,
+    existingSections: catalog.sections,
   });
 }
 
@@ -246,7 +252,54 @@ export async function planStoreOrganizer(
 ): Promise<OrganizerPlan> {
   const catalog = await loadCatalogOrThrow(brandId);
   if (structure.mode === "reglas") return planFrom(catalog, proposeStructureByRules(catalog.products, catalog.collections), "reglas");
-  return planFrom(catalog, structureFromAssignments(structure.definitions, structure.assignments, structure.productNames), "ia");
+  const plan = planFrom(catalog, structureFromAssignments(structure.definitions, structure.assignments, structure.productNames), "ia");
+  return composeHome(brandId, catalog, plan);
+}
+
+/// La portada la compone la IA con la línea directiva de conversión (ver
+/// composeHomeWithClaude) y lo que responde se valida en
+/// sanitizeHomeComposition. Sin IA, o si falla, queda la portada por
+/// reglas que ya trae el plan.
+async function composeHome(brandId: string, catalog: Catalog, plan: OrganizerPlan): Promise<OrganizerPlan> {
+  if (!aiAvailable()) return plan;
+  try {
+    const current = announcementText(await getPublishedTheme(brandId));
+    const instagram = Boolean(catalog.brand.instagramHandle);
+    const whatsapp = Boolean(catalog.brand.phone);
+    const raw = await composeHomeWithClaude({
+      storeName: catalog.brand.companyName,
+      sector: catalog.brand.sector,
+      plan,
+      products: catalog.products,
+      existingSections: catalog.sections,
+      instagram,
+      whatsapp,
+      announcement: current,
+    });
+    if (!raw) return plan;
+    const composed = sanitizeHomeComposition(raw, {
+      collections: plan.collections,
+      products: catalog.products,
+      scores: scoreProducts(catalog.products),
+      existingSections: catalog.sections,
+      instagram,
+      whatsapp,
+      discounted: plan.stats.discounted,
+      hasAnnouncement: current !== null,
+    });
+    if (!composed) return plan;
+    return { ...plan, home: composed.home, announcement: composed.announcement, notes: composed.notes };
+  } catch (err) {
+    console.error("[organizador] componer la portada con IA falló, queda la portada por reglas:", err instanceof Error ? err.message : err);
+    return plan;
+  }
+}
+
+/// El texto de la barra de anuncio del tema, o null si no tiene una.
+function announcementText(theme: ThemeConfig): string | null {
+  const bar = theme.announcementBar;
+  const texts = bar.messages.map((m) => m.text.trim()).filter(Boolean);
+  return bar.enabled && texts.length > 0 ? texts.join(" · ") : null;
 }
 
 /// El plan completo en una sola llamada (pruebas y scripts): con llave
@@ -276,6 +329,11 @@ export type ApplySummary = {
   menu: number;
   home: number;
   families: number;
+  /// Secciones importadas que se conservaron, banners pintados con el
+  /// estilo de la tienda y si se puso la barra de anuncio.
+  kept: number;
+  banners: number;
+  announcement: boolean;
 };
 
 type Snapshot = {
@@ -296,6 +354,9 @@ type Snapshot = {
   productNames: { id: string; name: string }[];
   redirects: string[];
   mobileMenuStyle: string | null;
+  /// La barra de anuncio (borrador y publicada) antes de ponerle la
+  /// frase del plan; null si no se tocó.
+  announcementBar?: { draft: unknown; published: unknown } | null;
 };
 
 async function snapshotStore(brandId: string, productIds: string[]): Promise<Snapshot> {
@@ -327,6 +388,7 @@ async function snapshotStore(brandId: string, productIds: string[]): Promise<Sna
     productNames: products.map((p) => ({ id: p.id, name: p.name })),
     redirects: [],
     mobileMenuStyle: null,
+    announcementBar: null,
   };
 }
 
@@ -339,10 +401,6 @@ async function uniqueCollectionSlug(brandId: string, base: string, excludeId: st
   }
 }
 
-function flatten(collections: PlannedCollection[]): PlannedCollection[] {
-  return collections.flatMap((c) => [c, ...c.children]);
-}
-
 function menuToBuilt(items: PlannedMenuItem[], slugByKey: Map<string, string>): BuiltMenuItem[] {
   return items.map((item) => {
     const match = item.url.match(/^\/coleccion\/(.+)$/);
@@ -351,23 +409,86 @@ function menuToBuilt(items: PlannedMenuItem[], slugByKey: Map<string, string>): 
   });
 }
 
-function sectionConfig(section: HomeSectionPlan, ctx: { idByKey: Map<string, string>; slugByKey: Map<string, string>; imageByKey: Map<string, string | null>; whatsapp: string | null }): { type: SectionType; config: unknown } | null {
+type SectionContext = {
+  idByKey: Map<string, string>;
+  slugByKey: Map<string, string>;
+  imageByKey: Map<string, string | null>;
+  whatsapp: string | null;
+  /// El tema publicado, para pintar el banner con sus colores y su letra.
+  theme: ThemeConfig | null;
+};
+
+/// La URL firmada del banner pintado con el estilo de la tienda (ver
+/// banner-image.ts), o null si no se puede firmar (falta AUTH_SECRET).
+function generatedBannerUrl(section: BannerPlan, theme: ThemeConfig, layout: "wide" | "mobile"): string | null {
+  try {
+    return bannerImageUrl({
+      layout,
+      title: section.title,
+      subtitle: section.subtitle,
+      cta: section.buttonText,
+      image: /^https:\/\//i.test(section.imageUrl) ? section.imageUrl : null,
+      bg: theme.colors.fondo,
+      fg: theme.colors.texto,
+      accent: theme.colors.usarAcento ? theme.colors.acento : theme.colors.principal,
+      font: theme.typography.headingFont,
+    });
+  } catch (err) {
+    console.error("[organizador] no se pudo firmar el banner:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+function sectionConfig(section: HomeSectionPlan, ctx: SectionContext): { type: SectionType; config: unknown; generated?: boolean } | null {
   switch (section.type) {
+    case "KEEP":
+      return null;
     case "BANNER": {
       const slug = ctx.slugByKey.get(section.collectionKey);
       if (!slug) return null;
+      const link = `/coleccion/${slug}`;
+      const wide = ctx.theme ? generatedBannerUrl(section, ctx.theme, "wide") : null;
+      const mobile = ctx.theme && wide ? generatedBannerUrl(section, ctx.theme, "mobile") : null;
+      if (wide) {
+        // Los textos van pintados dentro de la imagen: sin capa encima.
+        return {
+          type: "BANNER",
+          generated: true,
+          config: { aspectRatio: "original", slides: [{ imageUrl: wide, mobileImageUrl: mobile ?? "", link }], title: "", subtitle: "", buttonText: "", buttonLink: link },
+        };
+      }
       return {
         type: "BANNER",
         config: {
           aspectRatio: "horizontal",
-          slides: [{ imageUrl: section.imageUrl, link: `/coleccion/${slug}` }],
+          slides: [{ imageUrl: section.imageUrl, link }],
           title: section.title,
           subtitle: section.subtitle,
           buttonText: section.buttonText,
-          buttonLink: `/coleccion/${slug}`,
+          buttonLink: link,
         },
       };
     }
+    case "CATEGORY_BANNERS": {
+      const keys = section.collectionKeys.filter((key) => ctx.idByKey.has(key) && ctx.imageByKey.get(key)).slice(0, 3);
+      if (keys.length < 2) return null;
+      return {
+        type: "CATEGORY_BANNERS",
+        config: {
+          extendFullWidth: false,
+          items: Array.from({ length: 3 }, (_, i) =>
+            keys[i] ? { show: true, collectionId: ctx.idByKey.get(keys[i]), imageUrl: ctx.imageByKey.get(keys[i]) ?? null } : { show: false, collectionId: null, imageUrl: null },
+          ),
+        },
+      };
+    }
+    case "FEATURED_COLLECTION": {
+      const id = ctx.idByKey.get(section.collectionKey);
+      if (!id) return null;
+      return { type: "FEATURED_COLLECTION", config: { collectionId: id, title: section.title } };
+    }
+    case "TEXT":
+      return { type: "TEXT", config: { heading: section.heading, body: section.body } };
     case "CATEGORY_GRID": {
       const keys = section.collectionKeys.filter((key) => ctx.idByKey.has(key)).slice(0, 6);
       if (keys.length < 2) return null;
@@ -419,7 +540,7 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
   const catalog = await loadCatalog(brandId);
   const ownedProducts = new Set(catalog.products.map((p) => p.id));
   const ownedCollections = new Set(catalog.collections.map((c) => c.id));
-  const planned = flatten(plan.collections).map((c) => ({
+  const planned = flattenPlanned(plan.collections).map((c) => ({
     ...c,
     existingId: c.existingId && ownedCollections.has(c.existingId) ? c.existingId : null,
     productIds: c.productIds.filter((id) => ownedProducts.has(id)),
@@ -434,6 +555,9 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
     menu: 0,
     home: 0,
     families: 0,
+    kept: 0,
+    banners: 0,
+    announcement: false,
   };
 
   // 1. Las colecciones que sobran se van (quedan en la copia).
@@ -517,22 +641,23 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
   const menu = await replaceStorefrontMenu(brandId, menuToBuilt(plan.menu, slugByKey), true);
   summary.menu = menu.items;
 
-  // 6. Portada: se reemplaza; si la tienda tenía un banner con foto, ese
-  // se conserva arriba (el plan no arma otro).
-  const sections = await prisma.storefrontSection.findMany({ where: { brandId }, orderBy: { position: "asc" } });
-  const keptBanner = catalog.keepsBanner
-    ? sections.filter((s) => {
-        const config = s.config as { slides?: { imageUrl?: string }[]; imageUrl?: string } | null;
-        return s.type === "BANNER" && s.enabled && Boolean(config?.slides?.some((slide) => slide.imageUrl) || config?.imageUrl);
-      }).slice(0, 1)
-    : [];
-  await prisma.storefrontSection.deleteMany({ where: { brandId, id: { notIn: keptBanner.map((s) => s.id) } } });
+  // 6. Portada: se reemplaza, conservando las secciones que el plan marcó
+  // (KEEP: banners, videos o fotos importadas que aportan). El banner
+  // nuevo se pinta con los colores y la letra del tema publicado.
+  const ownedSections = new Set((await prisma.storefrontSection.findMany({ where: { brandId }, select: { id: true } })).map((s) => s.id));
+  const keepIds = plan.home.flatMap((s) => (s.type === "KEEP" && ownedSections.has(s.sectionId) ? [s.sectionId] : []));
+  await prisma.storefrontSection.deleteMany({ where: { brandId, id: { notIn: keepIds } } });
+  const theme = plan.home.some((s) => s.type === "BANNER") ? await getPublishedTheme(brandId) : null;
   let position = 0;
-  for (const s of keptBanner) {
-    await prisma.storefrontSection.update({ where: { id: s.id }, data: { position: position++ } });
-  }
   for (const section of plan.home) {
-    const built = sectionConfig(section, { idByKey, slugByKey, imageByKey, whatsapp: catalog.brand.phone });
+    if (section.type === "KEEP") {
+      if (!ownedSections.has(section.sectionId)) continue;
+      await prisma.storefrontSection.update({ where: { id: section.sectionId }, data: { position: position++, enabled: true } });
+      summary.kept++;
+      summary.home++;
+      continue;
+    }
+    const built = sectionConfig(section, { idByKey, slugByKey, imageByKey, whatsapp: catalog.brand.phone, theme });
     if (!built) continue;
     let config: unknown;
     try {
@@ -542,9 +667,22 @@ export async function applyStoreOrganizer(brandId: string, plan: OrganizerPlan):
     }
     await prisma.storefrontSection.create({ data: { brandId, type: built.type, config: config as Prisma.InputJsonValue, position: position++ } });
     summary.home++;
+    if (built.generated) summary.banners++;
   }
 
-  // 7. Familias (otros tonos/aromas/tamaños) sobre los nombres nuevos.
+  // 7. Barra de anuncio: solo si la tienda no tiene una (lo anterior
+  // queda en la copia para deshacer).
+  const announcement = plan.announcement?.trim();
+  if (announcement) {
+    const [draft, published] = await Promise.all([getDraftTheme(brandId), getPublishedTheme(brandId)]);
+    if (!announcementText(draft) && !announcementText(published)) {
+      snapshot.announcementBar = { draft: draft.announcementBar, published: published.announcementBar };
+      await patchPublishedTheme(brandId, { announcementBar: { enabled: true, messages: [{ text: announcement.slice(0, 200), link: "" }] } });
+      summary.announcement = true;
+    }
+  }
+
+  // 8. Familias (otros tonos/aromas/tamaños) sobre los nombres nuevos.
   try {
     summary.families = (await applyProductFamilies(brandId)).families;
   } catch (err) {
@@ -617,6 +755,13 @@ export async function undoStoreOrganizer(brandId: string): Promise<{ restored: {
   }
   if (snapshot.redirects?.length) {
     await prisma.storefrontRedirect.deleteMany({ where: { brandId, fromPath: { in: snapshot.redirects } } });
+  }
+  if (snapshot.announcementBar) {
+    await patchPublishedTheme(
+      brandId,
+      { announcementBar: snapshot.announcementBar.published as Record<string, unknown> },
+      { announcementBar: snapshot.announcementBar.draft as Record<string, unknown> },
+    );
   }
   await prisma.storeOrganizerRun.update({ where: { id: run.id }, data: { status: "REVERTED", revertedAt: new Date() } });
   return { restored: { collections: snapshot.collections.length, menu: inserted.size, sections: snapshot.sections.length, products } };

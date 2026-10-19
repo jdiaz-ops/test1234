@@ -59,7 +59,16 @@ function BannerSlideImage({
 }) {
   // Banner: ancho completo, primera foto de la página — se carga ya y en
   // el tamaño de la pantalla (ver StoreImage).
-  const img = fit ? (
+  const mobile = slide.mobileImageUrl || "";
+  const img = mobile ? (
+    // Con versión para celular (los banners pintados por /api/banner, ver
+    // banner-image.ts): <picture> baja solo la que corresponde a la
+    // pantalla. Son direcciones propias, sin optimizador.
+    <picture className={fit ? "block w-full" : "absolute inset-0 block"}>
+      <source media="(min-width: 768px)" srcSet={slide.imageUrl} />
+      <img src={mobile} alt="" className={fit ? "w-full h-auto block" : "absolute inset-0 w-full h-full object-cover"} loading="eager" />
+    </picture>
+  ) : fit ? (
     <StoreImage src={slide.imageUrl} alt="" natural sizes="100vw" priority />
   ) : (
     <StoreImage src={slide.imageUrl} alt="" className="object-cover" sizes="100vw" priority />

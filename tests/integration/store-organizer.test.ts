@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
+import { verifyBanner } from "@/lib/banner-image";
+import { getDraftTheme, getPublishedTheme } from "@/server/services/brand-theme-store";
 import {
   applyStoreOrganizer,
   lastOrganizerRun,
@@ -10,7 +12,10 @@ import {
 import { createBrand, createPendingOrder, createProduct, hasDb } from "./helpers";
 
 /// Sin ANTHROPIC_API_KEY el plan sale por reglas — es lo que se prueba acá
-/// (la IA se prueba aparte, contra la tienda real).
+/// (la IA se prueba aparte, contra la tienda real). El banner de la
+/// portada se firma con AUTH_SECRET.
+process.env.AUTH_SECRET = process.env.AUTH_SECRET || "secreto-de-prueba";
+
 describe.skipIf(!hasDb)("organizador automático de tienda", () => {
   it("arma el plan, lo aplica, reordena con las ventas y se puede deshacer", async () => {
     const brand = await createBrand();
@@ -44,6 +49,15 @@ describe.skipIf(!hasDb)("organizador automático de tienda", () => {
     await mk("Herramientas", "herramientas", [products["LIMA 180/240"].id, products["PUSHER METALICO"].id]);
     await prisma.storefrontMenuItem.create({ data: { brandId: brand.id, label: "Semi Rojos", url: "/coleccion/semi-rojos", position: 0 } });
     await prisma.storefrontSection.create({ data: { brandId: brand.id, type: "TEXT", config: { heading: "Hola", body: "x" }, position: 0 } });
+    // Banners promocionales importados con foto: se conservan.
+    const promo = await prisma.storefrontSection.create({
+      data: {
+        brandId: brand.id,
+        type: "PROMO_BANNERS",
+        position: 1,
+        config: { extendFullWidth: false, items: [{ show: true, imageUrl: "https://fotos.test/promo.jpg", link: "" }, { show: false, imageUrl: null, link: "" }, { show: false, imageUrl: null, link: "" }] },
+      },
+    });
 
     // Ventas: el azul vende más que el rojo.
     const order = await createPendingOrder(brand.id, [
@@ -72,11 +86,19 @@ describe.skipIf(!hasDb)("organizador automático de tienda", () => {
     expect(plan.productNames.find((n) => n.from === "PUSHER METALICO")?.to).toBe("Pusher metalico");
     expect(plan.menu.map((m) => m.label)).toEqual(["Inicio", "Esmaltes", "Herramientas", "Otros productos", "Todos los productos"]);
     expect(plan.stats).toMatchObject({ products: 7, active: 6, soldOut: 1, withSales: 2, collectionsBefore: 4, collectionsAfter: 3 });
+    expect(plan.home.map((s) => (s.type === "KEEP" ? `KEEP:${s.sectionId === promo.id ? "promo" : s.sectionId}` : s.type))).toEqual([
+      "BANNER",
+      "CATEGORY_GRID",
+      "FEATURED_PRODUCTS",
+      "KEEP:promo",
+      "SHIPPING_INFO_BANNERS",
+      "PRODUCT_CATALOG",
+    ]);
 
-    const summary = await applyStoreOrganizer(brand.id, plan);
-    expect(summary).toMatchObject({ source: "reglas", collections: { created: 2, updated: 1, removed: 3 }, products: { placed: 7 }, menu: 5 });
+    // La frase de la barra de anuncio la propone la IA; acá se simula.
+    const summary = await applyStoreOrganizer(brand.id, { ...plan, announcement: "Asesoría por WhatsApp antes de comprar" });
+    expect(summary).toMatchObject({ source: "reglas", collections: { created: 2, updated: 1, removed: 3 }, products: { placed: 7 }, menu: 5, home: 6, kept: 1, banners: 1, announcement: true });
     expect(summary.products.renamed).toBeGreaterThan(0);
-    expect(summary.home).toBeGreaterThanOrEqual(4);
 
     const collections = await prisma.brandCollection.findMany({
       where: { brandId: brand.id },
@@ -98,7 +120,30 @@ describe.skipIf(!hasDb)("organizador automático de tienda", () => {
     const menu = await prisma.storefrontMenuItem.findMany({ where: { brandId: brand.id, parentId: null }, orderBy: { position: "asc" } });
     expect(menu.map((m) => m.url)).toEqual(["/", "/coleccion/esmaltes", "/coleccion/herramientas", "/coleccion/otros-productos", "/coleccion"]);
     const sections = await prisma.storefrontSection.findMany({ where: { brandId: brand.id }, orderBy: { position: "asc" } });
-    expect(sections.map((s) => s.type)).toEqual(["BANNER", "CATEGORY_GRID", "FEATURED_PRODUCTS", "SHIPPING_INFO_BANNERS", "PRODUCT_CATALOG"]);
+    expect(sections.map((s) => s.type)).toEqual(["BANNER", "CATEGORY_GRID", "FEATURED_PRODUCTS", "PROMO_BANNERS", "SHIPPING_INFO_BANNERS", "PRODUCT_CATALOG"]);
+    // Los promocionales son la misma sección de antes (conservada, no copiada).
+    expect(sections[3].id).toBe(promo.id);
+    // El banner lo pinta /api/banner con el estilo de la tienda: la receta
+    // va firmada en la URL y los textos dentro de la imagen.
+    const banner = sections[0].config as { aspectRatio: string; slides: { imageUrl: string; mobileImageUrl: string; link: string }[]; title: string };
+    expect(banner.aspectRatio).toBe("original");
+    expect(banner.title).toBe("");
+    expect(banner.slides[0].link).toBe("/coleccion/esmaltes");
+    const bannerParams = new URL(banner.slides[0].imageUrl, "https://tienda.test").searchParams;
+    expect(banner.slides[0].imageUrl.startsWith("/api/banner?s=")).toBe(true);
+    expect(verifyBanner(bannerParams.get("s")!, bannerParams.get("sig")!)).toMatchObject({
+      layout: "wide",
+      title: "Esmaltes",
+      cta: "Ver esmaltes",
+      image: `https://fotos.test/${products["ESMALTE SEMIPERMANENTE AZUL"].id}.jpg`,
+      bg: "#ffffff",
+      font: "Instrument Sans",
+    });
+    // Y la versión para celular, con la misma receta en formato cuadrado.
+    const mobileParams = new URL(banner.slides[0].mobileImageUrl, "https://tienda.test").searchParams;
+    expect(verifyBanner(mobileParams.get("s")!, mobileParams.get("sig")!)).toMatchObject({ layout: "mobile", title: "Esmaltes" });
+    expect((await getPublishedTheme(brand.id)).announcementBar).toMatchObject({ enabled: true, messages: [{ text: "Asesoría por WhatsApp antes de comprar", link: "" }] });
+    expect((await getDraftTheme(brand.id)).announcementBar.enabled).toBe(true);
     const featured = sections.find((s) => s.type === "FEATURED_PRODUCTS")!.config as { title: string; productIds: string[] };
     expect(featured.title).toBe("Los más vendidos");
     expect(featured.productIds[0]).toBe(products["ESMALTE SEMIPERMANENTE AZUL"].id);
@@ -115,12 +160,14 @@ describe.skipIf(!hasDb)("organizador automático de tienda", () => {
 
     // Deshacer: vuelve todo como estaba.
     const undone = await undoStoreOrganizer(brand.id);
-    expect(undone.restored).toEqual({ collections: 4, menu: 1, sections: 1, products: 7 });
+    expect(undone.restored).toEqual({ collections: 4, menu: 1, sections: 2, products: 7 });
     const restored = await prisma.brandCollection.findMany({ where: { brandId: brand.id }, orderBy: { position: "asc" }, select: { name: true } });
     expect(restored.map((c) => c.name).sort()).toEqual(["Herramientas", "Semi Azules", "Semi Nude", "Semi Rojos"]);
     expect((await prisma.product.findUniqueOrThrow({ where: { id: products["PUSHER METALICO"].id } })).name).toBe("PUSHER METALICO");
     expect(await prisma.storefrontRedirect.count({ where: { brandId: brand.id } })).toBe(0);
-    expect((await prisma.storefrontSection.findMany({ where: { brandId: brand.id } })).map((s) => s.type)).toEqual(["TEXT"]);
+    expect((await prisma.storefrontSection.findMany({ where: { brandId: brand.id }, orderBy: { position: "asc" } })).map((s) => s.type)).toEqual(["TEXT", "PROMO_BANNERS"]);
+    expect((await getPublishedTheme(brand.id)).announcementBar).toMatchObject({ enabled: false, messages: [] });
+    expect((await getDraftTheme(brand.id)).announcementBar).toMatchObject({ enabled: false, messages: [] });
     expect((await lastOrganizerRun(brand.id))?.status).toBe("REVERTED");
   });
 });

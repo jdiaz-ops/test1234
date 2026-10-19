@@ -55,10 +55,14 @@ const menuItem: z.ZodType<{ label: string; url: string; children: { label: strin
 
 const homeSection = z.discriminatedUnion("type", [
   z.object({ type: z.literal("BANNER"), collectionKey: z.string(), imageUrl: z.string().max(1000), title: z.string().max(120), subtitle: z.string().max(240), buttonText: z.string().max(40) }),
+  z.object({ type: z.literal("KEEP"), sectionId: z.string().max(60), label: z.string().max(200) }),
   z.object({ type: z.literal("CATEGORY_GRID"), title: z.string().max(120), collectionKeys: z.array(z.string()).max(6) }),
+  z.object({ type: z.literal("CATEGORY_BANNERS"), collectionKeys: z.array(z.string()).max(3) }),
+  z.object({ type: z.literal("FEATURED_COLLECTION"), collectionKey: z.string(), title: z.string().max(120) }),
   z.object({ type: z.literal("FEATURED_PRODUCTS"), title: z.string().max(80), productIds: z.array(z.string()).max(24) }),
   z.object({ type: z.literal("ON_SALE_PRODUCTS"), title: z.string().max(80) }),
   z.object({ type: z.literal("NEW_PRODUCTS"), title: z.string().max(80) }),
+  z.object({ type: z.literal("TEXT"), heading: z.string().max(120), body: z.string().max(2000) }),
   z.object({ type: z.literal("SHIPPING_INFO_BANNERS"), whatsapp: z.boolean() }),
   z.object({ type: z.literal("INSTAGRAM_CTA") }),
   z.object({ type: z.literal("PRODUCT_CATALOG"), title: z.string().max(120) }),
@@ -71,6 +75,8 @@ const planSchema = z.object({
   productNames: z.array(z.object({ id: z.string(), from: z.string(), to: z.string().max(255) })).max(5000),
   menu: z.array(menuItem).max(20),
   home: z.array(homeSection).max(12),
+  announcement: z.string().max(200).nullable().optional(),
+  notes: z.string().max(400).nullable().optional(),
   stats: z.object({
     products: z.number(),
     active: z.number(),

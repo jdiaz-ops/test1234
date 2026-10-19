@@ -29,7 +29,9 @@ export type OrganizerPlanView = {
   removedCollections: { id: string; name: string; slug: string; count: number; movedTo: string | null }[];
   productNames: { id: string; from: string; to: string }[];
   menu: MenuItem[];
-  home: { type: string; title?: string }[];
+  home: { type: string; title?: string; label?: string; heading?: string }[];
+  announcement?: string | null;
+  notes?: string | null;
   stats: {
     products: number;
     active: number;
@@ -50,20 +52,36 @@ export type OrganizerSummary = {
   menu: number;
   home: number;
   families: number;
+  kept?: number;
+  banners?: number;
+  announcement?: boolean;
 };
 
 type LastRun = { id: string; status: "APPLIED" | "REVERTED"; source: string; createdAt: string; summary: OrganizerSummary } | null;
 
 const SECTION_LABEL: Record<string, string> = {
-  BANNER: "Banner de la colección estrella",
+  BANNER: "Banner de la colección estrella (pintado con el estilo de la tienda)",
+  KEEP: "Se conserva",
   CATEGORY_GRID: "Compra por categoría",
+  CATEGORY_BANNERS: "Banners de categorías",
+  FEATURED_COLLECTION: "Colección destacada",
   FEATURED_PRODUCTS: "Los más vendidos / Destacados",
   ON_SALE_PRODUCTS: "Ofertas",
   NEW_PRODUCTS: "Novedades",
+  TEXT: "Texto de bienvenida",
   SHIPPING_INFO_BANNERS: "Sellos de confianza (envíos, pagos, cambios, WhatsApp)",
   INSTAGRAM_CTA: "Instagram",
   PRODUCT_CATALOG: "Todos los productos",
 };
+
+function sectionLabel(s: OrganizerPlanView["home"][number]) {
+  const base = SECTION_LABEL[s.type] ?? s.type;
+  if (s.type === "KEEP" && s.label) return `${base}: ${s.label}`;
+  if (s.type === "FEATURED_COLLECTION" && s.title) return `${base}: ${s.title}`;
+  if (s.type === "BANNER" && s.title) return `Banner de ${s.title} (pintado con el estilo de la tienda)`;
+  if (s.type === "TEXT" && s.heading) return `${base}: "${s.heading}"`;
+  return base;
+}
 
 const API = "/api/marca/tienda/organizar";
 
@@ -136,7 +154,15 @@ export async function buildOrganizerPlan(onStep: (step: string) => void): Promis
 }
 
 export function summaryText(s: OrganizerSummary) {
-  return `${s.collections.created + s.collections.updated} colecciones (${s.collections.created} nuevas, ${s.collections.updated} conservadas, ${s.collections.removed} quitadas${s.collections.subcollections > 0 ? `, ${s.collections.subcollections} subcolecciones` : ""}) · ${s.products.placed} productos ubicados · ${s.products.renamed} nombres arreglados · menú de ${s.menu} enlaces · portada con ${s.home} secciones${s.families > 0 ? ` · ${s.families} familias` : ""} · estructura por ${s.source === "ia" ? "IA" : "reglas"}`;
+  const home = [
+    `portada con ${s.home} secciones`,
+    s.kept ? `${s.kept} ${s.kept === 1 ? "importada conservada" : "importadas conservadas"}` : "",
+    s.banners ? `${s.banners} ${s.banners === 1 ? "banner pintado" : "banners pintados"} con el estilo de la tienda` : "",
+    s.announcement ? "barra de anuncio puesta" : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+  return `${s.collections.created + s.collections.updated} colecciones (${s.collections.created} nuevas, ${s.collections.updated} conservadas, ${s.collections.removed} quitadas${s.collections.subcollections > 0 ? `, ${s.collections.subcollections} subcolecciones` : ""}) · ${s.products.placed} productos ubicados · ${s.products.renamed} nombres arreglados · menú de ${s.menu} enlaces · ${home}${s.families > 0 ? ` · ${s.families} familias` : ""} · estructura por ${s.source === "ia" ? "IA" : "reglas"}`;
 }
 
 export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
@@ -215,7 +241,8 @@ export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
           </p>
           <p className="text-xs text-brand-ink-soft">
             Arma la tienda para vender: pocas colecciones claras con nombres bien puestos, cada producto en la suya, lo más vendido
-            arriba y lo agotado al final, el menú en orden de demanda y una portada completa. Todo se puede deshacer.
+            arriba y lo agotado al final, el menú en orden de demanda y una portada completa (conserva los banners y videos
+            importados que aportan y pinta el banner principal con los colores y la letra de la tienda). Todo se puede deshacer.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -291,7 +318,18 @@ export function StoreOrganizerTool({ onApplied }: { onApplied?: () => void }) {
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-brand-ink-soft mb-1">Portada</p>
-            <p className="text-xs">{plan.home.map((s) => SECTION_LABEL[s.type] ?? s.type).join(" → ")}</p>
+            <ol className="text-xs space-y-0.5 list-decimal pl-5">
+              {plan.home.map((s, i) => (
+                <li key={i}>{sectionLabel(s)}</li>
+              ))}
+            </ol>
+            {plan.announcement && (
+              <p className="text-xs mt-1">
+                Barra de anuncio: <span className="font-medium">{plan.announcement}</span>{" "}
+                <span className="text-brand-ink-soft">(solo si la tienda no tiene una)</span>
+              </p>
+            )}
+            {plan.notes && <p className="text-xs text-brand-ink-soft mt-1">Criterio de la IA: {plan.notes}</p>}
           </div>
           {plan.productNames.length > 0 && (
             <div>

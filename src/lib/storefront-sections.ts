@@ -74,6 +74,11 @@ export const SECTION_TYPE_DESCRIPTION: Record<SectionType, string> = {
 /// un carrusel y cada imagen se puede hacer clic para llevar a una URL."
 const bannerSlideSchema = z.object({
   imageUrl: z.string().min(1),
+  /// Versión para celular (opcional). El organizador automático pinta su
+  /// banner en dos formatos — ancho para computador y cuadrado para
+  /// pantalla angosta, donde el texto del ancho no se lee — ver
+  /// banner-image.ts. Vacío = la misma imagen en todas las pantallas.
+  mobileImageUrl: z.string().max(1000).default(""),
   link: z.string().max(300).default(""),
 });
 export type BannerSlide = z.infer<typeof bannerSlideSchema>;
@@ -108,7 +113,7 @@ export function normalizeBannerConfig(raw: unknown): BannerConfig {
   if (Array.isArray(config.slides)) return config as BannerConfig;
   return {
     aspectRatio: config.aspectRatio ?? "original",
-    slides: config.imageUrl ? [{ imageUrl: config.imageUrl, link: "" }] : [],
+    slides: config.imageUrl ? [{ imageUrl: config.imageUrl, mobileImageUrl: "", link: "" }] : [],
     title: config.title ?? "",
     subtitle: config.subtitle ?? "",
     buttonText: config.buttonText ?? "",

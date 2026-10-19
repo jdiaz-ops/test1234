@@ -107,7 +107,8 @@ function BannerFields({ config: rawConfig, onChange }: { config: BannerConfig; o
       onChange({ ...config, slides: config.slides.filter((_, idx) => idx !== i) });
       return;
     }
-    onChange({ ...config, slides: config.slides.map((s, idx) => (idx === i ? { ...s, imageUrl: url } : s)) });
+    // Otra foto: la versión para celular (si la había) ya no corresponde.
+    onChange({ ...config, slides: config.slides.map((s, idx) => (idx === i ? { ...s, imageUrl: url, mobileImageUrl: "" } : s)) });
   }
   function updateSlideLink(i: number, link: string) {
     onChange({ ...config, slides: config.slides.map((s, idx) => (idx === i ? { ...s, link } : s)) });
@@ -142,7 +143,7 @@ function BannerFields({ config: rawConfig, onChange }: { config: BannerConfig; o
       {config.slides.length < 6 && (
         <ImagePicker
           imageUrl={null}
-          onChange={(url) => url && onChange({ ...config, slides: [...config.slides, { imageUrl: url, link: "" }] })}
+          onChange={(url) => url && onChange({ ...config, slides: [...config.slides, { imageUrl: url, mobileImageUrl: "", link: "" }] })}
         />
       )}
       <div className="grid sm:grid-cols-2 gap-2 pt-3 border-t border-brand-line">
