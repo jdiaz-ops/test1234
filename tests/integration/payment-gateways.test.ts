@@ -52,8 +52,22 @@ function formRequest(url: string, fields: Record<string, string>) {
   });
 }
 
+/// /users/me de Mercado Pago: una cuenta de verdad o una de prueba.
+function stubMercadoPagoUser(kind: "live" | "test" | "invalid") {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      expect(url).toBe("https://api.mercadopago.com/users/me");
+      if (kind === "invalid") return new Response(JSON.stringify({ message: "invalid access token" }), { status: 401 });
+      const me = kind === "test" ? { id: 1, nickname: "TESTUSER123", tags: ["test_user", "normal"] } : { id: 2, nickname: "MARCA", tags: ["normal"] };
+      return new Response(JSON.stringify(me), { status: 200 });
+    }),
+  );
+}
+
 describe.skipIf(!hasDb)("llaves por pasarela", () => {
   it("se guardan por entorno, se conservan al cambiar de pasarela y no dejan cobrar de verdad sin producción", async () => {
+    stubMercadoPagoUser("live");
     const brand = await createBrand();
     await saveGatewayCredentials(brand.userId, {
       provider: "MERCADO_PAGO",
@@ -112,6 +126,40 @@ describe.skipIf(!hasDb)("llaves por pasarela", () => {
     expect(profile.paymentProvider).toBe("WOMPI");
     expect(profile.wompiPublicKeyTest).toBe("pub_test_1");
     expect(gatewayStatus(profile, "WOMPI")).toBe("TEST");
+  });
+});
+
+describe.skipIf(!hasDb)("Mercado Pago: llave de prueba o de verdad", () => {
+  // Las de prueba nuevas también empiezan por APP_USR-: se le pregunta a
+  // Mercado Pago de qué cuenta es antes de guardar.
+  it("no deja una llave de verdad en prueba ni una de prueba en producción", async () => {
+    const brand = await createBrand();
+    const save = (scope: "TEST" | "PRODUCTION") =>
+      saveGatewayCredentials(brand.userId, {
+        provider: "MERCADO_PAGO",
+        paymentMode: scope,
+        credentials: { [scope]: { accessToken: "APP_USR-1234" } },
+      });
+
+    stubMercadoPagoUser("live");
+    await expect(save("TEST")).rejects.toThrow(/es de producción/);
+    stubMercadoPagoUser("test");
+    await expect(save("PRODUCTION")).rejects.toThrow(/es de prueba/);
+    stubMercadoPagoUser("invalid");
+    await expect(save("TEST")).rejects.toThrow(/no reconoce/);
+    let profile = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id } });
+    expect(storedCredentials(profile, "MERCADO_PAGO", "TEST")).toBeNull();
+
+    stubMercadoPagoUser("test");
+    await save("TEST");
+    profile = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id } });
+    expect(getActivePaymentGateway(profile)).toEqual({ provider: "MERCADO_PAGO", mode: "TEST", values: { accessToken: "APP_USR-1234" } });
+
+    // Si Mercado Pago no contesta, no se frena el guardado.
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("sin red"); }));
+    await save("PRODUCTION");
+    profile = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id } });
+    expect(profile.paymentMode).toBe("PRODUCTION");
   });
 });
 

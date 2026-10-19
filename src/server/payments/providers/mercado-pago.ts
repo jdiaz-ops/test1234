@@ -33,6 +33,33 @@ function headers(values: MercadoPagoValues, extra: Record<string, string> = {}) 
 
 const ID_TYPES: Record<string, string> = { CC: "CC", CE: "CE", NIT: "NIT" };
 
+/// De qué es un Access Token: "test" (cuenta de prueba), "live" (cobra de
+/// verdad) o "invalid" (Mercado Pago no lo reconoce). Mercado Pago cambió:
+/// las credenciales de prueba de una aplicación nueva son las de una
+/// cuenta de prueba vendedora y empiezan por APP_USR-, igual que las de
+/// verdad, así que el prefijo ya no alcanza (antes eran TEST-). Se pregunta
+/// a /users/me: las cuentas de prueba traen la etiqueta "test_user" (y un
+/// apodo TESTUSER…). null si Mercado Pago no contesta: eso no frena el
+/// guardado.
+export async function mercadoPagoTokenKind(accessToken: string): Promise<"test" | "live" | "invalid" | null> {
+  if (accessToken.startsWith("TEST-")) return "test";
+  try {
+    const res = await fetch(`${API}/users/me`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(TIMEOUT),
+    });
+    if (res.status === 401) return "invalid";
+    if (!res.ok) return null;
+    const me = (await res.json().catch(() => null)) as { tags?: unknown; nickname?: unknown } | null;
+    if (!me) return null;
+    const tags = Array.isArray(me.tags) ? me.tags : [];
+    return tags.includes("test_user") || (typeof me.nickname === "string" && /^TESTUSER/i.test(me.nickname)) ? "test" : "live";
+  } catch {
+    return null;
+  }
+}
+
 /// Crea la preferencia de pago y devuelve su id y el link al que va el
 /// comprador. Un solo ítem con el total del pedido: así descuentos y envío
 /// no tienen que cuadrar línea por línea con lo que espera Mercado Pago.

@@ -136,7 +136,10 @@ export const PAYMENT_PROVIDERS: Record<PaymentProviderId, PaymentProviderSpec> =
       "En mercadopago.com.co/developers → Tus integraciones → tu aplicación → Credenciales de producción (o de prueba) → Access Token.",
     scopes: "PER_MODE",
     fields: [
-      { key: "accessToken", label: "Access Token", secret: true, prefix: { TEST: "TEST-", PRODUCTION: "APP_USR-" } },
+      // Las de prueba de una aplicación nueva también empiezan por APP_USR-
+      // (antes TEST-): el aviso de prefijo solo va en producción, y al
+      // guardar se le pregunta a Mercado Pago (ver mercadoPagoTokenKind).
+      { key: "accessToken", label: "Access Token", secret: true, prefix: { PRODUCTION: "APP_USR-" } },
       {
         key: "webhookSecret",
         label: "Clave secreta de Webhooks",
@@ -160,7 +163,7 @@ export const PAYMENT_PROVIDERS: Record<PaymentProviderId, PaymentProviderSpec> =
     refundHint: "tu cuenta de Mercado Pago (Actividad → el cobro → Devolver dinero)",
     checkoutHint: "Al tocar Pagar ahora pasas a Mercado Pago para completar tu compra y vuelves a la tienda al terminar.",
     testHint:
-      "Con el Access Token de prueba (empieza por TEST-) los cobros son de ensayo: Mercado Pago pide pagar con un usuario de prueba de tu aplicación.",
+      "Con las credenciales de prueba los cobros son de ensayo: Mercado Pago pide pagar con una cuenta de prueba tipo «Comprador».",
     // Marcolini cobra con Checkout Pro (ver providers/mercado-pago.ts) y
     // manda la URL de avisos en cada cobro: el Webhook del panel es
     // opcional (solo da la clave secreta para validar la firma).

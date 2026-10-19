@@ -8,6 +8,7 @@ import {
   type PaymentProviderId,
 } from "@/lib/payment-providers";
 import { mergeCredentials, readCredentialStore, storedCredentials } from "@/server/payments/credentials";
+import { mercadoPagoTokenKind } from "@/server/payments/providers/mercado-pago";
 
 export class BrandPaymentError extends Error {}
 
@@ -42,6 +43,8 @@ export async function saveGatewayCredentials(
     return saveWompiCredentials(userId, { paymentMode: data.paymentMode, ...wompi });
   }
 
+  if (data.provider === "MERCADO_PAGO") await checkMercadoPagoTokens(data.credentials);
+
   const current = await prisma.brandProfile.findUniqueOrThrow({ where: { userId } });
   let store = readCredentialStore(current.gatewayCredentials);
   const spec = PAYMENT_PROVIDERS[data.provider];
@@ -64,6 +67,33 @@ export async function saveGatewayCredentials(
       gatewayCredentials: store as unknown as Prisma.InputJsonValue,
     },
   });
+}
+
+/// Una llave de verdad en "prueba" cobraría de verdad pedidos que Marcolini
+/// trata como de ensayo (sin comisión ni pago a creadoras), y una de
+/// prueba en "producción" nunca cobraría: se frena antes de guardar. Ver
+/// mercadoPagoTokenKind.
+async function checkMercadoPagoTokens(credentials: Partial<Record<CredentialScope, Record<string, string | undefined>>>) {
+  for (const scope of ["TEST", "PRODUCTION"] as const) {
+    const token = credentials[scope]?.accessToken?.trim();
+    if (!token) continue;
+    const kind = await mercadoPagoTokenKind(token);
+    if (kind === "invalid") {
+      throw new BrandPaymentError(
+        `Mercado Pago no reconoce ese Access Token ${scope === "TEST" ? "de prueba" : "de producción"}. Cópialo otra vez desde tu aplicación.`,
+      );
+    }
+    if (scope === "TEST" && kind === "live") {
+      throw new BrandPaymentError(
+        "Ese Access Token es de producción: con él se cobraría de verdad. Para probar, copia el de «Credenciales de prueba».",
+      );
+    }
+    if (scope === "PRODUCTION" && kind === "test") {
+      throw new BrandPaymentError(
+        "Ese Access Token es de prueba: con él no se cobra de verdad. Copia el de «Credenciales de producción».",
+      );
+    }
+  }
 }
 
 /// Las llaves guardadas de cualquier pasarela, para la página de Pagos.
