@@ -296,6 +296,7 @@ describe("una tienda a la medida con catálogo en /api/v1 (blissednails.co)", ()
     const first = Array.from({ length: 100 }, (_, i) => item(1000 + i, `BUILDER GEL SHIKLE 15 GR ${i} PINK`, [42]));
     mockFetch({
       [`${origin}/`]: { body: '<!doctype html><title>Blissed Nails</title><div id="root"></div>' },
+      [`${origin}/api/v1/productos?page=1&per_page=1&q=shikle`]: { body: { ...page(1, first.slice(0, 1)), per_page: 1 } },
       [`${origin}/api/v1/productos?page=1&per_page=100&q=shikle`]: { body: page(1, first) },
       [`${origin}/api/v1/productos?page=2&per_page=100&q=shikle`]: {
         body: page(2, [item(1767, "ESMALTE SHIKLE GEL 8 ML 010 BERLIN", [33], { precio_visible: "13000.00", precio_con_descuento: "11000.00", imagenes: [], imagen_url_resuelto: null })]),
@@ -305,7 +306,12 @@ describe("una tienda a la medida con catálogo en /api/v1 (blissednails.co)", ()
     const results = await runAll(`${origin}/catalogo?q=shikle`);
     expect(results[0]).toMatchObject({ platform: "catalogo", origin, categories: [{ name: "Esmaltes", url: null }, { name: "Builder Gel", url: null }] });
     expect(results[0].warnings).toEqual(['Solo los 101 productos que salen al buscar "shikle" en la tienda.']);
-    expect(results[0].next).toEqual([{ step: "catalogo-products", page: 2, query: "shikle", categories: { "24": "Esmaltes", "33": "Esmaltes", "40": "Builder Gel", "41": "Builder Gel", "42": "Builder Gel" } }]);
+    const categories = { "24": "Esmaltes", "33": "Esmaltes", "40": "Builder Gel", "41": "Builder Gel", "42": "Builder Gel" };
+    expect(results[0].next).toEqual([
+      { step: "catalogo-products", page: 1, query: "shikle", categories },
+      { step: "catalogo-products", page: 2, query: "shikle", categories },
+    ]);
+    expect(results[0].products).toEqual([]);
     const products = results.flatMap((r) => r.products);
     expect(products).toHaveLength(101);
     expect(products[0]).toMatchObject({
@@ -324,11 +330,11 @@ describe("una tienda a la medida con catálogo en /api/v1 (blissednails.co)", ()
   it("avisa cuando la tienda tiene más productos de los que se leen", async () => {
     mockFetch({
       [`${origin}/`]: { body: "<title>Blissed Nails</title>" },
-      [`${origin}/api/v1/productos?page=1&per_page=100`]: { body: { total: 4086, page: 1, per_page: 100, items: [item(1, "LIMA 100/180", [])] } },
+      [`${origin}/api/v1/productos?page=1&per_page=1`]: { body: { total: 4086, page: 1, per_page: 1, items: [item(1, "LIMA 100/180", [])] } },
     });
     const first = await scanStore(null, { step: "detect", url: `${origin}/catalogo` });
     expect(first.platform).toBe("catalogo");
-    expect(first.next).toHaveLength(19);
+    expect(first.next).toHaveLength(20);
     expect(first.warnings[0]).toMatch(/tiene 4086 productos: se leen los primeros 2000.*catalogo\?q=/);
   });
 });

@@ -264,24 +264,20 @@ async function detect(input: string): Promise<ScanResult> {
   return { ...result, infoPages: extractInfoPageLinks(html, origin) };
 }
 
-/// /api/v1/productos responde con { total, items }: se leen las categorías
-/// y la primera página ya trae los primeros productos; las demás páginas
-/// van en pasos aparte (todas de una vez, para leerlas en paralelo). Con
-/// una búsqueda en el link pegado ("/catalogo?q=shikle"), solo esos.
+/// /api/v1/productos responde con { total, items }: se pregunta cuántos
+/// hay (un producto basta), se leen las categorías y cada página de 100 va
+/// en un paso aparte (todas de una vez, para leerlas en paralelo). Con una
+/// búsqueda en el link pegado ("/catalogo?q=shikle"), solo esos.
 async function detectCatalogApi(origin: string, storeName: string, input: string): Promise<ScanResult | null> {
   const query = catalogQueryFromInput(input);
-  const first = parseCatalogPage(await safeFetchJson(catalogProductsUrl(origin, 1, query), { timeoutMs: 12000 }).catch(() => null));
+  const first = parseCatalogPage(await safeFetchJson(catalogProductsUrl(origin, 1, query, 1), { timeoutMs: 12000 }).catch(() => null));
   if (!first) return null;
   const result: ScanResult = { ...emptyResult(origin, "catalogo"), storeName };
   const categories = parseCatalogCategories(await safeFetchJson(`${origin}${CATALOG_API_PATH}/categorias`, { timeoutMs: 12000 }).catch(() => null));
   const topNames = topCategoryNames(categories);
   result.categories = categories.filter((c) => c.parentId == null).map((c) => ({ name: c.name, url: null }));
-  for (const item of first.items) {
-    const parsed = parseCatalogItem(item, origin, topNames);
-    if (parsed) result.products.push(parsed);
-  }
   const total = Math.min(first.total, MAX_PRODUCTS);
-  for (let page = 2; (page - 1) * CATALOG_PAGE_SIZE < total; page++) {
+  for (let page = 1; (page - 1) * CATALOG_PAGE_SIZE < total; page++) {
     result.next.push({ step: "catalogo-products", page, query, categories: topNames });
   }
   if (query) result.warnings.push(`Solo los ${first.total} productos que salen al buscar "${query}" en la tienda.`);

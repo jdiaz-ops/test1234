@@ -168,8 +168,8 @@ export function catalogQueryFromInput(input: string): string | null {
   return null;
 }
 
-export function catalogProductsUrl(origin: string, page: number, query: string | null) {
-  const params = new URLSearchParams({ page: String(page), per_page: String(CATALOG_PAGE_SIZE) });
+export function catalogProductsUrl(origin: string, page: number, query: string | null, perPage = CATALOG_PAGE_SIZE) {
+  const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
   if (query) params.set("q", query);
   return `${origin}${CATALOG_API_PATH}/productos?${params}`;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -86,11 +86,16 @@ function ProductRow({
   product,
   index,
   draggable,
+  selected,
+  onSelect,
   onRemove,
 }: {
   product: ProductOption;
   index: number;
   draggable: boolean;
+  selected: boolean;
+  /// shift = con Shift apretado (marca el rango desde el último marcado).
+  onSelect: (shift: boolean) => void;
   onRemove: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -104,10 +109,18 @@ function ProductRow({
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex items-center gap-2.5 px-3 py-2 text-sm bg-brand-surface ${
+      className={`flex items-center gap-2.5 px-3 py-2 text-sm ${selected ? "bg-brand-accent-soft" : "bg-brand-surface"} ${
         isDragging ? "relative z-10 shadow-lg ring-1 ring-brand-accent" : ""
       }`}
     >
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={() => {}}
+        onClick={(e) => onSelect(e.shiftKey)}
+        aria-label={`Seleccionar ${product.name}`}
+        className="shrink-0"
+      />
       {draggable ? (
         <button
           type="button"
@@ -170,6 +183,14 @@ export function CollectionProductsEditor({
   const [products, setProducts] = useState<ProductOption[] | null>(null);
   const [query, setQuery] = useState("");
   const [browsing, setBrowsing] = useState(false);
+  // Varios a la vez: marcarlos y subirlos al principio (o bajarlos, o
+  // quitarlos) sin arrastrar uno por uno — pedido del 2026-10-19 con una
+  // colección de 105 productos.
+  const [selected, setSelected] = useState<string[]>([]);
+  const [lastPicked, setLastPicked] = useState<string | null>(null);
+  const [listQuery, setListQuery] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     fetch("/api/marca/tienda/productos")
@@ -196,6 +217,10 @@ export function CollectionProductsEditor({
     .filter((p): p is ProductOption => p != null);
   const shown = sortProducts(manualList, sortOrder);
   const isManual = sortOrder === "MANUAL";
+  const listFilter = listQuery.trim().toLowerCase();
+  const visibleRows = listFilter ? shown.filter((p) => p.name.toLowerCase().includes(listFilter)) : shown;
+  const chosen = selected.filter((id) => productIds.includes(id));
+  const allVisibleChosen = visibleRows.length > 0 && visibleRows.every((p) => chosen.includes(p.id));
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -213,6 +238,47 @@ export function CollectionProductsEditor({
 
   function toggle(id: string) {
     onChange(productIds.includes(id) ? productIds.filter((i) => i !== id) : [...productIds, id]);
+  }
+
+  function pick(id: string, shift: boolean) {
+    setNotice(null);
+    const ids = visibleRows.map((p) => p.id);
+    const from = lastPicked ? ids.indexOf(lastPicked) : -1;
+    const to = ids.indexOf(id);
+    const turnOn = !chosen.includes(id);
+    const range = shift && from >= 0 && to >= 0 ? ids.slice(Math.min(from, to), Math.max(from, to) + 1) : [id];
+    setSelected((prev) => (turnOn ? Array.from(new Set([...prev, ...range])) : prev.filter((x) => !range.includes(x))));
+    setLastPicked(id);
+  }
+
+  function toggleAllVisible() {
+    const ids = visibleRows.map((p) => p.id);
+    setSelected((prev) => (allVisibleChosen ? prev.filter((x) => !ids.includes(x)) : Array.from(new Set([...prev, ...ids]))));
+  }
+
+  /// Los marcados quedan juntos al principio (o al final), en el orden en
+  /// que estaban entre ellos. Con un orden automático, pasa a Manual
+  /// partiendo de lo que se veía.
+  function moveChosen(where: "top" | "bottom") {
+    const base = isManual ? productIds : shown.map((p) => p.id);
+    const moving = base.filter((id) => chosen.includes(id));
+    const rest = base.filter((id) => !chosen.includes(id));
+    onChange(where === "top" ? [...moving, ...rest] : [...rest, ...moving]);
+    if (!isManual) onSortOrderChange("MANUAL");
+    setSelected([]);
+    setListQuery("");
+    const n = moving.length;
+    setNotice(
+      `${n} producto${n === 1 ? "" : "s"} ${where === "top" ? (n === 1 ? "subió al principio" : "subieron al principio") : n === 1 ? "bajó al final" : "bajaron al final"}${isManual ? "" : " (el orden quedó en Manual)"}. Guarda la colección para que se vea así en tu tienda.`,
+    );
+    requestAnimationFrame(() => listRef.current?.scrollTo({ top: where === "top" ? 0 : listRef.current.scrollHeight }));
+  }
+
+  function removeChosen() {
+    const n = chosen.length;
+    onChange(productIds.filter((id) => !chosen.includes(id)));
+    setSelected([]);
+    setNotice(`${n} producto${n === 1 ? "" : "s"} fuera de la colección. Guarda la colección para confirmarlo.`);
   }
 
   function changeSort(next: CollectionSortOrder) {
@@ -308,18 +374,56 @@ export function CollectionProductsEditor({
           <>
             <p className="text-[11px] text-brand-ink-soft px-3 pt-2">
               {isManual
-                ? "Así se ven en tu tienda. Arrastra desde los puntitos para cambiar el orden."
-                : "Orden automático: los productos nuevos se acomodan solos. Para moverlos a mano, elige Manual."}
+                ? "Así se ven en tu tienda. Arrastra desde los puntitos para cambiar el orden, o marca varios y súbelos al principio de una vez (con Shift marcas todos los del medio)."
+                : "Orden automático: los productos nuevos se acomodan solos. Para moverlos a mano, elige Manual — o marca varios y súbelos al principio."}
             </p>
+            <div className="flex flex-wrap items-center gap-2 px-3 pt-2">
+              <label className="flex items-center gap-2 text-xs text-brand-ink-soft shrink-0">
+                <input type="checkbox" checked={allVisibleChosen} onChange={toggleAllVisible} aria-label="Seleccionar todos los de la lista" />
+                {listFilter ? "Todos los que coinciden" : "Todos"}
+              </label>
+              <input
+                value={listQuery}
+                onChange={(e) => setListQuery(e.target.value)}
+                placeholder="Buscar en la colección (ej. Morados)"
+                aria-label="Buscar en la colección"
+                className="input text-xs py-1.5 flex-1 min-w-[10rem]"
+              />
+            </div>
+            {chosen.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mx-3 mt-2 rounded-lg bg-brand-accent-soft px-3 py-2">
+                <span className="text-sm font-medium text-brand-ink">
+                  {chosen.length} seleccionado{chosen.length === 1 ? "" : "s"}
+                </span>
+                <button type="button" onClick={() => moveChosen("top")} className="rounded-full bg-brand-ink text-brand-bg px-3.5 py-1.5 text-xs font-semibold hover:opacity-90">
+                  Subir al principio
+                </button>
+                <button type="button" onClick={() => moveChosen("bottom")} className="rounded-full border border-brand-line bg-brand-surface px-3.5 py-1.5 text-xs font-medium text-brand-ink hover:bg-brand-bg">
+                  Bajar al final
+                </button>
+                <button type="button" onClick={removeChosen} className="rounded-full border border-brand-line bg-brand-surface px-3.5 py-1.5 text-xs font-medium text-red-700 hover:bg-brand-bg">
+                  Quitar de la colección
+                </button>
+                <button type="button" onClick={() => setSelected([])} className="ml-auto text-xs text-brand-ink-soft hover:underline">
+                  Deseleccionar
+                </button>
+              </div>
+            )}
+            {notice && <p className="text-xs text-brand-ink px-3 pt-2">{notice}</p>}
+            {visibleRows.length === 0 && <p className="text-xs text-brand-ink-soft p-3">Ningún producto de la colección se llama así.</p>}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={shown.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-                <ul className="max-h-[28rem] overflow-y-auto divide-y divide-brand-line">
-                  {shown.map((p, i) => (
+              <SortableContext items={visibleRows.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                <ul ref={listRef} className="max-h-[28rem] overflow-y-auto divide-y divide-brand-line mt-2 border-t border-brand-line">
+                  {visibleRows.map((p) => (
                     <ProductRow
                       key={p.id}
                       product={p}
-                      index={i}
-                      draggable={isManual}
+                      index={shown.indexOf(p)}
+                      // Con la lista filtrada no se arrastra: el lugar que
+                      // se ve no sería el real.
+                      draggable={isManual && !listFilter}
+                      selected={chosen.includes(p.id)}
+                      onSelect={(shift) => pick(p.id, shift)}
                       onRemove={() => toggle(p.id)}
                     />
                   ))}

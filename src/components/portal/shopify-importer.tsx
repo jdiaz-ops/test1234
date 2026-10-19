@@ -460,7 +460,7 @@ export function ShopifyImporter({
   /// fletes no (solo Shopify deja consultarlos desde afuera).
   async function readOtherStore(first: ScanResult) {
     const origin = first.origin;
-    const byHandle = new Map<string, ScrapedProduct>();
+    const byHandle = new Map<string, ScrapedProduct>(first.products.map((p) => [p.handle, p]));
     const warnings = [...first.warnings];
     const queue: ScanStep[] = [...first.next];
     let platform = first.platform;

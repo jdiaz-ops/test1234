@@ -206,7 +206,7 @@ async function main() {
     console.log(`Plataforma ${first.platform} · tienda "${first.storeName}" · origen ${first.origin}`);
     console.log(JSON.stringify({ storeInfo: first.storeInfo, categories: first.categories, infoPages: first.infoPages.length, warnings: first.warnings }, null, 1));
     const queue = [...first.next];
-    const byHandle = new Map<string, Record<string, unknown> & { handle: string; collectionNames: string[]; description: string; hasVariants: boolean; images: string[]; price: number }>();
+    const byHandle = new Map<string, Record<string, unknown> & { handle: string; collectionNames: string[]; description: string; hasVariants: boolean; images: string[]; price: number }>(first.products.map((p) => [p.handle, p]));
     const warnings: string[] = [];
     let steps = 0;
     let failed = 0;

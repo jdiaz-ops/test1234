@@ -28,7 +28,7 @@ const bodySchema = z.object({
     }),
     z.object({
       step: z.literal("catalogo-products"),
-      page: z.number().int().min(2).max(200),
+      page: z.number().int().min(1).max(200),
       query: z.string().max(80).nullable(),
       categories: z.record(z.string().regex(/^\d{1,10}$/), z.string().max(80)).refine((c) => Object.keys(c).length <= 1000),
     }),
