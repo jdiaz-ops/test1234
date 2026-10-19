@@ -313,7 +313,9 @@ export function StorefrontMenuPanel({
       <p className="text-xs text-brand-ink-soft mb-4 max-w-lg">
         Lo que ve el comprador en el menú de tu tienda — enlaza tus páginas, colecciones o cualquier link externo (ej. tu
         Instagram). Con &quot;+ Subítem&quot; armas submenús de hasta tres niveles: en computadora se abren al pasar el mouse
-        y en celular dentro del panel del menú.
+        y en celular dentro del panel del menú. Un ítem que lleva a un producto agotado o a una colección sin productos
+        disponibles se esconde solo en la tienda (a menos que en Diseño → Página de colecciones muestres los agotados); acá
+        se sigue viendo para que no lo pierdas.
       </p>
 
       {importTools && <MenuImportTool defaultUrl={storeUrl ?? ""} onApplied={reload} />}

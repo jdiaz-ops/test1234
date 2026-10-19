@@ -5,7 +5,7 @@ import { StoreHeader } from "@/components/storefront/store-header";
 import { StorefrontSections } from "@/components/storefront/storefront-sections";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { listEnabledStorefrontSections } from "@/server/services/storefront-section-service";
-import { listStorefrontMenuTree } from "@/server/services/store-page-service";
+import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 
 export async function generateMetadata({
@@ -38,7 +38,7 @@ export default async function StorefrontCatalogPage({
   const [basePath, sections, menuItems, theme] = await Promise.all([
     getStoreBasePath(slug),
     listEnabledStorefrontSections(brand.id),
-    listStorefrontMenuTree(brand.id),
+    listStorefrontMenuForShoppers(brand.id),
     getStorefrontTheme(brand.id),
   ]);
 
@@ -64,9 +64,6 @@ export default async function StorefrontCatalogPage({
         productsPerRow={theme.productListing.productsPerRow}
         showSoldOut={theme.productListing.showSoldOut}
       />
-      <p className="text-center mt-4 mb-10 font-mono text-xs text-brand-ink-soft">
-        Vendido por {brand.companyName} vía Marcolini
-      </p>
     </div>
   );
 }

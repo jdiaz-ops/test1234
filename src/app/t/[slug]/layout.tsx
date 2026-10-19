@@ -14,7 +14,8 @@ import { ROOT_DOMAIN } from "@/lib/subdomain";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { listStorefrontMenuTree, listStorePages } from "@/server/services/store-page-service";
+import { listStorePages } from "@/server/services/store-page-service";
+import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import {
@@ -76,7 +77,7 @@ export default async function StorefrontLayout({
 
   const [theme, menuItemsRaw, basePath, pagesRaw] = await Promise.all([
     getStorefrontTheme(brand.id),
-    listStorefrontMenuTree(brand.id),
+    listStorefrontMenuForShoppers(brand.id),
     getStoreBasePath(slug),
     listStorePages(brand.id),
   ]);

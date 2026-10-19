@@ -5,7 +5,7 @@ import {
   getStorefrontBrand,
   searchStorefrontProducts,
 } from "@/server/services/store-order-service";
-import { listStorefrontMenuTree } from "@/server/services/store-page-service";
+import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CollectionProductGrid } from "@/components/storefront/collection-product-grid";
 import { toCardProduct } from "@/components/storefront/product-card";
@@ -44,7 +44,7 @@ export default async function StorefrontSearchPage({
 
   const theme = await getStorefrontTheme(brand.id);
   const [menuItems, basePath, products] = await Promise.all([
-    listStorefrontMenuTree(brand.id),
+    listStorefrontMenuForShoppers(brand.id),
     getStoreBasePath(slug),
     searchStorefrontProducts(brand.id, q, { showSoldOut: theme.productListing.showSoldOut }),
   ]);

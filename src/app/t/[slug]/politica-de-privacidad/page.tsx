@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { paymentProviderName } from "@/lib/payment-providers";
-import { getPublicStorePage, listStorefrontMenuTree } from "@/server/services/store-page-service";
+import { getPublicStorePage } from "@/server/services/store-page-service";
+import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { getStoreBasePath } from "@/lib/store-base-path";
 
@@ -46,7 +47,7 @@ export default async function StorePrivacyPolicyPage({
   }
 
   const [menuItems, owner] = await Promise.all([
-    listStorefrontMenuTree(brand.id),
+    listStorefrontMenuForShoppers(brand.id),
     prisma.user.findUnique({ where: { id: brand.userId }, select: { email: true } }),
   ]);
   const responsible = brand.legalName?.trim() || brand.companyName;

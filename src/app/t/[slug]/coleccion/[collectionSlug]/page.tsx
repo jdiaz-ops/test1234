@@ -5,7 +5,7 @@ import { fallbackCollectionTarget } from "@/server/services/storefront-redirect-
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { getPublicBrandCollection } from "@/server/services/brand-collection-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
-import { listStorefrontMenuTree } from "@/server/services/store-page-service";
+import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CollectionBrowser } from "@/components/storefront/collection-browser";
 import { getStoreBasePath } from "@/lib/store-base-path";
@@ -52,7 +52,7 @@ export default async function StorefrontCollectionPage({
   }
 
   const [menuItems, basePath] = await Promise.all([
-    listStorefrontMenuTree(brand.id),
+    listStorefrontMenuForShoppers(brand.id),
     getStoreBasePath(slug),
   ]);
 

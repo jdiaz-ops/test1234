@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import {
   getPublicStorePage,
-  listStorefrontMenuTree,
-} from "@/server/services/store-page-service";
+  } from "@/server/services/store-page-service";
+import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
@@ -39,7 +39,7 @@ export default async function StorefrontPagePage({
 
   const [basePath, menuItems] = await Promise.all([
     getStoreBasePath(slug),
-    listStorefrontMenuTree(brand.id),
+    listStorefrontMenuForShoppers(brand.id),
   ]);
 
   return (

@@ -3,7 +3,7 @@ import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { StoreHeader } from "@/components/storefront/store-header";
 import { CartList } from "@/components/storefront/cart-list";
 import { getStoreBasePath } from "@/lib/store-base-path";
-import { listStorefrontMenuTree } from "@/server/services/store-page-service";
+import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu-service";
 
 /// Sigue existiendo como página propia (por si alguien entra directo a
 /// esta URL o la comparte) — el flujo normal ahora es el drawer del
@@ -18,7 +18,7 @@ export default async function StorefrontCartPage({
   if (!brand) notFound();
   const [basePath, menuItems] = await Promise.all([
     getStoreBasePath(slug),
-    listStorefrontMenuTree(brand.id),
+    listStorefrontMenuForShoppers(brand.id),
   ]);
 
   return (
