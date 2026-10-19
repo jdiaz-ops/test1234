@@ -264,7 +264,15 @@ function KeysSection({
 /// prende el modo de prueba y pega sus llaves — las secretas enmascaradas.
 /// Antes solo existía Wompi ("no puedo obligar a que abra Wompi"). Ver
 /// conversación del 2026-10-18.
-export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) {
+export function StorePaymentForm({
+  initial,
+  compact = false,
+}: {
+  initial: StorePaymentInitial;
+  /// Dentro del paso "Conecta tus pagos" del Dashboard (ver go-live-card):
+  /// sin el título de la página.
+  compact?: boolean;
+}) {
   const router = useRouter();
   const [provider, setProvider] = useState<PaymentProviderId>(initial.activeProvider ?? initial.offered[0] ?? "WOMPI");
   const [testMode, setTestMode] = useState(initial.paymentMode === "TEST");
@@ -384,13 +392,17 @@ export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) 
 
   return (
     <div className="space-y-4 max-w-2xl">
-      <div>
-        <h2 className="font-display text-xl font-semibold text-brand-ink">Pagos</h2>
-        <p className="text-sm text-brand-ink-soft mt-1">
-          Cobras con tu propia cuenta: el dinero llega directo a ti, Marcolini nunca lo recibe.
-          {activeName ? ` Hoy tu tienda cobra con ${activeName}.` : " Elige tu pasarela y pega sus llaves para empezar a cobrar."}
-        </p>
-      </div>
+      {compact ? (
+        <p className="text-sm text-brand-ink-soft">Cobras con tu propia cuenta: el dinero llega directo a ti, Marcolini nunca lo recibe.</p>
+      ) : (
+        <div>
+          <h2 className="font-display text-xl font-semibold text-brand-ink">Pagos</h2>
+          <p className="text-sm text-brand-ink-soft mt-1">
+            Cobras con tu propia cuenta: el dinero llega directo a ti, Marcolini nunca lo recibe.
+            {activeName ? ` Hoy tu tienda cobra con ${activeName}.` : " Elige tu pasarela y pega sus llaves para empezar a cobrar."}
+          </p>
+        </div>
+      )}
 
       <Card>
         <p className="text-sm font-medium text-brand-ink mb-3">¿Con qué pasarela cobras?</p>
@@ -464,6 +476,7 @@ export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) 
         )}
       </Card>
 
+      {!compact && (
       <Card className="!p-0 overflow-hidden">
         <div className="px-5 pt-4 pb-3">
           <p className="text-sm font-medium text-brand-ink">Métodos de pago</p>
@@ -485,6 +498,7 @@ export function StorePaymentForm({ initial }: { initial: StorePaymentInitial }) 
           ))}
         </ul>
       </Card>
+      )}
 
       <Card>
         <div className="flex items-start justify-between gap-4">

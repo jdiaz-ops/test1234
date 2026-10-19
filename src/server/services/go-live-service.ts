@@ -120,7 +120,7 @@ function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
         zones === 0
           ? "Sin zonas de envío no se puede pagar un pedido."
           : pendingRates > 0
-            ? `${pendingRates} ${pendingRates === 1 ? "tarifa venía" : "tarifas venían"} como contraentrega y Marcolini no lo permite: ponle precio al envío en Envíos.`
+            ? `${pendingRates} ${pendingRates === 1 ? "tarifa venía" : "tarifas venían"} como contraentrega y Marcolini no lo permite: ponle precio.`
             : `${zones} ${zones === 1 ? "zona" : "zonas"} de envío.`,
       done: zones > 0 && pendingRates === 0,
       manual: false,
@@ -234,4 +234,79 @@ export async function setGoLiveCheck(brandId: string, key: GoLiveKey, done: bool
   else next.delete(key);
   await prisma.brandProfile.update({ where: { id: brandId }, data: { goLiveChecks: Array.from(next) } });
   return Array.from(next);
+}
+
+// ----------------------------------------------------------------------------
+// Los pasos hechos desde el Dashboard (ver go-live-steps.tsx): la marca
+// completa cada uno ahí mismo, sin ir a otra sección y volver. Pedido del
+// 2026-10-19.
+// ----------------------------------------------------------------------------
+
+export class GoLiveStepError extends Error {}
+
+/// "900.123.456 - 7" → "900123456-7". Null si no es un NIT.
+export function normalizeTaxId(value: string): string | null {
+  const compact = value.replace(/[\s.]/g, "");
+  const match = compact.match(/^(\d{5,15})(?:-?(\d))?$/);
+  if (!match) return null;
+  // Con guion queda el dígito de verificación aparte; sin guion, tal cual.
+  return compact.includes("-") && match[2] ? `${match[1]}-${match[2]}` : compact;
+}
+
+export async function saveLegalStep(brandId: string, input: { legalName: string; taxId: string }) {
+  const legalName = input.legalName.trim().replace(/\s+/g, " ");
+  if (legalName.length < 2) throw new GoLiveStepError("Escribe la razón social como sale en el RUT.");
+  const taxId = normalizeTaxId(input.taxId);
+  if (!taxId) throw new GoLiveStepError("Escribe el NIT solo con números; el dígito de verificación va con guion (900123456-7).");
+  await prisma.brandProfile.update({ where: { id: brandId }, data: { legalName: legalName.slice(0, 160), taxId } });
+}
+
+/// Los productos que se venden sin control de inventario (los que cuenta
+/// el paso), con las variantes que no lo tienen.
+export async function listNoStockProducts(brandId: string, query?: string | null, take = 30) {
+  const q = query?.trim().slice(0, 80);
+  const where = { brandId, ...NO_STOCK_WHERE, ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}) };
+  const [total, products] = await Promise.all([
+    prisma.product.count({ where }),
+    prisma.product.findMany({
+      where,
+      orderBy: { name: "asc" },
+      take,
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true,
+        hasVariants: true,
+        variants: {
+          where: { stock: null },
+          orderBy: { position: "asc" },
+          select: { id: true, option1Value: true, option2Value: true, option3Value: true },
+        },
+      },
+    }),
+  ]);
+  return {
+    total,
+    products: products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      imageUrl: p.imageUrl,
+      variants: p.hasVariants
+        ? p.variants.map((v) => ({ id: v.id, label: [v.option1Value, v.option2Value, v.option3Value].filter(Boolean).join(" / ") || "Variante" }))
+        : null,
+    })),
+  };
+}
+
+/// Las unidades de un producto sin variantes, o de una variante.
+export async function setStepStock(brandId: string, input: { productId: string; variantId?: string | null; stock: number }) {
+  const product = await prisma.product.findFirst({ where: { id: input.productId, brandId, manual: true }, select: { id: true, hasVariants: true } });
+  if (!product) throw new GoLiveStepError("No encontramos ese producto.");
+  if (product.hasVariants) {
+    if (!input.variantId) throw new GoLiveStepError("Este producto tiene variantes: pon las unidades de cada una.");
+    const updated = await prisma.productVariant.updateMany({ where: { id: input.variantId, productId: product.id }, data: { stock: input.stock } });
+    if (updated.count === 0) throw new GoLiveStepError("No encontramos esa variante.");
+  } else {
+    await prisma.product.update({ where: { id: product.id }, data: { stock: input.stock } });
+  }
 }

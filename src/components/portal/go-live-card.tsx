@@ -1,26 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { OfferForm } from "@/components/portal/offer-form";
+import { StorePaymentForm, type StorePaymentInitial } from "@/components/portal/store-payment-form";
+import { InventoryStep, LegalStep, ShippingStep } from "@/components/portal/go-live-steps";
 import type { GoLiveChecklist, GoLiveItem, GoLiveKey } from "@/server/services/go-live-service";
 
 /// "Lo que falta para ser visible en el marketplace" en el Dashboard de la
 /// marca (ver go-live-service.ts) — su onboarding: arriba el avance, después
-/// los pasos en orden unidos por una línea (el que sigue, abierto con su
-/// botón) y al final la meta, salir a la venta. El programa de creadores se
-/// configura ahí mismo. Pedidos del 2026-10-19: "hazme esto más bonito y
-/// que se sienta los pasos, el progreso y el resultado".
-
-/// El botón del paso que sigue.
-const ACTION_LABEL: Partial<Record<GoLiveKey, string>> = {
-  legal: "Completar datos",
-  envios: "Configurar envíos",
-  pagos: "Conectar pagos",
-  inventario: "Revisar inventario",
-  programa: "Configurar aquí",
-};
+/// los pasos que faltan, unidos por una línea, y al final la meta, salir a
+/// la venta. Cada paso se hace ahí mismo (ver go-live-steps.tsx) y, cuando
+/// queda listo, desaparece y el avance se actualiza. Pedidos del
+/// 2026-10-19: "que se sienta los pasos, el progreso y el resultado", "que
+/// hagan el paso ahí mismo sin tener que entrar a otra sección" y "cuando
+/// un paso está validado desaparece y se actualiza".
 
 function CheckIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -64,23 +59,13 @@ function ProgressRing({ value }: { value: number }) {
   );
 }
 
-function StepLink({ item, className, children }: { item: GoLiveItem; className: string; children: React.ReactNode }) {
-  return item.href.startsWith("http") ? (
-    <a href={item.href} target="_blank" rel="noopener noreferrer" className={className}>
-      {children}
-    </a>
-  ) : (
-    <Link href={item.href} className={className}>
-      {children}
-    </Link>
-  );
-}
-
 export function GoLiveCard({
   checklist,
   approved,
   platformFeePercent,
   vatPercent,
+  legal,
+  payment,
 }: {
   checklist: GoLiveChecklist;
   /// La aprobación de Marcolini: también hace falta para salir.
@@ -88,17 +73,39 @@ export function GoLiveCard({
   /// Para la calculadora del programa de creadores (ver OfferForm).
   platformFeePercent: number;
   vatPercent: number;
+  /// Lo que ya tiene escrito, para el paso de razón social y NIT.
+  legal: { legalName: string; taxId: string };
+  /// Para el paso de pagos (ver storePaymentInitial).
+  payment: StorePaymentInitial;
 }) {
   const router = useRouter();
-  const [items, setItems] = useState(checklist.items);
+  const [refreshing, startRefresh] = useTransition();
+  // Lo que la marca acaba de marcar, mientras llega la lista nueva del
+  // servidor: con otra lista (otro `checklist`) ya no aplica.
+  const [optimistic, setOptimistic] = useState<{ base: GoLiveChecklist; done: Partial<Record<GoLiveKey, boolean>> }>({ base: checklist, done: {} });
+  const [openKey, setOpenKey] = useState<GoLiveKey | null>(null);
+  const [showDone, setShowDone] = useState(false);
   const [busy, setBusy] = useState<GoLiveKey | null>(null);
-  const [programOpen, setProgramOpen] = useState(false);
-  const done = items.filter((i) => i.done).length;
+
+  const overrides = optimistic.base === checklist ? optimistic.done : {};
+  const items: GoLiveItem[] = checklist.items.map((i) => (overrides[i.key] === undefined ? i : { ...i, done: overrides[i.key]! }));
+  const pending = items.filter((i) => !i.done);
+  const doneItems = items.filter((i) => i.done);
   const total = items.length;
-  const complete = done === total;
+  const done = doneItems.length;
+  const complete = pending.length === 0;
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
-  const currentIndex = items.findIndex((i) => !i.done);
   const live = complete && approved;
+  // El paso abierto: el que eligió, si todavía falta; si no, el primero.
+  const open = pending.find((i) => i.key === openKey)?.key ?? pending[0]?.key ?? null;
+
+  function refresh() {
+    startRefresh(() => router.refresh());
+  }
+
+  function mark(key: GoLiveKey, value: boolean) {
+    setOptimistic((prev) => ({ base: checklist, done: { ...(prev.base === checklist ? prev.done : {}), [key]: value } }));
+  }
 
   async function toggle(key: GoLiveKey, next: boolean) {
     setBusy(key);
@@ -109,18 +116,13 @@ export function GoLiveCard({
         body: JSON.stringify({ key, done: next }),
       });
       if (res.ok) {
-        setItems((list) => list.map((i) => (i.key === key ? { ...i, done: next } : i)));
-        router.refresh();
+        mark(key, next);
+        refresh();
       }
     } finally {
       setBusy(null);
     }
   }
-
-  const programDone = () => {
-    setProgramOpen(false);
-    setItems((list) => list.map((i) => (i.key === "programa" ? { ...i, done: true, detail: "Tu programa está activo: las creadoras pueden unirse y vender con su código." } : i)));
-  };
 
   // A la venta: queda solo la confirmación (si algo se desarma, como los
   // pagos, la lista vuelve sola).
@@ -139,127 +141,119 @@ export function GoLiveCard({
   }
 
   const remaining = total - done;
-  const summary = live
-    ? "Tu marca está a la venta en el marketplace."
-    : complete
-      ? "Listo de tu lado: estamos revisando tu marca para que salga en el marketplace."
-      : `${done} de ${total} listos · ${remaining === 1 ? "te falta 1 paso" : `te faltan ${remaining} pasos`} para salir a la venta.`;
+  const summary = complete
+    ? "Listo de tu lado: estamos revisando tu marca para que salga en el marketplace."
+    : `${done} de ${total} listos · ${remaining === 1 ? "te falta 1 paso" : `te faltan ${remaining} pasos`} para salir a la venta.`;
+
+  function stepBody(item: GoLiveItem) {
+    switch (item.key) {
+      case "legal":
+        return <LegalStep initial={legal} onSaved={refresh} />;
+      case "envios":
+        return <ShippingStep onSaved={refresh} />;
+      case "pagos":
+        return <StorePaymentForm initial={payment} compact />;
+      case "inventario":
+        return (
+          <div className="space-y-3">
+            <InventoryStep
+              onDoneAll={() => {
+                mark("inventario", true);
+                refresh();
+              }}
+            />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <button
+                type="button"
+                onClick={() => toggle("inventario", true)}
+                disabled={busy === "inventario"}
+                className="rounded-full border border-brand-line bg-brand-surface px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft disabled:opacity-50"
+              >
+                Así está bien, marcar como listo
+              </button>
+              <Link href={item.href} className="text-xs text-brand-ink-soft hover:underline">
+                Más opciones en Productos
+              </Link>
+            </div>
+          </div>
+        );
+      case "programa":
+        return (
+          <OfferForm
+            platformFeePercent={platformFeePercent}
+            vatPercent={vatPercent}
+            onDone={() => {
+              mark("programa", true);
+              refresh();
+            }}
+          />
+        );
+      default:
+        return (
+          <Link href={item.href} className="inline-block rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90">
+            Ir →
+          </Link>
+        );
+    }
+  }
 
   return (
     <section aria-labelledby="go-live-title" className="mb-6 overflow-hidden rounded-2xl border border-brand-accent/25 bg-brand-surface">
       <div className="bg-brand-accent-soft/60 px-5 pb-5 pt-5 sm:px-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="font-mono text-[11px] tracking-widest text-brand-accent">
-              {live ? "A LA VENTA" : complete ? "EN REVISIÓN" : `PASO ${currentIndex + 1} DE ${total}`}
-            </p>
+            <p className="font-mono text-[11px] tracking-widest text-brand-accent">{complete ? "EN REVISIÓN" : `PASO ${done + 1} DE ${total}`}</p>
             <h2 id="go-live-title" className="mt-1 font-display text-lg font-semibold text-brand-ink text-balance">
               Lo que falta para ser visible en el marketplace
             </h2>
-            <p className="mt-1 text-sm text-brand-ink-soft">{summary}</p>
+            <p className="mt-1 text-sm text-brand-ink-soft" aria-live="polite">
+              {summary}
+              {refreshing ? " Actualizando…" : ""}
+            </p>
           </div>
           <ProgressRing value={percent} />
         </div>
+        {/* Se llena de izquierda a derecha con lo que ya está listo. */}
         <div className="mt-4 flex gap-1.5" aria-hidden="true">
           {items.map((item, i) => (
             <span
               key={item.key}
-              className={`h-1.5 flex-1 rounded-full motion-safe:transition-colors ${
-                item.done ? "bg-brand-accent" : i === currentIndex ? "bg-brand-accent/40" : "bg-white"
+              className={`h-1.5 flex-1 rounded-full motion-safe:transition-colors motion-safe:duration-500 ${
+                i < done ? "bg-brand-accent" : i === done ? "bg-brand-accent/40" : "bg-white"
               }`}
             />
           ))}
         </div>
       </div>
 
-      <ol aria-label="Pasos para salir a la venta" className="px-5 py-5 sm:px-6">
-        {items.map((item, i) => {
-          const isCurrent = i === currentIndex;
-          const isProgram = item.key === "programa" && !item.done;
-          const action = ACTION_LABEL[item.key] ?? "Ir";
+      <ol aria-label="Pasos que faltan para salir a la venta" className="px-5 py-5 sm:px-6">
+        {pending.map((item, i) => {
+          const isOpen = item.key === open;
           return (
-            <li key={item.key} aria-current={isCurrent ? "step" : undefined} className="relative flex gap-4 pb-5">
+            <li key={item.key} aria-current={isOpen ? "step" : undefined} className="relative flex gap-4 pb-5">
               {/* La línea que une este paso con el siguiente (hasta la meta). */}
-              <span aria-hidden className={`absolute left-4 top-9 bottom-0 w-0.5 -translate-x-1/2 ${item.done ? "bg-brand-accent" : "bg-brand-line"}`} />
+              <span aria-hidden className="absolute bottom-0 left-4 top-9 w-0.5 -translate-x-1/2 bg-brand-line" />
               <span
-                className={`relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums ${
-                  item.done
-                    ? "bg-brand-accent text-white"
-                    : isCurrent
-                      ? "bg-brand-surface text-brand-accent ring-2 ring-brand-accent"
-                      : "bg-brand-surface text-brand-ink-soft ring-1 ring-brand-line"
+                className={`relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-surface text-sm font-semibold tabular-nums ${
+                  isOpen ? "text-brand-accent ring-2 ring-brand-accent" : "text-brand-ink-soft ring-1 ring-brand-line"
                 }`}
               >
-                {item.done ? <CheckIcon /> : i + 1}
+                {done + i + 1}
               </span>
               <div className="min-w-0 flex-1 pt-1">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <p className={`text-sm ${item.done ? "text-brand-ink-soft" : isCurrent ? "font-semibold text-brand-ink" : "text-brand-ink"}`}>{item.label}</p>
-                  {item.done && (
-                    <span className="rounded-full bg-brand-accent-soft px-2 py-0.5 text-[11px] font-medium text-brand-accent">Listo</span>
-                  )}
-                  {item.done && item.manual && (
-                    <button
-                      type="button"
-                      onClick={() => toggle(item.key, false)}
-                      disabled={busy === item.key}
-                      className="text-[11px] text-brand-ink-soft hover:underline disabled:opacity-50"
-                    >
-                      Desmarcar
-                    </button>
-                  )}
-                </div>
-
-                {isCurrent ? (
-                  <div className="mt-2 rounded-xl border border-brand-accent/25 bg-brand-accent-soft/40 p-4">
-                    <p className="text-sm text-brand-ink-soft">{item.detail}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
-                      {isProgram ? (
-                        <button
-                          type="button"
-                          onClick={() => setProgramOpen((o) => !o)}
-                          className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90"
-                        >
-                          {programOpen ? "Cerrar" : action}
-                        </button>
-                      ) : (
-                        <StepLink item={item} className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90">
-                          {action} →
-                        </StepLink>
-                      )}
-                      {item.manual && (
-                        <button
-                          type="button"
-                          onClick={() => toggle(item.key, true)}
-                          disabled={busy === item.key}
-                          className="text-sm text-brand-ink-soft hover:text-brand-ink hover:underline disabled:opacity-50"
-                        >
-                          Así está bien, marcar como listo
-                        </button>
-                      )}
-                    </div>
+                <p className={`text-sm ${isOpen ? "font-semibold text-brand-ink" : "text-brand-ink"}`}>{item.label}</p>
+                {isOpen ? (
+                  <div className="mt-2 space-y-3 rounded-xl border border-brand-accent/25 bg-brand-accent-soft/40 p-4">
+                    {/* En envíos e inventario el formulario ya cuenta lo que falta. */}
+                    {item.key !== "envios" && item.key !== "inventario" && <p className="text-sm text-brand-ink-soft">{item.detail}</p>}
+                    {stepBody(item)}
                   </div>
                 ) : (
-                  !item.done && (
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <p className="text-xs text-brand-ink-soft">{item.detail}</p>
-                      {isProgram ? (
-                        <button type="button" onClick={() => setProgramOpen((o) => !o)} className="text-xs font-medium text-brand-accent hover:underline">
-                          {programOpen ? "Cerrar" : action}
-                        </button>
-                      ) : (
-                        <StepLink item={item} className="text-xs font-medium text-brand-accent hover:underline">
-                          Ir →
-                        </StepLink>
-                      )}
-                    </div>
-                  )
-                )}
-                {item.done && <p className="mt-0.5 text-xs text-brand-ink-soft">{item.detail}</p>}
-
-                {isProgram && programOpen && (
-                  <div className="mt-3 rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
-                    <OfferForm platformFeePercent={platformFeePercent} vatPercent={vatPercent} onDone={programDone} />
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <p className="text-xs text-brand-ink-soft">{item.detail}</p>
+                    <button type="button" onClick={() => setOpenKey(item.key)} className="text-xs font-medium text-brand-accent hover:underline">
+                      Hacerlo aquí →
+                    </button>
                   </div>
                 )}
               </div>
@@ -271,22 +265,53 @@ export function GoLiveCard({
         <li className="relative flex gap-4">
           <span
             className={`relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-              live ? "bg-brand-ink text-white" : complete ? "bg-brand-accent text-white" : "bg-brand-surface text-brand-ink-soft border border-dashed border-brand-ink-soft/50"
+              complete ? "bg-brand-accent text-white" : "border border-dashed border-brand-ink-soft/50 bg-brand-surface text-brand-ink-soft"
             }`}
           >
             <FlagIcon />
           </span>
-          <div className={`min-w-0 flex-1 rounded-xl px-4 py-3 ${live ? "bg-brand-ink text-white" : "bg-brand-bg"}`}>
-            <p className={`text-sm font-semibold ${live ? "text-white" : "text-brand-ink"}`}>
-              {live ? "¡Estás a la venta en el marketplace!" : "Sales a la venta en el marketplace"}
-            </p>
-            <p className={`mt-0.5 text-xs ${live ? "text-white/80" : "text-brand-ink-soft"}`}>
+          <div className="min-w-0 flex-1 rounded-xl bg-brand-bg px-4 py-3">
+            <p className="text-sm font-semibold text-brand-ink">Sales a la venta en el marketplace</p>
+            <p className="mt-0.5 text-xs text-brand-ink-soft">
               Las creadoras de la red encuentran tu marca, se unen a tu programa y venden tus productos con su código.
-              {!approved && !live ? " También hace falta que aprobemos tu marca." : ""}
+              {!approved ? " También hace falta que aprobemos tu marca." : ""}
             </p>
           </div>
         </li>
       </ol>
+
+      {doneItems.length > 0 && (
+        <div className="border-t border-brand-line px-5 py-3 sm:px-6">
+          <button type="button" onClick={() => setShowDone((v) => !v)} aria-expanded={showDone} className="text-xs text-brand-ink-soft hover:text-brand-ink hover:underline">
+            {showDone ? "Ocultar lo que ya está listo" : `Ver lo que ya está listo (${doneItems.length})`}
+          </button>
+          {showDone && (
+            <ul className="mt-3 space-y-2">
+              {doneItems.map((item) => (
+                <li key={item.key} className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-accent text-white">
+                    <CheckIcon className="h-3 w-3" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-brand-ink">{item.label}</p>
+                    <p className="text-xs text-brand-ink-soft">
+                      {item.detail}
+                      {item.manual && (
+                        <>
+                          {" · "}
+                          <button type="button" onClick={() => toggle(item.key, false)} disabled={busy === item.key} className="hover:underline disabled:opacity-50">
+                            Desmarcar
+                          </button>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </section>
   );
 }

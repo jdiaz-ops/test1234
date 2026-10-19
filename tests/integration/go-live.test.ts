@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { applyExtractedProfile } from "@/server/services/brand-profile-import-service";
-import { getGoLiveChecklist, setGoLiveCheck } from "@/server/services/go-live-service";
+import { getGoLiveChecklist, listNoStockProducts, normalizeTaxId, saveLegalStep, setGoLiveCheck, setStepStock } from "@/server/services/go-live-service";
 import { createBrand, createProduct, createSellingBrand, hasDb } from "./helpers";
 import { GET as sitemap } from "@/app/t/[slug]/sitemap.xml/route";
 import { GET as robots } from "@/app/t/[slug]/robots.txt/route";
@@ -51,6 +51,38 @@ describe.skipIf(!hasDb)("lo que falta para ser visible en el marketplace", () =>
     expect(list.complete).toBe(false);
     await prisma.offer.create({ data: { brandId: brand.id, name: "Programa", defaultCommissionPercent: 8, defaultDiscountPercent: 10 } });
     expect((await getGoLiveChecklist(brand.id))!.complete).toBe(true);
+  });
+
+  it("los pasos se hacen desde el Dashboard: razón social y NIT, e inventario de productos y variantes", async () => {
+    const brand = await createBrand();
+    const done = async () => Object.fromEntries((await getGoLiveChecklist(brand.id))!.items.map((i) => [i.key, i.done]));
+
+    expect(normalizeTaxId("900.123.456 - 7")).toBe("900123456-7");
+    expect(normalizeTaxId("9001234567")).toBe("9001234567");
+    expect(normalizeTaxId("NIT 900")).toBeNull();
+    await expect(saveLegalStep(brand.id, { legalName: "Uñas SAS", taxId: "abc" })).rejects.toThrow("NIT");
+    await saveLegalStep(brand.id, { legalName: "  Uñas   Bonitas SAS ", taxId: "900.123.456-7" });
+    expect(await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id }, select: { legalName: true, taxId: true } })).toEqual({ legalName: "Uñas Bonitas SAS", taxId: "900123456-7" });
+    expect((await done()).legal).toBe(true);
+
+    const simple = await createProduct(brand.id, { name: "Lima", price: 5000, stock: null });
+    const withVariants = await createProduct(brand.id, { name: "Gel", price: 30000, stock: null, variants: [{ label: "Rojo", stock: null }, { label: "Azul", stock: 4 }] });
+    const list = await listNoStockProducts(brand.id);
+    expect(list.total).toBe(2);
+    // Del Gel solo sale la variante sin inventario.
+    expect(list.products.find((p) => p.id === withVariants.id)?.variants?.map((v) => v.label)).toEqual(["Rojo"]);
+    expect(list.products.find((p) => p.id === simple.id)?.variants).toBeNull();
+    expect((await done()).inventario).toBe(false);
+
+    await setStepStock(brand.id, { productId: simple.id, stock: 12 });
+    await expect(setStepStock(brand.id, { productId: withVariants.id, stock: 3 })).rejects.toThrow("variantes");
+    const red = withVariants.variants.find((v) => v.option1Value === "Rojo")!;
+    await setStepStock(brand.id, { productId: withVariants.id, variantId: red.id, stock: 3 });
+    expect((await listNoStockProducts(brand.id)).total).toBe(0);
+    expect((await done()).inventario).toBe(true);
+    // Otra marca no puede tocarle el inventario.
+    const other = await createBrand();
+    await expect(setStepStock(other.id, { productId: simple.id, stock: 1 })).rejects.toThrow();
   });
 
   it("sin tienda no hay lista", async () => {

@@ -15,6 +15,7 @@ import { GoLiveCard } from "@/components/portal/go-live-card";
 import { StoreLinkBar } from "@/components/portal/store-link-bar";
 import { publicStoreUrl } from "@/lib/store-url";
 import { getGoLiveChecklist } from "@/server/services/go-live-service";
+import { storePaymentInitial } from "@/server/payments/store-payment-initial";
 import {
   ChallengeResultsGrid,
   type ChallengeResults,
@@ -152,6 +153,8 @@ export default async function MarcaDashboardPage() {
           approved={profile.status === "APPROVED"}
           platformFeePercent={summary.platformFeePercent}
           vatPercent={summary.vatPercent}
+          legal={{ legalName: profile.legalName ?? "", taxId: profile.taxId ?? "" }}
+          payment={storePaymentInitial(profile)}
         />
       )}
 
