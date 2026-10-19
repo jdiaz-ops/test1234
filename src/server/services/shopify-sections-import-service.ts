@@ -133,7 +133,17 @@ export async function importShopifySections(
               ? { show: true, collectionId: items[i].id, imageUrl: items[i].imageUrl, label: items[i].label }
               : { show: false, collectionId: null, imageUrl: null, label: "" },
           );
-          created = { type: "CATEGORY_GRID", config: { title: section.title.slice(0, 120), subtitle: (section.subtitle ?? "").slice(0, 240), items: padded } };
+          created = {
+            type: "CATEGORY_GRID",
+            config: {
+              title: section.title.slice(0, 120),
+              subtitle: (section.subtitle ?? "").slice(0, 240),
+              // Si ninguna casilla de la original tenía texto (el nombre va
+              // escrito en la foto), tampoco acá.
+              showLabels: items.some((item) => item.label.trim().length > 0),
+              items: padded,
+            },
+          };
           break;
         }
         case "VIDEO":

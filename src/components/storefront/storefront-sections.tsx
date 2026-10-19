@@ -387,6 +387,7 @@ async function CategoryGridSection({
             <Link
               key={i}
               href={`${basePath}/coleccion/${item.collection!.slug}`}
+              aria-label={item.label || item.collection!.name}
               className="flex flex-col items-center gap-1.5 group"
             >
               {/* Cuadrada, mismo radio que las tarjetas de producto — la
@@ -408,9 +409,11 @@ async function CategoryGridSection({
                   </svg>
                 )}
               </div>
-              <p className="text-[11px] text-brand-ink text-center leading-tight line-clamp-2">
-                {item.label || item.collection!.name}
-              </p>
+              {config.showLabels && (
+                <p className="text-[11px] text-brand-ink text-center leading-tight line-clamp-2">
+                  {item.label || item.collection!.name}
+                </p>
+              )}
             </Link>
           );
         })}

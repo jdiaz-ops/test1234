@@ -733,6 +733,17 @@ export function ProductListingSection({ theme, patch }: { theme: ThemeConfig; pa
         (mínimo 800px) — así se ve nítida en pantallas de alta resolución
         sin pesar de más.
       </p>
+      <Field label="Burbuja de descuento en la foto" hint="Sale arriba a la izquierda de los productos en oferta.">
+        <select
+          value={p.discountBadge}
+          onChange={(e) => patch({ productListing: { discountBadge: e.target.value } })}
+          className="input text-sm"
+        >
+          <option value="percent-off">20% OFF</option>
+          <option value="minus">-20%</option>
+          <option value="hidden">No mostrar</option>
+        </select>
+      </Field>
       <Checkbox
         label="Mostrar productos agotados"
         checked={p.showSoldOut}

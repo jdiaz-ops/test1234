@@ -189,6 +189,11 @@ const categoryGridConfigSchema = z.object({
   /// categoría". Ver conversación del 2026-09-15.
   title: z.string().max(120).default(""),
   subtitle: z.string().max(240).default(""),
+  /// El nombre debajo de cada foto. Apagado cuando la foto ya trae el
+  /// nombre escrito ("de nada sirve tener el texto debajo de la imagen. La
+  /// misma imagen dice", 2026-10-19); Duplicar tienda lo apaga si en la
+  /// tienda original las casillas no tenían texto.
+  showLabels: z.boolean().default(true),
   items: z
     .array(categoryGridItemSchema)
     .length(6)

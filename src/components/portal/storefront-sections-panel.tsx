@@ -319,6 +319,11 @@ function CategoryGridFields({
         placeholder="Bajada (opcional, un párrafo corto)"
         className="input text-sm"
       />
+      <label className="flex items-center gap-2 text-sm text-brand-ink">
+        <input type="checkbox" checked={config.showLabels} onChange={(e) => onChange({ ...config, showLabels: e.target.checked })} />
+        Mostrar el nombre debajo de cada foto
+      </label>
+      <p className="text-[11px] text-brand-ink-soft -mt-2">Apágalo si tus fotos ya traen el nombre escrito.</p>
       <p className="text-[11px] text-brand-ink-soft">Se muestran en cuadrícula — hasta 6, no hace falta llenarlas todas.</p>
       {config.items.map((item, i) => (
         <div key={i} className="rounded-lg border border-brand-line p-3 space-y-2">

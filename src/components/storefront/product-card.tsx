@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { CardVariantPicker } from "@/components/storefront/card-variant-picker";
 import { CardPhoto } from "@/components/storefront/card-photo";
+import { DiscountPill } from "@/components/storefront/discount-badge";
 import { formatCOP } from "@/components/storefront/catalog-templates/types";
 import { priceRange } from "@/lib/product-price";
 import { readProductAttributes } from "@/lib/product-attributes";
@@ -159,17 +160,12 @@ export function ProductPrice({
   );
 }
 
-/// "-26%" en la esquina de la foto, como texto suelto en el color de la
-/// marca (sin pastilla, igual que en la tienda Shopify de referencia) —
-/// solo cuando hay oferta. Va dentro de un contenedor `relative`.
+/// La burbuja "20% OFF" sobre la foto, solo cuando hay oferta (ver
+/// DiscountPill). Va dentro de un contenedor `relative`.
 export function DiscountBadge({ price, compareAtPrice }: { price: number; compareAtPrice: number | null }) {
   const percent = discountPercent(price, compareAtPrice);
   if (percent == null) return null;
-  return (
-    <span className="absolute top-2 right-2 text-brand-accent text-sm font-bold">
-      -{percent}%
-    </span>
-  );
+  return <DiscountPill percent={percent} />;
 }
 
 /// La tarjeta estándar de producto — la misma en el catálogo Clásico, en

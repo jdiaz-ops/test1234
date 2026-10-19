@@ -146,8 +146,13 @@ export default async function MarcaDashboardPage() {
         </div>
       )}
 
-      {goLive && !goLive.complete && (
-        <GoLiveCard checklist={goLive} platformFeePercent={summary.platformFeePercent} vatPercent={summary.vatPercent} />
+      {goLive && (
+        <GoLiveCard
+          checklist={goLive}
+          approved={profile.status === "APPROVED"}
+          platformFeePercent={summary.platformFeePercent}
+          vatPercent={summary.vatPercent}
+        />
       )}
 
       {pendingApprovals > 0 && (

@@ -302,6 +302,9 @@ const productListingSchema = withDefaults({
   /// existió unas horas) dejaba las tarjetas disparejas y se quitó: quien lo
   /// tenga guardado pasa a "auto". Conversación del 2026-10-19.
   imageRatio: z.preprocess((v) => (v === "natural" ? "auto" : v), z.enum(["auto", "square", "portrait"]).default("auto")),
+  /// La burbuja de descuento sobre la foto: "20% OFF" (como Beauty
+  /// Solution en Shopify), "-20%" o ninguna. Ver DiscountPill.
+  discountBadge: z.enum(["percent-off", "minus", "hidden"]).default("percent-off"),
 });
 
 // ----------------------------------------------------------------------------
