@@ -83,6 +83,8 @@ body {
 @layer components {
   .rich-text-content {
     line-height: 1.6;
+    /* Una palabra o un link sin espacios no estira la página en el celular. */
+    overflow-wrap: anywhere;
   }
   .rich-text-content p {
     margin: 0 0 0.6em;
@@ -133,8 +135,15 @@ body {
   }
   .rich-text-content img {
     max-width: 100%;
+    height: auto;
     border-radius: 0.5rem;
     margin: 0.4em 0;
+  }
+  /* El código ancho se desplaza dentro de su caja (las tablas ya caben:
+     con overflow-wrap sus celdas pueden partir las palabras). */
+  .rich-text-content pre {
+    max-width: 100%;
+    overflow-x: auto;
   }
   .rich-text-content iframe {
     max-width: 100%;

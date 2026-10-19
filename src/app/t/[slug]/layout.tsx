@@ -124,12 +124,17 @@ export default async function StorefrontLayout({
               panel del carrito y el sello "Creado con Marcolini" quedaban
               afuera: salían con los colores por defecto de Marcolini (rosado)
               y, debajo del contenido, se veía una franja de ese fondo. Ver
-              conversación del 2026-10-01. */}
+              conversación del 2026-10-01.
+              overflow-x-clip: si algo queda más ancho que la pantalla (una
+              tabla o una palabra larga en una descripción, CSS de la marca),
+              se corta acá en vez de dejar mover la página de lado en el
+              celular (2026-10-19). A diferencia de overflow-hidden no rompe
+              el encabezado pegado arriba. */}
           <div
             data-storefront-root
             data-rounded={roundedDataAttr(theme)}
             style={cssVars as React.CSSProperties}
-            className={`min-h-screen bg-brand-bg ${theme.mobileNav.enabled ? "pb-16 sm:pb-0" : ""}`}
+            className={`min-h-screen overflow-x-clip bg-brand-bg ${theme.mobileNav.enabled ? "pb-16 sm:pb-0" : ""}`}
           >
             <AnnouncementBar config={theme.announcementBar} colors={theme.colors} />
             {children}
