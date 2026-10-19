@@ -118,7 +118,7 @@ export default async function MarcaDashboardPage() {
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
         DASHBOARD
       </p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-3">
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-4">
         {profile.companyName}
       </h1>
       <StoreLinkBar url={publicStoreUrl(profile)} />
@@ -209,14 +209,14 @@ export default async function MarcaDashboardPage() {
             Descubre nuevo talento
           </p>
           <p className="text-xs text-brand-ink-soft mt-1">
-            Busca creadores por categoría e invítalos directo a tu programa.
+            Busca creadoras e invítalas directo a promover tu marca.
           </p>
         </div>
         <Link
           href="/marca/creadores/buscar"
           className="shrink-0 bg-brand-accent text-white text-xs font-medium rounded-full px-5 py-2.5 hover:opacity-90"
         >
-          Buscar creadores
+          Buscar creadoras
         </Link>
       </div>
 
