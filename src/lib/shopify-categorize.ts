@@ -65,6 +65,13 @@ const KEYWORD_REGEX = NAIL_CATEGORIES.map((category) => ({
   regex: new RegExp(`(^|\\s)(${category.keywords.map((k) => normalizeText(k).replace(/\s+/g, "\\s+")).join("|")})(\\s|$)`),
 }));
 
+/// La categoría del nicho que un texto sugiere ("Pinceles finos" →
+/// "Herramientas y equipos"; "Semipermanentes" → "Esmaltes"), o null.
+export function nicheCategoryOf(text: string): string | null {
+  const haystack = normalizeText(text);
+  return KEYWORD_REGEX.find((c) => c.regex.test(haystack))?.name ?? null;
+}
+
 function cleanType(value: string | null | undefined) {
   const type = (value ?? "").trim().slice(0, 80);
   return type.length >= 2 && !/^(sin categor[ií]a|uncategori[sz]ed)$/i.test(type) ? type : "";

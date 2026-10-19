@@ -1,4 +1,4 @@
-import { normalizeText, proposeCollectionsByRules, OTHER_COLLECTION_NAME } from "@/lib/shopify-categorize";
+import { nicheCategoryOf, normalizeText, proposeCollectionsByRules, OTHER_COLLECTION_NAME } from "@/lib/shopify-categorize";
 import { proposeMergeByRules } from "@/lib/collection-merge";
 import { slugify } from "@/lib/shopify-csv";
 
@@ -292,6 +292,19 @@ function collectionNameKey(name: string) {
   return normalizeText(name);
 }
 
+/// Una colección que es una medida o una gama ("15ml", "Gama rojos",
+/// "Tonos nude") no es una categoría de producto: se usa de último.
+export function isVariantLikeName(name: string) {
+  const key = collectionNameKey(name);
+  return /^\d+\s?(ml|g|gr|grs|kg|mm|cm|oz|und|unds|pcs)$/.test(key) || /^(gama|gamas|tono|tonos|color|colores|tamanos?|medidas?|talla|tallas)\b/.test(key);
+}
+
+/// "Más vendidos", "Nuevos", "Ofertas", "Colecciones": agrupaciones de
+/// mercadeo, no categorías de producto (la portada ya las arma sola).
+export function isMarketingName(name: string) {
+  return /vendid|nuevo|novedad|oferta|promo|descuent|colecci|destacad|best|favorit|tendencia|temporada|liquidaci|outlet|sin categor/.test(collectionNameKey(name));
+}
+
 const CATEGORY_STOP_WORDS = new Set(["de", "del", "la", "el", "los", "las", "y", "e", "o", "u", "para", "con", "en", "por", "sin", "a", "otros", "todo", "todos"]);
 
 /// "Herramientas" y "Herramientas y equipos" son la misma categoría: mismo
@@ -310,13 +323,15 @@ export function sameCategoryName(a: string, b: string) {
 }
 
 /// Sin IA: se parte de las colecciones que hay (unidas las repetidas y las
-/// chicas que comparten nombre, ver collection-merge.ts), se disuelven las
-/// de un solo producto, los productos sin colección se clasifican por las
-/// palabras del nicho, y si no había ninguna colección se arman todas por
+/// chicas que comparten nombre, ver collection-merge.ts); cada producto se
+/// queda en su colección más específica que sea una categoría de verdad
+/// (no una medida, una gama ni "Más vendidos"); se conservan hasta
+/// MAX_MAIN_COLLECTIONS, las más grandes; lo demás (y lo que estaba
+/// suelto) se clasifica por las palabras del nicho dentro de esas, o en
+/// "Otros productos". Si no había ninguna colección, todo se arma por
 /// palabras. Cada producto queda en exactamente una colección.
 export function proposeStructureByRules(products: OrganizerProduct[], collections: OrganizerCollection[]): StructureProposal {
   const byId = new Map(products.map((p) => [p.id, p]));
-  const groups: { name: string; productIds: string[] }[] = [];
   const assigned = new Set<string>();
 
   const sources = collections
@@ -325,56 +340,54 @@ export function proposeStructureByRules(products: OrganizerProduct[], collection
   const merged = proposeMergeByRules(sources);
   const base = merged ? merged.collections.map((m) => ({ name: m.name, productIds: m.productHandles })) : sources.map((s) => ({ name: s.name, productIds: s.productHandles }));
 
-  // Un producto en varias colecciones se queda en la más grande (la que
-  // mejor lo representa como categoría); así nada se repite.
-  const sized = base.slice().sort((a, b) => b.productIds.length - a.productIds.length);
-  for (const group of sized) {
+  // 1. Cada producto en su colección más específica que sea una categoría
+  // de verdad; las medidas, gamas y agrupaciones de mercadeo, de último.
+  const isReal = (name: string) => !isVariantLikeName(name) && !isMarketingName(name);
+  const byCount = base.slice().sort((a, b) => a.productIds.length - b.productIds.length);
+  const groups: { name: string; productIds: string[]; real: boolean }[] = [];
+  for (const group of [...byCount.filter((g) => isReal(g.name)), ...byCount.filter((g) => !isReal(g.name))]) {
     const ids = group.productIds.filter((id) => !assigned.has(id));
     if (ids.length === 0) continue;
     for (const id of ids) assigned.add(id);
-    groups.push({ name: group.name.trim().slice(0, MAX_NAME), productIds: ids });
+    groups.push({ name: group.name.trim().slice(0, MAX_NAME), productIds: ids, real: isReal(group.name) });
   }
 
-  // Lo que quedó suelto (o todo, si no había colecciones): por palabras.
-  const loose = products.filter((p) => !assigned.has(p.id));
-  if (loose.length > 0) {
-    const proposal = proposeCollectionsByRules(loose.map((p) => ({ handle: p.id, name: p.name })));
-    for (const category of proposal.collections) {
-      const existing =
-        groups.find((g) => collectionNameKey(g.name) === collectionNameKey(category.name)) ??
-        (category.name === OTHER_COLLECTION_NAME ? undefined : groups.find((g) => sameCategoryName(g.name, category.name)));
-      if (existing) existing.productIds.push(...category.productHandles);
-      else groups.push({ name: category.name, productIds: category.productHandles });
-      for (const id of category.productHandles) assigned.add(id);
-    }
-  }
+  // 2. Se conservan las categorías de verdad más grandes; el resto se
+  // disuelve.
+  const ranked = groups.filter((g) => g.real && g.productIds.length >= MIN_COLLECTION_PRODUCTS).sort((a, b) => b.productIds.length - a.productIds.length);
+  const kept: { name: string; productIds: string[] }[] = ranked.slice(0, MAX_MAIN_COLLECTIONS).map((g) => ({ name: g.name, productIds: g.productIds.slice() }));
+  const keptNames = new Set(kept.map((k) => k.name));
+  const strays = [
+    ...groups.filter((g) => !keptNames.has(g.name)).flatMap((g) => g.productIds),
+    ...products.filter((p) => !assigned.has(p.id)).map((p) => p.id),
+  ];
 
-  // Las colecciones de un solo producto se disuelven en "Otros productos"
-  // (o en la que su nombre sugiera, si una categoría del nicho calza).
-  const small = groups.filter((g) => g.productIds.length < MIN_COLLECTION_PRODUCTS);
-  const keep = groups.filter((g) => g.productIds.length >= MIN_COLLECTION_PRODUCTS);
-  if (small.length > 0) {
-    const strays = small.flatMap((g) => g.productIds);
+  // 3. Lo disuelto y lo suelto, por las palabras del nicho: dentro de una
+  // conservada que sea esa categoría, o como categoría nueva si cabe, o
+  // en "Otros productos".
+  const others: string[] = [];
+  if (strays.length > 0) {
     const proposal = proposeCollectionsByRules(strays.map((id) => ({ handle: id, name: byId.get(id)?.name ?? "" })));
     for (const category of proposal.collections) {
+      if (category.name === OTHER_COLLECTION_NAME) {
+        others.push(...category.productHandles);
+        continue;
+      }
       const target =
-        keep.find((g) => collectionNameKey(g.name) === collectionNameKey(category.name)) ??
-        (category.name === OTHER_COLLECTION_NAME ? undefined : keep.find((g) => sameCategoryName(g.name, category.name))) ??
-        (category.name !== OTHER_COLLECTION_NAME && category.productHandles.length >= MIN_COLLECTION_PRODUCTS ? null : keep.find((g) => collectionNameKey(g.name) === collectionNameKey(OTHER_COLLECTION_NAME)));
+        kept.find((g) => collectionNameKey(g.name) === collectionNameKey(category.name)) ??
+        kept.find((g) => sameCategoryName(g.name, category.name)) ??
+        kept.find((g) => nicheCategoryOf(g.name) === category.name);
       if (target) target.productIds.push(...category.productHandles);
-      else if (category.name !== OTHER_COLLECTION_NAME && category.productHandles.length >= MIN_COLLECTION_PRODUCTS) keep.push({ name: category.name, productIds: category.productHandles });
-      else keep.push({ name: OTHER_COLLECTION_NAME, productIds: category.productHandles });
+      else if (category.productHandles.length >= MIN_COLLECTION_PRODUCTS && kept.length < MAX_MAIN_COLLECTIONS) kept.push({ name: category.name, productIds: category.productHandles });
+      else others.push(...category.productHandles);
     }
   }
-  // "Otros productos" repetido (de varias rondas) se une.
-  const others = keep.filter((g) => collectionNameKey(g.name) === collectionNameKey(OTHER_COLLECTION_NAME));
-  const result = keep.filter((g) => collectionNameKey(g.name) !== collectionNameKey(OTHER_COLLECTION_NAME));
-  if (others.length > 0) result.push({ name: OTHER_COLLECTION_NAME, productIds: Array.from(new Set(others.flatMap((g) => g.productIds))) });
+  if (others.length > 0) kept.push({ name: OTHER_COLLECTION_NAME, productIds: Array.from(new Set(others)) });
 
   const productNames = products
     .map((p) => ({ id: p.id, name: cleanProductName(p.name) }))
     .filter((n) => n.name !== byId.get(n.id)!.name);
-  return { collections: result.map((g) => ({ name: g.name, productIds: g.productIds })), productNames };
+  return { collections: kept.map((g) => ({ name: g.name, productIds: g.productIds })), productNames };
 }
 
 // ---------------------------------------------------------------------------

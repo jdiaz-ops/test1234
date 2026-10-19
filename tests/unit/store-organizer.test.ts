@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   bestSellerIds,
+  isMarketingName,
+  isVariantLikeName,
   sameCategoryName,
   buildPlan,
   cleanProductName,
@@ -111,6 +113,16 @@ describe("nombres de producto", () => {
 });
 
 describe("estructura por reglas", () => {
+  it("una medida, una gama o 'Más vendidos' no es una categoría", () => {
+    expect(isVariantLikeName("15ml")).toBe(true);
+    expect(isVariantLikeName("Gama rojos")).toBe(true);
+    expect(isVariantLikeName("Decoración")).toBe(false);
+    expect(isMarketingName("Mas vendidos")).toBe(true);
+    expect(isMarketingName("Lo nuevo")).toBe(true);
+    expect(isMarketingName("Sin categorizar")).toBe(true);
+    expect(isMarketingName("Pinceles")).toBe(false);
+  });
+
   it("reconoce la misma categoría con nombres parecidos", () => {
     expect(sameCategoryName("Herramientas", "Herramientas y equipos")).toBe(true);
     expect(sameCategoryName("Esmaltes semipermanentes", "Esmaltes")).toBe(true);
@@ -138,7 +150,8 @@ describe("estructura por reglas", () => {
     const proposal = proposeStructureByRules(products, collections);
     const names = proposal.collections.map((c) => c.name);
     expect(names[0]).toBe("Gel Polish");
-    expect(proposal.collections[0].productIds).toEqual(["p1", "p2", "p3"]);
+    // El esmalte suelto cae en Gel Polish (es la categoría "Esmaltes").
+    expect(proposal.collections[0].productIds).toEqual(["p1", "p2", "p3", "p6"]);
     expect(names).toContain("Herramientas y equipos");
     expect(names).toContain("Otros productos");
     const all = proposal.collections.flatMap((c) => c.productIds).sort();
