@@ -135,7 +135,10 @@ export async function GET() {
 export async function POST(req: Request) {
   const profile = await requireAdminActingAsBrand();
   if (!profile) return NextResponse.json(FORBIDDEN, { status: 403 });
-  const limited = await limitOrReject(req, `organizar:${profile.id}`, 30, 3600);
+  // Una tienda grande hace muchas peticiones cortas (tandas de clasificar
+  // y de fichas: Rumi, con 379 productos, unas 60): el tope es por hora y
+  // solo para el administrador.
+  const limited = await limitOrReject(req, `organizar:${profile.id}`, 600, 3600);
   if (limited) return limited;
   const body = bodySchema.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "El plan no es válido. Vuelve a generarlo." }, { status: 400 });
