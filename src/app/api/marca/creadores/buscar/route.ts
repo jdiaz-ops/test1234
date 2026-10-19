@@ -38,6 +38,9 @@ export async function GET(req: Request) {
       bio: c.bio,
       city: c.city,
       vertical: c.vertical ? { name: c.vertical.name } : null,
+      // Sus redes (lo que ella misma puso en su perfil), para verla antes
+      // de reclutarla — en vez del score (pedido del 2026-10-19).
+      socialLinks: c.socialLinks,
       scoreData: c.scoreData,
     })),
   });

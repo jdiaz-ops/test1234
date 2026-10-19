@@ -32,7 +32,7 @@ export async function searchCreators(filters: CreatorDirectoryFilters) {
         ? { displayName: { contains: filters.query, mode: "insensitive" } }
         : {}),
     },
-    include: { vertical: true },
+    include: { vertical: true, socialLinks: { select: { platform: true, handle: true, approxFollowers: true } } },
     orderBy: { createdAt: "desc" },
   });
 

@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { OfferForm } from "@/components/portal/offer-form";
+import { socialProfileUrl, sortSocialLinks } from "@/lib/social-links";
 
 type ScoreData = {
   score: number | null;
@@ -17,8 +21,14 @@ type CreatorResult = {
   bio: string | null;
   city: string | null;
   vertical: { name: string } | null;
+  socialLinks: SocialLink[];
   scoreData: ScoreData;
 };
+
+type SocialLink = { platform: string; handle: string; approxFollowers: number | null };
+
+/// Una Caja PR que se le puede proponer (ver pr-box-service.ts).
+type PrBoxOption = { id: string; name: string; left: number };
 
 type OfferOption = {
   id: string;
@@ -42,45 +52,77 @@ function formatCOP(amount: number) {
   }).format(amount);
 }
 
-function ScoreBadge({ scoreData }: { scoreData: ScoreData }) {
-  if (scoreData.score === null) {
-    return (
-      <span className="text-xs font-medium rounded-full px-2.5 py-1 bg-gray-100 text-gray-500">
-        Nuevo — sin historial
-      </span>
-    );
-  }
-  const color =
-    scoreData.score >= 70
-      ? "bg-brand-accent-soft text-brand-accent"
-      : scoreData.score >= 40
-        ? "bg-amber-100 text-amber-700"
-        : "bg-gray-100 text-gray-500";
+function followers(n: number | null) {
+  if (!n) return "";
+  return n >= 1000 ? ` · ${(n / 1000).toLocaleString("es-CO", { maximumFractionDigits: 1 })} mil` : ` · ${n}`;
+}
+
+/// Sus redes, con el link a cada perfil — en vez del score (pedido del
+/// 2026-10-19: "más bien poner el link Instagram, TikTok o YouTube, o lo
+/// que esté disponible").
+function SocialLinks({ links }: { links: SocialLink[] }) {
+  const shown = sortSocialLinks(links).filter((l) => l.handle.trim());
+  if (shown.length === 0) return <span className="text-xs text-brand-ink-soft">Sin redes en su perfil</span>;
   return (
-    <span className={`text-xs font-medium rounded-full px-2.5 py-1 ${color}`}>
-      Score {scoreData.score}
-    </span>
+    <div className="flex flex-wrap gap-1.5">
+      {shown.map((l) => {
+        const url = socialProfileUrl(l.platform, l.handle);
+        const text = (
+          <>
+            <span className="font-medium">{l.platform}</span>
+            <span className="text-brand-ink-soft">
+              {l.handle.includes("/") ? "" : ` @${l.handle.replace(/^@/, "")}`}
+              {followers(l.approxFollowers)}
+            </span>
+          </>
+        );
+        return url ? (
+          <a
+            key={`${l.platform}-${l.handle}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-0.5 rounded-full border border-brand-line px-2.5 py-1 text-xs text-brand-ink hover:bg-brand-accent-soft"
+          >
+            {text} <span aria-hidden className="text-brand-ink-soft">↗</span>
+          </a>
+        ) : (
+          <span key={`${l.platform}-${l.handle}`} className="inline-flex items-center gap-0.5 rounded-full border border-brand-line px-2.5 py-1 text-xs text-brand-ink">
+            {text}
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
+/// "Reclutar": invitarla a tu programa (y, si todavía no tienes programa,
+/// armarlo ahí mismo), proponerle una Caja PR u ofrecerle una muestra.
+/// Antes, sin programa ni muestras, solo salía "No tienes ningún producto
+/// habilitado para muestras" (2026-10-19).
 function RecruitPanel({
   creator,
   offers,
   sampleProducts,
+  prBoxes,
+  platformFeePercent,
+  vatPercent,
   onClose,
 }: {
   creator: CreatorResult;
   offers: OfferOption[];
   sampleProducts: SampleProductOption[];
+  prBoxes: PrBoxOption[];
+  platformFeePercent: number;
+  vatPercent: number;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<"invite" | "sample">(
-    offers.length > 0 ? "invite" : "sample",
-  );
+  const router = useRouter();
+  const [tab, setTab] = useState<"invite" | "box" | "sample">("invite");
 
   // ---- Invitar a unirse ----
   const [offerId, setOfferId] = useState(offers[0]?.id ?? "");
-  const selectedOffer = offers.find((o) => o.id === offerId);
+  const selectedOffer = offers.find((o) => o.id === offerId) ?? offers[0];
   const [commissionOverride, setCommissionOverride] = useState("");
   const [discountOverride, setDiscountOverride] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
@@ -96,7 +138,7 @@ function RecruitPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          offerId,
+          offerId: selectedOffer?.id ?? offerId,
           creatorId: creator.id,
           commissionPercentOverride: commissionOverride || null,
           discountPercentOverride: discountOverride || null,
@@ -113,6 +155,39 @@ function RecruitPanel({
       setInviteError("No se pudo enviar — revisa tu conexión.");
     } finally {
       setInvitingBusy(false);
+    }
+  }
+
+  // ---- Proponer una Caja PR ----
+  const [boxId, setBoxId] = useState(prBoxes[0]?.id ?? "");
+  const [boxMessage, setBoxMessage] = useState("");
+  const [boxBusy, setBoxBusy] = useState(false);
+  const [boxError, setBoxError] = useState<string | null>(null);
+  const [boxSent, setBoxSent] = useState(false);
+
+  async function sendBox() {
+    setBoxBusy(true);
+    setBoxError(null);
+    try {
+      const res = await fetch(`/api/marca/tienda/cajas-pr/${boxId}/proponer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creatorIds: [creator.id], message: boxMessage }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setBoxError(body?.error ?? "No se pudo proponer la caja.");
+        return;
+      }
+      if (body?.proposed === 0) {
+        setBoxError("Esta creadora ya tiene esta caja (pedida o propuesta).");
+        return;
+      }
+      setBoxSent(true);
+    } catch {
+      setBoxError("No se pudo enviar — revisa tu conexión.");
+    } finally {
+      setBoxBusy(false);
     }
   }
 
@@ -152,64 +227,68 @@ function RecruitPanel({
     }
   }
 
+  const tabs = [
+    { key: "invite" as const, label: "Invitar a tu programa" },
+    ...(prBoxes.length > 0 ? [{ key: "box" as const, label: "Proponer Caja PR" }] : []),
+    ...(sampleProducts.length > 0 ? [{ key: "sample" as const, label: "Ofrecer muestra" }] : []),
+  ];
+
   return (
     <div className="mt-4 pt-4 border-t border-brand-line space-y-4">
-      <div className="flex gap-2">
-        {offers.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setTab("invite")}
-            className={`rounded-full px-4 py-1.5 text-xs font-medium ${
-              tab === "invite"
-                ? "bg-brand-accent text-white"
-                : "border border-brand-line text-brand-ink-soft"
-            }`}
-          >
-            Invitar a unirse
-          </button>
-        )}
-        {sampleProducts.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setTab("sample")}
-            className={`rounded-full px-4 py-1.5 text-xs font-medium ${
-              tab === "sample"
-                ? "bg-brand-accent text-white"
-                : "border border-brand-line text-brand-ink-soft"
-            }`}
-          >
-            Ofrecer muestra
-          </button>
-        )}
-      </div>
+      {tabs.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={`rounded-full px-4 py-1.5 text-xs font-medium ${
+                tab === t.key ? "bg-brand-accent text-white" : "border border-brand-line text-brand-ink-soft"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {tab === "invite" &&
         (offers.length === 0 ? (
-          <p className="text-xs text-brand-ink-soft">
-            No tienes ninguna oferta activa todavía.
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-brand-ink">
+              Para invitar a {creator.displayName}, primero arma tu programa: la comisión que le pagas por cada venta y el descuento para su comunidad.
+            </p>
+            <div className="rounded-xl border border-brand-line bg-brand-bg p-4">
+              <OfferForm platformFeePercent={platformFeePercent} vatPercent={vatPercent} onDone={() => router.refresh()} />
+            </div>
+          </div>
         ) : inviteSent ? (
           <p className="text-sm text-brand-accent">
             Invitación enviada — te avisamos cuando responda.
           </p>
         ) : (
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-brand-ink mb-1">
-                Oferta
-              </label>
-              <select
-                value={offerId}
-                onChange={(e) => setOfferId(e.target.value)}
-                className="input text-sm"
-              >
-                {offers.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {offers.length > 1 && (
+              <div>
+                <label className="block text-xs text-brand-ink mb-1">
+                  Programa
+                </label>
+                <select
+                  value={selectedOffer?.id ?? ""}
+                  onChange={(e) => setOfferId(e.target.value)}
+                  className="input text-sm"
+                >
+                  {offers.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <p className="text-xs text-brand-ink-soft">
+              Tu programa: {selectedOffer?.defaultCommissionPercent}% de comisión para ella y {selectedOffer?.defaultDiscountPercent}% de descuento para su comunidad. Si quieres ofrecerle algo distinto, cámbialo aquí.
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-brand-ink mb-1">
@@ -221,9 +300,7 @@ function RecruitPanel({
                   max="100"
                   value={commissionOverride}
                   onChange={(e) => setCommissionOverride(e.target.value)}
-                  placeholder={String(
-                    selectedOffer?.defaultCommissionPercent ?? "",
-                  )}
+                  placeholder={String(selectedOffer?.defaultCommissionPercent ?? "")}
                   className="input text-sm"
                 />
               </div>
@@ -237,9 +314,7 @@ function RecruitPanel({
                   max="100"
                   value={discountOverride}
                   onChange={(e) => setDiscountOverride(e.target.value)}
-                  placeholder={String(
-                    selectedOffer?.defaultDiscountPercent ?? "",
-                  )}
+                  placeholder={String(selectedOffer?.defaultDiscountPercent ?? "")}
                   className="input text-sm"
                 />
               </div>
@@ -251,13 +326,11 @@ function RecruitPanel({
               <textarea
                 value={inviteMessage}
                 onChange={(e) => setInviteMessage(e.target.value.slice(0, 300))}
-                placeholder="Ej. nos encanta tu contenido de skincare, nos gustaría trabajar contigo..."
+                placeholder="Ej. nos encanta tu contenido de uñas, nos gustaría trabajar contigo..."
                 className="input text-sm min-h-16"
               />
             </div>
-            {inviteError && (
-              <p className="text-xs text-red-600">{inviteError}</p>
-            )}
+            {inviteError && <p className="text-xs text-red-600">{inviteError}</p>}
             <button
               type="button"
               onClick={sendInvite}
@@ -269,13 +342,44 @@ function RecruitPanel({
           </div>
         ))}
 
+      {tab === "box" &&
+        (boxSent ? (
+          <p className="text-sm text-brand-accent">Caja propuesta — te avisamos cuando la acepte.</p>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs text-brand-ink mb-1">Caja</label>
+              <select value={boxId} onChange={(e) => setBoxId(e.target.value)} className="input text-sm">
+                {prBoxes.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} (quedan {b.left})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-brand-ink mb-1">Mensaje (opcional)</label>
+              <textarea
+                value={boxMessage}
+                onChange={(e) => setBoxMessage(e.target.value.slice(0, 500))}
+                placeholder="Ej. queremos que seas de las primeras en probar la colección..."
+                className="input text-sm min-h-16"
+              />
+            </div>
+            {boxError && <p className="text-xs text-red-600">{boxError}</p>}
+            <button
+              type="button"
+              onClick={sendBox}
+              disabled={boxBusy || !boxId}
+              className="bg-brand-accent text-white rounded-full px-5 py-2 text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+            >
+              {boxBusy ? "Enviando..." : "Proponer la caja"}
+            </button>
+          </div>
+        ))}
+
       {tab === "sample" &&
-        (sampleProducts.length === 0 ? (
-          <p className="text-xs text-brand-ink-soft">
-            No tienes ningún producto habilitado para muestras — agrégalo en
-            Muestras.
-          </p>
-        ) : sampleSent ? (
+        (sampleSent ? (
           <p className="text-sm text-brand-accent">
             Oferta de muestra enviada — te avisamos si la acepta.
           </p>
@@ -317,13 +421,11 @@ function RecruitPanel({
               <textarea
                 value={sampleMessage}
                 onChange={(e) => setSampleMessage(e.target.value.slice(0, 300))}
-                placeholder="Ej. queremos que la pruebes para tu contenido de skincare..."
+                placeholder="Ej. queremos que la pruebes para tu contenido de uñas..."
                 className="input text-sm min-h-16"
               />
             </div>
-            {sampleError && (
-              <p className="text-xs text-red-600">{sampleError}</p>
-            )}
+            {sampleError && <p className="text-xs text-red-600">{sampleError}</p>}
             <button
               type="button"
               onClick={sendSampleOffer}
@@ -335,13 +437,19 @@ function RecruitPanel({
           </div>
         ))}
 
-      <button
-        type="button"
-        onClick={onClose}
-        className="text-xs text-brand-ink-soft hover:underline"
-      >
-        Cerrar
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button type="button" onClick={onClose} className="text-xs text-brand-ink-soft hover:underline">
+          Cerrar
+        </button>
+        {prBoxes.length === 0 && sampleProducts.length === 0 && (
+          <p className="text-xs text-brand-ink-soft">
+            ¿Quieres regalarle algo?{" "}
+            <Link href="/marca/tienda/muestras" className="font-medium text-brand-accent hover:underline">
+              Arma una Caja PR o elige productos en Muestras
+            </Link>
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -350,10 +458,16 @@ export function CreatorDirectoryPanel({
   verticals,
   offers,
   sampleProducts,
+  prBoxes,
+  platformFeePercent,
+  vatPercent,
 }: {
   verticals: { id: string; name: string }[];
   offers: OfferOption[];
   sampleProducts: SampleProductOption[];
+  prBoxes: PrBoxOption[];
+  platformFeePercent: number;
+  vatPercent: number;
 }) {
   const [query, setQuery] = useState("");
   const [verticalId, setVerticalId] = useState("");
@@ -471,7 +585,10 @@ export function CreatorDirectoryPanel({
                     </p>
                   </div>
                 </div>
-                <ScoreBadge scoreData={c.scoreData} />
+              </div>
+
+              <div className="mt-3">
+                <SocialLinks links={c.socialLinks} />
               </div>
 
               {c.bio && (
@@ -490,6 +607,9 @@ export function CreatorDirectoryPanel({
                   creator={c}
                   offers={offers}
                   sampleProducts={sampleProducts}
+                  prBoxes={prBoxes}
+                  platformFeePercent={platformFeePercent}
+                  vatPercent={vatPercent}
                   onClose={() => setOpenCreatorId(null)}
                 />
               ) : (

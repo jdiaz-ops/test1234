@@ -11,25 +11,63 @@ import type { GoLiveChecklist, GoLiveItem, GoLiveKey } from "@/server/services/g
 /// "Lo que falta para ser visible en el marketplace" en el Dashboard de la
 /// marca (ver go-live-service.ts) — su onboarding: arriba el avance, después
 /// los pasos que faltan, unidos por una línea, y al final la meta, salir a
-/// la venta. Cada paso se hace ahí mismo (ver go-live-steps.tsx) y, cuando
-/// queda listo, desaparece y el avance se actualiza. Pedidos del
-/// 2026-10-19: "que se sienta los pasos, el progreso y el resultado", "que
-/// hagan el paso ahí mismo sin tener que entrar a otra sección" y "cuando
-/// un paso está validado desaparece y se actualiza".
-
-function CheckIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="m5 12.5 4.5 4.5L19 7.5" />
-    </svg>
-  );
-}
+/// la venta. Cada paso se hace ahí mismo (ver go-live-steps.tsx), en el
+/// orden que la marca quiera, y cuando queda listo desaparece y el avance se
+/// actualiza. Pedidos del 2026-10-19: "que se sienta los pasos, el progreso
+/// y el resultado", "que hagan el paso ahí mismo", "cuando un paso está
+/// validado desaparece", "que se pueda hacer cualquiera en el orden que uno
+/// quiera" y quitar "Ver lo que ya está listo".
 
 function FlagIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
       <path d="M5 21V4" />
       <path d="M5 4h11l-2 4 2 4H5" />
+    </svg>
+  );
+}
+
+/// Un ícono por paso, en vez de un número: se hacen en cualquier orden.
+const STEP_ICON: Partial<Record<GoLiveKey, React.ReactNode>> = {
+  legal: (
+    <>
+      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+      <path d="M14 3v6h6M8 13h8M8 17h5" />
+    </>
+  ),
+  envios: (
+    <>
+      <path d="M3 7h11v9H3zM14 10h4l3 3v3h-7" />
+      <circle cx="7" cy="18" r="1.6" />
+      <circle cx="17" cy="18" r="1.6" />
+    </>
+  ),
+  pagos: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 10h18M7 15h3" />
+    </>
+  ),
+  inventario: (
+    <>
+      <path d="M21 8 12 3 3 8v8l9 5 9-5z" />
+      <path d="m3 8 9 5 9-5M12 13v8" />
+    </>
+  ),
+  programa: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20a6 6 0 0 1 12 0" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M15.5 14.2A5 5 0 0 1 21 19" />
+    </>
+  ),
+};
+
+function StepIcon({ stepKey }: { stepKey: GoLiveKey }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+      {STEP_ICON[stepKey] ?? <circle cx="12" cy="12" r="3" />}
     </svg>
   );
 }
@@ -84,20 +122,19 @@ export function GoLiveCard({
   // servidor: con otra lista (otro `checklist`) ya no aplica.
   const [optimistic, setOptimistic] = useState<{ base: GoLiveChecklist; done: Partial<Record<GoLiveKey, boolean>> }>({ base: checklist, done: {} });
   const [openKey, setOpenKey] = useState<GoLiveKey | null>(null);
-  const [showDone, setShowDone] = useState(false);
   const [busy, setBusy] = useState<GoLiveKey | null>(null);
 
   const overrides = optimistic.base === checklist ? optimistic.done : {};
   const items: GoLiveItem[] = checklist.items.map((i) => (overrides[i.key] === undefined ? i : { ...i, done: overrides[i.key]! }));
   const pending = items.filter((i) => !i.done);
-  const doneItems = items.filter((i) => i.done);
   const total = items.length;
-  const done = doneItems.length;
+  const done = total - pending.length;
   const complete = pending.length === 0;
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   const live = complete && approved;
-  // El paso abierto: el que eligió, si todavía falta; si no, el primero.
-  const open = pending.find((i) => i.key === openKey)?.key ?? pending[0]?.key ?? null;
+  // El paso abierto: el que eligió, si todavía falta. Ninguno va abierto de
+  // entrada (no hay orden obligado), salvo que quede uno solo.
+  const open = pending.length === 1 ? pending[0].key : (pending.find((i) => i.key === openKey)?.key ?? null);
 
   function refresh() {
     startRefresh(() => router.refresh());
@@ -140,10 +177,14 @@ export function GoLiveCard({
     );
   }
 
-  const remaining = total - done;
+  // Lo listo se va de la lista, así que todo se cuenta sobre lo que falta
+  // (pedido del 2026-10-19: "dice 5 pasos y luego no está ni el 1").
+  const remaining = pending.length;
   const summary = complete
     ? "Listo de tu lado: estamos revisando tu marca para que salga en el marketplace."
-    : `${done} de ${total} listos · ${remaining === 1 ? "te falta 1 paso" : `te faltan ${remaining} pasos`} para salir a la venta.`;
+    : remaining === 1
+      ? "Hazlo aquí mismo y sales a la venta."
+      : "Hazlos aquí mismo, en el orden que quieras. Cuando uno queda listo, desaparece.";
 
   function stepBody(item: GoLiveItem) {
     switch (item.key) {
@@ -202,7 +243,9 @@ export function GoLiveCard({
       <div className="bg-brand-accent-soft/60 px-5 pb-5 pt-5 sm:px-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="font-mono text-[11px] tracking-widest text-brand-accent">{complete ? "EN REVISIÓN" : `PASO ${done + 1} DE ${total}`}</p>
+            <p className="font-mono text-[11px] tracking-widest text-brand-accent">
+              {complete ? "EN REVISIÓN" : remaining === 1 ? "TE FALTA 1 PASO" : `TE FALTAN ${remaining} PASOS`}
+            </p>
             <h2 id="go-live-title" className="mt-1 font-display text-lg font-semibold text-brand-ink text-balance">
               Lo que falta para ser visible en el marketplace
             </h2>
@@ -213,47 +256,48 @@ export function GoLiveCard({
           </div>
           <ProgressRing value={percent} />
         </div>
-        {/* Se llena de izquierda a derecha con lo que ya está listo. */}
-        <div className="mt-4 flex gap-1.5" aria-hidden="true">
-          {items.map((item, i) => (
-            <span
-              key={item.key}
-              className={`h-1.5 flex-1 rounded-full motion-safe:transition-colors motion-safe:duration-500 ${
-                i < done ? "bg-brand-accent" : i === done ? "bg-brand-accent/40" : "bg-white"
-              }`}
-            />
-          ))}
-        </div>
       </div>
 
       <ol aria-label="Pasos que faltan para salir a la venta" className="px-5 py-5 sm:px-6">
-        {pending.map((item, i) => {
+        {pending.map((item) => {
           const isOpen = item.key === open;
           return (
-            <li key={item.key} aria-current={isOpen ? "step" : undefined} className="relative flex gap-4 pb-5">
+            <li key={item.key} className="relative flex gap-4 pb-5">
               {/* La línea que une este paso con el siguiente (hasta la meta). */}
               <span aria-hidden className="absolute bottom-0 left-4 top-9 w-0.5 -translate-x-1/2 bg-brand-line" />
               <span
-                className={`relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-surface text-sm font-semibold tabular-nums ${
+                className={`relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-surface ${
                   isOpen ? "text-brand-accent ring-2 ring-brand-accent" : "text-brand-ink-soft ring-1 ring-brand-line"
                 }`}
               >
-                {done + i + 1}
+                <StepIcon stepKey={item.key} />
               </span>
-              <div className="min-w-0 flex-1 pt-1">
-                <p className={`text-sm ${isOpen ? "font-semibold text-brand-ink" : "text-brand-ink"}`}>{item.label}</p>
-                {isOpen ? (
+              <div className="min-w-0 flex-1 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setOpenKey(isOpen ? null : item.key)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-start justify-between gap-3 text-left"
+                >
+                  <span className="min-w-0">
+                    <span className={`block text-sm ${isOpen ? "font-semibold text-brand-ink" : "font-medium text-brand-ink"}`}>{item.label}</span>
+                    {!isOpen && <span className="mt-0.5 block text-xs text-brand-ink-soft">{item.detail}</span>}
+                  </span>
+                  {pending.length > 1 && (
+                    <span
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
+                        isOpen ? "text-brand-ink-soft hover:text-brand-ink" : "border border-brand-accent/40 text-brand-accent hover:bg-brand-accent-soft"
+                      }`}
+                    >
+                      {isOpen ? "Cerrar" : "Hacer ahora"}
+                    </span>
+                  )}
+                </button>
+                {isOpen && (
                   <div className="mt-2 space-y-3 rounded-xl border border-brand-accent/25 bg-brand-accent-soft/40 p-4">
                     {/* En envíos e inventario el formulario ya cuenta lo que falta. */}
                     {item.key !== "envios" && item.key !== "inventario" && <p className="text-sm text-brand-ink-soft">{item.detail}</p>}
                     {stepBody(item)}
-                  </div>
-                ) : (
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <p className="text-xs text-brand-ink-soft">{item.detail}</p>
-                    <button type="button" onClick={() => setOpenKey(item.key)} className="text-xs font-medium text-brand-accent hover:underline">
-                      Hacerlo aquí →
-                    </button>
                   </div>
                 )}
               </div>
@@ -279,39 +323,6 @@ export function GoLiveCard({
           </div>
         </li>
       </ol>
-
-      {doneItems.length > 0 && (
-        <div className="border-t border-brand-line px-5 py-3 sm:px-6">
-          <button type="button" onClick={() => setShowDone((v) => !v)} aria-expanded={showDone} className="text-xs text-brand-ink-soft hover:text-brand-ink hover:underline">
-            {showDone ? "Ocultar lo que ya está listo" : `Ver lo que ya está listo (${doneItems.length})`}
-          </button>
-          {showDone && (
-            <ul className="mt-3 space-y-2">
-              {doneItems.map((item) => (
-                <li key={item.key} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-accent text-white">
-                    <CheckIcon className="h-3 w-3" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-brand-ink">{item.label}</p>
-                    <p className="text-xs text-brand-ink-soft">
-                      {item.detail}
-                      {item.manual && (
-                        <>
-                          {" · "}
-                          <button type="button" onClick={() => toggle(item.key, false)} disabled={busy === item.key} className="hover:underline disabled:opacity-50">
-                            Desmarcar
-                          </button>
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
     </section>
   );
 }
