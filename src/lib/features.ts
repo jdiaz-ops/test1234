@@ -60,6 +60,13 @@ export const CAMPAIGNS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CAMPAIGNS === "
 /// del 2026-10-01.
 export const REFERRALS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_REFERRALS === "true";
 
+/// Buzón de sugerencias del portal de marcas y del de creadoras (mensaje o
+/// nota de voz, se lee en Admin → Sugerencias). Pausado a medio camino el
+/// 2026-10-19 ("pausa el buzón"): apagado no sale en los menús ni la nube
+/// de la esquina, y sus páginas y rutas dan 404. Para encenderlo:
+/// NEXT_PUBLIC_FEATURE_SUGGESTIONS=true.
+export const SUGGESTIONS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_SUGGESTIONS === "true";
+
 /// Facturación electrónica con Dataico (Configuración → Conexiones y la
 /// factura en el detalle del pedido): módulo hecho a la medida para la
 /// tienda de H la Cosedora, la marca de Juan. Escondido para todas las

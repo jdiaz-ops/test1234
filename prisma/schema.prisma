@@ -58,6 +58,7 @@ model User {
 
   notifications Notification[]
   deviceTokens  DeviceToken[]
+  suggestions   Suggestion[]
 
   accounts Account[]
   sessions Session[]
@@ -2144,6 +2145,56 @@ model Notification {
   status NotificationDeliveryStatus @default(SENT)
 
   createdAt DateTime @default(now())
+}
+
+/// Buzón de sugerencias del portal de marcas y del de creadoras: lo que
+/// quisieran ver o dejar de ver, mejoras, quejas y dificultades, por
+/// escrito o con nota de voz. Lo lee el admin en Admin → Sugerencias. Ver
+/// conversación del 2026-10-19.
+model Suggestion {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  portal       SuggestionPortal
+  /// Lo que marcó en "¿Qué nos quieres contar?" (opcional).
+  kind         SuggestionKind?
+  message      String?
+  /// Nota de voz (Vercel Blob, como los demás archivos — ver
+  /// lib/file-upload.ts) y cuánto dura.
+  audioUrl     String?
+  audioSeconds Int?
+  /// Página del portal donde estaba y su navegador: ayudan a entender una
+  /// dificultad.
+  pagePath     String?
+  userAgent    String?
+  /// La mandó un admin con "Entrar como" (una prueba), no la cuenta.
+  sentByAdmin  Boolean          @default(false)
+
+  status    SuggestionStatus @default(NEW)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+enum SuggestionPortal {
+  BRAND
+  CREATOR
+}
+
+enum SuggestionKind {
+  IDEA // algo que quisiera ver
+  IMPROVEMENT // mejorar algo que ya existe
+  PROBLEM // algo que se le está haciendo difícil
+  COMPLAINT // una queja, o algo que quisiera dejar de ver
+}
+
+enum SuggestionStatus {
+  NEW
+  READ
+  DONE
 }
 
 enum NotificationDeliveryStatus {

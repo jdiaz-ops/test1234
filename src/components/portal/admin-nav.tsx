@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { REFERRALS_ENABLED } from "@/lib/features";
+import { REFERRALS_ENABLED, SUGGESTIONS_ENABLED } from "@/lib/features";
 
 const items = [
   { href: "/admin", label: "Dashboard", exact: true },
+  // Buzón de sugerencias de marcas y creadoras (2026-10-19), mientras
+  // SUGGESTIONS_ENABLED esté prendido.
+  ...(SUGGESTIONS_ENABLED ? [{ href: "/admin/sugerencias", label: "Sugerencias" }] : []),
   { href: "/admin/marcas", label: "Marcas" },
   { href: "/admin/creadores", label: "Creadores" },
   { href: "/admin/lista-de-espera", label: "Lista de espera" },
@@ -32,12 +35,15 @@ const items = [
 export function AdminNav({
   pendingCobros = 0,
   pendingPagos = 0,
+  newSuggestions = 0,
 }: {
   pendingCobros?: number;
   pendingPagos?: number;
+  newSuggestions?: number;
 }) {
   const pathname = usePathname();
   const badges: Record<string, number> = {
+    "/admin/sugerencias": newSuggestions,
     "/admin/cobros": pendingCobros,
     "/admin/pagos-creadores": pendingPagos,
   };

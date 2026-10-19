@@ -6,6 +6,8 @@ import { BrandNav } from "@/components/portal/brand-nav";
 import { countOpenOrders } from "@/server/services/store-order-service";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { ImpersonationBanner } from "@/components/portal/impersonation-banner";
+import { SuggestionBubble } from "@/components/portal/suggestion-bubble";
+import { SUGGESTIONS_ENABLED } from "@/lib/features";
 import { BillingLockScreen } from "@/components/portal/billing-lock-screen";
 import { countUnreadNotifications } from "@/server/services/notification-service";
 import { isBrandPaymentLocked } from "@/server/services/payment-service";
@@ -119,6 +121,8 @@ export default async function MarcaLayout({
           {children}
         </div>
       </PortalShell>
+      {/* Buzón de sugerencias en todas las páginas del portal (2026-10-19). */}
+      {SUGGESTIONS_ENABLED && <SuggestionBubble href="/marca/sugerencias" />}
     </div>
   );
 }

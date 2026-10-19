@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { PortalNav } from "@/components/portal/portal-nav";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { ImpersonationBanner } from "@/components/portal/impersonation-banner";
+import { SuggestionBubble } from "@/components/portal/suggestion-bubble";
+import { SUGGESTIONS_ENABLED } from "@/lib/features";
 import { getCreatorOnboardingStatus } from "@/server/services/creator-onboarding-service";
 
 export default async function CreadorLayout({
@@ -53,6 +55,8 @@ export default async function CreadorLayout({
           {children}
         </div>
       </PortalShell>
+      {/* Buzón de sugerencias en todas las páginas del portal (2026-10-19). */}
+      {SUGGESTIONS_ENABLED && <SuggestionBubble href="/creador/sugerencias" />}
     </div>
   );
 }

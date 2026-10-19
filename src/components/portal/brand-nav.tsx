@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CAMPAIGNS_ENABLED, REVIEWS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
+import { CAMPAIGNS_ENABLED, REVIEWS_ENABLED, SAMPLES_ENABLED, SUGGESTIONS_ENABLED } from "@/lib/features";
 import { SETTINGS_PATHS } from "@/components/portal/settings-shell";
 
 // Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
@@ -159,6 +159,14 @@ export function BrandNav({
             </Link>
           ))}
         </div>
+      )}
+
+      {/* Buzón de sugerencias (2026-10-19): también se abre desde la nube
+          de la esquina (SuggestionBubble). */}
+      {SUGGESTIONS_ENABLED && (
+        <Link href="/marca/sugerencias" className={linkClass(pathname.startsWith("/marca/sugerencias"))}>
+          Buzón de sugerencias
+        </Link>
       )}
     </nav>
   );

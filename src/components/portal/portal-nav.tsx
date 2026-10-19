@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CAMPAIGNS_ENABLED, REFERRALS_ENABLED, SAMPLES_ENABLED } from "@/lib/features";
+import { CAMPAIGNS_ENABLED, REFERRALS_ENABLED, SAMPLES_ENABLED, SUGGESTIONS_ENABLED } from "@/lib/features";
 
 // Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
 // ruta siguen intactos, solo se quitó del menú.
@@ -42,6 +42,8 @@ const cuentaSubItems = [
 
 const trailingItems = [
   { href: "/creador/notificaciones", label: "Notificaciones" },
+  // También se abre desde la nube de la esquina (SuggestionBubble).
+  ...(SUGGESTIONS_ENABLED ? [{ href: "/creador/sugerencias", label: "Buzón de sugerencias" }] : []),
 ];
 
 function isActive(pathname: string, href: string) {

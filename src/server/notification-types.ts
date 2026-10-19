@@ -500,6 +500,14 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "aliado,tipo,nombre,celular",
   },
   {
+    key: "SUGGESTION_ADMIN",
+    label: "Sugerencia en el buzón",
+    audience: "ADMIN",
+    channelEmail: true,
+    messageTemplate: "{remitente} ({portal}) mandó una sugerencia: {resumen} Léela en Admin → Sugerencias.",
+    placeholders: "remitente,portal,resumen",
+  },
+  {
     key: "BRAND_PENDING_ADMIN",
     label: "Marca nueva pendiente de revisar",
     audience: "ADMIN",

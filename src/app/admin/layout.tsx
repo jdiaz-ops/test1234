@@ -6,6 +6,8 @@ import {
   countPendingBillingVerifications,
   countPendingPayouts,
 } from "@/server/services/payment-service";
+import { countNewSuggestions } from "@/server/services/suggestion-service";
+import { SUGGESTIONS_ENABLED } from "@/lib/features";
 
 export default async function AdminLayout({
   children,
@@ -15,9 +17,10 @@ export default async function AdminLayout({
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") redirect("/login");
 
-  const [pendingCobros, pendingPagos] = await Promise.all([
+  const [pendingCobros, pendingPagos, newSuggestions] = await Promise.all([
     countPendingBillingVerifications(),
     countPendingPayouts(),
+    SUGGESTIONS_ENABLED ? countNewSuggestions() : 0,
   ]);
 
   return (
@@ -26,7 +29,7 @@ export default async function AdminLayout({
         logoHref="/admin"
         logoLabel="MARCOLINI ADMIN"
         nav={
-          <AdminNav pendingCobros={pendingCobros} pendingPagos={pendingPagos} />
+          <AdminNav pendingCobros={pendingCobros} pendingPagos={pendingPagos} newSuggestions={newSuggestions} />
         }
         footer={
           <>

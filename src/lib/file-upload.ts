@@ -39,11 +39,39 @@ export async function uploadFile(file: File, folder: string): Promise<string> {
   }
 
   const filename = `${folder}/${crypto.randomBytes(12).toString("hex")}${safeExt(file.name)}`;
+  return storeFile(file, filename);
+}
 
+/// Lo que graban los navegadores: webm/ogg con Opus (Chrome, Android,
+/// Firefox) o mp4 (Safari).
+const AUDIO_EXT: Record<string, string> = {
+  "audio/webm": ".webm",
+  "audio/ogg": ".ogg",
+  "audio/mp4": ".m4a",
+  "audio/x-m4a": ".m4a",
+  "audio/aac": ".aac",
+  "audio/mpeg": ".mp3",
+  "audio/wav": ".wav",
+};
+
+/// Por debajo del límite de 4.5 MB que acepta una ruta en Vercel: 3
+/// minutos de nota de voz pesan mucho menos.
+export const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
+
+/// Sube una nota de voz (buzón de sugerencias, ver suggestion-service.ts).
+export async function uploadAudio(file: File, folder: string): Promise<string> {
+  const type = file.type.split(";")[0].trim().toLowerCase();
+  const ext = AUDIO_EXT[type];
+  if (!ext) throw new FileUploadError("Formato de audio no permitido.");
+  if (file.size > MAX_AUDIO_BYTES) throw new FileUploadError("La nota de voz es muy larga — graba una más corta.");
+  return storeFile(file, `${folder}/${crypto.randomBytes(12).toString("hex")}${ext}`, type);
+}
+
+async function storeFile(file: File, filename: string, contentType?: string): Promise<string> {
   if (process.env.VERCEL) {
     try {
       const { put } = await import("@vercel/blob");
-      const blob = await put(filename, file, { access: "public" });
+      const blob = await put(filename, file, { access: "public", ...(contentType ? { contentType } : {}) });
       return blob.url;
     } catch (err) {
       throw new FileUploadError(
@@ -56,9 +84,10 @@ export async function uploadFile(file: File, folder: string): Promise<string> {
 
   try {
     const bytes = Buffer.from(await file.arrayBuffer());
+    const folder = path.posix.dirname(filename);
     const dir = path.join(process.cwd(), "public", "uploads", folder);
     await mkdir(dir, { recursive: true });
-    const diskName = filename.split("/").pop()!;
+    const diskName = path.posix.basename(filename);
     await writeFile(path.join(dir, diskName), bytes);
     return `/uploads/${folder}/${diskName}`;
   } catch {
