@@ -8,6 +8,9 @@ import { readImageBytes } from "@/server/services/image-bytes";
 /// storefront-logo-src en logo-src.ts. Solo sirve el logo guardado de la
 /// marca (nunca una dirección que venga en el pedido) y queda en la caché
 /// del CDN; si algo falla, manda al logo original.
+///
+/// ?correo=1 es la versión de los correos (ver emailLogoSrc): PNG sobre
+/// fondo blanco, sin transparencia, del tamaño en que se muestra (2×).
 const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_WIDTH = 900;
 
@@ -19,6 +22,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const original = logoUrl.startsWith("/") ? new URL(logoUrl, _req.url).href : logoUrl;
   try {
     const bytes = await readImageBytes(logoUrl, MAX_BYTES);
+    if (new URL(_req.url).searchParams.has("correo")) {
+      const png = await sharp(bytes, { failOn: "none" })
+        .trim({ threshold: 12 })
+        .resize({ width: 400, height: 112, fit: "inside", withoutEnlargement: true })
+        .flatten({ background: "#ffffff" })
+        .png({ compressionLevel: 9 })
+        .toBuffer();
+      return new NextResponse(new Uint8Array(png), {
+        headers: {
+          "content-type": "image/png",
+          "cache-control": "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=604800",
+        },
+      });
+    }
     const trimmed = await sharp(bytes, { failOn: "none" })
       .trim({ threshold: 12 })
       .resize({ width: MAX_WIDTH, withoutEnlargement: true })

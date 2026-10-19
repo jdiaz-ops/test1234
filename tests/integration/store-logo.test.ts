@@ -3,7 +3,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
-import { storefrontLogoSrc } from "@/lib/logo-src";
+import { emailLogoSrc, storefrontLogoSrc } from "@/lib/logo-src";
 import { GET } from "@/app/api/tienda/[slug]/logo/route";
 import { createBrand, hasDb } from "./helpers";
 
@@ -36,6 +36,14 @@ describe("el logo del encabezado", () => {
     expect(res.headers.get("content-type")).toBe("image/webp");
     const meta = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
     expect([meta.width, meta.height]).toEqual([300, 60]);
+
+    // En los correos: PNG sin transparencia (Gmail la pintaba de negro).
+    const forEmail = emailLogoSrc("https://marcolini.lat", { storefrontSlug: brand.storefrontSlug, logoUrl: "/uploads/prueba-logo/lienzo.png" });
+    expect(forEmail).toMatch(new RegExp(`^https://marcolini\\.lat/api/tienda/${brand.storefrontSlug}/logo\\?v=[a-z0-9]+&correo=1$`));
+    const mail = await GET(new Request(forEmail!), { params: Promise.resolve({ slug: brand.storefrontSlug! }) });
+    expect(mail.headers.get("content-type")).toBe("image/png");
+    const mailMeta = await sharp(Buffer.from(await mail.arrayBuffer())).metadata();
+    expect([mailMeta.width, mailMeta.height, mailMeta.hasAlpha]).toEqual([300, 60, false]);
 
     const missing = await GET(new Request("https://x.marcolini.lat/api/tienda/nada/logo"), { params: Promise.resolve({ slug: "no-existe-xyz" }) });
     expect(missing.status).toBe(404);

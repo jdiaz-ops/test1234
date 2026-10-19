@@ -10,6 +10,7 @@ import {
 import { orderNumber } from "@/lib/order-math";
 import { publicStoreUrl, portalUrl } from "@/lib/store-url";
 import { trackingUrlFor } from "@/lib/carriers";
+import { emailLogoSrc } from "@/lib/logo-src";
 
 /// Correos de pedidos de "Mi tienda". Ninguno debe tumbar la acción que lo
 /// dispara (el pago ya se cobró, el envío ya se marcó): cada función
@@ -59,7 +60,7 @@ function toEmailData(order: LoadedOrder): OrderEmailData {
   return {
     orderNumber: orderNumber(order.reference),
     brandName: order.brand.companyName,
-    brandLogoUrl: order.brand.logoUrl,
+    brandLogoUrl: emailLogoSrc(portalUrl(), order.brand),
     buyerName: order.buyerName,
     buyerEmail: order.buyerEmail,
     buyerPhone: order.buyerPhone,

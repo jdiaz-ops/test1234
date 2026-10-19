@@ -7,9 +7,23 @@
 export function storefrontLogoSrc(slug: string, logoUrl: string | null): string | null {
   if (!logoUrl) return null;
   if (logoUrl.startsWith("data:") || /\.svg(\?|#|$)/i.test(logoUrl)) return logoUrl;
+  return `/api/tienda/${encodeURIComponent(slug)}/logo?v=${logoVersion(logoUrl)}`;
+}
+
+function logoVersion(logoUrl: string) {
   let hash = 5381;
   for (let i = 0; i < logoUrl.length; i++) hash = ((hash * 33) ^ logoUrl.charCodeAt(i)) >>> 0;
-  return `/api/tienda/${encodeURIComponent(slug)}/logo?v=${hash.toString(36)}`;
+  return hash.toString(36);
+}
+
+/// El logo en los correos (dirección completa, desde `site`): recortado y
+/// sobre fondo blanco, en PNG (ver ?correo=1 en /api/tienda/{slug}/logo).
+/// Con el fondo transparente, Gmail lo mostraba como un recuadro negro
+/// (2026-10-19); y los correos no leen WebP ni SVG.
+export function emailLogoSrc(site: string, brand: { storefrontSlug: string | null; logoUrl: string | null }): string | null {
+  if (!brand.logoUrl) return null;
+  if (!brand.storefrontSlug || brand.logoUrl.startsWith("data:")) return brand.logoUrl;
+  return `${site}/api/tienda/${encodeURIComponent(brand.storefrontSlug)}/logo?v=${logoVersion(brand.logoUrl)}&correo=1`;
 }
 
 /// El logo de una marca fuera de su tienda (marketplace, perfil del
