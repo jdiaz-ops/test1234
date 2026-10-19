@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MENU_MAX_DEPTH } from "@/lib/menu-tree";
+import { MenuImportTool } from "@/components/portal/menu-import-tool";
 
 export type StorefrontMenuItemRow = {
   id: string;
@@ -222,8 +223,27 @@ function MenuItemRow({
   );
 }
 
-export function StorefrontMenuPanel({ initialItems }: { initialItems: StorefrontMenuItemRow[] }) {
+export function StorefrontMenuPanel({
+  initialItems,
+  importTools = false,
+  storeUrl = null,
+}: {
+  initialItems: StorefrontMenuItemRow[];
+  /// "Traer el menú de la tienda original": solo para el admin con
+  /// "Entrar como" (ver isAdminActingAsBrand).
+  importTools?: boolean;
+  /// El link de la tienda original, si se conoce, para no tener que pegarlo.
+  storeUrl?: string | null;
+}) {
   const [items, setItems] = useState(initialItems);
+  // Después de traer el menú de la tienda original, se vuelve a leer completo.
+  async function reload() {
+    const res = await fetch("/api/marca/tienda/menu");
+    const body = await res.json();
+    if (res.ok && Array.isArray(body.items)) {
+      setItems(body.items.map((i: { id: string; label: string; url: string; parentId?: string | null }) => ({ id: i.id, label: i.label, url: i.url, parentId: i.parentId ?? null })));
+    }
+  }
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -295,6 +315,8 @@ export function StorefrontMenuPanel({ initialItems }: { initialItems: Storefront
         Instagram). Con &quot;+ Subítem&quot; armas submenús de hasta tres niveles: en computadora se abren al pasar el mouse
         y en celular dentro del panel del menú.
       </p>
+
+      {importTools && <MenuImportTool defaultUrl={storeUrl ?? ""} onApplied={reload} />}
 
       {topLevel.length === 0 ? (
         <p className="text-sm text-brand-ink-soft mb-4">Todavía no agregas ningún ítem al menú.</p>

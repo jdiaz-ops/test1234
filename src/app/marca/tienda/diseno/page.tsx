@@ -1,4 +1,4 @@
-import { requireBrandProfile } from "@/lib/current-brand";
+import { isAdminActingAsBrand, requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { DesignEditorPanel } from "@/components/portal/design-editor/design-editor-panel";
 import { getDraftTheme } from "@/server/services/brand-theme-service";
@@ -20,11 +20,14 @@ export default async function TiendaDisenoPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 
-  const [theme, pages, sections, menuItems] = await Promise.all([
+  const [theme, pages, sections, menuItems, importTools] = await Promise.all([
     getDraftTheme(profile.id),
     listStorePages(profile.id),
     listStorefrontSections(profile.id),
     listStorefrontMenuItems(profile.id),
+    // "Traer el menú de la tienda original": solo cuando Juan entra con
+    // "Entrar como".
+    isAdminActingAsBrand(),
   ]);
 
   return (
@@ -47,6 +50,8 @@ export default async function TiendaDisenoPage() {
           .map((s) => ({ id: s.id, type: s.type, enabled: s.enabled, config: s.config }))}
         initialMenuItems={menuItems.map((i) => ({ id: i.id, label: i.label, url: i.url, parentId: i.parentId ?? null }))}
         storefrontSlug={profile.storefrontSlug}
+        menuImportTools={importTools}
+        originalStoreUrl={profile.storeUrl ?? profile.websiteUrl ?? null}
       />
     </div>
   );

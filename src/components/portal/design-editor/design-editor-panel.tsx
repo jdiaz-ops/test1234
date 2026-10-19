@@ -109,11 +109,16 @@ export function DesignEditorPanel({
   initialSections,
   initialMenuItems,
   storefrontSlug,
+  menuImportTools = false,
+  originalStoreUrl = null,
 }: {
   initialTheme: ThemeConfig;
   storePages: { slug: string; title: string }[];
   initialSections: StorefrontSectionRow[];
   initialMenuItems: StorefrontMenuItemRow[];
+  /// Herramienta "Traer el menú de la tienda original" (solo admin).
+  menuImportTools?: boolean;
+  originalStoreUrl?: string | null;
   /// Para la vista previa (la tienda real en un iframe) — null si la
   /// marca todavía no configuró el link de su tienda.
   storefrontSlug: string | null;
@@ -275,7 +280,7 @@ export function DesignEditorPanel({
           {active === "menu" && (
             <>
               <MenuVisibilitySection theme={theme} patch={patch} />
-              <StorefrontMenuPanel initialItems={initialMenuItems} />
+              <StorefrontMenuPanel initialItems={initialMenuItems} importTools={menuImportTools} storeUrl={originalStoreUrl} />
             </>
           )}
           {active === "sections" && <StorefrontSectionsPanel initialSections={initialSections} />}
