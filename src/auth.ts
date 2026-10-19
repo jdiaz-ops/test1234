@@ -8,6 +8,7 @@ import { consumeImpersonationToken } from "@/lib/impersonation";
 import { consumeAllyLoginToken } from "@/lib/ally-login-token";
 import { normalizeEmail } from "@/lib/normalize-email";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { checkGoogleSignIn } from "@/server/services/google-sign-in";
 
 /// Auth.js v5: un `throw new Error("lo que sea")` dentro de authorize() NO
 /// llega al cliente con ese mensaje — signIn(..., {redirect:false}) siempre
@@ -47,10 +48,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
   providers: [
-    // Solo con sus llaves: sin ellas Google responde "Missing required
-    // parameter: client_id" (ver GOOGLE_LOGIN_ENABLED en lib/features.ts).
+    // Solo con sus llaves: sin ellas Google respondía "Missing required
+    // parameter: client_id" (2026-10-19); el login muestra el botón con el
+    // mismo chequeo. Entra a la cuenta que ya tiene ese correo (Google
+    // verifica el correo, por eso se puede ligar) — ver checkGoogleSignIn.
     ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
-      ? [Google({ clientId: process.env.AUTH_GOOGLE_ID, clientSecret: process.env.AUTH_GOOGLE_SECRET })]
+      ? [
+          Google({
+            clientId: process.env.AUTH_GOOGLE_ID,
+            clientSecret: process.env.AUTH_GOOGLE_SECRET,
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
       : []),
     Credentials({
       credentials: {
@@ -146,6 +155,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ account, profile }) {
+      if (account?.provider !== "google") return true;
+      return checkGoogleSignIn(profile?.email, (profile as { email_verified?: boolean } | undefined)?.email_verified === true);
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;

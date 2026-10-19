@@ -67,15 +67,6 @@ export const REFERRALS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_REFERRALS === "
 /// NEXT_PUBLIC_FEATURE_SUGGESTIONS=true.
 export const SUGGESTIONS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_SUGGESTIONS === "true";
 
-/// "Continuar con Google" en el login. Apagado: en producción no están las
-/// llaves de Google (AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET) y salía "Access
-/// blocked: Missing required parameter: client_id" (2026-10-19). Además,
-/// para prenderlo falta decidir qué pasa con quien entra: hoy una cuenta
-/// nueva por Google no tendría rol (las cuentas nacen por la lista de
-/// espera) y una que ya existe con ese correo no queda ligada a Google.
-/// Para encenderlo: NEXT_PUBLIC_FEATURE_GOOGLE_LOGIN=true, con las llaves.
-export const GOOGLE_LOGIN_ENABLED = process.env.NEXT_PUBLIC_FEATURE_GOOGLE_LOGIN === "true";
-
 /// Facturación electrónica con Dataico (Configuración → Conexiones y la
 /// factura en el detalle del pedido): módulo hecho a la medida para la
 /// tienda de H la Cosedora, la marca de Juan. Escondido para todas las
