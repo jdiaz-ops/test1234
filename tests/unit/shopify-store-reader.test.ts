@@ -239,6 +239,27 @@ describe("leer colecciones y portada", () => {
   });
 });
 
+describe("letra exacta de la tienda original", () => {
+  it("usa la misma familia si Google Fonts la tiene; si no, la más parecida del catálogo", async () => {
+    const { readShopifyStorefront } = await import("@/server/services/shopify-store-reader");
+    const html = `<html><head><style>:root{--color-background:#ffffff;--color-foreground:#111111;--color-button:#000000;--font-heading-family:"Jost",sans-serif;--font-body-family:Futura,sans-serif}</style></head><body></body></html>`;
+    const { impl, calls } = fakeFetch((url) => {
+      if (url.hostname === "fonts.googleapis.com") {
+        return url.searchParams.get("family") === "Jost"
+          ? new Response("@font-face { font-family: 'Jost'; src: url(https://fonts.gstatic.com/jost.woff2); }", { status: 200 })
+          : new Response("Font family not found", { status: 400 });
+      }
+      return new Response(html, { status: 200, headers: { "content-type": "text/html" } });
+    });
+    const result = await readShopifyStorefront("https://marca.myshopify.com", impl);
+    expect(result.theme.fonts).toMatchObject({ headingFamily: "Jost", headingFont: "Jost", headingExact: true, bodyFamily: "Futura", bodyFont: "Montserrat", bodyExact: false });
+    expect(calls.filter((c) => c.startsWith("https://fonts.googleapis.com/"))).toEqual([
+      "https://fonts.googleapis.com/css?family=Jost",
+      "https://fonts.googleapis.com/css?family=Futura",
+    ]);
+  });
+});
+
 describe("fletes probando carritos", () => {
   /// Una tienda Shopify de mentira con carrito por cookie: el producto
   /// 333 está agotado, el 111 vale $45.000 y tiene 5 de stock; Bogotá

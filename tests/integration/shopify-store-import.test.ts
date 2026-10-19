@@ -149,8 +149,8 @@ describe.skipIf(!hasDb)("importar colecciones, menú y diseño desde Shopify", (
     expect(calls).toEqual(["https://cdn.shopify.com/logo.png"]);
     await rm(path.join(process.cwd(), "public", profile.logoUrl!), { force: true });
 
-    // Segunda vez: el logo ya existe y no se toca; una letra desconocida
-    // no se aplica; sin publicar solo cambia el borrador.
+    // Segunda vez: el logo ya existe y no se toca; una letra que Google
+    // Fonts no tiene no se aplica; sin publicar solo cambia el borrador.
     const second = await applyShopifyDesign(
       brand.id,
       { colors: { ...colors, botones: "#000000" }, fonts: { headingFont: "Comic Sans", bodyFont: "Karla" }, logoUrl: "https://cdn.shopify.com/logo.png", publish: false },
@@ -159,7 +159,14 @@ describe.skipIf(!hasDb)("importar colecciones, menú y diseño desde Shopify", (
     expect(second).toEqual({ colors: true, fonts: false, announcements: false, published: false, logo: "ya-tenia", favicon: "omitido", profileFields: [] });
     expect((await getPublishedTheme(brand.id)).colors.botones).toBe("#d1477b");
     expect((await getDraftTheme(brand.id)).colors.botones).toBe("#000000");
-    expect(calls).toHaveLength(1);
+    expect(calls).toEqual(["https://cdn.shopify.com/logo.png", "https://fonts.googleapis.com/css?family=Comic+Sans"]);
+
+    // La letra exacta de la tienda original, si Google Fonts la tiene.
+    const googleFonts = async (url: string) =>
+      url.startsWith("https://fonts.googleapis.com/") ? new Response("@font-face { font-family: 'Jost'; }", { status: 200 }) : fakeFetch(url);
+    const third = await applyShopifyDesign(brand.id, { colors: null, fonts: { headingFont: "Jost", bodyFont: "Jost" }, logoUrl: null, publish: false }, googleFonts);
+    expect(third.fonts).toBe(true);
+    expect((await getDraftTheme(brand.id)).typography).toEqual({ headingFont: "Jost", bodyFont: "Jost" });
   });
 
   it("una imagen que no es imagen o apunta adentro de la red no se sube", async () => {
@@ -363,7 +370,7 @@ describe.skipIf(!hasDb)("páginas, portada, fotos de variante y Google Analytics
     ]);
   });
 
-  it("sin secciones reconocidas arma la portada básica, y si ninguna muestra productos agrega el catálogo", async () => {
+  it("sin secciones reconocidas arma la portada básica; si se copió algo, queda tal cual la original", async () => {
     const { importShopifySections } = await import("@/server/services/shopify-sections-import-service");
     const { completeHomeSections } = await import("@/server/services/storefront-default-home-service");
     const { listStorefrontSections } = await import("@/server/services/storefront-section-service");
@@ -403,15 +410,15 @@ describe.skipIf(!hasDb)("páginas, portada, fotos de variante y Google Analytics
     // Con la portada completa, el botón de Diseño no duplica nada.
     expect(await completeHomeSections(brand.id)).toEqual({ created: [], skipped: "COMPLETE" });
 
-    // Solo un banner reconocido (no muestra productos): categorías,
-    // novedades y catálogo van debajo del banner.
+    // Solo un banner (la original no mostraba productos en la portada):
+    // es una copia fiel, no se le agrega nada (2026-10-19).
     const banner = { type: "BANNER" as const, images: ["https://rumicol.com/wp-content/uploads/hero.jpg"], title: "Hola", subtitle: "", buttonText: "", buttonHref: "" };
     const partial = await importShopifySections(brand.id, { sections: [banner], replace: true, collectionSlugByHandle: {}, fillGaps: true });
     expect(partial.removed).toBe(3);
-    expect(partial.basic).toBe(3);
-    expect((await listStorefrontSections(brand.id)).map((s) => s.type)).toEqual(["BANNER", "CATEGORY_GRID", "NEW_PRODUCTS", "PRODUCT_CATALOG"]);
-    // El botón de Diseño con un banner suelto hace lo mismo.
-    await prisma.storefrontSection.deleteMany({ where: { brandId: brand.id, type: { not: "BANNER" } } });
+    expect(partial.basic).toBe(0);
+    expect((await listStorefrontSections(brand.id)).map((s) => s.type)).toEqual(["BANNER"]);
+    // El botón de Diseño con un banner suelto agrega categorías, novedades
+    // y catálogo debajo, si la marca quiere.
     expect((await completeHomeSections(brand.id)).created).toEqual(["CATEGORY_GRID", "NEW_PRODUCTS", "PRODUCT_CATALOG"]);
 
     // Una cuadrícula cuyos handles no calzan con nada se resuelve por el
@@ -443,6 +450,92 @@ describe.skipIf(!hasDb)("páginas, portada, fotos de variante y Google Analytics
       [true, deco.id],
       [false, null],
     ]);
+  });
+
+  it("copia fiel: bloque personalizado con sus colores, banners promocionales, nombres de categoría y títulos vacíos", async () => {
+    const { importShopifySections } = await import("@/server/services/shopify-sections-import-service");
+    const { listStorefrontSections } = await import("@/server/services/storefront-section-service");
+    const brand = await createBrand();
+    await importShopifyProducts(brand.id, [product("anillo-sol", "Anillo Sol"), product("anillo-luna", "Anillo Luna")]);
+    await importShopifyCollections(brand.id, { collections: [{ handle: "anillos", name: "Anillos", productHandles: ["anillo-sol", "anillo-luna"] }] });
+
+    const result = await importShopifySections(brand.id, {
+      sections: [
+        { type: "CATEGORY_GRID", title: "Compra por categoría", subtitle: "Lo que más se lleva", items: [{ collectionHandle: "anillos", imageUrl: null, label: "Anillos de oro" }] },
+        { type: "FEATURED_PRODUCTS", productHandles: ["anillo-luna", "anillo-sol"], title: "" },
+        {
+          type: "PROMO_BANNERS",
+          items: [
+            { imageUrl: "https://cdn.shopify.com/s/files/promo1.jpg", link: "/collections/anillos" },
+            { imageUrl: "https://cdn.shopify.com/s/files/promo2.jpg", link: "https://instagram.com/joyas" },
+          ],
+        },
+        {
+          type: "CUSTOM_BLOCK",
+          name: "Testimonios",
+          layout: "quotes",
+          title: "Lo que dicen",
+          text: "",
+          buttonText: "Ver todo",
+          buttonHref: "/collections/anillos",
+          imageUrl: null,
+          imagePosition: "left",
+          columns: 2,
+          align: "center",
+          background: "#F3E9E2",
+          textColor: "#3c281e",
+          items: [
+            { imageUrl: "https://cdn.shopify.com/s/files/ana.jpg", title: "Ana, Medellín", text: "Me encantó el anillo", buttonText: "", link: "/products/anillo-sol" },
+            { imageUrl: null, title: "Luisa", text: "Llegó rapidísimo", buttonText: "", link: "/pages/no-existe" },
+          ],
+        },
+      ],
+      replace: true,
+      collectionSlugByHandle: { anillos: "anillos" },
+      fillGaps: true,
+      faithful: true,
+    });
+    expect(result.sections.map((s) => [s.type, s.action])).toEqual([
+      ["CATEGORY_GRID", "created"],
+      ["FEATURED_PRODUCTS", "created"],
+      ["PROMO_BANNERS", "created"],
+      ["CUSTOM_BLOCK", "created"],
+    ]);
+    const sections = await listStorefrontSections(brand.id);
+    const anillos = await prisma.brandCollection.findFirstOrThrow({ where: { brandId: brand.id, slug: "anillos" } });
+    const products = await prisma.product.findMany({ where: { brandId: brand.id }, select: { id: true, slug: true, externalId: true } });
+    const luna = products.find((p) => p.externalId.endsWith("anillo-luna"))!;
+    const sol = products.find((p) => p.externalId.endsWith("anillo-sol"))!;
+    expect(sections[0].config).toMatchObject({ title: "Compra por categoría", subtitle: "Lo que más se lleva" });
+    expect((sections[0].config as { items: unknown[] }).items[0]).toMatchObject({ show: true, collectionId: anillos.id, label: "Anillos de oro" });
+    // Sin título en la original: sin "Destacados" inventado, y en el mismo orden.
+    expect(sections[1].config).toMatchObject({ title: "", productIds: [luna.id, sol.id] });
+    expect(sections[2].config).toMatchObject({
+      items: [
+        { show: true, imageUrl: "https://cdn.shopify.com/s/files/promo1.jpg", link: "/coleccion/anillos" },
+        { show: true, imageUrl: "https://cdn.shopify.com/s/files/promo2.jpg", link: "https://instagram.com/joyas" },
+        { show: false },
+      ],
+    });
+    expect(sections[3].config).toEqual({
+      name: "Testimonios",
+      layout: "quotes",
+      title: "Lo que dicen",
+      text: "",
+      buttonText: "Ver todo",
+      buttonLink: "/coleccion/anillos",
+      imageUrl: "",
+      imagePosition: "left",
+      columns: 2,
+      align: "center",
+      background: "#f3e9e2",
+      textColor: "#3c281e",
+      items: [
+        { imageUrl: "https://cdn.shopify.com/s/files/ana.jpg", title: "Ana, Medellín", text: "Me encantó el anillo", buttonText: "", link: `/${sol.slug}` },
+        { imageUrl: "", title: "Luisa", text: "Llegó rapidísimo", buttonText: "", link: "" },
+      ],
+    });
+    expect(result.basic).toBe(0);
   });
 
   it("crea novedades, ofertas, catálogo, galería, marcas, Instagram y banners de categoría, y reescribe los links de las páginas importadas", async () => {

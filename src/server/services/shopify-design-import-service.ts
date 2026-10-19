@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { GOOGLE_FONT_OPTIONS } from "@/lib/brand-theme";
+import { isCatalogFont, isFontValue } from "@/lib/brand-theme";
 import { isValidGoogleAnalyticsId } from "@/lib/ad-pixels";
 import { FileUploadError, MAX_UPLOAD_BYTES, uploadFile } from "@/lib/file-upload";
 import { ShopifyStoreError } from "@/lib/shopify-products-json";
 import type { ShopifyThemeColors } from "@/lib/shopify-theme";
 import { getDraftTheme, publishTheme, updateDraftTheme } from "@/server/services/brand-theme-store";
-import { fetchImageSafely, type FetchLike } from "@/server/services/shopify-store-reader";
+import { fetchImageSafely, googleFontExists, type FetchLike } from "@/server/services/shopify-store-reader";
 
 /// Deja el panel de Diseño con lo que se leyó de la tienda Shopify (ver
 /// shopify-theme.ts): colores, tipografía y barra de anuncio al borrador
@@ -52,8 +52,12 @@ const IMAGE_TYPES: Record<string, string> = {
 
 const defaultFetch: FetchLike = (url, init) => fetch(url, init);
 
-function validFont(value: string) {
-  return GOOGLE_FONT_OPTIONS.some((f) => f.value === value);
+/// Del catálogo, o la de la tienda original si Google Fonts la tiene (ver
+/// googleFontExists): una letra que no carga dejaría la tienda con la del
+/// sistema.
+async function validFont(value: string, fetchImpl: FetchLike) {
+  if (isCatalogFont(value)) return true;
+  return isFontValue(value) && (await googleFontExists(value, fetchImpl));
 }
 
 export async function applyShopifyDesign(
@@ -63,7 +67,7 @@ export async function applyShopifyDesign(
 ): Promise<ShopifyDesignResult> {
   const patch: Record<string, unknown> = {};
   if (input.colors) patch.colors = { ...input.colors, usarAcento: false };
-  if (input.fonts && validFont(input.fonts.headingFont) && validFont(input.fonts.bodyFont)) {
+  if (input.fonts && (await validFont(input.fonts.headingFont, fetchImpl)) && (await validFont(input.fonts.bodyFont, fetchImpl))) {
     patch.typography = { headingFont: input.fonts.headingFont, bodyFont: input.fonts.bodyFont };
   }
   const announcements = (input.announcements ?? []).map((t) => t.trim()).filter((t) => t.length > 0).slice(0, 4);

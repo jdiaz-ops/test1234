@@ -88,27 +88,65 @@ export const GOOGLE_FONT_OPTIONS = [
 
 const FONT_VALUES = GOOGLE_FONT_OPTIONS.map((f) => f.value) as [string, ...string[]];
 
+/// Una familia de Google Fonts fuera del catálogo: la de la tienda
+/// original al duplicarla, para que la letra quede igual ("fuentes
+/// iguales", 2026-10-19). Que exista en Google se revisa al leerla (ver
+/// googleFontExists en shopify-store-reader.ts); acá solo se exige un
+/// nombre seguro para el CSS y la URL.
+export const FONT_FAMILY_RE = /^[A-Za-z0-9][A-Za-z0-9 ]{0,58}[A-Za-z0-9]$/;
+
+export function isCatalogFont(value: string) {
+  return GOOGLE_FONT_OPTIONS.some((f) => f.value === value);
+}
+
+/// Una letra que la tienda puede usar: del catálogo o de Google Fonts.
+export function isFontValue(value: string) {
+  return isCatalogFont(value) || FONT_FAMILY_RE.test(value);
+}
+
+const SERIF_FONT_HINT = /serif|garamond|baskerville|caslon|bodoni|didot|georgia|times|cormorant|playfair|merriweather|lora|prata|abril|crimson/i;
+
 export function fontStack(value: string): string {
-  return GOOGLE_FONT_OPTIONS.find((f) => f.value === value)?.stack ?? "'Instrument Sans', -apple-system, sans-serif";
+  const option = GOOGLE_FONT_OPTIONS.find((f) => f.value === value);
+  if (option) return option.stack;
+  if (FONT_FAMILY_RE.test(value)) {
+    const serif = SERIF_FONT_HINT.test(value) && !/sans/i.test(value);
+    return `'${value}', ${serif ? "Georgia, serif" : "-apple-system, sans-serif"}`;
+  }
+  return "'Instrument Sans', -apple-system, sans-serif";
 }
 
 /// Construye la URL de Google Fonts para las familias que no vienen ya
 /// cargadas por next/font en el layout raíz — evita una descarga inútil
 /// cuando la marca dejó la tipografía por defecto.
 export function buildGoogleFontsUrl(families: string[]): string | null {
-  const toLoad = Array.from(new Set(families))
+  const unique = Array.from(new Set(families));
+  const toLoad = unique
     .map((v) => GOOGLE_FONT_OPTIONS.find((f) => f.value === v))
     .filter((f): f is (typeof GOOGLE_FONT_OPTIONS)[number] => !!f && !f.builtin);
-  if (toLoad.length === 0) return null;
-  const params = toLoad
-    .map((f) => `family=${encodeURIComponent(f.value)}:wght@${f.weights}`)
-    .join("&");
-  return `https://fonts.googleapis.com/css2?${params}&display=swap`;
+  const custom = unique.filter((v) => !isCatalogFont(v) && FONT_FAMILY_RE.test(v));
+  if (toLoad.length === 0 && custom.length === 0) return null;
+  if (custom.length === 0) {
+    const params = toLoad
+      .map((f) => `family=${encodeURIComponent(f.value)}:wght@${f.weights}`)
+      .join("&");
+    return `https://fonts.googleapis.com/css2?${params}&display=swap`;
+  }
+  // Con una letra de afuera del catálogo no se saben sus pesos: la API
+  // clásica de Google devuelve los que la familia tenga de los pedidos (la
+  // nueva rechaza la URL entera si falta uno).
+  const families1 = [
+    ...toLoad.map((f) => `${f.value.replace(/ /g, "+")}:${f.weights.replace(/;/g, ",")}`),
+    ...custom.map((v) => `${v.replace(/ /g, "+")}:400,500,600,700`),
+  ];
+  return `https://fonts.googleapis.com/css?family=${families1.join("|")}&display=swap`;
 }
 
+const fontValueSchema = (fallback: string) => z.string().refine(isFontValue, "Letra inválida").default(fallback);
+
 const typographySchema = withDefaults({
-  headingFont: z.enum(FONT_VALUES).default("Instrument Sans"),
-  bodyFont: z.enum(FONT_VALUES).default("Karla"),
+  headingFont: fontValueSchema("Instrument Sans"),
+  bodyFont: fontValueSchema("Karla"),
 });
 
 // ----------------------------------------------------------------------------

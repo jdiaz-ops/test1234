@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ThemeConfig } from "@/lib/brand-theme";
-import { GOOGLE_FONT_OPTIONS, TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
+import { GOOGLE_FONT_OPTIONS, isCatalogFont, TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 import { prepareImageForUpload } from "@/lib/prepare-image-upload";
 
 export type Patch = Record<string, unknown>;
@@ -235,6 +235,21 @@ function ColorRow({
 // Tipografía
 // ----------------------------------------------------------------------------
 
+/// Las letras del catálogo y, si la tienda usa otra (la de su tienda
+/// original, traída al duplicarla), esa también.
+function FontOptions({ current }: { current: string }) {
+  return (
+    <>
+      {!isCatalogFont(current) && <option value={current}>{current} (la de tu tienda original)</option>}
+      {GOOGLE_FONT_OPTIONS.map((f) => (
+        <option key={f.value} value={f.value}>
+          {f.value}
+        </option>
+      ))}
+    </>
+  );
+}
+
 export function TypographySection({ theme, patch }: { theme: ThemeConfig; patch: PatchFn }) {
   return (
     <div className="space-y-4 max-w-sm">
@@ -244,11 +259,7 @@ export function TypographySection({ theme, patch }: { theme: ThemeConfig; patch:
           onChange={(e) => patch({ typography: { headingFont: e.target.value } })}
           className="input text-sm"
         >
-          {GOOGLE_FONT_OPTIONS.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.value}
-            </option>
-          ))}
+          <FontOptions current={theme.typography.headingFont} />
         </select>
       </Field>
       <Field label="Texto en el resto del sitio">
@@ -257,11 +268,7 @@ export function TypographySection({ theme, patch }: { theme: ThemeConfig; patch:
           onChange={(e) => patch({ typography: { bodyFont: e.target.value } })}
           className="input text-sm"
         >
-          {GOOGLE_FONT_OPTIONS.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.value}
-            </option>
-          ))}
+          <FontOptions current={theme.typography.bodyFont} />
         </select>
       </Field>
     </div>

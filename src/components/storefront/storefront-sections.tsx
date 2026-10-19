@@ -18,9 +18,11 @@ import type {
   VideoConfig,
   InstagramCtaConfig,
   ProductCatalogConfig,
+  CustomBlockConfig,
+  CustomBlockItem,
 } from "@/lib/storefront-sections";
 import { normalizeBannerConfig } from "@/lib/storefront-sections";
-import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
+import { contrastTextFor, TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 import { getBrandCollection, sortCollectionProducts } from "@/server/services/brand-collection-service";
 import { listStorefrontProducts } from "@/server/services/store-order-service";
 import { isSoldOut, stockWhere } from "@/lib/product-stock";
@@ -650,6 +652,198 @@ function InstagramCtaSection({
   );
 }
 
+/// Tarjetas por fila: en celular una (o dos si son solo fotos), y en
+/// computador las que eligió la marca. Clases escritas completas para que
+/// Tailwind las vea.
+const CARD_COLUMNS: Record<number, string> = {
+  1: "sm:grid-cols-1",
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+  4: "sm:grid-cols-2 lg:grid-cols-4",
+  5: "sm:grid-cols-3 lg:grid-cols-5",
+  6: "sm:grid-cols-3 lg:grid-cols-6",
+};
+
+function CustomBlockButton({
+  text,
+  link,
+  basePath,
+  className = "",
+  style,
+}: {
+  text: string;
+  link: string;
+  basePath: string;
+  className?: string;
+  /// En un bloque con colores propios, el botón va con esos colores (el del
+  /// tema puede no verse sobre ese fondo).
+  style?: React.CSSProperties;
+}) {
+  const href = resolveLink(link, basePath);
+  if (!text || !href) return null;
+  return (
+    <Link
+      href={href}
+      style={style}
+      className={`inline-block rounded-full px-6 py-2.5 text-sm font-medium hover:opacity-90 ${style ? "" : "bg-brand-button text-brand-button-text"} ${className}`}
+    >
+      {text}
+    </Link>
+  );
+}
+
+/// Bloque personalizado (ver CUSTOM_BLOCK en storefront-sections.ts): con
+/// colores propios, el texto toma el color del bloque en vez del del tema.
+function CustomBlockSection({ config, basePath }: { config: CustomBlockConfig; basePath: string }) {
+  const items: CustomBlockItem[] = (config.items ?? []).filter((i) => i.imageUrl || i.title || i.text);
+  const layout = config.layout ?? "cards";
+  const image = config.imageUrl || "";
+  const hasHeader = Boolean(config.title || config.text || (config.buttonText && config.buttonLink));
+  if (!hasHeader && items.length === 0 && !(layout === "image-text" && image)) return null;
+  const colored = Boolean(config.textColor);
+  const ink = colored ? "" : "text-brand-ink";
+  const soft = colored ? "opacity-80" : "text-brand-ink-soft";
+  const center = config.align !== "left";
+  const line = { borderColor: "color-mix(in srgb, currentColor 15%, transparent)" };
+  const buttonStyle = config.textColor
+    ? { backgroundColor: config.textColor, color: config.background || contrastTextFor(config.textColor) }
+    : undefined;
+
+  const header = hasHeader ? (
+    <div className={center ? "text-center mx-auto max-w-2xl" : "max-w-2xl"}>
+      {config.title && <h2 className={`font-display text-xl sm:text-2xl font-semibold ${ink}`}>{config.title}</h2>}
+      {config.text && <p className={`text-sm sm:text-base ${soft} whitespace-pre-line ${config.title ? "mt-2" : ""}`}>{config.text}</p>}
+      <CustomBlockButton text={config.buttonText} link={config.buttonLink} basePath={basePath} className="mt-5" style={buttonStyle} />
+    </div>
+  ) : null;
+
+  const itemLink = (item: CustomBlockItem, body: React.ReactNode, key: number, className = "") => {
+    const href = !item.buttonText ? resolveLink(item.link, basePath) : null;
+    return href ? (
+      <Link key={key} href={href} className={`block hover:opacity-90 ${className}`}>
+        {body}
+      </Link>
+    ) : (
+      <div key={key} className={className}>
+        {body}
+      </div>
+    );
+  };
+
+  let content: React.ReactNode = null;
+  if (layout === "accordion") {
+    content = items.length > 0 && (
+      <div className={`border-t max-w-3xl ${center ? "mx-auto" : ""}`} style={line}>
+        {items.map((item, i) => (
+          <details key={i} className="group border-b py-4" style={line}>
+            <summary className={`flex cursor-pointer list-none items-center justify-between gap-4 text-sm sm:text-base font-medium ${ink}`}>
+              <span>{item.title || item.text.slice(0, 80)}</span>
+              <span aria-hidden className="text-xl leading-none transition-transform group-open:rotate-45">+</span>
+            </summary>
+            {item.title && item.text && <p className={`mt-2 text-sm ${soft} whitespace-pre-line`}>{item.text}</p>}
+            <CustomBlockButton text={item.buttonText} link={item.link} basePath={basePath} className="mt-3" style={buttonStyle} />
+          </details>
+        ))}
+      </div>
+    );
+  } else if (layout === "quotes") {
+    content = items.length > 0 && (
+      <div className={items.length > 3 ? "flex gap-4 overflow-x-auto snap-x pb-1" : `grid gap-4 grid-cols-1 ${CARD_COLUMNS[Math.min(3, items.length)]}`}>
+        {items.map((item, i) => (
+          <figure
+            key={i}
+            className={`rounded-2xl border p-5 flex flex-col gap-3 ${items.length > 3 ? "w-72 sm:w-80 shrink-0 snap-start" : ""}`}
+            style={line}
+          >
+            {item.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- foto de quien da el testimonio
+              <img src={item.imageUrl} alt="" className="w-14 h-14 rounded-full object-cover" loading="lazy" />
+            )}
+            {item.text && <blockquote className={`text-sm ${ink} whitespace-pre-line`}>“{item.text}”</blockquote>}
+            {item.title && <figcaption className={`text-xs font-semibold ${soft}`}>{item.title}</figcaption>}
+          </figure>
+        ))}
+      </div>
+    );
+  } else if (layout === "cards") {
+    const onlyImages = items.every((i) => i.imageUrl && !i.title && !i.text);
+    const columns = Math.max(1, Math.min(6, config.columns || 3));
+    content = items.length > 0 && (
+      <div className={`grid gap-4 sm:gap-6 ${onlyImages || columns >= 4 ? "grid-cols-2" : "grid-cols-1"} ${CARD_COLUMNS[columns]}`}>
+        {items.map((item, i) =>
+          itemLink(
+            item,
+            <>
+              {item.imageUrl && (
+                <div className="rounded-2xl overflow-hidden">
+                  <StoreImage src={item.imageUrl} alt="" natural sizes={`(min-width: 1024px) ${Math.round(100 / columns)}vw, 50vw`} />
+                </div>
+              )}
+              {(item.title || item.text) && (
+                <div className={`${item.imageUrl ? "mt-3" : ""} ${center ? "text-center" : ""}`}>
+                  {item.title && <p className={`font-display text-base font-semibold ${ink}`}>{item.title}</p>}
+                  {item.text && <p className={`text-sm ${soft} whitespace-pre-line ${item.title ? "mt-1" : ""}`}>{item.text}</p>}
+                </div>
+              )}
+              <CustomBlockButton text={item.buttonText} link={item.link} basePath={basePath} className="mt-3" style={buttonStyle} />
+            </>,
+            i,
+            center ? "text-center" : "",
+          ),
+        )}
+      </div>
+    );
+  } else {
+    // Texto con botón e imagen con texto: lo de cada ítem va como una
+    // lista corta debajo del texto.
+    content = items.length > 0 && (
+      <ul className={`space-y-3 ${center && layout === "text" ? "max-w-2xl mx-auto text-center" : ""}`}>
+        {items.map((item, i) => (
+          <li key={i} className="flex gap-3 items-start">
+            {item.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- ícono del bloque
+              <img src={item.imageUrl} alt="" className="w-10 h-10 object-contain shrink-0" loading="lazy" />
+            )}
+            <div className="flex-1">
+              {item.title && <p className={`text-sm font-semibold ${ink}`}>{item.title}</p>}
+              {item.text && <p className={`text-sm ${soft} whitespace-pre-line`}>{item.text}</p>}
+            </div>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  const inner =
+    layout === "image-text" ? (
+      <div className="grid md:grid-cols-2 gap-6 md:gap-12 items-center">
+        {image && (
+          <div className={`rounded-2xl overflow-hidden ${config.imagePosition === "right" ? "md:order-2" : ""}`}>
+            <StoreImage src={image} alt="" natural sizes="(min-width: 768px) 50vw, 100vw" />
+          </div>
+        )}
+        <div className={`space-y-5 ${image ? "" : "md:col-span-2"}`}>
+          {header}
+          {content}
+        </div>
+      </div>
+    ) : (
+      <div className="space-y-6">
+        {header}
+        {content}
+      </div>
+    );
+
+  return (
+    <section
+      style={{ backgroundColor: config.background || undefined, color: config.textColor || undefined }}
+      className={config.background ? "py-4" : ""}
+    >
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10">{inner}</div>
+    </section>
+  );
+}
+
 /// Todo el catálogo activo, en la plantilla elegida por la marca — antes
 /// vivía fijo en la página de inicio (`t/[slug]/page.tsx`), ahora es una
 /// sección más que se agrega/quita/reordena desde Diseño → Página de
@@ -800,6 +994,8 @@ export async function StorefrontSections({
                 instagramHandle={instagramHandle}
               />
             );
+          case "CUSTOM_BLOCK":
+            return <CustomBlockSection key={s.id} config={s.config as CustomBlockConfig} basePath={basePath} />;
           case "PRODUCT_CATALOG":
             return (
               <ProductCatalogSection

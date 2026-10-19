@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { showsProducts, type SectionType } from "@/lib/storefront-sections";
+import { type SectionType } from "@/lib/storefront-sections";
 import { mapShopifyMenuHref, type ShopifyHomeSection } from "@/lib/shopify-theme";
 import { createStorefrontSection, StorefrontSectionError } from "@/server/services/storefront-section-service";
 import { EXTERNAL_ID_PREFIX } from "@/server/services/shopify-csv-import-service";
@@ -16,11 +16,16 @@ import { sanitizeProductDescription } from "@/lib/sanitize-html";
 /// antes). Las fotos quedan apuntando a Shopify y las copia el paso de
 /// fotos (ver image-rehost-service.ts). Ver conversación del 2026-10-18.
 ///
-/// Con `fillGaps` (la importación por link): si al final ninguna sección
-/// muestra productos (no se reconoció nada, o solo banners y texto) se
-/// agregan las de la portada básica — categorías, novedades y catálogo,
-/// ver storefront-default-home-service.ts. Así una tienda importada nunca
-/// queda con la página de inicio vacía (Rumi, amglow).
+/// Con `fillGaps` (la importación por link): si al final la portada quedó
+/// vacía (no se reconoció nada) se agregan las de la portada básica —
+/// categorías, novedades y catálogo, ver storefront-default-home-service.ts
+/// — para que una tienda importada nunca quede en blanco (Rumi, amglow).
+/// Si se copió algo, queda tal cual la original aunque no muestre
+/// productos: es una copia fiel (2026-10-19), y Diseño ofrece agregarlos.
+///
+/// CUSTOM_BLOCK es lo que la tienda original tenía y no calza en ninguna
+/// sección de acá (ver home-copy.ts): entra como "Bloque personalizado",
+/// con sus colores, y la marca lo edita como cualquier otra sección.
 
 export type ImportSectionResult = { type: SectionType | ShopifyHomeSection["type"]; action: "created" | "skipped" | "error"; reason?: string };
 
@@ -42,8 +47,12 @@ export async function importShopifySections(
     /// store-link-map.ts).
     storeUrl?: string;
     relinkPages?: boolean;
+    /// Copia fiel (la leyó la IA, ver home-copy.ts): un título vacío es
+    /// que la original no tenía, así que no se le pone "Destacados".
+    faithful?: boolean;
   },
 ) {
+  const titled = (title: string, max: number, fallback: string) => title.slice(0, max) || (data.faithful ? "" : fallback);
   const [products, collections] = await Promise.all([
     prisma.product.findMany({
       where: { brandId, externalId: { startsWith: EXTERNAL_ID_PREFIX } },
@@ -118,12 +127,13 @@ export async function importShopifySections(
             .filter((item, i, list) => list.findIndex((other) => other.id === item.id) === i)
             .slice(0, 6);
           if (items.length === 0) break;
+          // El nombre que mostraba la tienda original (vacío = el de la colección).
           const padded = Array.from({ length: 6 }, (_, i) =>
             items[i]
-              ? { show: true, collectionId: items[i].id, imageUrl: items[i].imageUrl, label: "" }
+              ? { show: true, collectionId: items[i].id, imageUrl: items[i].imageUrl, label: items[i].label }
               : { show: false, collectionId: null, imageUrl: null, label: "" },
           );
-          created = { type: "CATEGORY_GRID", config: { title: section.title.slice(0, 120), subtitle: "", items: padded } };
+          created = { type: "CATEGORY_GRID", config: { title: section.title.slice(0, 120), subtitle: (section.subtitle ?? "").slice(0, 240), items: padded } };
           break;
         }
         case "VIDEO":
@@ -132,7 +142,7 @@ export async function importShopifySections(
         case "FEATURED_PRODUCTS": {
           const productIds = section.productHandles.map((h) => productByHandle.get(h.toLowerCase())?.id).filter((id): id is string => Boolean(id));
           if (productIds.length === 0) break;
-          created = { type: "FEATURED_PRODUCTS", config: { title: section.title.slice(0, 80) || "Destacados", display: "carousel", productIds } };
+          created = { type: "FEATURED_PRODUCTS", config: { title: titled(section.title, 80, "Destacados"), display: "carousel", productIds: productIds.slice(0, 24) } };
           break;
         }
         case "CATEGORY_BANNERS": {
@@ -148,13 +158,52 @@ export async function importShopifySections(
           created = { type: "CATEGORY_BANNERS", config: { extendFullWidth: false, items: padded } };
           break;
         }
+        case "PROMO_BANNERS": {
+          const items = section.items.filter((item) => item.imageUrl).slice(0, 3);
+          if (items.length === 0) break;
+          const padded = Array.from({ length: 3 }, (_, i) =>
+            items[i] ? { show: true, imageUrl: items[i].imageUrl, link: link(items[i].link) } : { show: false, imageUrl: null, link: "" },
+          );
+          created = { type: "PROMO_BANNERS", config: { extendFullWidth: false, items: padded } };
+          break;
+        }
+        case "CUSTOM_BLOCK": {
+          const items = section.items.slice(0, 12).map((item) => ({
+            imageUrl: item.imageUrl ?? "",
+            title: item.title.slice(0, 160),
+            text: item.text.slice(0, 1200),
+            buttonText: item.buttonText.slice(0, 40),
+            link: link(item.link),
+          }));
+          if (!section.title && !section.text && !section.imageUrl && items.length === 0) break;
+          const hex = (value: string | null) => (value && /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : "");
+          created = {
+            type: "CUSTOM_BLOCK",
+            config: {
+              name: section.name.slice(0, 60),
+              layout: section.layout,
+              title: section.title.slice(0, 160),
+              text: section.text.slice(0, 2000),
+              buttonText: section.buttonText.slice(0, 40),
+              buttonLink: link(section.buttonHref),
+              imageUrl: section.imageUrl ?? "",
+              imagePosition: section.imagePosition,
+              columns: Math.max(1, Math.min(6, Math.round(section.columns) || 3)),
+              align: section.align,
+              background: hex(section.background),
+              textColor: hex(section.textColor),
+              items,
+            },
+          };
+          break;
+        }
         case "NEW_PRODUCTS":
-          created = { type: "NEW_PRODUCTS", config: { title: section.title.slice(0, 80) || "Novedades", display: "carousel" } };
+          created = { type: "NEW_PRODUCTS", config: { title: titled(section.title, 80, "Novedades"), display: "carousel" } };
           break;
         case "ON_SALE_PRODUCTS":
           created = {
             type: "ON_SALE_PRODUCTS",
-            config: { title: section.title.slice(0, 80) || "Ofertas", display: "carousel", source: "auto", collectionId: null, productIds: [] },
+            config: { title: titled(section.title, 80, "Ofertas"), display: "carousel", source: "auto", collectionId: null, productIds: [] },
           };
           break;
         case "PRODUCT_CATALOG":
@@ -171,7 +220,7 @@ export async function importShopifySections(
         case "INSTAGRAM_CTA":
           created = {
             type: "INSTAGRAM_CTA",
-            config: { title: section.title.slice(0, 80) || "Síguenos en Instagram", description: section.description.slice(0, 160) },
+            config: { title: titled(section.title, 80, "Síguenos en Instagram"), description: section.description.slice(0, 160) },
           };
           break;
         case "INFO_COLUMNS": {
@@ -231,11 +280,11 @@ export async function importShopifySections(
     }
   }
 
-  // Que la portada nunca quede vacía ni sin productos.
+  // Que la portada nunca quede vacía.
   let basic = 0;
   if (data.fillGaps) {
-    const enabled = await prisma.storefrontSection.findMany({ where: { brandId, enabled: true }, select: { type: true } });
-    if (!showsProducts(enabled)) {
+    const enabled = await prisma.storefrontSection.count({ where: { brandId, enabled: true } });
+    if (enabled === 0) {
       const home = await completeHomeSections(brandId);
       for (const type of home.created) results.push({ type, action: "created" });
       basic = home.created.length;

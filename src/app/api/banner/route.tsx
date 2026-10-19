@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { NextResponse } from "next/server";
-import { GOOGLE_FONT_OPTIONS } from "@/lib/brand-theme";
+import { FONT_FAMILY_RE, GOOGLE_FONT_OPTIONS } from "@/lib/brand-theme";
 import { BANNER_SIZES, mix, readableOn, verifyBanner, type BannerSpec } from "@/lib/banner-image";
 import { safeFetch } from "@/server/integrations/safe-fetch";
 
@@ -22,19 +22,28 @@ const fontCache = new Map<string, Promise<ArrayBuffer | null>>();
 /// viejo, Google devuelve TTF en vez de WOFF2 (que satori no lee).
 async function loadFont(family: string): Promise<ArrayBuffer | null> {
   const option = GOOGLE_FONT_OPTIONS.find((f) => f.value === family);
-  if (!option) return null;
-  const key = option.value;
+  // La letra de la tienda original (fuera del catálogo, ver FONT_FAMILY_RE):
+  // por la API clásica, que devuelve los pesos que la familia tenga.
+  if (!option && !FONT_FAMILY_RE.test(family)) return null;
+  const key = option?.value ?? family;
   if (!fontCache.has(key)) {
     fontCache.set(
       key,
       (async () => {
         try {
-          const weight = option.weights.split(";").map(Number).filter(Boolean).sort((a, b) => b - a)[0] ?? 600;
-          const css = await fetch(`https://fonts.googleapis.com/css2?family=${encodeURIComponent(key)}:wght@${weight}`, {
+          const weight = option ? (option.weights.split(";").map(Number).filter(Boolean).sort((a, b) => b - a)[0] ?? 600) : 700;
+          const cssUrl = option
+            ? `https://fonts.googleapis.com/css2?family=${encodeURIComponent(key)}:wght@${weight}`
+            : `https://fonts.googleapis.com/css?family=${key.replace(/ /g, "+")}:700,600,400`;
+          const css = await fetch(cssUrl, {
             headers: { "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:27.0) Gecko/20100101 Firefox/27.0" },
             signal: AbortSignal.timeout(8000),
           }).then((r) => (r.ok ? r.text() : ""));
-          const url = css.match(/src:\s*url\((https:[^)]+\.(?:ttf|otf))\)/)?.[1];
+          // La más gruesa que haya (los títulos van en negrita).
+          const faces = Array.from(css.matchAll(/font-weight:\s*(\d+)[^}]*?src:\s*url\((https:[^)]+\.(?:ttf|otf))\)/g))
+            .map((m) => ({ weight: Number(m[1]), url: m[2] }))
+            .sort((a, b) => b.weight - a.weight);
+          const url = faces[0]?.url ?? css.match(/src:\s*url\((https:[^)]+\.(?:ttf|otf))\)/)?.[1];
           if (!url) return null;
           const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
           return res.ok ? res.arrayBuffer() : null;

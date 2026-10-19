@@ -13,8 +13,10 @@ import {
   extractPageContent,
   parseShopifyStorefront,
   type ShopifyPolicyKind,
+  type ShopifyThemeFonts,
   type ShopifyThemeInfo,
 } from "@/lib/shopify-theme";
+import { FONT_FAMILY_RE, isCatalogFont } from "@/lib/brand-theme";
 import {
   findFreeShippingThreshold,
   isColombiaRegion,
@@ -313,11 +315,8 @@ export async function readShopifyCollectionProducts(
   return { storeUrl, handles, hasMore: handles.length >= PAGE_SIZE };
 }
 
-/// La portada en HTML → colores, letra, logo, favicon, nombre y menú.
-export async function readShopifyStorefront(
-  input: string,
-  fetchImpl: FetchLike = defaultFetch,
-): Promise<{ storeUrl: string; theme: ShopifyThemeInfo }> {
+/// El HTML de la portada (con la tienda ya resuelta: www, redirecciones).
+async function readHomeHtml(input: string, fetchImpl: FetchLike): Promise<{ storeUrl: string; html: string }> {
   const base = normalizeShopifyStoreUrl(input).href;
   const { response, base: storeUrl } = await getPath(fetchImpl, base, "", "text/html,application/xhtml+xml");
   explainStatus(response, "una tienda");
@@ -328,6 +327,29 @@ export async function readShopifyStorefront(
   if (/<form[^>]+action=["'][^"']*\/password["']/i.test(html) && /name=["']password["']/i.test(html)) {
     throw new ShopifyStoreError(PASSWORD_ERROR);
   }
+  return { storeUrl, html };
+}
+
+/// La portada en HTML tal cual, con el CSS que hace falta para leer los
+/// fondos de cada bloque — para el esquema de la copia fiel con IA (ver
+/// buildHomeOutline en shopify-theme.ts). Shopify trae sus esquemas de
+/// color en el mismo HTML; Elementor y los temas de WordPress, en sus hojas.
+export async function readStorefrontDocument(
+  input: string,
+  fetchImpl: FetchLike = defaultFetch,
+): Promise<{ storeUrl: string; html: string; css: string }> {
+  const { storeUrl, html } = await readHomeHtml(input, fetchImpl);
+  const shopify = /id=["']shopify-section-|cdn\.shopify\.com/i.test(html);
+  const css = shopify ? "" : await readStylesheets(fetchImpl, storeUrl, html, { max: 10 });
+  return { storeUrl, html, css };
+}
+
+/// La portada en HTML → colores, letra, logo, favicon, nombre y menú.
+export async function readShopifyStorefront(
+  input: string,
+  fetchImpl: FetchLike = defaultFetch,
+): Promise<{ storeUrl: string; theme: ShopifyThemeInfo }> {
+  const { storeUrl, html } = await readHomeHtml(input, fetchImpl);
   const fromHtml = parseShopifyStorefront(html, storeUrl);
   let theme = fromHtml;
   // Las fotos de un slider de Elementor viven en su CSS (".elementor-
@@ -344,7 +366,48 @@ export async function readShopifyStorefront(
       theme = { ...withCss, colors: fromHtml.colors ?? withCss.colors, fonts: fromHtml.fonts ?? withCss.fonts };
     }
   }
-  return { storeUrl, theme };
+  return { storeUrl, theme: { ...theme, fonts: await exactFonts(theme.fonts, fetchImpl) } };
+}
+
+const GOOGLE_FONT_TIMEOUT_MS = 4_000;
+
+/// ¿Esa familia está en Google Fonts? La API clásica responde 400 cuando no.
+export async function googleFontExists(family: string, fetchImpl: FetchLike = defaultFetch): Promise<boolean> {
+  if (!FONT_FAMILY_RE.test(family)) return false;
+  try {
+    const response = await fetchImpl(`https://fonts.googleapis.com/css?family=${family.replace(/ /g, "+")}`, {
+      method: "GET",
+      signal: AbortSignal.timeout(GOOGLE_FONT_TIMEOUT_MS),
+      headers: { accept: "text/css,*/*;q=0.1", "user-agent": USER_AGENT },
+    });
+    if (response.status !== 200) return false;
+    return /@font-face/i.test(await response.text());
+  } catch {
+    return false;
+  }
+}
+
+/// La letra exacta de la tienda original cuando Google Fonts la tiene
+/// (Assistant, Jost, Cormorant…), para que la copia quede igual; si no
+/// (una de pago, como Futura o Avenir), la más parecida del catálogo que
+/// ya eligió extractFonts.
+async function exactFonts(fonts: ShopifyThemeFonts | null, fetchImpl: FetchLike): Promise<ShopifyThemeFonts | null> {
+  if (!fonts) return fonts;
+  const check = async (family: string | null, exact: boolean) => {
+    if (exact || !family) return null;
+    // "assistant" → "Assistant": así la nombra Google.
+    const name = /[A-Z]/.test(family) ? family.trim() : family.trim().replace(/\b[a-z]/g, (c) => c.toUpperCase());
+    if (isCatalogFont(name)) return name;
+    return (await googleFontExists(name, fetchImpl)) ? name : null;
+  };
+  const [heading, body] = await Promise.all([check(fonts.headingFamily, fonts.headingExact), check(fonts.bodyFamily, fonts.bodyExact)]);
+  return {
+    ...fonts,
+    headingFont: heading ?? fonts.headingFont,
+    headingExact: fonts.headingExact || Boolean(heading),
+    bodyFont: body ?? fonts.bodyFont,
+    bodyExact: fonts.bodyExact || Boolean(body),
+  };
 }
 
 const MAX_STYLESHEETS = 4;

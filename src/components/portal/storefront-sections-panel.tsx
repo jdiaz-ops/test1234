@@ -22,6 +22,12 @@ import {
   type VideoConfig,
   type InstagramCtaConfig,
   type ProductCatalogConfig,
+  type CustomBlockConfig,
+  type CustomBlockItem,
+  type CustomBlockLayout,
+  CUSTOM_BLOCK_LAYOUTS,
+  CUSTOM_BLOCK_LAYOUT_LABEL,
+  CUSTOM_BLOCK_MAX_ITEMS,
   normalizeBannerConfig,
   showsProducts,
 } from "@/lib/storefront-sections";
@@ -599,6 +605,208 @@ function ProductCatalogFields({ config, onChange }: { config: ProductCatalogConf
   );
 }
 
+/// Un color propio o el del tema (vacío).
+function ColorChoice({ label, value, onChange }: { label: string; value: string; onChange: (hex: string) => void }) {
+  return (
+    <div className="flex items-center gap-2 text-xs text-brand-ink">
+      <span className="w-24 shrink-0">{label}</span>
+      {value ? (
+        <>
+          <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-8 w-10 rounded border border-brand-line" aria-label={label} />
+          <span className="font-mono text-brand-ink-soft">{value}</span>
+          <button type="button" onClick={() => onChange("")} className="text-red-600 hover:underline">
+            Usar el del tema
+          </button>
+        </>
+      ) : (
+        <button type="button" onClick={() => onChange("#ffffff")} className="border border-brand-line rounded-full px-3 py-1 hover:bg-brand-accent-soft">
+          El del tema · elegir otro
+        </button>
+      )}
+    </div>
+  );
+}
+
+/// Cómo se llama cada campo de un ítem según cómo se ve el bloque.
+const ITEM_LABELS: Record<CustomBlockLayout, { item: string; title: string; text: string; image: boolean; button: boolean }> = {
+  text: { item: "Punto", title: "Título del punto", text: "Texto", image: true, button: false },
+  "image-text": { item: "Punto", title: "Título del punto", text: "Texto", image: true, button: false },
+  cards: { item: "Tarjeta", title: "Título", text: "Texto", image: true, button: true },
+  accordion: { item: "Pregunta", title: "Pregunta", text: "Respuesta", image: false, button: true },
+  quotes: { item: "Testimonio", title: "Nombre de quien lo dice", text: "Testimonio", image: true, button: false },
+};
+
+const EMPTY_ITEM: CustomBlockItem = { imageUrl: "", title: "", text: "", buttonText: "", link: "" };
+
+/// Bloque personalizado (ver CUSTOM_BLOCK en storefront-sections.ts): todo
+/// lo que trae — cómo se ve, textos, fotos, botones, colores y cada ítem —
+/// se cambia acá.
+function CustomBlockFields({ config: raw, onChange }: { config: CustomBlockConfig; onChange: (next: CustomBlockConfig) => void }) {
+  const config: CustomBlockConfig = {
+    name: raw.name ?? "",
+    layout: raw.layout ?? "cards",
+    title: raw.title ?? "",
+    text: raw.text ?? "",
+    buttonText: raw.buttonText ?? "",
+    buttonLink: raw.buttonLink ?? "",
+    imageUrl: raw.imageUrl ?? "",
+    imagePosition: raw.imagePosition ?? "left",
+    columns: raw.columns ?? 3,
+    align: raw.align ?? "center",
+    background: raw.background ?? "",
+    textColor: raw.textColor ?? "",
+    items: raw.items ?? [],
+  };
+  const labels = ITEM_LABELS[config.layout];
+  function updateItem(i: number, patch: Partial<CustomBlockItem>) {
+    onChange({ ...config, items: config.items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)) });
+  }
+  function moveItem(i: number, dir: -1 | 1) {
+    const target = i + dir;
+    if (target < 0 || target >= config.items.length) return;
+    const items = [...config.items];
+    [items[i], items[target]] = [items[target], items[i]];
+    onChange({ ...config, items });
+  }
+  return (
+    <div className="space-y-3">
+      <div className="grid sm:grid-cols-2 gap-2">
+        <select
+          value={config.layout}
+          onChange={(e) => onChange({ ...config, layout: e.target.value as CustomBlockLayout })}
+          className="input text-sm"
+          aria-label="Cómo se ve"
+        >
+          {CUSTOM_BLOCK_LAYOUTS.map((l) => (
+            <option key={l} value={l}>
+              {CUSTOM_BLOCK_LAYOUT_LABEL[l]}
+            </option>
+          ))}
+        </select>
+        <input
+          value={config.name}
+          onChange={(e) => onChange({ ...config, name: e.target.value.slice(0, 60) })}
+          placeholder="Nombre del bloque en el editor (opcional)"
+          className="input text-sm"
+        />
+      </div>
+      <input value={config.title} onChange={(e) => onChange({ ...config, title: e.target.value.slice(0, 160) })} placeholder="Título (opcional)" className="input text-sm" />
+      <textarea
+        value={config.text}
+        onChange={(e) => onChange({ ...config, text: e.target.value.slice(0, 2000) })}
+        placeholder="Texto (opcional)"
+        className="input text-sm min-h-20"
+      />
+      <div className="grid sm:grid-cols-2 gap-2">
+        <input
+          value={config.buttonText}
+          onChange={(e) => onChange({ ...config, buttonText: e.target.value.slice(0, 40) })}
+          placeholder="Texto del botón (opcional)"
+          className="input text-sm"
+        />
+        <input
+          value={config.buttonLink}
+          onChange={(e) => onChange({ ...config, buttonLink: e.target.value.slice(0, 300) })}
+          placeholder="Link del botón (ej. /coleccion/verano)"
+          className="input text-sm"
+        />
+      </div>
+      {config.layout === "image-text" && (
+        <div className="flex flex-wrap items-center gap-3">
+          <ImagePicker imageUrl={config.imageUrl || null} onChange={(url) => onChange({ ...config, imageUrl: url ?? "" })} />
+          <select
+            value={config.imagePosition}
+            onChange={(e) => onChange({ ...config, imagePosition: e.target.value as CustomBlockConfig["imagePosition"] })}
+            className="input text-sm max-w-48"
+            aria-label="Lado de la imagen"
+          >
+            <option value="left">Imagen a la izquierda</option>
+            <option value="right">Imagen a la derecha</option>
+          </select>
+        </div>
+      )}
+      <div className="grid sm:grid-cols-2 gap-2">
+        <select
+          value={config.align}
+          onChange={(e) => onChange({ ...config, align: e.target.value as CustomBlockConfig["align"] })}
+          className="input text-sm"
+          aria-label="Alineación del texto"
+        >
+          <option value="center">Texto centrado</option>
+          <option value="left">Texto a la izquierda</option>
+        </select>
+        {config.layout === "cards" && (
+          <select
+            value={config.columns}
+            onChange={(e) => onChange({ ...config, columns: Number(e.target.value) })}
+            className="input text-sm"
+            aria-label="Tarjetas por fila"
+          >
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <option key={n} value={n}>
+                {n} por fila en computador
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+      <div className="space-y-2 rounded-lg border border-brand-line p-3">
+        <ColorChoice label="Color de fondo" value={config.background} onChange={(background) => onChange({ ...config, background })} />
+        <ColorChoice label="Color del texto" value={config.textColor} onChange={(textColor) => onChange({ ...config, textColor })} />
+      </div>
+      {config.items.map((item, i) => (
+        <div key={i} className="rounded-lg border border-brand-line p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-brand-ink">
+              {labels.item} {i + 1}
+            </span>
+            <div className="flex items-center gap-3 text-xs">
+              <button type="button" onClick={() => moveItem(i, -1)} disabled={i === 0} className="text-brand-ink-soft hover:text-brand-ink disabled:opacity-20" aria-label="Subir">
+                ▲
+              </button>
+              <button
+                type="button"
+                onClick={() => moveItem(i, 1)}
+                disabled={i === config.items.length - 1}
+                className="text-brand-ink-soft hover:text-brand-ink disabled:opacity-20"
+                aria-label="Bajar"
+              >
+                ▼
+              </button>
+              <button type="button" onClick={() => onChange({ ...config, items: config.items.filter((_, idx) => idx !== i) })} className="text-red-600 hover:underline">
+                Quitar
+              </button>
+            </div>
+          </div>
+          {labels.image && <ImagePicker imageUrl={item.imageUrl || null} onChange={(url) => updateItem(i, { imageUrl: url ?? "" })} small />}
+          <input value={item.title} onChange={(e) => updateItem(i, { title: e.target.value.slice(0, 160) })} placeholder={labels.title} className="input text-sm" />
+          <textarea value={item.text} onChange={(e) => updateItem(i, { text: e.target.value.slice(0, 1200) })} placeholder={labels.text} className="input text-sm min-h-16" />
+          <div className="grid sm:grid-cols-2 gap-2">
+            {labels.button && (
+              <input
+                value={item.buttonText}
+                onChange={(e) => updateItem(i, { buttonText: e.target.value.slice(0, 40) })}
+                placeholder="Texto del botón (opcional)"
+                className="input text-sm"
+              />
+            )}
+            <input value={item.link} onChange={(e) => updateItem(i, { link: e.target.value.slice(0, 300) })} placeholder="Link (opcional)" className="input text-sm" />
+          </div>
+        </div>
+      ))}
+      {config.items.length < CUSTOM_BLOCK_MAX_ITEMS && (
+        <button
+          type="button"
+          onClick={() => onChange({ ...config, items: [...config.items, { ...EMPTY_ITEM }] })}
+          className="text-xs border border-brand-line rounded-full px-3 py-1.5 hover:bg-brand-accent-soft"
+        >
+          + Agregar {labels.item.toLowerCase()}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function SectionCard({
   section,
   collections,
@@ -655,7 +863,10 @@ function SectionCard({
               ▼
             </button>
           </div>
-          <span className="text-sm font-medium text-brand-ink">{SECTION_TYPE_LABEL[section.type]}</span>
+          <span className="text-sm font-medium text-brand-ink">
+            {SECTION_TYPE_LABEL[section.type]}
+            {section.type === "CUSTOM_BLOCK" && typeof config.name === "string" && config.name ? ` · ${config.name}` : ""}
+          </span>
           {saving && <span className="text-[10px] text-brand-ink-soft">guardando...</span>}
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -702,6 +913,9 @@ function SectionCard({
       {section.type === "INSTAGRAM_CTA" && <InstagramCtaFields config={config as unknown as InstagramCtaConfig} onChange={saveConfig} />}
       {section.type === "PRODUCT_CATALOG" && (
         <ProductCatalogFields config={config as unknown as ProductCatalogConfig} onChange={saveConfig} />
+      )}
+      {section.type === "CUSTOM_BLOCK" && (
+        <CustomBlockFields config={config as unknown as CustomBlockConfig} onChange={(next) => saveConfig(next as unknown as Record<string, unknown>)} />
       )}
     </div>
   );

@@ -28,6 +28,7 @@ export const SECTION_TYPES = [
   "VIDEO",
   "INSTAGRAM_CTA",
   "PRODUCT_CATALOG",
+  "CUSTOM_BLOCK",
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
@@ -47,6 +48,7 @@ export const SECTION_TYPE_LABEL: Record<SectionType, string> = {
   VIDEO: "Video",
   INSTAGRAM_CTA: "Síguenos en Instagram",
   PRODUCT_CATALOG: "Catálogo de productos",
+  CUSTOM_BLOCK: "Bloque personalizado",
 };
 
 export const SECTION_TYPE_DESCRIPTION: Record<SectionType, string> = {
@@ -65,6 +67,7 @@ export const SECTION_TYPE_DESCRIPTION: Record<SectionType, string> = {
   VIDEO: "Un video de YouTube o Vimeo embebido, con título opcional.",
   INSTAGRAM_CTA: "Banner simple invitando a seguir tu cuenta de Instagram.",
   PRODUCT_CATALOG: "Todos tus productos activos, en la plantilla que elegiste — se arma solo.",
+  CUSTOM_BLOCK: "Arma lo que necesites: texto con botón, imagen con texto, tarjetas o columnas, preguntas frecuentes o testimonios, con tus propios colores.",
 };
 
 /// Cada slide es su propia imagen con su propio link — click en la
@@ -268,6 +271,57 @@ const productCatalogConfigSchema = z.object({
 });
 export type ProductCatalogConfig = z.infer<typeof productCatalogConfigSchema>;
 
+/// "Bloque personalizado": lo que la tienda original tenía y no calza en
+/// ninguna de las secciones de arriba (imagen con texto, columnas,
+/// preguntas frecuentes, testimonios, un texto con botón sobre un color).
+/// Lo arma la copia fiel de "Duplicar tienda" (ver home-copy.ts) y la
+/// marca lo edita como cualquier otra sección, o lo agrega a mano. Pedido
+/// del 2026-10-19: "si la sección o bloque no existe, que lo cree la IA y
+/// lo agregue al editor. Todo debe ser personalizable."
+export const CUSTOM_BLOCK_LAYOUTS = ["text", "image-text", "cards", "accordion", "quotes"] as const;
+export type CustomBlockLayout = (typeof CUSTOM_BLOCK_LAYOUTS)[number];
+export const CUSTOM_BLOCK_LAYOUT_LABEL: Record<CustomBlockLayout, string> = {
+  text: "Texto con botón",
+  "image-text": "Imagen con texto",
+  cards: "Tarjetas o columnas",
+  accordion: "Preguntas frecuentes (desplegables)",
+  quotes: "Testimonios",
+};
+
+/// Vacío = el color del tema.
+const optionalHexColor = z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default("");
+
+const customBlockItemSchema = z.object({
+  imageUrl: z.string().max(1000).default(""),
+  title: z.string().max(160).default(""),
+  text: z.string().max(1200).default(""),
+  buttonText: z.string().max(40).default(""),
+  link: z.string().max(300).default(""),
+});
+export type CustomBlockItem = z.infer<typeof customBlockItemSchema>;
+
+const customBlockConfigSchema = z.object({
+  /// Cómo se llama en el editor (lo que era en la tienda original:
+  /// "Testimonios", "Nuestra historia").
+  name: z.string().max(60).default(""),
+  layout: z.enum(CUSTOM_BLOCK_LAYOUTS).default("cards"),
+  title: z.string().max(160).default(""),
+  text: z.string().max(2000).default(""),
+  buttonText: z.string().max(40).default(""),
+  buttonLink: z.string().max(300).default(""),
+  /// La foto de "Imagen con texto".
+  imageUrl: z.string().max(1000).default(""),
+  imagePosition: z.enum(["left", "right"]).default("left"),
+  /// Tarjetas por fila en computador.
+  columns: z.number().int().min(1).max(6).default(3),
+  align: z.enum(["left", "center"]).default("center"),
+  background: optionalHexColor,
+  textColor: optionalHexColor,
+  items: z.array(customBlockItemSchema).max(12).default([]),
+});
+export type CustomBlockConfig = z.infer<typeof customBlockConfigSchema>;
+export const CUSTOM_BLOCK_MAX_ITEMS = 12;
+
 export const SECTION_CONFIG_SCHEMA: Record<SectionType, z.ZodTypeAny> = {
   BANNER: bannerConfigSchema,
   FEATURED_COLLECTION: featuredCollectionConfigSchema,
@@ -284,6 +338,7 @@ export const SECTION_CONFIG_SCHEMA: Record<SectionType, z.ZodTypeAny> = {
   VIDEO: videoConfigSchema,
   INSTAGRAM_CTA: instagramCtaConfigSchema,
   PRODUCT_CATALOG: productCatalogConfigSchema,
+  CUSTOM_BLOCK: customBlockConfigSchema,
 };
 
 /// Tipos de sección que muestran productos: una portada sin ninguno de

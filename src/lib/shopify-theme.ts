@@ -1,4 +1,5 @@
 import { GOOGLE_FONT_OPTIONS } from "@/lib/brand-theme";
+import type { CustomBlockLayout } from "@/lib/storefront-sections";
 import { decodeHtmlEntities } from "@/lib/html-entities";
 import { categoryNameFromUrl, handleFromUrl, isCategoryUrl, isProductUrl, isStorePagePath, menuHrefToShopify } from "@/lib/store-scrape";
 
@@ -24,7 +25,9 @@ export type ShopifyThemeFonts = {
   headingFamily: string | null;
   bodyFamily: string | null;
   /// Las de nuestro catálogo (GOOGLE_FONT_OPTIONS): la misma si existe,
-  /// si no la más parecida.
+  /// si no la más parecida. Al leer la tienda por link, la misma de la
+  /// tienda si Google Fonts la tiene (ver exactFonts en
+  /// shopify-store-reader.ts); `*Exact` dice si quedó la misma.
   headingFont: string;
   bodyFont: string;
   headingExact: boolean;
@@ -77,6 +80,9 @@ export type ShopifyThemeInfo = {
   policyLinks: ShopifyPolicyKind[];
   /// Secciones de la portada reconocidas, en orden.
   homeSections: ShopifyHomeSection[];
+  /// Quién leyó la portada: "ia" cuando la copió la IA a partir del
+  /// esquema de la página (ver home-copy.ts); si no, las reglas de acá.
+  homeSource?: "ia" | "reglas";
 };
 
 export type ShopifyPageLink = { handle: string; label: string };
@@ -109,7 +115,7 @@ export type ShopifyHomeSection =
   | { type: "BANNER"; images: string[]; title: string; subtitle: string; buttonText: string; buttonHref: string; links?: string[] }
   | { type: "FEATURED_COLLECTION"; collectionHandle: string; title: string }
   | { type: "TEXT"; heading: string; body: string }
-  | { type: "CATEGORY_GRID"; title: string; items: { collectionHandle: string; imageUrl: string | null; label: string }[] }
+  | { type: "CATEGORY_GRID"; title: string; subtitle?: string; items: { collectionHandle: string; imageUrl: string | null; label: string }[] }
   /// Dos o tres categorías con foto grande (formato banner).
   | { type: "CATEGORY_BANNERS"; items: { collectionHandle: string; imageUrl: string | null; label: string }[] }
   | { type: "VIDEO"; url: string; title: string }
@@ -119,12 +125,36 @@ export type ShopifyHomeSection =
   | { type: "ON_SALE_PRODUCTS"; title: string }
   | { type: "PRODUCT_CATALOG"; title: string }
   | { type: "IMAGE_CAROUSEL"; images: string[] }
+  /// Dos o tres fotos lado a lado, cada una con su link (no de categoría).
+  | { type: "PROMO_BANNERS"; items: { imageUrl: string; link: string }[] }
   | { type: "BRAND_CAROUSEL"; items: { imageUrl: string; link: string }[] }
   | { type: "INSTAGRAM_CTA"; title: string; description: string }
   /// `imageUrl`: cajitas que son una imagen (ícono con el texto adentro).
-  | { type: "INFO_COLUMNS"; items: { title: string; description: string; imageUrl?: string | null; link?: string }[] };
+  | { type: "INFO_COLUMNS"; items: { title: string; description: string; imageUrl?: string | null; link?: string }[] }
+  /// Lo que no calza en ninguna de las anteriores (ver CUSTOM_BLOCK en
+  /// storefront-sections.ts), con los colores de la sección original. Los
+  /// links van en la forma de Shopify, como en las demás.
+  | {
+      type: "CUSTOM_BLOCK";
+      name: string;
+      layout: CustomBlockLayout;
+      title: string;
+      text: string;
+      buttonText: string;
+      buttonHref: string;
+      imageUrl: string | null;
+      imagePosition: "left" | "right";
+      columns: number;
+      align: "left" | "center";
+      background: string | null;
+      textColor: string | null;
+      items: { imageUrl: string | null; title: string; text: string; buttonText: string; link: string }[];
+    };
 
 const MAX_MENU_LINKS = 12;
+/// Secciones de la portada que se traen como máximo (las mismas que acepta
+/// la importación, ver secciones/importar-shopify).
+export const MAX_HOME_SECTIONS = 20;
 
 // ----------------------------------------------------------------------------
 // Utilidades de HTML (sin parser: con expresiones regulares alcanza para
@@ -359,9 +389,12 @@ function bodySchemeName(html: string, blocks: SchemeBlock[]): string | null {
   const mainStart = html.search(/<main\b/i);
   const main = mainStart >= 0 ? (innerHtmlAt(html, mainStart) ?? "") : "";
   const counts = new Map<string, number>();
-  for (const m of main.matchAll(/<(?:div|section)\b[^>]*id=["']shopify-section-[^"']*["'][^>]*>/gi)) {
-    if (m.index == null) continue;
-    const name = tokenIn(main.slice(m.index, m.index + 1200));
+  const starts = Array.from(main.matchAll(/<(?:div|section)\b[^>]*id=["']shopify-section-[^"']*["'][^>]*>/gi))
+    .map((m) => m.index)
+    .filter((i): i is number => i != null);
+  for (const [k, start] of starts.entries()) {
+    // Solo el comienzo de esa sección, sin meterse en la siguiente.
+    const name = tokenIn(main.slice(start, Math.min(start + 1200, starts[k + 1] ?? Infinity)));
     if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
   }
   let best: string | null = null;
@@ -1400,7 +1433,7 @@ export function extractHomeSections(html: string, baseUrl: string, extraCss = ""
   // Sin secciones de Shopify reconocidas (WooCommerce, Tiendanube o un
   // tema raro) se lee la portada por lo que contiene.
   if (sections.length === 0) return extractGenericHomeSections(html, baseUrl, extraCss);
-  return sections.slice(0, 12);
+  return sections.slice(0, MAX_HOME_SECTIONS);
 }
 
 // ----------------------------------------------------------------------------
@@ -2151,5 +2184,447 @@ export function extractGenericHomeSections(html: string, baseUrl: string, extraC
   return placed
     .sort((a, b) => a.at - b.at)
     .map((p) => p.section)
-    .slice(0, 12);
+    .slice(0, MAX_HOME_SECTIONS);
+}
+
+// ----------------------------------------------------------------------------
+// Esquema de la portada para la copia fiel con IA (2026-10-19)
+// ----------------------------------------------------------------------------
+//
+// La IA no escribe la portada: recibe la lista de lo que la portada
+// original muestra, en orden (títulos, textos, fotos, botones, listas de
+// productos, videos), cada cosa con un id, y responde qué sección de
+// Marcolini arma cada grupo citando esos ids. Los textos, las fotos y los
+// links salen de acá tal cual (ver home-copy.ts). Pedido el 2026-10-19:
+// "que la IA se dedique a hacer una copia fiel de la tienda original, con
+// sus secciones, imágenes, textos iguales, fuentes, colores".
+
+export type HomeOutlineItem =
+  /// Comienzo de un bloque de la página (una sección de Shopify, una
+  /// sección de Elementor…), con lo que dice su nombre o sus clases y sus
+  /// colores cuando no son los de la página.
+  | { id: string; kind: "section"; hint: string; background: string | null; textColor: string | null }
+  /// `href`: el título o texto es en sí un link (el nombre de una
+  /// categoría en su tarjeta, por ejemplo).
+  | { id: string; kind: "heading"; level: number; text: string; href: string }
+  | { id: string; kind: "text"; text: string; href: string }
+  /// "pequeña": un ícono o logo.
+  | { id: string; kind: "image"; url: string; alt: string; href: string; shape: OutlineImageShape }
+  /// Un botón o link con texto.
+  | { id: string; kind: "link"; text: string; href: string }
+  /// Tarjetas de producto seguidas (una lista o carrusel).
+  | { id: string; kind: "products"; handles: string[] }
+  | { id: string; kind: "video"; url: string };
+
+export type OutlineImageShape = "ancha" | "cuadrada" | "alta" | "pequeña" | null;
+export type HomeOutline = { items: HomeOutlineItem[]; truncated: boolean };
+
+export const OUTLINE_MAX_ITEMS = 320;
+const OUTLINE_TEXT_MAX = 600;
+const OUTLINE_HEADING_MAX = 160;
+const OUTLINE_LINK_TEXT_MAX = 80;
+/// Secciones de Shopify que no son contenido de la portada, o que acá no
+/// se pueden copiar (el formulario del boletín).
+const SHOPIFY_SECTION_SKIP_RE = /header|footer|announcement|newsletter|email|cart|popup|search|password/;
+/// Tarjetas de producto de los temas más usados (Dawn, Horizon, Impulse,
+/// WooCommerce, Tiendanube, Flatsome…): en el esquema quedan solo como el
+/// producto al que apuntan, sin su foto, precio ni botones.
+const PRODUCT_CARD_OPEN_RE =
+  /<(?:li|div|article|product-card)\b[^>]*\bclass=["'][^"']*\b(?:card-wrapper|product-card(?:-wrapper)?|card--product|product-item|grid-product|product-grid-item|productitem|product-block|type-product|wc-block-grid__product|product-small|product-miniature|item-product|js-item-product|product-thumb|product-tile)\b[^"']*["'][^>]*>/i;
+/// Copias de slides que arman los carruseles (Slick, Swiper) para girar.
+const SLIDE_CLONE_RE = /<(?:div|li)\b[^>]*\bclass=["'][^"']*\b(?:slick-cloned|swiper-slide-duplicate)\b[^"']*["'][^>]*>/i;
+/// Lo que el tema esconde en computador (la versión para celular).
+const DESKTOP_HIDDEN_RE =
+  /<(?:div|section|span|figure|picture|li|a)\b[^>]*\bclass=["'][^"']*(?:\blarge-up-hide\b|\bmedium-up--hide\b|\bhide-desktop\b|\bhidden-desktop\b|\bmobile-only\b|\bmd:hidden\b|\blg:hidden\b)[^"']*["'][^>]*>/i;
+/// Textos solo para lectores de pantalla ("Precio habitual", "Siguiente").
+const SCREEN_READER_RE = /<(?:span|div|p|h[1-6]|label|small)\b[^>]*\bclass=["'][^"']*\b(?:visually-hidden|sr-only|screen-reader-text|hidden-text)\b[^"']*["'][^>]*>/i;
+/// Textos de tarjetas y controles que no son contenido de la portada.
+const OUTLINE_NOISE_TEXT_RE =
+  /^(?:precio(?: (?:habitual|de venta|de oferta|unitario|regular|normal))?|por|oferta|agotado|vendido|sold out|sale|añadir al carrito|agregar al carrito|add to cart|ver opciones|seleccionar opciones|elegir opciones|cerrar|anterior|siguiente|previous|next|pausar|reproducir|play|pause|cargando…?|loading…?|\d+\s*\/\s*\d+|\d+\s+de\s+\d+|(?:desde\s*)?(?:col)?\$\s*[\d.,]+(?:\s*(?:cop|usd))?(?:\s*[-–]\s*\$?\s*[\d.,]+)?)$/i;
+/// Fotos que nunca son contenido (las de siempre de IMAGE_NOISE_RE, sin
+/// los íconos y logos: acá sirven para sellos y tiras de marcas).
+const OUTLINE_IMAGE_NOISE_RE = /placeholder|data:image|\/wp-includes\/|spinner|preloader|blank\.|1x1|gravatar|emoji|favicon|captcha|\.gif(?:\?|$)/i;
+/// Etiquetas que cortan un texto corrido: cada una empieza o termina un
+/// párrafo, un título o una tarjeta.
+const OUTLINE_BLOCK_TAGS = new Set([
+  "p", "div", "section", "article", "li", "ul", "ol", "blockquote", "figure", "figcaption", "table", "tr", "td", "th",
+  "dl", "dt", "dd", "details", "summary", "header", "footer", "main", "aside", "nav", "label", "cite",
+]);
+
+function imageShape(tag: string): OutlineImageShape {
+  if (tinyImageTag(tag)) return "pequeña";
+  const width = parseInt(attr(tag, "width") ?? "", 10);
+  const height = parseInt(attr(tag, "height") ?? "", 10);
+  if (!(width > 0 && height > 0)) return null;
+  const ratio = width / height;
+  if (ratio >= 1.6) return "ancha";
+  if (ratio <= 0.85) return "alta";
+  return "cuadrada";
+}
+
+type OutlineBuilder = {
+  items: HomeOutlineItem[];
+  truncated: boolean;
+  seenImages: Set<string>;
+  /// Lo ya puesto en el bloque actual: los carruseles de texto y las
+  /// versiones para celular repiten lo mismo.
+  seenTexts: Set<string>;
+  pendingProducts: string[];
+  baseUrl: string;
+  backgrounds: CssBackground[];
+  /// Los links de Shopify ya vienen en su forma (/pages/x, /collections/y);
+  /// los de las demás se traducen (ver mapHref).
+  shopify: boolean;
+};
+
+/// Un elemento del esquema todavía sin id (el Omit repartido en cada caso).
+type OutlineInput = HomeOutlineItem extends infer T ? (T extends HomeOutlineItem ? Omit<T, "id"> : never) : never;
+
+function outlinePush(b: OutlineBuilder, item: OutlineInput) {
+  if (item.kind !== "products") outlineFlushProducts(b);
+  if (b.items.length >= OUTLINE_MAX_ITEMS) {
+    b.truncated = true;
+    return;
+  }
+  if (item.kind === "section") b.seenTexts = new Set();
+  if ("text" in item) {
+    const key = item.kind === "link" ? `link:${item.text.toLowerCase()}|${item.href}` : `${item.kind}:${item.text.toLowerCase()}`;
+    if (b.seenTexts.has(key)) return;
+    b.seenTexts.add(key);
+  }
+  const prefix = { section: "S", heading: "H", text: "T", image: "I", link: "L", products: "P", video: "V" }[item.kind];
+  b.items.push({ ...item, id: `${prefix}${b.items.length + 1}` } as HomeOutlineItem);
+}
+
+function outlineFlushProducts(b: OutlineBuilder) {
+  if (b.pendingProducts.length === 0) return;
+  const handles = b.pendingProducts.slice(0, 24);
+  b.pendingProducts = [];
+  outlinePush(b, { kind: "products", handles });
+}
+
+function outlineImage(b: OutlineBuilder, url: string | null, tag: string, href: string) {
+  if (!url || !/^https?:/.test(url) || OUTLINE_IMAGE_NOISE_RE.test(url)) return;
+  if (/\b(?:emoji|wp-smiley|payment|icon--payment)\b/i.test(`${attr(tag, "class") ?? ""}`)) return;
+  const key = imageKey(url);
+  if (b.seenImages.has(key)) return;
+  b.seenImages.add(key);
+  const alt = (attr(tag, "alt") ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+  outlinePush(b, { kind: "image", url, alt, href, shape: imageShape(tag) });
+}
+
+/// Una foto de fondo en la etiqueta que abre un contenedor (inline, data-bg
+/// o por el CSS de Elementor).
+function outlineBackground(b: OutlineBuilder, tag: string, href: string) {
+  if (!tagHasBackgroundImage(tag) && !(b.backgrounds.length > 0 && /\belementor-(?:repeater-item|element)-/.test(tag))) return;
+  const [url] = genericImages(tag, b.baseUrl, 1, false, b.backgrounds);
+  if (url) outlineImage(b, url, tag, href);
+}
+
+/// Un texto corrido sin espacios de más; los saltos de línea (<br>) quedan.
+function cleanRun(text: string) {
+  return text
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/ ?\n ?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/// Recorre un bloque etiqueta por etiqueta y deja, en orden, sus títulos,
+/// párrafos, botones, fotos (también las de fondo), videos y productos.
+/// Un texto que está entero dentro de un link lleva ese link.
+function outlineScan(b: OutlineBuilder, html: string) {
+  type OpenAnchor = { href: string; product: string | null; button: boolean; run: number };
+  let run = "";
+  let runPlain = "";
+  let runId = 0;
+  let runAnchors: { text: string; href: string; button: boolean }[] = [];
+  let heading = 0;
+  let anchor: OpenAnchor | null = null;
+  let anchorText = "";
+
+  const flush = () => {
+    const value = cleanRun(run);
+    const plain = cleanRun(runPlain);
+    const anchors = runAnchors;
+    run = "";
+    runPlain = "";
+    runAnchors = [];
+    runId++;
+    // Un link que sigue abierto (una tarjeta entera) ya dejó su texto acá.
+    anchorText = "";
+    if (!value || OUTLINE_NOISE_TEXT_RE.test(value)) return;
+    // El texto entero es un link: uno que abrió en este tramo y ya cerró,
+    // o uno que sigue abierto (una tarjeta con link que envuelve todo).
+    const whole =
+      !plain && anchors.length === 1 && cleanRun(anchors[0].text) === value
+        ? anchors[0]
+        : !plain && anchors.length === 0 && anchor && !anchor.product
+          ? { text: value, href: anchor.href, button: anchor.button }
+          : null;
+    if (heading) {
+      outlinePush(b, { kind: "heading", level: heading, text: value.slice(0, OUTLINE_HEADING_MAX), href: whole?.href ?? "" });
+    } else if (whole && whole.href && (whole.button || value.length <= OUTLINE_LINK_TEXT_MAX)) {
+      outlinePush(b, { kind: "link", text: value.slice(0, OUTLINE_LINK_TEXT_MAX), href: whole.href });
+    } else if (value.length >= 2) {
+      outlinePush(b, { kind: "text", text: value.slice(0, OUTLINE_TEXT_MAX), href: whole?.href ?? "" });
+    }
+  };
+
+  for (const m of html.matchAll(/<(\/?)([a-zA-Z][a-zA-Z0-9-]*)\b([^>]*)>|([^<]+)/g)) {
+    if (b.truncated) return;
+    if (m[4] !== undefined) {
+      // El nombre y el precio de un producto no van: el producto ya queda.
+      if (anchor?.product) continue;
+      const text = decodeEntities(m[4]);
+      run += text;
+      if (anchor) anchorText += text;
+      else runPlain += text;
+      continue;
+    }
+    const closing = m[1] === "/";
+    const tag = m[2].toLowerCase();
+    const whole = m[0];
+    if (tag === "br") {
+      run += "\n";
+      continue;
+    }
+    if (tag === "a") {
+      if (closing) {
+        if (anchor?.product) {
+          if (!b.pendingProducts.includes(anchor.product)) b.pendingProducts.push(anchor.product);
+        } else if (anchor && anchor.run === runId && anchorText.trim()) {
+          runAnchors.push({ text: anchorText, href: anchor.href, button: anchor.button });
+        }
+        anchor = null;
+        anchorText = "";
+        continue;
+      }
+      const href = attr(whole, "href");
+      const product = href ? genericProductHandle(href, b.baseUrl) : null;
+      anchor = { href: outlineHref(b, href), product, button: /\b(?:button|btn|cta)\b/i.test(attr(whole, "class") ?? ""), run: runId };
+      anchorText = "";
+      if (!product) outlineBackground(b, whole, anchor.href);
+      continue;
+    }
+    if (/^h[1-6]$/.test(tag)) {
+      flush();
+      heading = closing ? 0 : Number(tag[1]);
+      if (anchor) anchor.run = runId;
+      continue;
+    }
+    if (OUTLINE_BLOCK_TAGS.has(tag)) {
+      flush();
+      if (anchor) anchor.run = runId;
+      if (!closing && !anchor?.product) outlineBackground(b, whole, anchor?.href ?? "");
+      continue;
+    }
+    if (closing) continue;
+    if (tag === "img") {
+      // La foto de un producto solo cuenta si es un banner (ancha).
+      if (anchor?.product && imageShape(whole) !== "ancha") continue;
+      const href = anchor ? (anchor.product ? `/products/${anchor.product}` : anchor.href) : "";
+      outlineImage(b, imageUrlOf(whole, b.baseUrl), whole, href);
+      continue;
+    }
+    if (tag === "iframe") {
+      const src = attr(whole, "src") ?? attr(whole, "data-src") ?? "";
+      if (/youtube|youtu\.be|vimeo/i.test(src)) outlinePush(b, { kind: "video", url: decodeEntities(src).slice(0, 300) });
+      continue;
+    }
+    if (tag === "video") {
+      // Un video propio no se puede copiar: queda su foto de portada.
+      const poster = attr(whole, "poster");
+      if (poster) outlineImage(b, absoluteUrl(poster, b.baseUrl), whole, anchor?.href ?? "");
+      continue;
+    }
+    if (!anchor?.product) outlineBackground(b, whole, anchor?.href ?? "");
+  }
+  flush();
+  outlineFlushProducts(b);
+}
+
+/// Un link del esquema en la forma de Shopify (ver cleanHref y mapHref):
+/// las anclas, el carrito y lo que no existe acá quedan vacíos; los de
+/// afuera (Instagram, WhatsApp) quedan tal cual.
+function outlineHref(b: OutlineBuilder, href: string | null) {
+  if (!href) return "";
+  return b.shopify ? (cleanHref(href, b.baseUrl) ?? "").slice(0, 300) : mapHref(href, b.baseUrl);
+}
+
+/// Cada tarjeta de producto queda como un link vacío a su producto (ver
+/// PRODUCT_CARD_OPEN_RE). Una "tarjeta" que no apunta a un producto (la de
+/// una colección) queda igual.
+function collapseProductCards(html: string, baseUrl: string): string {
+  const re = new RegExp(PRODUCT_CARD_OPEN_RE.source, "gi");
+  let out = "";
+  let cursor = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    if (m.index < cursor) continue;
+    const end = elementEndAt(html, m.index);
+    if (end == null) continue;
+    let handle: string | null = null;
+    for (const link of html.slice(m.index, end).matchAll(/<a\b[^>]*\bhref=["']([^"']+)["']/gi)) {
+      handle = genericProductHandle(link[1], baseUrl);
+      if (handle) break;
+    }
+    if (!handle) continue;
+    out += `${html.slice(cursor, m.index)}<a href="/products/${handle}"></a>`;
+    cursor = end;
+    re.lastIndex = end;
+  }
+  return out + html.slice(cursor);
+}
+
+/// Un bloque listo para recorrer: sin scripts, formularios, botones de
+/// control, copias de slides, versión para celular ni textos ocultos, y
+/// con las tarjetas de producto resumidas.
+function outlineReady(block: string, baseUrl: string) {
+  let out = removeElements(block.replace(/<!--[\s\S]*?-->/g, ""), /<(?:script|style|noscript|template|svg|form|button|select|input|textarea)\b/);
+  out = removeElements(out, SLIDE_CLONE_RE);
+  out = removeElements(out, DESKTOP_HIDDEN_RE);
+  out = removeElements(out, HIDDEN_ON_DESKTOP_RE);
+  out = removeElements(out, SCREEN_READER_RE);
+  return collapseProductCards(out, baseUrl);
+}
+
+// --- Colores de cada bloque ---
+
+type CssColorRule = { selector: string; color: string };
+
+function parseCssBackgroundColors(css: string): CssColorRule[] {
+  const out: CssColorRule[] = [];
+  for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const value = m[2].match(/(?:^|;)\s*background(?:-color)?\s*:\s*([^;}]+)/i)?.[1]?.replace(/!important/i, "").trim();
+    if (!value) continue;
+    const color = cssColorToHex(value) ?? cssColorToHex(value.match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)/i)?.[0] ?? "");
+    if (color) out.push({ selector: m[1].trim(), color });
+  }
+  return out;
+}
+
+type OutlineColors = { schemes: SchemeBlock[]; props: Map<string, string[]>; rules: CssColorRule[]; page: string };
+
+/// El fondo y el texto de un bloque: por el esquema de color de Shopify
+/// que usa ("color-scheme-2"), por su estilo en línea o por el CSS de
+/// Elementor de su id. Si es el mismo fondo de la página, nada.
+function blockColors(block: string, c: OutlineColors): { background: string | null; textColor: string | null } {
+  const head = block.slice(0, 1500);
+  let background: string | null = null;
+  let textColor: string | null = null;
+  const names = new Set(c.schemes.map((s) => s.name));
+  for (const m of head.matchAll(/\b(color-[a-z0-9_-]+)\b/gi)) {
+    const name = m[1].toLowerCase();
+    if (!names.has(name)) continue;
+    const scheme = c.schemes.find((s) => s.name === name)!;
+    const props = new Map(c.props);
+    for (const [key, values] of scheme.props) props.set(key, [...values, ...(c.props.get(key) ?? [])]);
+    background = firstColor(props, BACKGROUND_PROPS);
+    textColor = firstColor(props, TEXT_PROPS);
+    break;
+  }
+  if (!background) {
+    for (const tag of (head.match(/<[a-z][^>]*>/gi) ?? []).slice(0, 3)) {
+      const style = attr(tag, "style") ?? "";
+      const value = style.match(/background(?:-color)?\s*:\s*([^;]+)/i)?.[1];
+      const color = value ? (cssColorToHex(value.trim(), c.props) ?? cssColorToHex(value.match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)/i)?.[0] ?? "")) : null;
+      if (color) {
+        background = color;
+        break;
+      }
+    }
+  }
+  if (!background && c.rules.length > 0) {
+    const classes = attr(head.match(/<[a-z][^>]*>/i)?.[0] ?? "", "class") ?? "";
+    for (const token of classes.split(/\s+/)) {
+      if (!/^elementor-element-[a-z0-9]+$/i.test(token)) continue;
+      const re = new RegExp(`\\.${token}(?::not\\([^)]*\\))?\\s*$`, "i");
+      const rule = c.rules.find((r) => r.selector.split(",").some((part) => re.test(part.trim())));
+      if (rule) {
+        background = rule.color;
+        break;
+      }
+    }
+  }
+  if (!background || background.toLowerCase() === c.page.toLowerCase()) return { background: null, textColor: null };
+  if (!textColor || textColor.toLowerCase() === background.toLowerCase()) textColor = luminance(background) < 0.45 ? "#ffffff" : null;
+  return { background, textColor };
+}
+
+/// Las pistas de un bloque que no es de Shopify: los widgets o bloques que
+/// usa ("slides, heading, button").
+function builderHint(block: string) {
+  const names: string[] = [];
+  for (const m of block.matchAll(/\b(?:elementor-widget-|wp-block-)([a-z0-9-]+)/gi)) {
+    const name = m[1].toLowerCase().replace(/^woocommerce-/, "");
+    if (!names.includes(name)) names.push(name);
+    if (names.length >= 6) break;
+  }
+  if (PRODUCT_LIST_RE.test(block) && !names.includes("productos")) names.push("productos");
+  if (INSTAGRAM_RE.test(block)) names.push("instagram");
+  return names.join(", ") || "contenido";
+}
+
+/// El esquema de la portada para la IA (ver arriba). Shopify por sus
+/// secciones; las demás por las secciones de su constructor (Elementor)
+/// o, si no hay, como un solo bloque.
+export function buildHomeOutline(html: string, baseUrl: string, extraCss = ""): HomeOutline {
+  const css = `${inlineStyles(html)}\n${extraCss}`;
+  const styled = extraCss ? `${html}<style>${extraCss}</style>` : html;
+  const b: OutlineBuilder = {
+    items: [],
+    truncated: false,
+    seenImages: new Set(),
+    seenTexts: new Set(),
+    pendingProducts: [],
+    baseUrl,
+    backgrounds: parseCssBackgrounds(css),
+    shopify: false,
+  };
+  const colors: OutlineColors = {
+    schemes: schemeBlocks(styled),
+    props: collectCustomProps(styled),
+    rules: parseCssBackgroundColors(css),
+    page: extractColors(styled)?.fondo ?? "#ffffff",
+  };
+  const shopify = Array.from(html.matchAll(/<(?:div|section)\b[^>]*id=["']shopify-section-[^"']*["'][^>]*>/gi));
+  if (shopify.length > 0) {
+    b.shopify = true;
+    for (const match of shopify) {
+      if (match.index == null || b.truncated) continue;
+      const rawId = attr(match[0], "id") ?? "";
+      const id = rawId.toLowerCase();
+      const cls = (attr(match[0], "class") ?? "").toLowerCase();
+      if (SHOPIFY_SECTION_SKIP_RE.test(`${id} ${cls}`)) continue;
+      const inner = innerHtmlAt(html, match.index);
+      if (!inner?.trim()) continue;
+      // "template--123__image_banner_jVaWmY" → "image banner" (el final al
+      // azar que pone Shopify lleva números o mayúsculas).
+      const hint = rawId
+        .replace(/^shopify-section-(?:template--\d+__|sections--\d+__)?/i, "")
+        .replace(/[_-](?=[a-zA-Z0-9]*[0-9A-Z])[a-zA-Z0-9]{6,}$/, "")
+        .replace(/[_-]+/g, " ")
+        .toLowerCase()
+        .trim();
+      outlinePush(b, { kind: "section", hint: hint || "sección", ...blockColors(`${match[0]}${inner}`, colors) });
+      outlineScan(b, outlineReady(inner, baseUrl));
+    }
+    return { items: b.items, truncated: b.truncated };
+  }
+
+  const scope = homeScope(html);
+  const tops: { at: number; end: number }[] = [];
+  for (const m of scope.matchAll(/<(?:section|div)\b[^>]*class=["'][^"']*\b(?:elementor-top-section|e-parent)\b[^"']*["'][^>]*>/gi)) {
+    if (m.index == null || tops.some((t) => m.index! < t.end)) continue;
+    const end = elementEndAt(scope, m.index);
+    if (end != null) tops.push({ at: m.index, end });
+  }
+  const blocks = tops.length > 0 ? tops.map((t) => scope.slice(t.at, t.end)) : [scope];
+  for (const block of blocks) {
+    if (b.truncated) break;
+    outlinePush(b, { kind: "section", hint: builderHint(block), ...(tops.length > 0 ? blockColors(block, colors) : { background: null, textColor: null }) });
+    outlineScan(b, outlineReady(block, baseUrl));
+  }
+  return { items: b.items, truncated: b.truncated };
 }
