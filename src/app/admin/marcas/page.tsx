@@ -2,7 +2,6 @@ import { auth } from "@/auth";
 import { listBrands } from "@/server/services/admin-brand-service";
 import { AdminBrandsPanel } from "@/components/portal/admin-brands-panel";
 import { isOwner } from "@/lib/current-admin";
-import { prisma } from "@/lib/prisma";
 import { marketplaceMissing } from "@/lib/marketplace-readiness";
 import { DeleteTestProfilesButton } from "@/components/portal/delete-test-profiles-button";
 import { getGoLiveSummaries } from "@/server/services/go-live-service";
@@ -10,12 +9,9 @@ import { needsIntegration } from "@/lib/payment-gateways";
 
 export default async function AdminMarcasPage() {
   const session = await auth();
-  const [brands, activeOffers] = await Promise.all([
-    listBrands(),
-    prisma.offer.groupBy({ by: ["brandId"], where: { status: "ACTIVE" }, _count: { _all: true } }),
-  ]);
-  const activeOffersByBrand = new Map(activeOffers.map((o) => [o.brandId, o._count._all]));
-  // "Lo que falta para vender" de cada marca con tienda, en pocas
+  const brands = await listBrands();
+  // "Lo que falta para ser visible en el marketplace" de cada marca con
+  // tienda (también decide si sale para las creadoras), en pocas
   // consultas para todas (ver getGoLiveSummaries en go-live-service.ts).
   const goLiveByBrand = await getGoLiveSummaries(brands);
   const pendingCount = brands.filter((b) => b.status === "PENDING").length;
@@ -50,7 +46,7 @@ export default async function AdminMarcasPage() {
           // marketplace-readiness.ts).
           marketplaceMissing: marketplaceMissing(
             b,
-            activeOffersByBrand.get(b.id) ?? 0,
+            goLiveByBrand.get(b.id)?.missing ?? null,
             charges.some((c) => c.status === "DEACTIVATED"),
           ),
           // `charges` (crudo, con Decimal) queda afuera del spread a propósito

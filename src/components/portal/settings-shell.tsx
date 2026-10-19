@@ -17,6 +17,10 @@ export const SETTINGS_SECTIONS = {
 
 export type SettingsSection = keyof typeof SETTINGS_SECTIONS;
 
+/// Fuera del menú (la página sigue abierta por su link): "Conexiones"
+/// (webhooks) se escondió a pedido de la marca el 2026-10-19.
+const HIDDEN_SECTIONS = new Set<SettingsSection>(["conexiones"]);
+
 /// Rutas que cuentan como "Configuración" en el menú lateral.
 export const SETTINGS_PATHS = [
   "/marca/tienda/configuracion",
@@ -34,7 +38,9 @@ export function SettingsShell({
   active: SettingsSection;
   children: React.ReactNode;
 }) {
-  const entries = Object.entries(SETTINGS_SECTIONS) as [SettingsSection, (typeof SETTINGS_SECTIONS)[SettingsSection]][];
+  const entries = (Object.entries(SETTINGS_SECTIONS) as [SettingsSection, (typeof SETTINGS_SECTIONS)[SettingsSection]][]).filter(
+    ([key]) => !HIDDEN_SECTIONS.has(key) || key === active,
+  );
   return (
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">CONFIGURACIÓN</p>

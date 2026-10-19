@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { goLiveReadyBrandIds } from "@/server/services/go-live-service";
 import { provisionDiscountCodeForEnrollment } from "@/server/services/attribution-service";
 import { awardWelcomeBonusIfEligible } from "@/server/services/challenge-service";
 import { normalizeDiscountCode } from "@/lib/creator-identity";
@@ -32,7 +33,7 @@ export async function listActiveOffers(filters: {
   search?: string;
   verticalIds?: string[];
 }) {
-  return prisma.offer.findMany({
+  const offers = await prisma.offer.findMany({
     where: {
       status: "ACTIVE",
       brand: {
@@ -46,33 +47,13 @@ export async function listActiveOffers(filters: {
         OR: [
           { marketplaceVisibilityOverride: "FORCE_VISIBLE" },
           {
-            // Comportamiento real: además de aprobada, la marca debe haber
-            // terminado su onboarding (perfil, tienda, cómo-te-cobramos) —
-            // ver getBrandOnboardingStatus en onboarding-service.ts, que usa
-            // exactamente estas mismas condiciones — y no estar bloqueada
-            // por falta de pago verificado (ver isBrandPaymentLocked en
-            // payment-service.ts).
+            // Comportamiento real: aprobada, sin bloqueo por falta de pago
+            // verificado (ver isBrandPaymentLocked en payment-service.ts) y,
+            // abajo, con toda la lista de su panel lista ("Lo que falta para
+            // ser visible en el marketplace", ver go-live-service.ts). Antes
+            // eran los 4 pasos de "Empieza aquí" (logo y descripción,
+            // tienda, cómo te cobramos y programa); se cambió el 2026-10-19.
             status: "APPROVED",
-            // logoUrl/description/websiteUrl se guardan como "" (no null)
-            // cuando el campo está vacío — por eso se excluyen ambos valores.
-            NOT: [
-              { logoUrl: null },
-              { logoUrl: "" },
-              { description: null },
-              { description: "" },
-            ],
-            // Tienda lista: su tienda en Marcolini ({slug}.marcolini.lat),
-            // o una tienda externa conectada con su web. Antes solo valía
-            // la conectada, y una marca que vende en Marcolini no salía
-            // (ver getBrandOnboardingStatus, mismas condiciones).
-            OR: [
-              { storefrontSlug: { not: null } },
-              {
-                storeConnectionStatus: "CONNECTED",
-                NOT: [{ websiteUrl: null }, { websiteUrl: "" }],
-              },
-            ],
-            billingAcknowledgedAt: { not: null },
             // Nivel 2 (OVERDUE) NO oculta del marketplace — solo el panel se
             // bloquea (ver isBrandPaymentLocked en payment-service.ts); el
             // servicio "sigue funcionando" hasta Nivel 3. Solo DEACTIVATED
@@ -128,6 +109,11 @@ export async function listActiveOffers(filters: {
     },
     orderBy: { createdAt: "desc" },
   });
+  // En modo Auto, solo las marcas con toda su lista lista (una sola tanda
+  // de consultas para todas, ver goLiveReadyBrandIds).
+  const auto = Array.from(new Set(offers.filter((o) => o.brand.marketplaceVisibilityOverride !== "FORCE_VISIBLE").map((o) => o.brandId)));
+  const ready = await goLiveReadyBrandIds(auto);
+  return offers.filter((o) => o.brand.marketplaceVisibilityOverride === "FORCE_VISIBLE" || ready.has(o.brandId));
 }
 
 export async function getEnrollmentsForCreator(creatorId: string) {

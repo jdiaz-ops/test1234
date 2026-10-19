@@ -2,46 +2,38 @@ import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { applyExtractedProfile } from "@/server/services/brand-profile-import-service";
 import { getGoLiveChecklist, setGoLiveCheck } from "@/server/services/go-live-service";
-import { createBrand, createPendingOrder, createProduct, createSellingBrand, hasDb } from "./helpers";
+import { createBrand, createProduct, createSellingBrand, hasDb } from "./helpers";
 import { GET as sitemap } from "@/app/t/[slug]/sitemap.xml/route";
 import { GET as robots } from "@/app/t/[slug]/robots.txt/route";
 
-describe.skipIf(!hasDb)("lo que falta para vender", () => {
-  it("calcula cada paso y deja marcar los manuales", async () => {
+describe.skipIf(!hasDb)("lo que falta para ser visible en el marketplace", () => {
+  it("son cinco pasos, en este orden, y el inventario se marca a mano", async () => {
     const brand = await createBrand();
     const first = (await getGoLiveChecklist(brand.id))!;
-    expect(first.total).toBe(8);
+    expect(first.items.map((i) => i.key)).toEqual(["legal", "envios", "pagos", "inventario", "programa"]);
     const byKey = Object.fromEntries(first.items.map((i) => [i.key, i]));
-    expect(byKey.productos.done).toBe(false);
-    expect(byKey.inventario.done).toBe(true);
-    expect(byKey.pagos.done).toBe(false);
-    expect(byKey.envios.done).toBe(false);
-    expect(byKey.fotos.done).toBe(true);
     expect(byKey.legal.done).toBe(false);
-    expect(byKey.dominio.done).toBe(false);
-    expect(byKey.prueba.done).toBe(false);
+    expect(byKey.envios.done).toBe(false);
+    expect(byKey.pagos.done).toBe(false);
+    expect(byKey.inventario.done).toBe(true);
+    expect(byKey.programa.done).toBe(false);
+    expect(byKey.programa.href).toBe("/marca/cuenta?tab=oferta");
     expect(first.storeUrl).toContain(brand.storefrontSlug);
 
     await createProduct(brand.id, { name: "Sin control", price: 9000, stock: null });
-    await setGoLiveCheck(brand.id, "dominio", true);
     await expect(setGoLiveCheck(brand.id, "pagos" as never, true)).rejects.toThrow();
+    await expect(setGoLiveCheck(brand.id, "dominio", true)).rejects.toThrow();
     const second = (await getGoLiveChecklist(brand.id))!;
     const k2 = Object.fromEntries(second.items.map((i) => [i.key, i]));
     expect(k2.inventario.done).toBe(false);
     expect(k2.inventario.detail).toContain("1 producto se vende sin control");
-    expect(k2.dominio.done).toBe(true);
     await setGoLiveCheck(brand.id, "inventario", true);
-    await setGoLiveCheck(brand.id, "productos", true);
-    expect(Object.fromEntries((await getGoLiveChecklist(brand.id))!.items.map((i) => [i.key, i.done]))).toMatchObject({
-      productos: true,
-      inventario: true,
-    });
+    expect(Object.fromEntries((await getGoLiveChecklist(brand.id))!.items.map((i) => [i.key, i.done]))).toMatchObject({ inventario: true });
   });
 
-  it("pagos, envíos, datos legales y pedido de prueba se marcan solos", async () => {
+  it("datos legales, envíos, pagos y programa se marcan solos", async () => {
     const brand = await createSellingBrand();
-    const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 3 });
-    await createPendingOrder(brand.id, [{ productId: placa.id, quantity: 1, unitPrice: 15000 }]);
+    await createProduct(brand.id, { name: "Placa", price: 15000, stock: 3 });
     await prisma.brandProfile.update({
       where: { id: brand.id },
       data: {
@@ -55,11 +47,9 @@ describe.skipIf(!hasDb)("lo que falta para vender", () => {
       },
     });
     const list = (await getGoLiveChecklist(brand.id))!;
-    const k = Object.fromEntries(list.items.map((i) => [i.key, i.done]));
-    expect(k).toMatchObject({ pagos: true, envios: true, legal: true, prueba: true, inventario: true, fotos: true });
+    expect(Object.fromEntries(list.items.map((i) => [i.key, i.done]))).toEqual({ legal: true, envios: true, pagos: true, inventario: true, programa: false });
     expect(list.complete).toBe(false);
-    await setGoLiveCheck(brand.id, "productos", true);
-    await setGoLiveCheck(brand.id, "dominio", true);
+    await prisma.offer.create({ data: { brandId: brand.id, name: "Programa", defaultCommissionPercent: 8, defaultDiscountPercent: 10 } });
     expect((await getGoLiveChecklist(brand.id))!.complete).toBe(true);
   });
 

@@ -3,18 +3,23 @@ import { prisma } from "@/lib/prisma";
 import { PAYMENT_PROVIDERS, isPaymentProviderId } from "@/lib/payment-providers";
 import { credentialsFor, hasProductionCredentials } from "@/server/payments/credentials";
 import { publicStoreUrl } from "@/lib/store-url";
-import { countExternalImages, isExternalImageUrl } from "@/server/services/image-rehost-service";
 
-/// "Lo que falta para vender": la lista que ve la marca en su panel (y el
-/// admin en Marcas) con lo que todavía le falta a su tienda para salir en
-/// vivo. Casi todo se calcula solo (pagos, envíos, fotos, datos legales,
-/// pedido de prueba); revisar productos, el inventario y el dominio los
-/// marca la marca a mano porque no hay forma de saberlo desde acá. Ver
-/// conversación del 2026-10-18.
+/// "Lo que falta para ser visible en el marketplace": la lista que ve la
+/// marca en su panel (y el admin en Marcas). Es el onboarding de la marca:
+/// cuando todo está listo (y la marca está aprobada), sale para las
+/// creadoras — ver listActiveOffers en marketplace-service.ts. Se calcula
+/// solo, salvo el inventario, que la marca marca a mano si vende sin
+/// control. Pedido del 2026-10-19: estos cinco pasos, en este orden,
+/// reemplazan los 4 pasos de "Empieza aquí" (antes la lista era "Lo que
+/// falta para vender", con productos, fotos, dominio y pedido de prueba).
 
-export type GoLiveKey = "productos" | "inventario" | "pagos" | "envios" | "fotos" | "legal" | "dominio" | "prueba";
+export type GoLiveKey = "productos" | "inventario" | "pagos" | "envios" | "fotos" | "legal" | "dominio" | "prueba" | "programa";
 
-export const GO_LIVE_MANUAL_KEYS: GoLiveKey[] = ["productos", "inventario", "dominio"];
+/// "productos", "fotos", "dominio" y "prueba" ya no están en la lista (pueden
+/// seguir guardados en goLiveChecks de antes, no estorban).
+export type GoLiveKeyActive = "legal" | "envios" | "pagos" | "inventario" | "programa";
+
+export const GO_LIVE_MANUAL_KEYS: GoLiveKey[] = ["inventario"];
 
 export type GoLiveItem = {
   key: GoLiveKey;
@@ -56,7 +61,7 @@ type BrandFields = {
   taxId: string | null;
 };
 
-type Counts = { products: number; noStock: number; zones: number; pendingRates: number; orders: number; photos: number };
+type Counts = { noStock: number; zones: number; pendingRates: number; activeOffers: number };
 
 const BRAND_SELECT = {
   storefrontSlug: true,
@@ -97,27 +102,29 @@ function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
   const anyKeys = provider ? credentialsFor(gatewayFields, provider, "TEST") !== null || prodKeys : false;
   const live = Boolean(provider) && prodKeys && brand.paymentMode === "PRODUCTION";
   const providerName = provider ? PAYMENT_PROVIDERS[provider].name : null;
-  const { products, noStock, zones, pendingRates, orders, photos } = counts;
+  const { noStock, zones, pendingRates, activeOffers } = counts;
 
   const items: GoLiveItem[] = [
     {
-      key: "productos",
-      label: "Revisa precios, fotos y descripciones",
-      detail: products > 0 ? `${products} ${products === 1 ? "producto activo" : "productos activos"} en tu tienda.` : "Todavía no hay productos activos.",
-      done: products > 0 && manual.has("productos"),
-      manual: true,
-      href: "/marca/tienda/productos",
+      key: "legal",
+      label: "Completa razón social y NIT",
+      detail: brand.legalName && brand.taxId ? `${brand.legalName} · NIT ${brand.taxId}` : "Salen en tus cuentas de cobro y facturas.",
+      done: Boolean(brand.legalName?.trim() && brand.taxId?.trim()),
+      manual: false,
+      href: "/marca/perfil",
     },
     {
-      key: "inventario",
-      label: "Pon el inventario de lo que controlas",
+      key: "envios",
+      label: "Configura tus zonas de envío",
       detail:
-        noStock > 0
-          ? `${noStock} ${noStock === 1 ? "producto se vende" : "productos se venden"} sin control de inventario. Si así lo quieres, márcalo como listo.`
-          : "Todo tiene inventario.",
-      done: noStock === 0 || manual.has("inventario"),
-      manual: true,
-      href: "/marca/tienda/productos",
+        zones === 0
+          ? "Sin zonas de envío no se puede pagar un pedido."
+          : pendingRates > 0
+            ? `${pendingRates} ${pendingRates === 1 ? "tarifa venía" : "tarifas venían"} como contraentrega y Marcolini no lo permite: ponle precio al envío en Envíos.`
+            : `${zones} ${zones === 1 ? "zona" : "zonas"} de envío.`,
+      done: zones > 0 && pendingRates === 0,
+      manual: false,
+      href: "/marca/tienda/envios",
     },
     {
       key: "pagos",
@@ -134,55 +141,26 @@ function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
       href: "/marca/tienda/pagos",
     },
     {
-      key: "envios",
-      label: "Configura tus zonas de envío",
+      key: "inventario",
+      label: "Pon el inventario de lo que controlas",
       detail:
-        zones === 0
-          ? "Sin zonas de envío no se puede pagar un pedido."
-          : pendingRates > 0
-            ? `${pendingRates} ${pendingRates === 1 ? "tarifa venía" : "tarifas venían"} como contraentrega y Marcolini no lo permite: ponle precio al envío en Envíos.`
-            : `${zones} ${zones === 1 ? "zona" : "zonas"} de envío.`,
-      done: zones > 0 && pendingRates === 0,
-      manual: false,
-      href: "/marca/tienda/envios",
-    },
-    {
-      key: "fotos",
-      label: "Guarda las fotos en Marcolini",
-      detail:
-        photos > 0
-          ? `${photos} fotos siguen en el servidor de tu tienda anterior: se rompen si la cierras.`
-          : "Todas tus fotos están en Marcolini.",
-      done: photos === 0,
-      manual: false,
+        noStock > 0
+          ? `${noStock} ${noStock === 1 ? "producto se vende" : "productos se venden"} sin control de inventario. Si así lo quieres, márcalo como listo.`
+          : "Todo tiene inventario.",
+      done: noStock === 0 || manual.has("inventario"),
+      manual: true,
       href: "/marca/tienda/productos",
     },
     {
-      key: "legal",
-      label: "Completa razón social y NIT",
-      detail: brand.legalName && brand.taxId ? `${brand.legalName} · NIT ${brand.taxId}` : "Salen en tus cuentas de cobro y facturas.",
-      done: Boolean(brand.legalName?.trim() && brand.taxId?.trim()),
+      key: "programa",
+      label: "Configura tu programa de creadores",
+      detail:
+        activeOffers > 0
+          ? "Tu programa está activo: las creadoras pueden unirse y vender con su código."
+          : "Define la comisión para las creadoras y el descuento para su comunidad.",
+      done: activeOffers > 0,
       manual: false,
-      href: "/marca/perfil",
-    },
-    {
-      key: "dominio",
-      label: "Conecta tu dominio (opcional)",
-      detail: brand.customDomainVerifiedAt
-        ? `${brand.customDomain} verificado.`
-        : `O sigue con ${brand.storefrontSlug}.marcolini.lat: márcalo como listo.`,
-      done: Boolean(brand.customDomainVerifiedAt) || manual.has("dominio"),
-      manual: true,
-      href: "/marca/tienda/configuracion",
-      optional: true,
-    },
-    {
-      key: "prueba",
-      label: "Haz un pedido de prueba",
-      detail: orders > 0 ? `${orders} ${orders === 1 ? "pedido" : "pedidos"} en tu tienda.` : "Entra a tu tienda, compra algo y revisa que llegue el pedido y el correo.",
-      done: orders > 0,
-      manual: false,
-      href: storeUrl ?? "/marca/tienda/pedidos",
+      href: "/marca/cuenta?tab=oferta",
     },
   ];
   const done = items.filter((i) => i.done).length;
@@ -193,70 +171,59 @@ function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
 export async function getGoLiveChecklist(brandId: string): Promise<GoLiveChecklist | null> {
   const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId }, select: BRAND_SELECT });
   if (!brand.storefrontSlug) return null;
-  const [products, noStock, zones, pendingRates, orders, photos] = await Promise.all([
-    prisma.product.count({ where: { brandId, manual: true, status: "ACTIVE" } }),
+  const [noStock, zones, pendingRates, activeOffers] = await Promise.all([
     prisma.product.count({ where: { brandId, ...NO_STOCK_WHERE } }),
     prisma.shippingZone.count({ where: { brandId } }),
     prisma.shippingZoneRate.count({ where: { zone: { brandId }, pendingPrice: true } }),
-    prisma.storeOrder.count({ where: { brandId } }),
-    countExternalImages(brandId),
+    prisma.offer.count({ where: { brandId, status: "ACTIVE" } }),
   ]);
-  return buildItems(brand, { products, noStock, zones, pendingRates, orders, photos: photos.total });
+  return buildItems(brand, { noStock, zones, pendingRates, activeOffers });
 }
 
 export type GoLiveSummary = { done: number; total: number; missing: string[] };
 
-/// Para la tabla de Marcas del admin: la misma lista de todas las marcas
-/// con tienda, en unas pocas consultas agrupadas (no una por marca). Las
-/// fotos externas se miran solo en productos, que es donde casi siempre
-/// están; la marca ve el conteo exacto en su panel.
+/// Para la tabla de Marcas del admin y el marketplace: la misma lista de
+/// todas las marcas con tienda, en unas pocas consultas agrupadas (no una
+/// por marca).
 export async function getGoLiveSummaries(brands: (BrandFields & { id: string })[]): Promise<Map<string, GoLiveSummary>> {
   const withStore = brands.filter((b) => b.storefrontSlug);
   const ids = withStore.map((b) => b.id);
   const out = new Map<string, GoLiveSummary>();
   if (ids.length === 0) return out;
-  const [products, noStock, zones, pendingRates, orders, external] = await Promise.all([
-    prisma.product.groupBy({ by: ["brandId"], where: { brandId: { in: ids }, manual: true, status: "ACTIVE" }, _count: { _all: true } }),
+  const [noStock, zones, pendingRates, offers] = await Promise.all([
     prisma.product.groupBy({ by: ["brandId"], where: { brandId: { in: ids }, ...NO_STOCK_WHERE }, _count: { _all: true } }),
     prisma.shippingZone.groupBy({ by: ["brandId"], where: { brandId: { in: ids } }, _count: { _all: true } }),
     prisma.shippingZoneRate.findMany({
       where: { zone: { brandId: { in: ids } }, pendingPrice: true },
       select: { zone: { select: { brandId: true } } },
     }),
-    prisma.storeOrder.groupBy({ by: ["brandId"], where: { brandId: { in: ids } }, _count: { _all: true } }),
-    prisma.product.findMany({
-      where: {
-        brandId: { in: ids },
-        OR: [{ imageUrl: { startsWith: "http" } }, { images: { some: { url: { startsWith: "http" } } } }],
-      },
-      select: { brandId: true, imageUrl: true, images: { where: { url: { startsWith: "http" } }, select: { url: true }, take: 3 } },
-      take: 5000,
-    }),
+    prisma.offer.groupBy({ by: ["brandId"], where: { brandId: { in: ids }, status: "ACTIVE" }, _count: { _all: true } }),
   ]);
   const count = (rows: { brandId: string; _count: { _all: number } }[]) => new Map(rows.map((r) => [r.brandId, r._count._all]));
-  const productsBy = count(products);
   const noStockBy = count(noStock);
   const zonesBy = count(zones);
+  const offersBy = count(offers);
   const pendingBy = new Map<string, number>();
   for (const r of pendingRates) pendingBy.set(r.zone.brandId, (pendingBy.get(r.zone.brandId) ?? 0) + 1);
-  const ordersBy = count(orders);
-  const photosBy = new Map<string, number>();
-  for (const p of external) {
-    const urls = [p.imageUrl, ...p.images.map((i) => i.url)].filter(isExternalImageUrl);
-    if (urls.length > 0) photosBy.set(p.brandId, (photosBy.get(p.brandId) ?? 0) + urls.length);
-  }
   for (const brand of withStore) {
     const list = buildItems(brand, {
-      products: productsBy.get(brand.id) ?? 0,
       noStock: noStockBy.get(brand.id) ?? 0,
       zones: zonesBy.get(brand.id) ?? 0,
       pendingRates: pendingBy.get(brand.id) ?? 0,
-      orders: ordersBy.get(brand.id) ?? 0,
-      photos: photosBy.get(brand.id) ?? 0,
+      activeOffers: offersBy.get(brand.id) ?? 0,
     });
     out.set(brand.id, { done: list.done, total: list.total, missing: list.items.filter((i) => !i.done).map((i) => i.label) });
   }
   return out;
+}
+
+/// Las marcas (de entre `brandIds`) con toda la lista lista: las que salen
+/// en el marketplace en modo Auto (ver listActiveOffers).
+export async function goLiveReadyBrandIds(brandIds: string[]): Promise<Set<string>> {
+  if (brandIds.length === 0) return new Set();
+  const brands = await prisma.brandProfile.findMany({ where: { id: { in: brandIds } }, select: { id: true, ...BRAND_SELECT } });
+  const summaries = await getGoLiveSummaries(brands);
+  return new Set(Array.from(summaries).filter(([, s]) => s.done === s.total).map(([id]) => id));
 }
 
 export async function setGoLiveCheck(brandId: string, key: GoLiveKey, done: boolean) {

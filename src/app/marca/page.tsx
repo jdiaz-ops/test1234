@@ -12,6 +12,8 @@ import { getRecentEndedChallengeForBrand } from "@/server/services/challenge-ser
 import { CAMPAIGNS_ENABLED } from "@/lib/features";
 import { ChargePaymentBox } from "@/components/portal/charge-payment-box";
 import { GoLiveCard } from "@/components/portal/go-live-card";
+import { StoreLinkBar } from "@/components/portal/store-link-bar";
+import { publicStoreUrl } from "@/lib/store-url";
 import { getGoLiveChecklist } from "@/server/services/go-live-service";
 import {
   ChallengeResultsGrid,
@@ -115,9 +117,10 @@ export default async function MarcaDashboardPage() {
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">
         DASHBOARD
       </p>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-3">
         {profile.companyName}
       </h1>
+      <StoreLinkBar url={publicStoreUrl(profile)} />
 
       {openCharge && platformConfig && (
         <div className="mb-6">
@@ -143,7 +146,9 @@ export default async function MarcaDashboardPage() {
         </div>
       )}
 
-      {goLive && !goLive.complete && <GoLiveCard checklist={goLive} />}
+      {goLive && !goLive.complete && (
+        <GoLiveCard checklist={goLive} platformFeePercent={summary.platformFeePercent} vatPercent={summary.vatPercent} />
+      )}
 
       {pendingApprovals > 0 && (
         <Link

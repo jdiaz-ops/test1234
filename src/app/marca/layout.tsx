@@ -8,7 +8,6 @@ import { PortalShell } from "@/components/portal/portal-shell";
 import { ImpersonationBanner } from "@/components/portal/impersonation-banner";
 import { BillingLockScreen } from "@/components/portal/billing-lock-screen";
 import { countUnreadNotifications } from "@/server/services/notification-service";
-import { getBrandOnboardingStatus } from "@/server/services/onboarding-service";
 import { isBrandPaymentLocked } from "@/server/services/payment-service";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
 
@@ -67,8 +66,6 @@ export default async function MarcaLayout({
     );
   }
 
-  const onboarding = await getBrandOnboardingStatus(profile);
-
   return (
     <div className="min-h-screen flex flex-col">
       {session.user.impersonated && <ImpersonationBanner />}
@@ -76,11 +73,10 @@ export default async function MarcaLayout({
         logoHref="/marca"
         logoLabel="MARCOLINI"
         nav={
-          <BrandNav
-            unreadNotifications={unreadNotifications}
-            openOrders={openOrders}
-            onboarding={onboarding.complete ? undefined : onboarding}
-          />
+          // "Empieza aquí" (los 4 pasos) se escondió el 2026-10-19: el
+          // onboarding de la marca ahora es la lista de su Dashboard ("Lo
+          // que falta para ser visible en el marketplace").
+          <BrandNav unreadNotifications={unreadNotifications} openOrders={openOrders} />
         }
         footer={
           <>
@@ -100,14 +96,14 @@ export default async function MarcaLayout({
         {profile.status === "PENDING" && (
           <div className="bg-brand-accent-soft border-b border-brand-line px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-brand-ink">
-              Completa el proceso de onboarding para que tu marca sea visible
-              para los creadores de contenido.
+              Estamos revisando tu marca. Mientras tanto, completa en tu
+              Dashboard lo que falta para ser visible en el marketplace.
             </p>
             <Link
-              href="/marca/onboarding"
+              href="/marca"
               className="shrink-0 bg-brand-accent text-white text-xs font-medium rounded-full px-4 py-1.5 hover:opacity-90 transition"
             >
-              Terminar onboarding
+              Ir al Dashboard
             </Link>
           </div>
         )}
