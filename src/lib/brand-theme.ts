@@ -365,6 +365,9 @@ const productDetailSchema = withDefaults({
 /// (simplificar). Ver conversación del 2026-09-30.
 const cartSchema = withDefaults({
   suggestComplementary: z.boolean().default(false),
+  /// Ya no se usa: desde el 2026-10-19 el código de descuento va solo en
+  /// la página de pago (pedido de la marca). Queda para no romper los
+  /// temas guardados.
   allowCoupon: z.boolean().default(true),
 });
 

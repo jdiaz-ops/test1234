@@ -716,8 +716,24 @@ function largestFromSrcset(srcset: string | null): string | null {
   return best?.url ?? null;
 }
 
+/// El archivo original de una foto del CDN de Shopify: el tema la pide
+/// achicada ("…&width=260", o "logo_400x.png" en los temas viejos) y así se
+/// importaba un logo de 260 px que en la tienda se veía pixelado (pedido
+/// del 2026-10-19). Sin esos parámetros Shopify entrega el original.
+export function fullSizeShopifyImage(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname !== "cdn.shopify.com" && !u.pathname.includes("/cdn/shop/")) return url;
+    for (const key of ["width", "height", "crop"]) u.searchParams.delete(key);
+    u.pathname = u.pathname.replace(/_(?:\d+x\d*|x\d+)(?:@\dx)?(?=\.[a-z0-9]+$)/i, "");
+    return u.href;
+  } catch {
+    return url;
+  }
+}
+
 /// La etiqueta <img> del logo — la que más huele a logo en el encabezado —
-/// y su dirección.
+/// y su dirección (la original, si es del CDN de Shopify).
 function findLogo(html: string, baseUrl: string): { url: string; tag: string } | null {
   const scope = headerHtml(html) ?? html.slice(0, 200_000);
   const images = scope.match(/<img\b[^>]*>/gi) ?? [];
@@ -743,7 +759,8 @@ function findLogo(html: string, baseUrl: string): { url: string; tag: string } |
 }
 
 export function extractLogoUrl(html: string, baseUrl: string): string | null {
-  return findLogo(html, baseUrl)?.url ?? null;
+  const url = findLogo(html, baseUrl)?.url;
+  return url ? fullSizeShopifyImage(url) : null;
 }
 
 const LOGO_WIDTH_MIN = 40;

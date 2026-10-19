@@ -30,11 +30,10 @@ type CartContextValue = {
   ) => void;
   removeItem: (productId: string, variantId: string | null) => void;
   clear: () => void;
-  /// Código de creador aplicado desde el carrito (ver
-  /// theme.cart.allowCoupon) — se guarda acá para que sobreviva la
-  /// navegación a /checkout, que lo precarga solo. No se valida acá, eso
-  /// lo hace quien lo aplica (ver CartList) contra
-  /// previewDiscountCode.
+  /// Código de descuento que llegó antes del pago (por ejemplo el link de
+  /// una creadora) — se guarda acá para que sobreviva la navegación a
+  /// /checkout, que lo precarga solo. No se valida acá: el pago lo valida
+  /// contra previewDiscountCode.
   discountCode: string | null;
   setDiscountCode: (code: string | null) => void;
   /// El carrito se consulta desde un drawer (panel lateral), no

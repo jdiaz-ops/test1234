@@ -34,7 +34,7 @@ export function CartList({
   brandSlug: string;
   basePath?: string;
 }) {
-  const { items, subtotal, updateQuantity, removeItem, discountCode, setDiscountCode, closeDrawer, addItem } = useCart();
+  const { items, subtotal, updateQuantity, removeItem, closeDrawer, addItem } = useCart();
   const { cart } = useStorefrontTheme();
 
   // "Completa tu compra" — se pide al servidor cada vez que cambia QUÉ
@@ -57,41 +57,8 @@ export function CartList({
   }, [cart.suggestComplementary, cartProductIds, brandSlug]);
   const visibleSuggestions = suggestions.filter((s) => !items.some((i) => i.productId === s.id));
 
-  const [codeInput, setCodeInput] = useState(discountCode ?? "");
-  const [checkingCode, setCheckingCode] = useState(false);
-  const [codeError, setCodeError] = useState<string | null>(null);
-  const [codeApplied, setCodeApplied] = useState(!!discountCode);
-
-  async function applyCode() {
-    if (!codeInput.trim()) return;
-    setCheckingCode(true);
-    setCodeError(null);
-    try {
-      const res = await fetch(`/api/tienda/${brandSlug}/codigo`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: codeInput }),
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        setCodeError(body?.error ?? "Código no válido.");
-        setCodeApplied(false);
-        return;
-      }
-      setDiscountCode(codeInput.trim().toUpperCase());
-      setCodeApplied(true);
-    } catch {
-      setCodeError("No se pudo validar el código — intenta de nuevo.");
-    } finally {
-      setCheckingCode(false);
-    }
-  }
-
-  function removeCode() {
-    setDiscountCode(null);
-    setCodeApplied(false);
-    setCodeInput("");
-  }
+  // El código de descuento ya no va en el carrito: se escribe en el pago
+  // (checkout-form.tsx), un solo lugar. Pedido del 2026-10-19.
 
   if (items.length === 0) {
     return (
@@ -171,39 +138,6 @@ export function CartList({
           </button>
         </div>
       ))}
-
-      {cart.allowCoupon && (
-        <div className="rounded-xl border border-brand-line p-3">
-          {codeApplied && discountCode ? (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-brand-ink">
-                Código aplicado: <span className="font-mono font-medium">{discountCode}</span>
-              </p>
-              <button type="button" onClick={removeCode} className="text-xs text-red-600 hover:underline">
-                Quitar
-              </button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <input
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value)}
-                placeholder="Código de descuento"
-                className="input text-sm font-mono flex-1"
-              />
-              <button
-                type="button"
-                onClick={applyCode}
-                disabled={checkingCode || !codeInput.trim()}
-                className="rounded-full border border-brand-line px-4 text-sm font-medium hover:bg-brand-accent-soft disabled:opacity-50 shrink-0"
-              >
-                {checkingCode ? "..." : "Aplicar"}
-              </button>
-            </div>
-          )}
-          {codeError && <p className="text-xs text-red-600 mt-1">{codeError}</p>}
-        </div>
-      )}
 
       {cart.suggestComplementary && visibleSuggestions.length > 0 && (
         <div className="pt-4 border-t border-brand-line space-y-3">

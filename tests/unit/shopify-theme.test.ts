@@ -107,7 +107,14 @@ describe("leer el diseño de la portada de Shopify", () => {
   });
 
   it("encuentra el logo (la versión más grande), el favicon y el nombre", () => {
-    expect(extractLogoUrl(DAWN, BASE)).toBe("https://www.beautysolutionshop.com/cdn/shop/files/logo_400x.png?v=3");
+    // El archivo original, no la versión achicada que pide el tema.
+    expect(extractLogoUrl(DAWN, BASE)).toBe("https://www.beautysolutionshop.com/cdn/shop/files/logo.png?v=3");
+    expect(
+      extractLogoUrl(
+        '<header><img src="//www.beautysolutionshop.com/cdn/shop/files/Sin_titulo_10_x_2.1_cm_500_x_300_mm.png?v=1735840625&amp;width=600" srcset="//www.beautysolutionshop.com/cdn/shop/files/Sin_titulo_10_x_2.1_cm_500_x_300_mm.png?v=1735840625&amp;width=260 260w" width="130" class="header__heading-logo"></header>',
+        BASE,
+      ),
+    ).toBe("https://www.beautysolutionshop.com/cdn/shop/files/Sin_titulo_10_x_2.1_cm_500_x_300_mm.png?v=1735840625");
     expect(extractFaviconUrl(DAWN, BASE)).toBe("https://www.beautysolutionshop.com/cdn/shop/files/favicon_180x180.png?v=1");
     expect(extractStoreName(DAWN)).toBe("Beauty Solution Shop");
     expect(extractStoreName("<title>Mi Tienda – Uñas</title>")).toBe("Mi Tienda");
@@ -170,7 +177,7 @@ describe("leer el diseño de la portada de Shopify", () => {
     expect(info.colors?.botones).toBe("#d1477b");
     expect(info.fonts?.headingFont).toBe("Playfair Display");
     expect(info.menu).toHaveLength(5);
-    expect(info.logoUrl).toContain("logo_400x");
+    expect(info.logoUrl).toBe("https://www.beautysolutionshop.com/cdn/shop/files/logo.png?v=3");
   });
 });
 

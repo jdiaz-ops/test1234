@@ -88,14 +88,24 @@ const MEGA_MAX_GRANDCHILDREN = 24;
 /// marco ni recorte circular. En celular va un escalón más grande que en
 /// computadora: ahí el logo es lo único que identifica la tienda y se veía
 /// chico al lado del buscador. Ver conversación del 2026-10-18.
+/// Alto del logo por tamaño, y abajo el ancho máximo: desde que el logo
+/// llega recortado (sin bordes vacíos, ver logo-src.ts) los altos de antes
+/// lo dejaban enorme y, si el archivo es chico, pixelado — "el justo
+/// medio" (2026-10-19).
 const LOGO_HEIGHT_CLASS = {
-  small: "h-10 sm:h-7",
-  medium: "h-14 sm:h-9",
-  large: "h-[4.5rem] sm:h-14",
+  small: "h-8 sm:h-7",
+  medium: "h-10 sm:h-9",
+  large: "h-12 sm:h-12",
   // Ancho exacto (header.logoWidth, va en style): en celular se achica
   // hasta dejar espacio al menú y al carrito; en computador, a lo sumo
   // el 40 % del encabezado.
   custom: "h-auto max-w-[calc(100vw-12rem)] sm:max-w-[40vw]",
+};
+
+const LOGO_MAX_WIDTH_CLASS = {
+  small: "max-w-[min(120px,calc(100vw-8.5rem))] sm:max-w-[140px]",
+  medium: "max-w-[min(150px,calc(100vw-8.5rem))] sm:max-w-[180px]",
+  large: "max-w-[min(190px,calc(100vw-8.5rem))] sm:max-w-[240px]",
 };
 
 /// El círculo con la inicial, solo para la marca que todavía no subió logo.
@@ -232,7 +242,7 @@ export function StoreHeader({
           className={
             header.logoSize === "custom"
               ? `${LOGO_HEIGHT_CLASS.custom} object-contain`
-              : `${LOGO_HEIGHT_CLASS[header.logoSize]} w-auto max-w-[min(220px,calc(100vw-8.5rem))] sm:max-w-[180px] object-contain`
+              : `${LOGO_HEIGHT_CLASS[header.logoSize]} ${LOGO_MAX_WIDTH_CLASS[header.logoSize]} w-auto object-contain`
           }
           style={header.logoSize === "custom" ? { width: header.logoWidth } : undefined}
         />

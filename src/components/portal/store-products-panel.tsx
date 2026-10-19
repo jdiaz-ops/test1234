@@ -11,6 +11,7 @@ import { ShopifyImporter } from "@/components/portal/shopify-importer";
 import { RehostImagesNotice } from "@/components/portal/rehost-images-notice";
 import { ProductFamiliesTool } from "@/components/portal/product-families-tool";
 import { ColorFamiliesTool } from "@/components/portal/color-families-tool";
+import { ProductLinesTool } from "@/components/portal/product-lines-tool";
 import { CatalogAuditTool } from "@/components/portal/catalog-audit-tool";
 import { StoreOrganizerTool } from "@/components/portal/store-organizer-tool";
 
@@ -494,6 +495,7 @@ export function StoreProductsPanel({
       {importTools && <CatalogAuditTool storeUrl={storeUrl} />}
       {importTools && <ProductFamiliesTool />}
       {importTools && <ColorFamiliesTool />}
+      {importTools && <ProductLinesTool />}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {activatedNotice && <p className="text-sm text-green-700">{activatedNotice}</p>}

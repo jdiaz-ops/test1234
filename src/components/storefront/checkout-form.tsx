@@ -490,8 +490,7 @@ export function CheckoutForm({
   const codeBox = (
     <div className="space-y-2">
       <div>
-        <p className="text-sm font-semibold text-brand-ink">¿Tienes un código de creador?</p>
-        <p className="text-xs text-brand-ink-soft">Si un creador te compartió su código, escríbelo aquí y te aplicamos su descuento.</p>
+        <p className="text-sm font-semibold text-brand-ink">¿Tienes un código de descuento?</p>
       </div>
       <div className="flex gap-2">
         <div className="relative flex-1">

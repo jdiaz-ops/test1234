@@ -911,7 +911,9 @@ export function CartSection({ theme, patch }: { theme: ThemeConfig; patch: Patch
         productos de las mismas colecciones que los del carrito (si no hay, los más
         recientes de la tienda), cada uno con su botón de agregar.
       </p>
-      <Checkbox label="Permitir aplicar cupón de descuento en el carrito" checked={c.allowCoupon} onChange={(v) => patch({ cart: { allowCoupon: v } })} />
+      <p className="text-[11px] text-brand-ink-soft">
+        El código de descuento se escribe en la página de pago, no en el carrito.
+      </p>
     </div>
   );
 }
