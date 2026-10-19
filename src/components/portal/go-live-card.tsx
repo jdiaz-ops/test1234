@@ -269,23 +269,11 @@ export function GoLiveCard({
       </div>
     ) : null;
 
-  // A la venta: queda la confirmación, y debajo lo opcional que falte (si
-  // algo se desarma, como los pagos, la lista vuelve sola).
+  // A la venta: la lista desaparece (sin aviso de "¡Estás a la venta!",
+  // pedido del 2026-10-19); queda solo lo opcional que falte. Si algo se
+  // desarma, como los pagos, la lista vuelve sola.
   if (live) {
-    return (
-      <div className="mb-6 space-y-3">
-        <section className="flex items-center gap-3 rounded-2xl bg-brand-ink px-5 py-4 text-white">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15">
-            <FlagIcon />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">¡Estás a la venta en el marketplace!</p>
-            <p className="text-xs text-white/80">Las creadoras pueden encontrar tu marca, unirse a tu programa y vender con su código.</p>
-          </div>
-        </section>
-        {optionalSteps}
-      </div>
-    );
+    return optionalSteps ? <div className="mb-6">{optionalSteps}</div> : null;
   }
 
   return (

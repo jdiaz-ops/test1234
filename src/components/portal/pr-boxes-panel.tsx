@@ -218,7 +218,7 @@ function PrBoxEditor({ box, onDone }: { box?: PrBoxView; onDone: () => void }) {
     <div className="space-y-5 rounded-2xl border border-brand-accent/30 bg-brand-surface p-5">
       <p className="font-display font-semibold text-brand-ink">{box ? "Editar caja" : "Nueva Caja PR"}</p>
       <PhotosField images={draft.images} onChange={(images) => set("images", images)} />
-      <div className="grid gap-4 sm:grid-cols-[1fr_10rem]">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_10rem]">
         <div>
           <label className="mb-1 block text-sm text-brand-ink">Nombre de la caja</label>
           <input value={draft.name} onChange={(e) => set("name", e.target.value)} maxLength={80} placeholder="Ej. Caja lanzamiento Navidad" className="input" />
@@ -265,7 +265,7 @@ function PrBoxEditor({ box, onDone }: { box?: PrBoxView; onDone: () => void }) {
             className="input min-h-16"
           />
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
             <label className="mb-1 block text-xs text-brand-ink">Se puede pedir hasta</label>
             <input type="date" value={draft.requestUntil} onChange={(e) => set("requestUntil", e.target.value)} className="input text-sm" />
@@ -430,7 +430,7 @@ function ProposePanel({ box, onClose }: { box: PrBoxView; onClose: () => void })
           ) : creators.length === 0 ? (
             <p className="text-sm text-brand-ink-soft">Ninguna creadora de tu programa coincide con ese nombre.</p>
           ) : (
-            <ul className="grid max-h-96 gap-2 overflow-y-auto sm:grid-cols-2">
+            <ul className="grid grid-cols-1 max-h-96 gap-2 overflow-y-auto sm:grid-cols-2">
               {creators.map((c) => {
                 const taken = c.requestStatus ? TAKEN_LABEL[c.requestStatus] : null;
                 const on = Boolean(chosen[c.id]);
@@ -788,26 +788,17 @@ export function PrBoxesPanel({ boxes }: { boxes: PrBoxView[] }) {
   const [creating, setCreating] = useState(false);
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="max-w-xl">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-display text-base font-semibold text-brand-ink">Cajas PR</h2>
-            {/* Bien a la vista (pedido del 2026-10-19). */}
-            <span className="rounded-full bg-brand-ink px-2.5 py-1 text-[11px] font-medium text-white">No sale en tu tienda</span>
-          </div>
-          <p className="mt-1 text-sm text-brand-ink-soft">Para un lanzamiento o una campaña: una caja armada solo para creadoras, con su brief.</p>
+      <div className="max-w-xl">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-display text-base font-semibold text-brand-ink">Cajas PR</h2>
+          {/* Bien a la vista (pedido del 2026-10-19). */}
+          <span className="rounded-full bg-brand-ink px-2.5 py-1 text-[11px] font-medium text-white">No sale en tu tienda</span>
         </div>
-        {!creating && (
-          <button type="button" onClick={() => setCreating(true)} className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90">
-            + Crear Caja PR
-          </button>
-        )}
+        <p className="mt-1 text-sm text-brand-ink-soft">Para un lanzamiento o una campaña: una caja armada solo para creadoras, con su brief.</p>
       </div>
 
-      {creating && <PrBoxEditor onDone={() => setCreating(false)} />}
-
       {boxes.length === 0 && !creating && (
-        <ol className="grid gap-3 sm:grid-cols-2">
+        <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {HOW_IT_WORKS.map((step, i) => (
             <li key={step.title} className="rounded-2xl border border-brand-line bg-brand-surface p-4">
               <p className="font-mono text-[11px] tracking-widest text-brand-accent">PASO {i + 1}</p>
@@ -829,6 +820,16 @@ export function PrBoxesPanel({ boxes }: { boxes: PrBoxView[] }) {
         </svg>
         {PR_BOX_DISCLAIMER}
       </p>
+
+      {/* "Crear Caja PR" va después de los pasos (pedido del 2026-10-19);
+          el formulario se abre ahí mismo, donde estaba el botón. */}
+      {creating ? (
+        <PrBoxEditor onDone={() => setCreating(false)} />
+      ) : (
+        <button type="button" onClick={() => setCreating(true)} className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90">
+          + Crear Caja PR
+        </button>
+      )}
     </section>
   );
 }
