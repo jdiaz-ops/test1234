@@ -24,6 +24,7 @@ on:
           - url
           - buscar
           - post
+          - escanear
       patron:
         description: Expresión regular para el modo "buscar", o cuerpo JSON para el modo "post" (opcional)
         required: false

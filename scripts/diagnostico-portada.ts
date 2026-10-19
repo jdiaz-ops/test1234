@@ -196,6 +196,52 @@ async function main() {
     console.log("---- fin ----");
     return;
   }
+  if (process.argv[3] === "escanear") {
+    // Modo "escanear": corre el lector de otras tiendas (WooCommerce,
+    // Tiendanube, Ecometri…) de punta a punta, igual que lo hace el
+    // navegador en Duplicar tienda, y resume qué leyó.
+    const { scanStore } = await import("@/server/services/other-store-reader");
+    const first = await scanStore(null, { step: "detect", url });
+    console.log(`Plataforma ${first.platform} · tienda "${first.storeName}" · origen ${first.origin}`);
+    console.log(JSON.stringify({ storeInfo: first.storeInfo, categories: first.categories, infoPages: first.infoPages.length, warnings: first.warnings }, null, 1));
+    const queue = [...first.next];
+    const byHandle = new Map<string, Record<string, unknown> & { handle: string; collectionNames: string[]; description: string; hasVariants: boolean; images: string[]; price: number }>();
+    const warnings: string[] = [];
+    let steps = 0;
+    let failed = 0;
+    while (queue.length > 0) {
+      const step = queue.shift()!;
+      steps++;
+      try {
+        const r = await scanStore(first.origin, step);
+        warnings.push(...r.warnings);
+        queue.push(...r.next);
+        for (const p of r.products) {
+          const prev = byHandle.get(p.handle);
+          if (!prev) {
+            byHandle.set(p.handle, p);
+            continue;
+          }
+          for (const name of p.collectionNames) if (!prev.collectionNames.includes(name)) prev.collectionNames.push(name);
+          if (!prev.description && p.description) prev.description = p.description;
+          if (!prev.hasVariants && p.hasVariants) byHandle.set(p.handle, { ...p, collectionNames: prev.collectionNames });
+        }
+      } catch (err) {
+        failed++;
+        console.log(`Paso ${JSON.stringify(step).slice(0, 160)} falló: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    const products = Array.from(byHandle.values());
+    console.log(`Pasos ${steps} (fallidos ${failed}) · productos ${products.length}`);
+    console.log(`Con descripción ${products.filter((p) => p.description).length} · con variantes ${products.filter((p) => p.hasVariants).length} · con foto ${products.filter((p) => p.images.length > 0).length} · con precio ${products.filter((p) => p.price > 0).length} · con colección ${products.filter((p) => p.collectionNames.length > 0).length}`);
+    const perCollection = new Map<string, number>();
+    for (const p of products) for (const c of p.collectionNames) perCollection.set(c, (perCollection.get(c) ?? 0) + 1);
+    console.log("Por colección:", JSON.stringify(Object.fromEntries(perCollection)));
+    console.log("Avisos:", JSON.stringify(Array.from(new Set(warnings))));
+    console.log("Muestra:", JSON.stringify(products.slice(0, 3), null, 1).slice(0, 6000));
+    console.log("---- fin ----");
+    return;
+  }
   if (process.argv[3] === "post") {
     // Modo "post": manda PATRON como cuerpo JSON a la dirección (por ejemplo
     // una consulta GraphQL de otra plataforma) y muestra la respuesta.
