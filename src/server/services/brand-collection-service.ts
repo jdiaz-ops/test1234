@@ -43,6 +43,7 @@ function toCollectionRow(c: {
   slug: string;
   description: string | null;
   imageUrl: string | null;
+  showInCategories: boolean;
   _count: { products: number };
 }) {
   return {
@@ -51,6 +52,7 @@ function toCollectionRow(c: {
     slug: c.slug,
     description: c.description,
     imageUrl: c.imageUrl,
+    showInCategories: c.showInCategories,
     productCount: c._count.products,
   };
 }
@@ -140,10 +142,13 @@ export async function getPublicBrandCollection(brandId: string, slug: string, op
 /// theme.mobileNav) y de la sección CATEGORY_GRID. Solo trae colecciones
 /// con al menos un producto visible — una colección vacía no tiene nada
 /// que mostrar si le dan clic.
+/// Las de la página "Todas las categorías": con productos a la venta y sin
+/// ocultar por la marca (showInCategories).
 export async function getPublicBrandCollections(brandId: string, options?: StockOptions) {
   const collections = await prisma.brandCollection.findMany({
     where: {
       brandId,
+      showInCategories: true,
       products: {
         some: { product: { status: "ACTIVE", available: true, ...stockWhere(options) } },
       },
@@ -305,6 +310,12 @@ export async function deleteBrandCollection(brandId: string, collectionId: strin
   });
   if (!existing) throw new BrandCollectionError("Colección no encontrada.");
   await prisma.brandCollection.delete({ where: { id: collectionId } });
+}
+
+/// Mostrar u ocultar la colección en la página "Todas las categorías".
+export async function setCollectionInCategories(brandId: string, collectionId: string, show: boolean) {
+  const updated = await prisma.brandCollection.updateMany({ where: { id: collectionId, brandId }, data: { showInCategories: show } });
+  if (updated.count === 0) throw new BrandCollectionError("Colección no encontrada.");
 }
 
 export async function reorderBrandCollections(brandId: string, orderedIds: string[]) {

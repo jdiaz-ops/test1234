@@ -13,6 +13,8 @@ export type BrandCollectionRow = {
   slug: string;
   description: string | null;
   imageUrl: string | null;
+  /// Sale en la página "Todas las categorías" de la tienda.
+  showInCategories: boolean;
   productCount: number;
 };
 
@@ -320,6 +322,43 @@ export function StoreCollectionsPanel({
     refresh();
   }
 
+  /// Orden de las colecciones = el de la página "Todas las categorías" de
+  /// la tienda (la de "Categorías" en la barra de abajo del celular). Se
+  /// guarda al instante; si falla, vuelve como estaba.
+  async function move(index: number, delta: -1 | 1) {
+    const target = index + delta;
+    if (target < 0 || target >= collections.length) return;
+    const before = collections;
+    const next = [...collections];
+    [next[index], next[target]] = [next[target], next[index]];
+    setCollections(next);
+    setError(null);
+    const res = await fetch("/api/marca/tienda/colecciones", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order: next.map((c) => c.id) }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setCollections(before);
+      setError("No se pudo cambiar el orden — intenta de nuevo.");
+    }
+  }
+
+  async function toggleCategories(c: BrandCollectionRow) {
+    const show = !c.showInCategories;
+    setCollections((prev) => prev.map((x) => (x.id === c.id ? { ...x, showInCategories: show } : x)));
+    setError(null);
+    const res = await fetch(`/api/marca/tienda/colecciones/${c.id}/categorias`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ show }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setCollections((prev) => prev.map((x) => (x.id === c.id ? { ...x, showInCategories: !show } : x)));
+      setError("No se pudo guardar — intenta de nuevo.");
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!window.confirm("¿Eliminar esta colección? No se puede deshacer.")) return;
     setDeletingId(id);
@@ -371,9 +410,35 @@ export function StoreCollectionsPanel({
           producto, lo que te sirva para organizar tu catálogo.
         </p>
       ) : (
+        <>
+        <p className="text-xs text-brand-ink-soft max-w-2xl">
+          Este orden es el de la página <span className="font-medium text-brand-ink">Categorías</span> de tu tienda (a la que lleva la
+          barra de abajo en el celular). Con las flechas las cambias de lugar y con la casilla decides si sale ahí. La foto de cada una es
+          su <span className="font-medium text-brand-ink">Miniatura</span>: la cambias en Editar.
+        </p>
         <div className="rounded-2xl border border-brand-line bg-brand-surface overflow-hidden divide-y divide-brand-line">
-          {collections.map((c) => (
+          {collections.map((c, index) => (
             <div key={c.id} className="flex items-center gap-3 p-4">
+              <div className="flex flex-col shrink-0">
+                <button
+                  type="button"
+                  onClick={() => move(index, -1)}
+                  disabled={index === 0}
+                  aria-label={`Subir ${c.name}`}
+                  className="w-7 h-6 flex items-center justify-center rounded text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(index, 1)}
+                  disabled={index === collections.length - 1}
+                  aria-label={`Bajar ${c.name}`}
+                  className="w-7 h-6 flex items-center justify-center rounded text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                  ▼
+                </button>
+              </div>
               {c.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={c.imageUrl} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
@@ -386,6 +451,10 @@ export function StoreCollectionsPanel({
                   {c.productCount} producto{c.productCount === 1 ? "" : "s"}
                 </p>
                 {storeUrl && <CollectionUrl url={`${storeUrl}/coleccion/${c.slug}`} />}
+                <label className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-brand-ink cursor-pointer">
+                  <input type="checkbox" checked={c.showInCategories} onChange={() => toggleCategories(c)} />
+                  Se ve en Categorías
+                </label>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <button
@@ -407,6 +476,7 @@ export function StoreCollectionsPanel({
             </div>
           ))}
         </div>
+        </>
       )}
     </div>
   );
