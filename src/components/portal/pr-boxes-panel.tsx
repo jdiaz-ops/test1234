@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { prepareImageForUpload } from "@/lib/prepare-image-upload";
-import { PR_BOX_STAGE, dayInputValue, formatDay, prBoxContentsList, type PrBoxStage } from "@/lib/pr-box";
+import { PR_BOX_AUDIENCE, PR_BOX_DISCLAIMER, PR_BOX_STAGE, dayInputValue, formatDay, prBoxAudience, prBoxContentsList, type PrBoxStage } from "@/lib/pr-box";
 
 /// Cajas PR en Muestras (ver pr-box-service.ts): la marca arma la caja con
-/// su brief, ve en qué va cada creadora (pedida → por enviar → enviada →
-/// publicada, o vencida), aprueba, la envía con su guía y se la propone a
-/// creadoras puntuales. Las unidades solo las ve la marca.
+/// su brief, ve en qué va cada creadora (pedida → por enviar → enviada),
+/// aprueba, la envía con su guía y se la propone a creadoras puntuales. Las
+/// unidades solo las ve la marca. Marcolini no sigue lo que ellas publiquen
+/// (ver PR_BOX_DISCLAIMER).
 
 export type PrBoxSocial = { platform: string; handle: string; approxFollowers: number | null };
 
@@ -20,8 +21,6 @@ export type PrBoxRequestView = {
   message: string | null;
   rejectedReason: string | null;
   createdAt: string;
-  postUrl: string | null;
-  publishedAt: string | null;
   creator: { displayName: string; photoUrl: string | null; city: string | null; socials: PrBoxSocial[] };
   /// Solo cuando ya está aprobada (antes la marca no ve la dirección).
   shipping: { name: string; document: string | null; email: string | null; phone: string; region: string | null; city: string; address: string; notes: string | null } | null;
@@ -39,15 +38,16 @@ export type PrBoxView = {
   keyMessages: string;
   requestUntil: string | null;
   shipsOn: string | null;
-  publishBy: string | null;
+  launchOn: string | null;
   status: "DRAFT" | "OPEN" | "CLOSED";
   inMarketplace: boolean;
+  allowProposals: boolean;
   /// Si hoy se puede pedir (abierta, con unidades y en fecha).
   accepting: boolean;
   requests: PrBoxRequestView[];
 };
 
-const STAGE_ORDER: PrBoxStage[] = ["pedida", "por-enviar", "enviada", "vencida", "publicada", "propuesta", "rechazada", "no-acepto"];
+const STAGE_ORDER: PrBoxStage[] = ["pedida", "por-enviar", "enviada", "propuesta", "rechazada", "no-acepto"];
 
 /// "3 pedidas", "1 por enviar", "2 no aceptaron".
 const COUNT_LABEL: Record<PrBoxStage, [string, string]> = {
@@ -55,8 +55,6 @@ const COUNT_LABEL: Record<PrBoxStage, [string, string]> = {
   propuesta: ["propuesta", "propuestas"],
   "por-enviar": ["por enviar", "por enviar"],
   enviada: ["enviada", "enviadas"],
-  publicada: ["publicada", "publicadas"],
-  vencida: ["vencida", "vencidas"],
   rechazada: ["rechazada", "rechazadas"],
   "no-acepto": ["no aceptó", "no aceptaron"],
 };
@@ -105,8 +103,9 @@ type Draft = {
   keyMessages: string;
   requestUntil: string;
   shipsOn: string;
-  publishBy: string;
+  launchOn: string;
   inMarketplace: boolean;
+  allowProposals: boolean;
 };
 
 function draftFrom(box?: PrBoxView): Draft {
@@ -119,8 +118,9 @@ function draftFrom(box?: PrBoxView): Draft {
     keyMessages: box?.keyMessages ?? "",
     requestUntil: dayInputValue(box?.requestUntil),
     shipsOn: dayInputValue(box?.shipsOn),
-    publishBy: dayInputValue(box?.publishBy),
+    launchOn: dayInputValue(box?.launchOn),
     inMarketplace: box?.inMarketplace ?? true,
+    allowProposals: box?.allowProposals ?? true,
   };
 }
 
@@ -274,28 +274,29 @@ function PrBoxEditor({ box, onDone }: { box?: PrBoxView; onDone: () => void }) {
             <input type="date" value={draft.shipsOn} onChange={(e) => set("shipsOn", e.target.value)} className="input text-sm" />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-brand-ink">Publicar a más tardar</label>
-            <input type="date" value={draft.publishBy} onChange={(e) => set("publishBy", e.target.value)} className="input text-sm" />
+            <label className="mb-1 block text-xs text-brand-ink">Fecha de lanzamiento</label>
+            <input type="date" value={draft.launchOn} onChange={(e) => set("launchOn", e.target.value)} className="input text-sm" />
           </div>
         </div>
       </div>
 
       <fieldset className="space-y-2">
         <legend className="mb-1 text-sm text-brand-ink">¿Quién la puede pedir?</legend>
-        <label className="flex items-start gap-2 text-sm text-brand-ink">
-          <input type="radio" checked={draft.inMarketplace} onChange={() => set("inMarketplace", true)} className="mt-1" />
-          <span>
-            Todas las creadoras, desde el marketplace
-            <span className="block text-xs text-brand-ink-soft">Ellas la piden y tú decides a quién se la apruebas.</span>
-          </span>
-        </label>
-        <label className="flex items-start gap-2 text-sm text-brand-ink">
-          <input type="radio" checked={!draft.inMarketplace} onChange={() => set("inMarketplace", false)} className="mt-1" />
-          <span>
-            Solo las creadoras a las que se la propongas
-            <span className="block text-xs text-brand-ink-soft">No sale en el marketplace.</span>
-          </span>
-        </label>
+        {PR_BOX_AUDIENCE.map((option) => (
+          <label key={option.key} className="flex items-start gap-2 text-sm text-brand-ink">
+            <input
+              type="radio"
+              name="pr-box-audience"
+              checked={draft.inMarketplace === option.inMarketplace && draft.allowProposals === option.allowProposals}
+              onChange={() => setDraft((d) => ({ ...d, inMarketplace: option.inMarketplace, allowProposals: option.allowProposals }))}
+              className="mt-1"
+            />
+            <span>
+              {option.label}
+              <span className="block text-xs text-brand-ink-soft">{option.hint}</span>
+            </span>
+          </label>
+        ))}
       </fieldset>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -529,7 +530,7 @@ function RequestRow({ request, box }: { request: PrBoxRequestView; box: PrBoxVie
 
         {request.stage === "propuesta" && <p className="text-xs text-brand-ink-soft">Se la propusiste: esperando que acepte y deje su dirección.</p>}
 
-        {request.shipping && (request.stage === "por-enviar" || request.stage === "enviada" || request.stage === "vencida") && (
+        {request.shipping && (request.stage === "por-enviar" || request.stage === "enviada") && (
           <div className="rounded-lg bg-brand-bg px-3 py-2 text-xs text-brand-ink-soft">
             <p className="font-medium text-brand-ink">
               Enviar a {request.shipping.name}
@@ -557,24 +558,10 @@ function RequestRow({ request, box }: { request: PrBoxRequestView; box: PrBoxVie
           </div>
         )}
 
-        {(request.stage === "enviada" || request.stage === "vencida") && (
+        {request.stage === "enviada" && (
           <p className="text-xs text-brand-ink-soft">
             Enviada{request.order?.shippedAt ? ` el ${formatDay(request.order.shippedAt)}` : ""}
-            {request.order?.trackingNumber ? ` · ${[request.order.carrier, request.order.trackingNumber].filter(Boolean).join(" ")}` : ""}.{" "}
-            {request.stage === "vencida"
-              ? `Se pasó la fecha para publicar (${formatDay(box.publishBy!)}) y no ha subido su link.`
-              : box.publishBy
-                ? `Tiene hasta el ${formatDay(box.publishBy)} para publicar.`
-                : "Esperando su publicación."}
-          </p>
-        )}
-
-        {request.stage === "publicada" && request.postUrl && (
-          <p className="text-xs text-brand-ink-soft">
-            <a href={request.postUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-accent hover:underline">
-              Ver publicación ↗
-            </a>
-            {request.publishedAt ? ` · la subió el ${formatDay(request.publishedAt)}` : ""}
+            {request.order?.trackingNumber ? ` · ${[request.order.carrier, request.order.trackingNumber].filter(Boolean).join(" ")}` : ""}.
           </p>
         )}
 
@@ -592,6 +579,13 @@ function RequestRow({ request, box }: { request: PrBoxRequestView; box: PrBoxVie
 }
 
 // ------------------------------------------------------------- Cada caja
+
+/// Al lado del estado de la caja.
+const AUDIENCE_SHORT: Record<(typeof PR_BOX_AUDIENCE)[number]["key"], string> = {
+  both: "En el marketplace y por invitación",
+  marketplace: "Solo en el marketplace",
+  invited: "Solo invitadas",
+};
 
 function statusPill(box: PrBoxView) {
   if (box.status === "DRAFT") return { label: "Borrador", tone: "bg-neutral-100 text-neutral-700 border-neutral-200" };
@@ -639,14 +633,14 @@ function PrBoxCard({ box }: { box: PrBoxView }) {
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-display font-semibold text-brand-ink">{box.name}</p>
             <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${pill.tone}`}>{pill.label}</span>
-            <span className="text-[11px] text-brand-ink-soft">{box.inMarketplace ? "En el marketplace" : "Solo invitadas"}</span>
+            <span className="text-[11px] text-brand-ink-soft">{AUDIENCE_SHORT[prBoxAudience(box).key]}</span>
           </div>
           <p className="mt-0.5 text-xs text-brand-ink-soft tabular-nums">
             {[
               `Quedan ${box.units - box.unitsUsed} de ${box.units}`,
               box.requestUntil ? `se pide hasta el ${formatDay(box.requestUntil)}` : null,
               box.shipsOn ? `envío el ${formatDay(box.shipsOn)}` : null,
-              box.publishBy ? `publicar antes del ${formatDay(box.publishBy)}` : null,
+              box.launchOn ? `lanzamiento el ${formatDay(box.launchOn)}` : null,
             ]
               .filter(Boolean)
               .join(" · ")}
@@ -671,7 +665,7 @@ function PrBoxCard({ box }: { box: PrBoxView }) {
             {open ? "Ocultar creadoras" : `Ver creadoras (${box.requests.length})`}
           </button>
         )}
-        {box.status === "OPEN" && (
+        {box.status === "OPEN" && box.allowProposals && (
           <button type="button" onClick={() => setMode(mode === "propose" ? null : "propose")} className="font-medium text-brand-accent hover:underline">
             Proponer a creadoras
           </button>
@@ -729,7 +723,6 @@ function PrBoxCard({ box }: { box: PrBoxView }) {
 const HOW_IT_WORKS = [
   { title: "Arma la caja", text: "Fotos, qué trae, cuántas tienes y el brief: qué contenido quieres y las fechas." },
   { title: "Apruebas y la envías", text: "Las creadoras la piden (o se la propones tú). Al aprobar ves su dirección y la envías con su guía." },
-  { title: "Ellas publican", text: "Cada creadora sube el link de su publicación y ves en qué va cada una." },
 ];
 
 export function PrBoxesPanel({ boxes }: { boxes: PrBoxView[] }) {
@@ -738,8 +731,12 @@ export function PrBoxesPanel({ boxes }: { boxes: PrBoxView[] }) {
     <section className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="max-w-xl">
-          <h2 className="font-display text-base font-semibold text-brand-ink">Cajas PR</h2>
-          <p className="text-sm text-brand-ink-soft">Para un lanzamiento o una campaña: una caja armada solo para creadoras, con su brief. No sale en tu tienda.</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-display text-base font-semibold text-brand-ink">Cajas PR</h2>
+            {/* Bien a la vista (pedido del 2026-10-19). */}
+            <span className="rounded-full bg-brand-ink px-2.5 py-1 text-[11px] font-medium text-white">No sale en tu tienda</span>
+          </div>
+          <p className="mt-1 text-sm text-brand-ink-soft">Para un lanzamiento o una campaña: una caja armada solo para creadoras, con su brief.</p>
         </div>
         {!creating && (
           <button type="button" onClick={() => setCreating(true)} className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90">
@@ -751,7 +748,7 @@ export function PrBoxesPanel({ boxes }: { boxes: PrBoxView[] }) {
       {creating && <PrBoxEditor onDone={() => setCreating(false)} />}
 
       {boxes.length === 0 && !creating && (
-        <ol className="grid gap-3 sm:grid-cols-3">
+        <ol className="grid gap-3 sm:grid-cols-2">
           {HOW_IT_WORKS.map((step, i) => (
             <li key={step.title} className="rounded-2xl border border-brand-line bg-brand-surface p-4">
               <p className="font-mono text-[11px] tracking-widest text-brand-accent">PASO {i + 1}</p>
@@ -765,6 +762,14 @@ export function PrBoxesPanel({ boxes }: { boxes: PrBoxView[] }) {
       {boxes.map((box) => (
         <PrBoxCard key={box.id} box={box} />
       ))}
+
+      <p className="flex items-start gap-2 text-xs text-brand-ink-soft">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v5M12 8h.01" />
+        </svg>
+        {PR_BOX_DISCLAIMER}
+      </p>
     </section>
   );
 }

@@ -14,7 +14,6 @@ import {
   proposePrBox,
   requestPrBox,
   respondToPrBoxRequest,
-  submitPrBoxPost,
   updatePrBox,
   PrBoxError,
 } from "@/server/services/pr-box-service";
@@ -54,7 +53,7 @@ function rawBox(overrides: Record<string, unknown> = {}) {
     units: 1,
     contentBrief: "Un Reel mostrando el unboxing y el resultado.",
     keyMessages: "Menciona @marca y usa #MarcaNavidad.",
-    publishBy: "2026-12-15",
+    launchOn: "2026-12-15",
     shipsOn: "2026-11-20",
     status: "OPEN",
     ...overrides,
@@ -66,7 +65,7 @@ function boxInput(overrides: Record<string, unknown> = {}) {
 }
 
 describe.skipIf(!hasDb)("cajas PR", () => {
-  it("la creadora la pide, la marca aprueba, la envía y ella publica", async () => {
+  it("la creadora la pide, la marca aprueba y la envía", async () => {
     const brand = await approvedBrand();
     const box = await createPrBox(brand.id, boxInput({ units: 2 }));
     const laura = await createCreator();
@@ -88,7 +87,7 @@ describe.skipIf(!hasDb)("cajas PR", () => {
     expect(order.items.map((i) => [i.name, i.quantity, i.unitPriceCents, i.productId])).toEqual([["Caja PR: Caja lanzamiento Navidad", 1, 0, null]]);
     const lauraUser = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: laura.id }, select: { userId: true } });
     const approvedNote = await prisma.notification.findFirstOrThrow({ where: { userId: lauraUser.userId, type: "PR_BOX_APPROVED" } });
-    expect(approvedNote.message).toContain("tienes hasta el 15 de diciembre para publicar");
+    expect(approvedNote.message).toContain("El lanzamiento es el 15 de diciembre");
 
     // La segunda y última: después ya no sale y nadie más la puede pedir.
     const ana = await createCreator();
@@ -97,22 +96,16 @@ describe.skipIf(!hasDb)("cajas PR", () => {
     const sofi = await createCreator();
     await expect(requestPrBox(sofi.id, box.id, SHIPPING)).rejects.toThrow("Esta caja ya no se puede pedir.");
 
-    const now = new Date("2026-12-01T12:00:00Z");
     let mine = (await listCreatorPrBoxRequests(laura.id))[0];
-    expect(prBoxStage({ status: mine.status, postUrl: mine.postUrl, shipped: orderShipped(mine.order) }, mine.box.publishBy, now)).toBe("por-enviar");
+    expect(prBoxStage({ status: mine.status, shipped: orderShipped(mine.order) })).toBe("por-enviar");
 
     await markPrBoxShipped(brand.id, request.id, { carrier: "Servientrega", trackingNumber: "123456" });
     mine = (await listCreatorPrBoxRequests(laura.id))[0];
     expect(mine.order).toMatchObject({ fulfillmentStatus: "SHIPPED", carrier: "Servientrega", trackingNumber: "123456" });
-    expect(prBoxStage({ status: mine.status, postUrl: mine.postUrl, shipped: orderShipped(mine.order) }, mine.box.publishBy, now)).toBe("enviada");
-    // Pasada la fecha para publicar sin link: vencida.
-    expect(prBoxStage({ status: mine.status, postUrl: mine.postUrl, shipped: true }, mine.box.publishBy, new Date("2026-12-16T12:00:00Z"))).toBe("vencida");
-
-    await submitPrBoxPost(laura.id, request.id, "https://www.instagram.com/reel/abc123/");
-    mine = (await listCreatorPrBoxRequests(laura.id))[0];
-    expect(prBoxStage({ status: mine.status, postUrl: mine.postUrl, shipped: true }, mine.box.publishBy, new Date("2026-12-16T12:00:00Z"))).toBe("publicada");
-    const published = await prisma.notification.findFirstOrThrow({ where: { userId: brandUser.userId, type: "PR_BOX_PUBLISHED" } });
-    expect(published.message).toContain("https://www.instagram.com/reel/abc123/");
+    // Hasta ahí llega: lo que publique no se sigue.
+    expect(prBoxStage({ status: mine.status, shipped: orderShipped(mine.order) })).toBe("enviada");
+    const lauraSent = await prisma.notification.findFirstOrThrow({ where: { userId: lauraUser.userId, type: "PRODUCT_SENT" } });
+    expect(lauraSent.message).toContain('"Caja lanzamiento Navidad" (guía 123456)');
 
     // Con creadoras aprobadas no se borra, y no se dejan menos unidades que
     // las ya aprobadas.
@@ -124,7 +117,7 @@ describe.skipIf(!hasDb)("cajas PR", () => {
   it("la marca la propone: una acepta con su dirección, otra no; sin unidades no se aprueba", async () => {
     const brand = await approvedBrand();
     // Solo para invitadas: no sale en el marketplace.
-    const box = await createPrBox(brand.id, boxInput({ units: 1, inMarketplace: false, publishBy: "", shipsOn: "" }));
+    const box = await createPrBox(brand.id, boxInput({ units: 1, inMarketplace: false, launchOn: "", shipsOn: "" }));
     expect((await listOpenPrBoxes()).some((b) => b.id === box.id)).toBe(false);
 
     const [sara, vale, hidden, third] = await Promise.all([createCreator(), createCreator(), createCreator({ discoverable: false }), createCreator()]);
@@ -151,10 +144,18 @@ describe.skipIf(!hasDb)("cajas PR", () => {
     expect((await prisma.prBox.findUniqueOrThrow({ where: { id: box.id } })).unitsUsed).toBe(1);
   });
 
+  it("solo desde el marketplace: no se puede proponer", async () => {
+    const brand = await approvedBrand();
+    const box = await createPrBox(brand.id, boxInput({ units: 3, allowProposals: false }));
+    const ana = await createCreator();
+    await expect(proposePrBox(brand.id, box.id, [ana.id])).rejects.toThrow("solo para pedir desde el marketplace");
+    expect((await listOpenPrBoxes()).some((b) => b.id === box.id)).toBe(true);
+  });
+
   it("un borrador o una caja vencida no salen, y el brief valida las fechas", async () => {
     const brand = await approvedBrand();
     const draft = await createPrBox(brand.id, boxInput({ status: "DRAFT", units: 5 }));
-    const late = await createPrBox(brand.id, boxInput({ units: 5, requestUntil: "2026-10-01", shipsOn: "2026-10-05", publishBy: "2026-10-30" }));
+    const late = await createPrBox(brand.id, boxInput({ units: 5, requestUntil: "2026-10-01", shipsOn: "2026-10-05", launchOn: "2026-10-30" }));
     const open = await listOpenPrBoxes(new Date("2026-10-02T12:00:00Z"));
     expect(open.some((b) => b.id === draft.id)).toBe(false);
     expect(open.some((b) => b.id === late.id)).toBe(false);
@@ -162,8 +163,10 @@ describe.skipIf(!hasDb)("cajas PR", () => {
     expect((await listOpenPrBoxes(new Date("2026-10-02T04:00:00Z"))).some((b) => b.id === late.id)).toBe(true);
 
     expect(prBoxInputSchema.safeParse(rawBox()).success).toBe(true);
-    expect(prBoxInputSchema.safeParse(rawBox({ shipsOn: "2026-11-20", publishBy: "2026-11-10" })).success).toBe(false);
-    expect(prBoxInputSchema.safeParse(rawBox({ publishBy: "2026-02-30" })).success).toBe(false);
+    // El lanzamiento puede ser antes del envío (ya salió y se la mandan después).
+    expect(prBoxInputSchema.safeParse(rawBox({ shipsOn: "2026-11-20", launchOn: "2026-11-10" })).success).toBe(true);
+    expect(prBoxInputSchema.safeParse(rawBox({ launchOn: "2026-02-30" })).success).toBe(false);
+    expect(prBoxInputSchema.safeParse(rawBox({ inMarketplace: false, allowProposals: false })).success).toBe(false);
     expect(prBoxInputSchema.safeParse(rawBox({ images: ["javascript:alert(1)"] })).success).toBe(false);
   });
 });

@@ -13,8 +13,9 @@ import type { ShippingAddress } from "@/lib/validation/creator";
 /// la dejó ahí) y la marca aprueba, o la marca se la propone a creadoras
 /// puntuales y ellas aceptan. Al aprobar se usa una unidad y se crea un
 /// pedido $0 (kind SAMPLE) con la dirección, como las muestras: la marca la
-/// envía desde ahí y la creadora recibe la guía. Después ella sube el link
-/// de su publicación. Las unidades nunca salen hacia las creadoras.
+/// envía desde ahí y la creadora recibe la guía. Hasta ahí llega Marcolini:
+/// no sigue lo que ella publique (ver PR_BOX_DISCLAIMER; PrBoxRequest.postUrl
+/// quedó sin uso). Las unidades nunca salen hacia las creadoras.
 
 export class PrBoxError extends Error {}
 
@@ -77,19 +78,18 @@ export function brandPrBoxView(box: BrandPrBox, now = new Date()) {
     keyMessages: box.keyMessages,
     requestUntil: box.requestUntil?.toISOString() ?? null,
     shipsOn: box.shipsOn?.toISOString() ?? null,
-    publishBy: box.publishBy?.toISOString() ?? null,
+    launchOn: box.launchOn?.toISOString() ?? null,
     status: box.status,
     inMarketplace: box.inMarketplace,
+    allowProposals: box.allowProposals,
     accepting: prBoxAcceptsRequests(box, now),
     requests: box.requests.map((r) => ({
       id: r.id,
-      stage: prBoxStage({ status: r.status, postUrl: r.postUrl, shipped: orderShipped(r.order) }, box.publishBy, now),
+      stage: prBoxStage({ status: r.status, shipped: orderShipped(r.order) }),
       initiatedBy: r.initiatedBy,
       message: r.message,
       rejectedReason: r.rejectedReason,
       createdAt: r.createdAt.toISOString(),
-      postUrl: r.postUrl,
-      publishedAt: r.publishedAt?.toISOString() ?? null,
       creator: { displayName: r.creator.displayName, photoUrl: r.creator.photoUrl, city: r.creator.city, socials: r.creator.socialLinks },
       shipping:
         r.status === "APPROVED" && r.shippingName && r.shippingPhone && r.shippingCity && r.shippingAddress
@@ -119,9 +119,10 @@ function boxData(input: PrBoxInput) {
     keyMessages: input.keyMessages,
     requestUntil: input.requestUntil,
     shipsOn: input.shipsOn,
-    publishBy: input.publishBy,
+    launchOn: input.launchOn,
     status: input.status,
     inMarketplace: input.inMarketplace,
+    allowProposals: input.allowProposals,
   };
 }
 
@@ -208,9 +209,9 @@ async function approve(requestId: string, from: "REQUESTED" | "PROPOSED") {
 }
 
 /// Lo que le cuenta la notificación a la creadora al aprobarla.
-function approvedDetail(box: { shipsOn: Date | null; publishBy: Date | null }, now = new Date()) {
+function approvedDetail(box: { shipsOn: Date | null; launchOn: Date | null }, now = new Date()) {
   const ship = box.shipsOn && !dayIsOver(box.shipsOn, now) ? `Te la envía el ${formatDay(box.shipsOn)}` : "Pronto te la envía";
-  return box.publishBy ? `${ship} y tienes hasta el ${formatDay(box.publishBy)} para publicar.` : `${ship}.`;
+  return box.launchOn ? `${ship}. El lanzamiento es el ${formatDay(box.launchOn)}.` : `${ship}.`;
 }
 
 export async function respondToPrBoxRequest(brandId: string, requestId: string, decision: "APPROVED" | "REJECTED", reason?: string | null) {
@@ -270,6 +271,7 @@ export async function proposePrBox(brandId: string, boxId: string, creatorIds: s
   const box = await prisma.prBox.findFirst({ where: { id: boxId, brandId }, include: { brand: { select: { companyName: true } } } });
   if (!box) throw new PrBoxError("No encontramos esa caja.");
   if (box.status !== "OPEN") throw new PrBoxError("Activa la caja antes de proponerla.");
+  if (!box.allowProposals) throw new PrBoxError("Esta caja es solo para pedir desde el marketplace. Cámbialo en Editar.");
   if (box.unitsUsed >= box.units) throw new PrBoxError("Ya no quedan cajas para regalar. Súbele unidades para proponerla.");
   const ids = [...new Set(creatorIds)].slice(0, MAX_PROPOSALS);
   if (ids.length === 0) throw new PrBoxError("Elige al menos una creadora.");
@@ -406,22 +408,4 @@ export async function declinePrBoxProposal(creatorId: string, requestId: string)
   if (!request || request.status !== "PROPOSED") throw new PrBoxError("Esta propuesta ya no está disponible.");
   await prisma.prBoxRequest.update({ where: { id: request.id }, data: { status: "DECLINED", decidedAt: new Date() } });
   await notify(request.box.brand.user.id, "PR_BOX_DECLINED", { creador: request.creator.displayName, caja: request.box.name });
-}
-
-/// El link de su publicación. La marca recibe el aviso la primera vez; se
-/// puede cambiar después (si se equivocó de link).
-export async function submitPrBoxPost(creatorId: string, requestId: string, postUrl: string) {
-  const request = await prisma.prBoxRequest.findFirst({
-    where: { id: requestId, creatorId },
-    include: { box: { include: { brand: { select: { user: { select: { id: true } } } } } }, creator: { select: { displayName: true } } },
-  });
-  if (!request || request.status !== "APPROVED") throw new PrBoxError("Primero la marca tiene que aprobarte la caja.");
-  const updated = await prisma.prBoxRequest.update({
-    where: { id: request.id },
-    data: { postUrl, publishedAt: request.publishedAt ?? new Date() },
-  });
-  if (!request.postUrl) {
-    await notify(request.box.brand.user.id, "PR_BOX_PUBLISHED", { creador: request.creator.displayName, caja: request.box.name, link: postUrl });
-  }
-  return updated;
 }

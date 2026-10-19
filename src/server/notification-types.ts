@@ -327,15 +327,6 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "creador,caja",
   },
   {
-    key: "PR_BOX_PUBLISHED",
-    label: "Una creadora publicó con tu Caja PR",
-    audience: "BRAND",
-    channelEmail: true,
-    messageTemplate:
-      '{creador} publicó su contenido con tu Caja PR "{caja}": {link}',
-    placeholders: "creador,caja,link",
-  },
-  {
     key: "PAID_CONTENT_REQUEST_ACCEPTED",
     label: "Creador aceptó tu encargo de contenido",
     audience: "BRAND",

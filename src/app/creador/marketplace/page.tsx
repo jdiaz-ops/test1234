@@ -68,7 +68,6 @@ export default async function MarketplacePage({
 
   // Cajas PR (ver pr-box-service.ts): su código con cada marca para
   // recordárselo en el brief, y en qué va cada caja suya.
-  const now = new Date();
   const codeByBrand = new Map(enrollments.filter((e) => e.status === "ACTIVE").map((e) => [e.offer.brandId, e.discountCode]));
   function boxView(box: (typeof openBoxes)[number]): CreatorPrBox {
     return {
@@ -80,7 +79,7 @@ export default async function MarketplacePage({
       keyMessages: box.keyMessages,
       requestUntil: box.requestUntil?.toISOString() ?? null,
       shipsOn: box.shipsOn?.toISOString() ?? null,
-      publishBy: box.publishBy?.toISOString() ?? null,
+      launchOn: box.launchOn?.toISOString() ?? null,
       brand: { name: box.brand.companyName, logoSrc: brandLogoSrc(box.brand) },
       code: codeByBrand.get(box.brandId) ?? null,
     };
@@ -302,10 +301,9 @@ export default async function MarketplacePage({
           boxes={boxesToRequest.map(boxView)}
           requests={boxRequests.map((r) => ({
             id: r.id,
-            stage: prBoxStage({ status: r.status, postUrl: r.postUrl, shipped: orderShipped(r.order) }, r.box.publishBy, now),
+            stage: prBoxStage({ status: r.status, shipped: orderShipped(r.order) }),
             message: r.message,
             rejectedReason: r.rejectedReason,
-            postUrl: r.postUrl,
             order: r.order ? { carrier: r.order.carrier, trackingNumber: r.order.trackingNumber, shippedAt: r.order.shippedAt?.toISOString() ?? null } : null,
             box: boxView(r.box),
           }))}

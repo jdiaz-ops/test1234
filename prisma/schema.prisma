@@ -1602,15 +1602,20 @@ model PrBox {
   contentBrief String @db.Text
   keyMessages  String @default("") @db.Text
   /// Hasta cuándo se puede pedir (ese día incluido), cuándo la envía la
-  /// marca y hasta cuándo hay para publicar — las 00:00 del día en Colombia.
+  /// marca y la fecha del lanzamiento — las 00:00 del día en Colombia. Antes
+  /// la última era "publicar a más tardar" (publishBy); Marcolini no sigue lo
+  /// que publiquen las creadoras (2026-10-19).
   requestUntil DateTime?
   shipsOn      DateTime?
-  publishBy    DateTime?
+  launchOn     DateTime?
 
   status        PrBoxStatus @default(DRAFT)
   /// true: sale en el marketplace y cualquier creadora la pide. false: solo
   /// la ven las creadoras a las que la marca se la propone.
-  inMarketplace Boolean     @default(true)
+  inMarketplace  Boolean     @default(true)
+  /// La marca también se la puede proponer a creadoras puntuales. Las dos
+  /// en true es "las dos" (ellas la piden y la marca la propone).
+  allowProposals Boolean     @default(true)
 
   requests PrBoxRequest[]
 

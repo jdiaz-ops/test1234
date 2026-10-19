@@ -7,7 +7,7 @@ import { bogotaDate, bogotaMidnight } from "@/lib/payout-calendar";
 /// "la marca crea la Caja PR con fotos, qué incluye y unidades… el brief…
 /// ellas la piden desde el marketplace y la marca aprueba, o la marca se la
 /// propone… al aprobar se descuenta una unidad, la marca ve la dirección y
-/// hace el envío".
+/// hace el envío". Hasta ahí llega: lo que publiquen no se sigue.
 
 const DAY_MS = 24 * 3600 * 1000;
 
@@ -53,16 +53,13 @@ export function prBoxContentsList(contents: string) {
     .filter(Boolean);
 }
 
-export type PrBoxStage = "pedida" | "propuesta" | "por-enviar" | "enviada" | "publicada" | "vencida" | "rechazada" | "no-acepto";
+export type PrBoxStage = "pedida" | "propuesta" | "por-enviar" | "enviada" | "rechazada" | "no-acepto";
 
 /// En qué va una creadora con su caja: pedida o propuesta → por enviar (ya
-/// aprobada) → enviada (su pedido salió) → publicada (subió su link). Si se
-/// pasa la fecha para publicar con la caja ya enviada y sin link, vencida.
-export function prBoxStage(
-  request: { status: string; postUrl: string | null; shipped: boolean },
-  publishBy: Date | string | null,
-  now = new Date(),
-): PrBoxStage {
+/// aprobada) → enviada (su pedido salió). Marcolini no hace seguimiento de
+/// lo que ella publique después (pedido del 2026-10-19: "nosotros no
+/// hacemos seguimiento"; ver PR_BOX_DISCLAIMER).
+export function prBoxStage(request: { status: string; shipped: boolean }): PrBoxStage {
   switch (request.status) {
     case "REQUESTED":
       return "pedida";
@@ -73,9 +70,7 @@ export function prBoxStage(
     case "DECLINED":
       return "no-acepto";
   }
-  if (request.postUrl) return "publicada";
-  if (!request.shipped) return "por-enviar";
-  return publishBy && dayIsOver(publishBy, now) ? "vencida" : "enviada";
+  return request.shipped ? "enviada" : "por-enviar";
 }
 
 /// Para la marca (su lista) y para la creadora (sus cajas), con el mismo
@@ -84,12 +79,16 @@ export const PR_BOX_STAGE: Record<PrBoxStage, { brand: string; creator: string; 
   pedida: { brand: "Pedida", creator: "Esperando a la marca", tone: "bg-amber-50 text-amber-800 border-amber-200" },
   propuesta: { brand: "Propuesta", creator: "Te la propusieron", tone: "bg-purple-50 text-purple-700 border-purple-200" },
   "por-enviar": { brand: "Por enviar", creator: "Aprobada", tone: "bg-sky-50 text-sky-800 border-sky-200" },
-  enviada: { brand: "Enviada", creator: "En camino", tone: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  publicada: { brand: "Publicada", creator: "Publicada", tone: "bg-emerald-50 text-emerald-800 border-emerald-200" },
-  vencida: { brand: "Vencida", creator: "Se pasó la fecha", tone: "bg-red-50 text-red-700 border-red-200" },
+  enviada: { brand: "Enviada", creator: "En camino", tone: "bg-emerald-50 text-emerald-800 border-emerald-200" },
   rechazada: { brand: "Rechazada", creator: "No esta vez", tone: "bg-neutral-100 text-neutral-600 border-neutral-200" },
   "no-acepto": { brand: "No aceptó", creator: "No la aceptaste", tone: "bg-neutral-100 text-neutral-600 border-neutral-200" },
 };
+
+/// Lo que Marcolini no hace, para que quede claro antes de enviar (pedido
+/// del 2026-10-19: "para que las marcas no vengan a decir envié a tal y no
+/// hizo").
+export const PR_BOX_DISCLAIMER =
+  "Marcolini conecta tu marca con las creadoras: no garantiza historias, reels ni publicaciones, ni responde por lo que ellas publiquen o comenten. Lo que acuerdes con cada una es entre ustedes.";
 
 const optionalDay = z
   .string()
@@ -122,28 +121,25 @@ export const prBoxInputSchema = z
     keyMessages: z.string().trim().max(1500).default(""),
     requestUntil: optionalDay,
     shipsOn: optionalDay,
-    publishBy: optionalDay,
+    launchOn: optionalDay,
     status: z.enum(["DRAFT", "OPEN", "CLOSED"]).default("DRAFT"),
+    /// Quién la puede pedir (ver PR_BOX_AUDIENCE): las dos en true es "las
+    /// dos" (ellas la piden y la marca la propone).
     inMarketplace: z.boolean().default(true),
+    allowProposals: z.boolean().default(true),
   })
-  .superRefine((data, ctx) => {
-    if (data.shipsOn && data.publishBy && data.publishBy < data.shipsOn) {
-      ctx.addIssue({ code: "custom", path: ["publishBy"], message: "La fecha para publicar tiene que ser después del envío." });
-    }
-  });
+  .refine((data) => data.inMarketplace || data.allowProposals, { message: "Elige quién la puede pedir.", path: ["inMarketplace"] });
+
+/// "¿Quién la puede pedir?" — pedido del 2026-10-19: "ofrecer un mix,
+/// pueden pedirla y puedo ofrecerla".
+export const PR_BOX_AUDIENCE = [
+  { key: "both", inMarketplace: true, allowProposals: true, label: "Las dos: ellas la piden y tú también se la propones", hint: "Sale en el marketplace y además se la ofreces a las creadoras que quieras." },
+  { key: "marketplace", inMarketplace: true, allowProposals: false, label: "Solo la piden desde el marketplace", hint: "Ellas la piden y tú decides a quién se la apruebas." },
+  { key: "invited", inMarketplace: false, allowProposals: true, label: "Solo las creadoras a las que se la propongas", hint: "No sale en el marketplace." },
+] as const;
+
+export function prBoxAudience(box: { inMarketplace: boolean; allowProposals: boolean }) {
+  return PR_BOX_AUDIENCE.find((a) => a.inMarketplace === box.inMarketplace && a.allowProposals === box.allowProposals) ?? PR_BOX_AUDIENCE[0];
+}
 
 export type PrBoxInput = z.infer<typeof prBoxInputSchema>;
-
-/// El link de su publicación: Instagram, TikTok, YouTube… cualquier https.
-export const prBoxPostUrlSchema = z
-  .string()
-  .trim()
-  .max(500)
-  .refine((v) => {
-    try {
-      const url = new URL(v);
-      return url.protocol === "https:" && url.hostname.includes(".");
-    } catch {
-      return false;
-    }
-  }, "Pega el link completo de tu publicación (empieza por https://).");

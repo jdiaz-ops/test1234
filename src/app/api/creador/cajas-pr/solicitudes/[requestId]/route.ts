@@ -2,16 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCreatorProfile } from "@/lib/current-creator";
 import { SAMPLES_ENABLED } from "@/lib/features";
-import { prBoxPostUrlSchema } from "@/lib/pr-box";
 import { shippingAddressSchema } from "@/lib/validation/creator";
-import { acceptPrBoxProposal, declinePrBoxProposal, PrBoxError, submitPrBoxPost } from "@/server/services/pr-box-service";
+import { acceptPrBoxProposal, declinePrBoxProposal, PrBoxError } from "@/server/services/pr-box-service";
 
-/// La creadora con una caja suya: aceptar (con su dirección) o no la que le
-/// propusieron, y subir el link de su publicación.
+/// La creadora con una caja que le propusieron: aceptarla (con su
+/// dirección) o no.
 const bodySchema = z.discriminatedUnion("action", [
   shippingAddressSchema.extend({ action: z.literal("accept") }),
   z.object({ action: z.literal("decline") }),
-  z.object({ action: z.literal("post"), postUrl: prBoxPostUrlSchema }),
 ]);
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ requestId: string }> }) {
@@ -26,10 +24,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ reques
     if (body.action === "accept") {
       // Sin "action": solo los datos de envío.
       await acceptPrBoxProposal(profile.id, requestId, shippingAddressSchema.parse(body));
-    } else if (body.action === "decline") {
-      await declinePrBoxProposal(profile.id, requestId);
     } else {
-      await submitPrBoxPost(profile.id, requestId, body.postUrl);
+      await declinePrBoxProposal(profile.id, requestId);
     }
     return NextResponse.json({ ok: true });
   } catch (err) {

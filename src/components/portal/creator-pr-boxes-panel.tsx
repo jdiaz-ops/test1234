@@ -7,8 +7,8 @@ import { PR_BOX_STAGE, formatDay, prBoxContentsList, type PrBoxStage } from "@/l
 
 /// Cajas PR en el marketplace de la creadora (ver pr-box-service.ts): las
 /// cajas abiertas con su brief para pedirlas, y "Tus cajas" con en qué va
-/// cada una — aceptar la que le propusieron, la guía cuando sale y el link
-/// de su publicación. Nunca ve cuántas unidades hay.
+/// cada una — aceptar la que le propusieron y la guía cuando sale. Nunca ve
+/// cuántas unidades hay.
 
 export type CreatorPrBox = {
   id: string;
@@ -19,7 +19,7 @@ export type CreatorPrBox = {
   keyMessages: string;
   requestUntil: string | null;
   shipsOn: string | null;
-  publishBy: string | null;
+  launchOn: string | null;
   brand: { name: string; logoSrc: string | null };
   /// Su código con esa marca, si ya está en su programa.
   code: string | null;
@@ -30,7 +30,6 @@ export type CreatorPrBoxRequest = {
   stage: PrBoxStage;
   message: string | null;
   rejectedReason: string | null;
-  postUrl: string | null;
   order: { carrier: string | null; trackingNumber: string | null; shippedAt: string | null } | null;
   box: CreatorPrBox;
 };
@@ -61,7 +60,7 @@ function Dates({ box }: { box: CreatorPrBox }) {
   const items = [
     box.requestUntil ? `Pídela hasta el ${formatDay(box.requestUntil)}` : null,
     box.shipsOn ? `Sale el ${formatDay(box.shipsOn)}` : null,
-    box.publishBy ? `Publica antes del ${formatDay(box.publishBy)}` : null,
+    box.launchOn ? `Lanzamiento el ${formatDay(box.launchOn)}` : null,
   ].filter((v): v is string => Boolean(v));
   if (items.length === 0) return null;
   return (
@@ -125,7 +124,6 @@ function RequestForm({ box, defaultShipping, onCancel }: { box: CreatorPrBox; de
   const router = useRouter();
   const [shipping, setShipping] = useState(defaultShipping);
   const [message, setMessage] = useState("");
-  const [promise, setPromise] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -154,18 +152,12 @@ function RequestForm({ box, defaultShipping, onCancel }: { box: CreatorPrBox; de
         />
       </div>
       <SampleShippingFields value={shipping} onChange={setShipping} />
-      <label className="flex items-start gap-2 text-sm text-brand-ink">
-        <input type="checkbox" checked={promise} onChange={(e) => setPromise(e.target.checked)} className="mt-1" />
-        <span>
-          Si me la aprueban, publico {box.publishBy ? `antes del ${formatDay(box.publishBy)}` : "cuando me llegue"} y subo el link aquí.
-        </span>
-      </label>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={submit}
-          disabled={busy || !promise || !isShippingComplete(shipping)}
+          disabled={busy || !isShippingComplete(shipping)}
           className="rounded-full bg-brand-accent px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
           {busy ? "Pidiendo…" : "Pedir la caja"}
@@ -221,54 +213,6 @@ function OpenBoxCard({ box, defaultShipping }: { box: CreatorPrBox; defaultShipp
         </div>
       </div>
     </article>
-  );
-}
-
-function PostLinkForm({ request }: { request: CreatorPrBoxRequest }) {
-  const router = useRouter();
-  const [url, setUrl] = useState(request.postUrl ?? "");
-  const [editing, setEditing] = useState(!request.postUrl);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function save() {
-    setBusy(true);
-    setError(null);
-    try {
-      await send(`/api/creador/cajas-pr/solicitudes/${request.id}`, "PATCH", { action: "post", postUrl: url.trim() });
-      setEditing(false);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (!editing && request.postUrl) {
-    return (
-      <p className="text-sm text-brand-ink-soft">
-        <a href={request.postUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-accent hover:underline">
-          Ver tu publicación ↗
-        </a>{" "}
-        ·{" "}
-        <button type="button" onClick={() => setEditing(true)} className="hover:underline">
-          Cambiar link
-        </button>
-      </p>
-    );
-  }
-  return (
-    <div className="space-y-2">
-      <label className="block text-sm text-brand-ink">¿Ya publicaste? Pega el link de tu publicación</label>
-      <div className="flex flex-wrap gap-2">
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.instagram.com/reel/…" className="input min-w-0 flex-1 text-sm" />
-        <button type="button" onClick={save} disabled={busy || !url.trim()} className="rounded-full bg-brand-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
-          {busy ? "Guardando…" : "Guardar link"}
-        </button>
-      </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
-    </div>
   );
 }
 
@@ -345,22 +289,15 @@ function MyBoxCard({ request, defaultShipping }: { request: CreatorPrBoxRequest;
         {request.stage === "por-enviar" && (
           <p>¡Aprobada! {box.shipsOn ? `${box.brand.name} te la envía el ${formatDay(box.shipsOn)}.` : `${box.brand.name} te la envía pronto.`} Te llega la guía a tu correo.</p>
         )}
-        {(request.stage === "enviada" || request.stage === "vencida") && (
+        {request.stage === "enviada" && (
           <p>
-            Va en camino{order?.trackingNumber ? ` · guía ${[order.carrier, order.trackingNumber].filter(Boolean).join(" ")}` : ""}.{" "}
-            {request.stage === "vencida"
-              ? `Se pasó la fecha para publicar (${formatDay(box.publishBy!)}). Si ya publicaste, pega tu link.`
-              : box.publishBy
-                ? `Tienes hasta el ${formatDay(box.publishBy)} para publicar.`
-                : "Cuando publiques, pega tu link aquí."}
+            Va en camino{order?.trackingNumber ? ` · guía ${[order.carrier, order.trackingNumber].filter(Boolean).join(" ")}` : ""}.
+            {box.launchOn ? ` El lanzamiento es el ${formatDay(box.launchOn)}.` : ""}
           </p>
         )}
-        {request.stage === "publicada" && <p>¡Gracias! {box.brand.name} ya ve tu publicación.</p>}
         {request.stage === "rechazada" && <p>{box.brand.name} no puede enviártela esta vez.{request.rejectedReason ? ` Motivo: ${request.rejectedReason}` : ""}</p>}
         {request.stage === "no-acepto" && <p>No la aceptaste.</p>}
       </div>
-
-      {(request.stage === "enviada" || request.stage === "vencida" || request.stage === "publicada" || request.stage === "por-enviar") && <PostLinkForm request={request} />}
 
       {request.stage !== "rechazada" && request.stage !== "no-acepto" && (
         <div>
@@ -393,7 +330,7 @@ export function CreatorPrBoxesPanel({
     <div className="space-y-10">
       <div className="max-w-xl">
         <p className="text-sm text-brand-ink-soft">
-          Cajas que arman las marcas para un lanzamiento o una campaña. Pídela, y si te la aprueban te llega a tu casa: publicas con lo que te pidieron y subes el link aquí.
+          Cajas que arman las marcas para un lanzamiento o una campaña. Pídela y, si te la aprueban, te llega a tu casa con todo lo que trae.
         </p>
       </div>
 
