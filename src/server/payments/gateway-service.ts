@@ -183,7 +183,7 @@ export async function startPayment(
       };
     }
     case "MERCADO_PAGO": {
-      const { preferenceId, url } = await createMercadoPagoPreference(gateway.values as MercadoPagoValues, input);
+      const { preferenceId, url } = await createMercadoPagoPreference(gateway.values as MercadoPagoValues, gateway.mode, input);
       return { launch: { kind: "redirect", provider: "MERCADO_PAGO", url }, gatewayReference: preferenceId };
     }
     case "PAYU": {

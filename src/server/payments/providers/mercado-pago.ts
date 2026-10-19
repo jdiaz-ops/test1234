@@ -63,7 +63,14 @@ export async function mercadoPagoTokenKind(accessToken: string): Promise<"test" 
 /// Crea la preferencia de pago y devuelve su id y el link al que va el
 /// comprador. Un solo ítem con el total del pedido: así descuentos y envío
 /// no tienen que cuadrar línea por línea con lo que espera Mercado Pago.
-export async function createMercadoPagoPreference(values: MercadoPagoValues, input: PaymentOrderInput) {
+///
+/// En modo de prueba no va el comprador (`payer`): quien prueba suele
+/// escribir su propio correo, que es de una cuenta real de Mercado Pago, y
+/// con una vendedora de prueba Mercado Pago corta con "Una de las partes
+/// con la que intentas hacer el pago es de prueba" (pasó el 2026-10-19).
+/// Sin él, Mercado Pago pide entrar y se entra con la cuenta «Comprador»
+/// de prueba.
+export async function createMercadoPagoPreference(values: MercadoPagoValues, mode: "TEST" | "PRODUCTION", input: PaymentOrderInput) {
   const amount = Math.round(input.amountCents) / 100;
   const payer: Record<string, unknown> = { email: input.buyer.email };
   if (input.buyer.firstName) payer.name = input.buyer.firstName;
@@ -81,7 +88,7 @@ export async function createMercadoPagoPreference(values: MercadoPagoValues, inp
         currency_id: input.currency,
       },
     ],
-    payer,
+    ...(mode === "PRODUCTION" ? { payer } : {}),
     back_urls: { success: input.returnUrl, pending: input.returnUrl, failure: input.returnUrl },
     auto_return: "approved",
     external_reference: input.reference,

@@ -190,6 +190,9 @@ describe.skipIf(!hasDb)("Mercado Pago", () => {
     expect(sent.items[0].unit_price).toBe(order.totalCents / 100);
     expect(sent.back_urls.success).toBe(`https://${brand.storefrontSlug}.marcolini.lat/pedido/${order.id}`);
     expect(sent.notification_url.endsWith(`/api/webhooks/mercadopago/${brand.id}`)).toBe(true);
+    // En prueba no va el comprador: con un correo de una cuenta real,
+    // Mercado Pago cortaba con "una de las partes es de prueba".
+    expect(sent.payer).toBeUndefined();
 
     // El aviso solo trae el id del pago: se consulta en Mercado Pago.
     vi.stubGlobal(
