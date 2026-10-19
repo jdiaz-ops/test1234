@@ -37,18 +37,22 @@ export function CartList({
   const { items, subtotal, updateQuantity, removeItem, closeDrawer, addItem } = useCart();
   const { cart } = useStorefrontTheme();
 
-  // "Completa tu compra" — se pide al servidor cada vez que cambia QUÉ
-  // productos hay en el carrito (no la cantidad), ver
-  // getComplementaryProducts. Ver conversación del 2026-09-30.
+  // Sugerencias — se piden al servidor cada vez que cambia QUÉ productos
+  // hay en el carrito (no la cantidad), ver getComplementaryProducts. Ver
+  // conversación del 2026-09-30. El título depende de dónde salieron:
+  // "Otros clientes también compraron" solo con ventas reales (2026-10-19).
   const cartProductIds = Array.from(new Set(items.map((i) => i.productId))).sort().join(",");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [alsoBought, setAlsoBought] = useState(false);
   useEffect(() => {
     if (!cart.suggestComplementary || !cartProductIds) return;
     let cancelled = false;
     fetch(`/api/tienda/${brandSlug}/complementarios?ids=${encodeURIComponent(cartProductIds)}`)
       .then((r) => (r.ok ? r.json() : { products: [] }))
       .then((body) => {
-        if (!cancelled) setSuggestions(body.products ?? []);
+        if (cancelled) return;
+        setSuggestions(body.products ?? []);
+        setAlsoBought(body.alsoBought === true);
       })
       .catch(() => {});
     return () => {
@@ -141,7 +145,9 @@ export function CartList({
 
       {cart.suggestComplementary && visibleSuggestions.length > 0 && (
         <div className="pt-4 border-t border-brand-line space-y-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-brand-ink">Completa tu compra</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-brand-ink">
+            {alsoBought ? "Otros clientes también compraron" : "También te puede gustar"}
+          </p>
           {visibleSuggestions.map((s) => {
             const href = `${basePath}/${s.slug ?? ""}`;
             const sameType = items.length === 0 || items[0].type === s.type;

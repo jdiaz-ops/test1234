@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getComplementaryProducts } from "@/server/services/store-order-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 
-/// GET ?ids=a,b,c → productos para "Completa tu compra" en el carrito. Ver
-/// getComplementaryProducts.
+/// GET ?ids=a,b,c → sugerencias del carrito ("Otros clientes también
+/// compraron" o "También te puede gustar"). Ver getComplementaryProducts.
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ slug: string }> },
@@ -26,11 +26,12 @@ export async function GET(
     .map((s) => s.trim())
     .filter((s) => s.length > 0 && s.length <= 64)
     .slice(0, 50);
-  if (ids.length === 0) return NextResponse.json({ products: [] });
+  if (ids.length === 0) return NextResponse.json({ products: [], alsoBought: false });
 
   const theme = await getStorefrontTheme(brand.id);
-  const products = await getComplementaryProducts(brand.id, ids, 4, { showSoldOut: theme.productListing.showSoldOut });
+  const { products, alsoBought } = await getComplementaryProducts(brand.id, ids, 4, { showSoldOut: theme.productListing.showSoldOut });
   return NextResponse.json({
+    alsoBought,
     products: products.map((p) => ({
       id: p.id,
       name: p.name,

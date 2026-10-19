@@ -157,12 +157,16 @@ export async function getRelatedProducts(brandId: string, productId: string, lim
   return related;
 }
 
-/// "Completa tu compra" en el carrito (ver theme.cart.suggestComplementary
-/// y CartList): hasta `limit` productos activos de las mismas colecciones
-/// que los que ya lleva el comprador, sin repetir los del carrito. Si no
-/// hay ninguno (productos sin colección, o la colección entera ya está en
-/// el carrito), los más recientes de la tienda. Ver conversación del
-/// 2026-09-30.
+/// Sugerencias del carrito (ver theme.cart.suggestComplementary y
+/// CartList), hasta `limit` productos activos sin repetir los del carrito:
+///
+/// - "Otros clientes también compraron" (`alsoBought`): los que salieron
+///   en pedidos pagados de verdad junto con alguno del carrito, los más
+///   repetidos primero. Solo esos, sin rellenar: el título tiene que ser
+///   cierto (pedido del 2026-10-19, antes decía "Completa tu compra").
+/// - Si todavía no hay ventas así, "También te puede gustar": los de las
+///   mismas colecciones y, si faltan, los más recientes de la tienda (ver
+///   conversación del 2026-09-30).
 export async function getComplementaryProducts(brandId: string, cartProductIds: string[], limit = 4, options?: StockOptions) {
   const select = {
     id: true,
@@ -176,6 +180,30 @@ export async function getComplementaryProducts(brandId: string, cartProductIds: 
     hasVariants: true,
   } as const;
   const base = { brandId, manual: true as const, status: "ACTIVE" as const, id: { notIn: cartProductIds }, ...stockWhere(options) };
+
+  // Los últimos 200 pedidos pagados (no de prueba) con algo del carrito.
+  const orders = await prisma.storeOrder.findMany({
+    where: { brandId, kind: "PURCHASE", status: "PAID", paymentMode: "PRODUCTION", items: { some: { productId: { in: cartProductIds } } } },
+    select: { items: { select: { productId: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+  const inCart = new Set(cartProductIds);
+  const timesBought = new Map<string, number>();
+  for (const order of orders) {
+    for (const id of new Set(order.items.map((i) => i.productId))) {
+      if (id && !inCart.has(id)) timesBought.set(id, (timesBought.get(id) ?? 0) + 1);
+    }
+  }
+  if (timesBought.size > 0) {
+    // Más pedidos primero; empate, el que se vendió más reciente (el Map
+    // guarda el orden en que aparecieron, y los pedidos vienen del último).
+    const ranked = [...timesBought.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+    const found = await prisma.product.findMany({ where: { ...base, id: { in: ranked.slice(0, 50) } }, select });
+    const byId = new Map(found.map((p) => [p.id, p]));
+    const alsoBought = ranked.flatMap((id) => byId.get(id) ?? []).slice(0, limit);
+    if (alsoBought.length > 0) return { products: alsoBought, alsoBought: true };
+  }
 
   const collectionIds = (
     await prisma.productBrandCollection.findMany({
@@ -193,7 +221,7 @@ export async function getComplementaryProducts(brandId: string, cartProductIds: 
           take: limit,
         })
       : [];
-  if (fromCollections.length >= limit) return fromCollections;
+  if (fromCollections.length >= limit) return { products: fromCollections, alsoBought: false };
 
   const seen = new Set(fromCollections.map((p) => p.id));
   const latest = await prisma.product.findMany({
@@ -202,7 +230,7 @@ export async function getComplementaryProducts(brandId: string, cartProductIds: 
     orderBy: { createdAt: "desc" },
     take: limit - fromCollections.length,
   });
-  return [...fromCollections, ...latest];
+  return { products: [...fromCollections, ...latest], alsoBought: false };
 }
 
 /// Cotiza el envío para un departamento + peso/monto dados, sin crear

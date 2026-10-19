@@ -918,9 +918,10 @@ export function CartSection({ theme, patch }: { theme: ThemeConfig; patch: Patch
     <div className="space-y-4 max-w-sm">
       <Checkbox label="Sugerir productos complementarios en el carrito" checked={c.suggestComplementary} onChange={(v) => patch({ cart: { suggestComplementary: v } })} />
       <p className="text-[11px] text-brand-ink-soft -mt-2">
-        Debajo de lo que lleva el comprador aparece &quot;Completa tu compra&quot; con hasta 4
-        productos de las mismas colecciones que los del carrito (si no hay, los más
-        recientes de la tienda), cada uno con su botón de agregar.
+        Debajo de lo que lleva el comprador aparecen hasta 4 productos, cada uno con su
+        botón de agregar: &quot;Otros clientes también compraron&quot; con lo que se vendió
+        junto en pedidos reales o, si todavía no hay, &quot;También te puede gustar&quot; con
+        productos de las mismas colecciones.
       </p>
       <p className="text-[11px] text-brand-ink-soft">
         El código de descuento se escribe en la página de pago, no en el carrito.

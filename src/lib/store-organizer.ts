@@ -1186,7 +1186,8 @@ export type StoreSettingsPlan = {
   purchaseInfo: boolean;
   /// Aviso de "últimas unidades" con el inventario real.
   lowStock: boolean;
-  /// "Completa tu compra" en el carrito (productos de las mismas colecciones).
+  /// Sugerencias en el carrito ("Otros clientes también compraron" / "También
+  /// te puede gustar", ver getComplementaryProducts).
   cartSuggestions: boolean;
   /// Pie de página: datos de contacto y las páginas de información.
   footerContact: boolean;
