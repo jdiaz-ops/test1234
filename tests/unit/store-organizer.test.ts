@@ -21,7 +21,6 @@ import {
   scoreProducts,
   structureFromAssignments,
   summarizeExistingSection,
-  tracksStock,
   type ExistingSectionSummary,
   type OrganizerCollection,
   type OrganizerProduct,
@@ -565,28 +564,18 @@ describe("ajustes de conversión", () => {
   const planned = (key: string): PlannedCollection => ({ key, existingId: null, name: key, slug: key, description: "", imageUrl: null, productIds: ["p1"], demand: 1, sold: 0, children: [] });
 
   it("solo con sustento y sin pisar lo que la marca ya configuró", () => {
-    expect(planSettings({ tracksStock: true, hasPages: true, hasPurchaseInfo: false }, [planned("a"), planned("b")])).toEqual({
+    expect(planSettings({ hasPages: true, hasPurchaseInfo: false }, [planned("a"), planned("b")])).toEqual({
       purchaseInfo: true,
-      lowStock: true,
       cartSuggestions: true,
       footerContact: true,
       footerPages: true,
     });
-    expect(planSettings({ tracksStock: false, hasPages: false, hasPurchaseInfo: true }, [planned("a")])).toEqual({
+    expect(planSettings({ hasPages: false, hasPurchaseInfo: true }, [planned("a")])).toEqual({
       purchaseInfo: false,
-      lowStock: false,
       cartSuggestions: false,
       footerContact: true,
       footerPages: false,
     });
-    expect(planSettings(undefined, [planned("a"), planned("b")])).toMatchObject({ purchaseInfo: true, lowStock: false, footerPages: false });
-  });
-
-  it("el aviso de últimas unidades solo si la mayoría lleva inventario", () => {
-    expect(tracksStock([product("p1", "A", { stock: 5 }), product("p2", "B", { stock: null }), product("p3", "C", { hasVariants: true, variantStocks: [2, null] })])).toBe(true);
-    expect(tracksStock([product("p1", "A", { stock: null }), product("p2", "B", { stock: null }), product("p3", "C", { stock: 1 })])).toBe(false);
-    // Los borradores no cuentan.
-    expect(tracksStock([product("p1", "A", { stock: 5, active: false }), product("p2", "B", { stock: null })])).toBe(false);
-    expect(tracksStock([])).toBe(false);
+    expect(planSettings(undefined, [planned("a"), planned("b")])).toMatchObject({ purchaseInfo: true, footerPages: false });
   });
 });

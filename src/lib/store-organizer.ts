@@ -1109,7 +1109,7 @@ export function sanitizeHomeComposition(raw: RawHomeComposition, ctx: HomeCompos
 // la ficha de producto (qué es, qué gana quien compra, qué incluye, cómo
 // se usa, datos reales), en las páginas de colección (banner con el
 // estilo de la tienda, descripción) y en los ajustes del tema (sellos de
-// confianza, últimas unidades, sugerencias en el carrito, pie de página).
+// confianza, sugerencias en el carrito, pie de página).
 
 /// Ficha escrita por la IA para un producto que no tenía (ver
 /// describeProductsWithClaude).
@@ -1172,8 +1172,6 @@ export function renderProductCopy(copy: ProductCopy): string {
 
 /// Datos de la tienda que deciden los ajustes (ver planSettings).
 export type StoreFacts = {
-  /// La mayoría de los productos activos lleva inventario.
-  tracksStock: boolean;
   /// Tiene páginas propias (políticas, nosotros, preguntas).
   hasPages: boolean;
   /// La marca ya puso sus sellos en la ficha de producto (no se pisan).
@@ -1184,8 +1182,6 @@ export type StoreSettingsPlan = {
   /// Tres sellos de confianza en la ficha de producto (envíos, pagos,
   /// cambios y garantía).
   purchaseInfo: boolean;
-  /// Aviso de "últimas unidades" con el inventario real.
-  lowStock: boolean;
   /// Sugerencias en el carrito ("Otros clientes también compraron" / "También
   /// te puede gustar", ver getComplementaryProducts).
   cartSuggestions: boolean;
@@ -1194,26 +1190,15 @@ export type StoreSettingsPlan = {
   footerPages: boolean;
 };
 
-/// Ajustes de conversión por reglas: solo con sustento (inventario real
-/// para "últimas unidades", páginas que existan) y sin pisar lo que la
-/// marca ya configuró.
+/// Ajustes de conversión por reglas: solo con sustento (páginas que
+/// existan) y sin pisar lo que la marca ya configuró. Sin el aviso de
+/// "últimas unidades": se quitó de Diseño y de la vitrina (2026-10-19).
 export function planSettings(facts: StoreFacts | undefined, collections: PlannedCollection[]): StoreSettingsPlan {
-  const f: StoreFacts = facts ?? { tracksStock: false, hasPages: false, hasPurchaseInfo: false };
+  const f: StoreFacts = facts ?? { hasPages: false, hasPurchaseInfo: false };
   return {
     purchaseInfo: !f.hasPurchaseInfo,
-    lowStock: f.tracksStock,
     cartSuggestions: collections.length >= 2,
     footerContact: true,
     footerPages: f.hasPages,
   };
-}
-
-/// Si la mayoría de los productos activos lleva inventario (stock no
-/// nulo, propio o de sus variantes), el aviso de últimas unidades dice la
-/// verdad.
-export function tracksStock(products: OrganizerProduct[]): boolean {
-  const active = products.filter((p) => p.active);
-  if (active.length === 0) return false;
-  const tracked = active.filter((p) => (p.hasVariants ? p.variantStocks.some((s) => s != null) : p.stock != null)).length;
-  return tracked * 2 >= active.length;
 }

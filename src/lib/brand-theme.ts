@@ -269,11 +269,12 @@ const footerSchema = withDefaults({
     title: z.string().max(60).default("Contáctanos"),
   }),
   social: withDefaults({ title: z.string().max(60).default("Síguenos") }),
+  /// Ya no se usan: "Mostrar las opciones de envío / los métodos de pago"
+  /// y los sellos personalizados se quitaron de Diseño y del pie de la
+  /// vitrina (pedido del 2026-10-19). Quedan para no romper los temas
+  /// guardados.
   showShippingOptions: z.boolean().default(false),
   showPaymentMethods: z.boolean().default(false),
-  /// Solo imagen — la versión de Tiendanube también deja pegar código
-  /// JS/HTML libre, pero eso es una puerta abierta a XSS en la vitrina
-  /// pública; queda fuera a propósito. Ver conversación del 2026-09-14.
   seals: z.array(z.object({ imageUrl: z.string().min(1) })).max(6).default([]),
 });
 
@@ -335,11 +336,13 @@ const productDetailSchema = withDefaults({
   floatingAddToCart: z.boolean().default(true),
   showSavedAmount: z.boolean().default(true),
   variantsAsButtons: z.boolean().default(true),
-  colorVariantAsPhoto: z.boolean().default(false),
-  /// Slug de una StorePage propia (ver store-page-service.ts) — null si
-  /// la marca no armó ninguna guía de tallas.
-  sizeGuidePageSlug: z.string().nullable().default(null),
   showStock: z.boolean().default(true),
+  /// Ya no se usan: la foto de la variante de color como botón, la guía de
+  /// tallas y el aviso de "últimas unidades" se quitaron de Diseño y de la
+  /// vitrina (pedido del 2026-10-19). Quedan para no romper los temas
+  /// guardados.
+  colorVariantAsPhoto: z.boolean().default(false),
+  sizeGuidePageSlug: z.string().nullable().default(null),
   lowStock: withDefaults({
     enabled: z.boolean().default(false),
     threshold: z.coerce.number().int().min(1).max(1000).default(5),

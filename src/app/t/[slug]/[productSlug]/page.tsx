@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { TrackViewContent } from "@/components/storefront/pixel-events";
 import { notFound, permanentRedirect } from "next/navigation";
-import Link from "next/link";
 import {
   getStorefrontBrand,
   getStorefrontProduct,
@@ -85,15 +84,6 @@ export default async function StorefrontProductPage({
           (1 - Number(product.price) / Number(product.compareAtPrice)) * 100,
         )
       : null;
-  const lowStockActive =
-    productDetail.lowStock.enabled &&
-    !product.hasVariants &&
-    product.stock != null &&
-    product.stock > 0 &&
-    product.stock <= productDetail.lowStock.threshold;
-  const sizeGuideUrl = productDetail.sizeGuidePageSlug
-    ? `${basePath}/pagina/${productDetail.sizeGuidePageSlug}`
-    : null;
   const activePurchaseInfo = productDetail.purchaseInfo.filter((i) => i.show && (i.title || i.description));
 
   return (
@@ -215,14 +205,6 @@ export default async function StorefrontProductPage({
                   </p>
                 ) : null}
 
-                {lowStockActive && (
-                  <p className="text-xs font-medium" style={{ color: "var(--brand-highlight)" }}>
-                    {product.stock === 1
-                      ? productDetail.lowStock.lastUnitMessage
-                      : `¡Quedan solo ${product.stock}!`}
-                  </p>
-                )}
-
                 <QuantityAddToCart
                   product={{
                     id: product.id,
@@ -257,11 +239,6 @@ export default async function StorefrontProductPage({
                     stock: v.stock,
                   }))}
                 />
-                {sizeGuideUrl && (
-                  <Link href={sizeGuideUrl} className="text-xs text-brand-accent hover:underline w-fit">
-                    Ver guía de tallas ↗
-                  </Link>
-                )}
               </>
             )}
 

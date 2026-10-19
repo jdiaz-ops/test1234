@@ -20,7 +20,6 @@ import {
   scoreProducts,
   structureFromAssignments,
   summarizeExistingSection,
-  tracksStock,
   type BannerPlan,
   type ExistingSectionSummary,
   type HomeSectionPlan,
@@ -199,7 +198,6 @@ async function loadCatalog(brandId: string): Promise<Catalog> {
     },
     sections: sections.map((s) => summarizeExistingSection(s, collectionNameById)),
     facts: {
-      tracksStock: tracksStock(products),
       hasPages: pages > 0,
       hasPurchaseInfo: theme.productDetail.purchaseInfo.some((i) => i.show && Boolean(i.title || i.description)),
     },
@@ -607,9 +605,8 @@ function sectionConfig(section: HomeSectionPlan, ctx: SectionContext): { type: S
 }
 
 /// Los ajustes del tema que ayudan a vender, solo donde falten (ver
-/// planSettings): sellos de confianza en la ficha, aviso de últimas
-/// unidades, botón de compra flotante y ahorro visible, sugerencias en el
-/// carrito, buscador, y el pie con contacto y páginas. El "Nosotros" lo
+/// planSettings): sellos de confianza en la ficha, botón de compra
+/// flotante y ahorro visible, sugerencias en el carrito, buscador, y el pie con contacto y páginas. El "Nosotros" lo
 /// escribe la marca, no la IA (pedido del 2026-10-19).
 function settingsPatch(settings: StoreSettingsPlan, catalog: Catalog, summary: ApplySummary): Record<string, unknown> {
   const theme = catalog.theme;
@@ -622,10 +619,6 @@ function settingsPatch(settings: StoreSettingsPlan, catalog: Catalog, summary: A
       { show: true, icon: "RETURNS", title: "Cambios y garantía", description: "Si algo llega mal, lo resolvemos." },
     ];
     summary.settings.push("sellos de confianza en la ficha");
-  }
-  if (settings.lowStock && !theme.productDetail.lowStock.enabled) {
-    productDetail.lowStock = { enabled: true, threshold: 3 };
-    summary.settings.push("aviso de últimas unidades");
   }
   if (!theme.productDetail.floatingAddToCart) {
     productDetail.floatingAddToCart = true;

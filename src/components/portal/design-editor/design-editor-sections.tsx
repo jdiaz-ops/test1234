@@ -659,41 +659,9 @@ export function FooterSection({ theme, patch }: { theme: ThemeConfig; patch: Pat
         </Field>
       </div>
 
-      <div className="border-t border-brand-line pt-4 space-y-2">
-        <Checkbox label="Mostrar las opciones de envío en tu sitio" checked={f.showShippingOptions} onChange={(v) => patch({ footer: { showShippingOptions: v } })} />
-        <Checkbox label="Mostrar los métodos de pago en tu sitio" checked={f.showPaymentMethods} onChange={(v) => patch({ footer: { showPaymentMethods: v } })} />
-        <p className="text-[11px] text-brand-ink-soft">Guardado para más adelante — todavía no se dibujan los logos en el footer.</p>
-      </div>
-
-      <div className="border-t border-brand-line pt-4">
-        <p className="text-xs font-medium text-brand-ink mb-2">Sellos personalizados en el footer</p>
-        <p className="text-[11px] text-brand-ink-soft mb-2">Solo imagen — a diferencia de otras plataformas, acá no se acepta pegar código, para no abrir una puerta a scripts maliciosos en tu vitrina.</p>
-        <div className="space-y-2">
-          {f.seals.map((seal, i) => (
-            <div key={i} className="flex items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element -- sello subido por la marca */}
-              <img src={seal.imageUrl} alt="" className="w-8 h-8 object-contain" />
-              <button
-                type="button"
-                onClick={() => patch({ footer: { seals: f.seals.filter((_, idx) => idx !== i) } })}
-                className="text-xs text-red-600 hover:underline"
-              >
-                Quitar
-              </button>
-            </div>
-          ))}
-        </div>
-        {f.seals.length < 6 && (
-          <div className="mt-2">
-            <ImageUploadButton
-              imageUrl={null}
-              label="+ Agregar sello"
-              recommendedSize="24×24px"
-              onChange={(url) => url && patch({ footer: { seals: [...f.seals, { imageUrl: url }] } })}
-            />
-          </div>
-        )}
-      </div>
+      {/* Sin "Mostrar las opciones de envío / los métodos de pago" ni
+          "Sellos personalizados": se quitaron a pedido de la marca
+          (simplificar, 2026-10-19). */}
     </div>
   );
 }
@@ -727,12 +695,6 @@ export function ProductListingSection({ theme, patch }: { theme: ThemeConfig; pa
           <option value="portrait">Verticales 4:5</option>
         </select>
       </Field>
-      <p className="text-[11px] text-brand-ink-soft -mt-2">
-        Todas las tarjetas quedan iguales; a una foto de otra forma se le
-        recorta parejo lo que sobre. Tamaño recomendado: 1000px de ancho
-        (mínimo 800px) — así se ve nítida en pantallas de alta resolución
-        sin pesar de más.
-      </p>
       <Field label="Burbuja de descuento en la foto" hint="Sale arriba a la izquierda de los productos en oferta.">
         <select
           value={p.discountBadge}
@@ -749,11 +711,6 @@ export function ProductListingSection({ theme, patch }: { theme: ThemeConfig; pa
         checked={p.showSoldOut}
         onChange={(v) => patch({ productListing: { showSoldOut: v } })}
       />
-      <p className="text-[11px] text-brand-ink-soft -mt-3">
-        Apagado: los productos sin unidades no aparecen en la portada, las
-        colecciones ni el buscador (su página sigue abierta por link
-        directo). Prendido: se ven con la etiqueta &quot;Agotado&quot;.
-      </p>
     </div>
   );
 }
@@ -762,15 +719,7 @@ export function ProductListingSection({ theme, patch }: { theme: ThemeConfig; pa
 // Detalle de producto
 // ----------------------------------------------------------------------------
 
-export function ProductDetailSection({
-  theme,
-  patch,
-  storePages,
-}: {
-  theme: ThemeConfig;
-  patch: PatchFn;
-  storePages: { slug: string; title: string }[];
-}) {
+export function ProductDetailSection({ theme, patch }: { theme: ThemeConfig; patch: PatchFn }) {
   const d = theme.productDetail;
   return (
     <div className="space-y-5 max-w-sm">
@@ -779,59 +728,12 @@ export function ProductDetailSection({
         checked={d.floatingAddToCart}
         onChange={(v) => patch({ productDetail: { floatingAddToCart: v } })}
       />
-      <p className="text-[11px] text-brand-ink-soft -mt-3">
-        Aparece abajo cuando el comprador scrollea y pierde de vista el
-        botón principal — te conviene tenerlo prendido.
-      </p>
       <Checkbox label="Mostrar el monto ahorrado por descuento" checked={d.showSavedAmount} onChange={(v) => patch({ productDetail: { showSavedAmount: v } })} />
       <Checkbox label="Mostrar variantes como botones" checked={d.variantsAsButtons} onChange={(v) => patch({ productDetail: { variantsAsButtons: v } })} />
-      <Checkbox label="Mostrar la foto de la variante de color como botón" checked={d.colorVariantAsPhoto} onChange={(v) => patch({ productDetail: { colorVariantAsPhoto: v } })} />
-
-      <Field label="Guía de tallas" hint="Enlaza una de tus Páginas propias.">
-        <select
-          value={d.sizeGuidePageSlug ?? ""}
-          onChange={(e) => patch({ productDetail: { sizeGuidePageSlug: e.target.value || null } })}
-          className="input text-sm"
-        >
-          <option value="">Sin guía de tallas</option>
-          {storePages.map((p) => (
-            <option key={p.slug} value={p.slug}>
-              {p.title}
-            </option>
-          ))}
-        </select>
-      </Field>
-
+      {/* Sin "foto de la variante de color como botón", "Guía de tallas" ni
+          "Últimas unidades en stock": se quitaron a pedido de la marca
+          (simplificar, 2026-10-19) y la vitrina ya no los usa. */}
       <Checkbox label="Mostrar stock disponible" checked={d.showStock} onChange={(v) => patch({ productDetail: { showStock: v } })} />
-
-      <div className="border-t border-brand-line pt-4 space-y-2">
-        <p className="text-xs font-medium text-brand-ink">Últimas unidades en stock</p>
-        <Checkbox
-          label="Mostrar mensaje de urgencia cuando queden pocas"
-          checked={d.lowStock.enabled}
-          onChange={(v) => patch({ productDetail: { lowStock: { enabled: v } } })}
-        />
-        {d.lowStock.enabled && (
-          <>
-            <Field label="Mostrar cuando queden menos de:">
-              <input
-                type="number"
-                min="1"
-                value={d.lowStock.threshold}
-                onChange={(e) => patch({ productDetail: { lowStock: { threshold: Number(e.target.value) || 1 } } })}
-                className="input text-sm"
-              />
-            </Field>
-            <Field label="Mensaje cuando queda 1 unidad">
-              <input
-                value={d.lowStock.lastUnitMessage}
-                onChange={(e) => patch({ productDetail: { lowStock: { lastUnitMessage: e.target.value } } })}
-                className="input text-sm"
-              />
-            </Field>
-          </>
-        )}
-      </div>
 
       <div className="border-t border-brand-line pt-4 space-y-2">
         <p className="text-xs font-medium text-brand-ink">Productos relacionados</p>
@@ -917,15 +819,6 @@ export function CartSection({ theme, patch }: { theme: ThemeConfig; patch: Patch
     // Ver conversación del 2026-09-30.
     <div className="space-y-4 max-w-sm">
       <Checkbox label="Sugerir productos complementarios en el carrito" checked={c.suggestComplementary} onChange={(v) => patch({ cart: { suggestComplementary: v } })} />
-      <p className="text-[11px] text-brand-ink-soft -mt-2">
-        Debajo de lo que lleva el comprador aparecen hasta 4 productos, cada uno con su
-        botón de agregar: &quot;Otros clientes también compraron&quot; con lo que se vendió
-        junto en pedidos reales o, si todavía no hay, &quot;También te puede gustar&quot; con
-        productos de las mismas colecciones.
-      </p>
-      <p className="text-[11px] text-brand-ink-soft">
-        El código de descuento se escribe en la página de pago, no en el carrito.
-      </p>
     </div>
   );
 }

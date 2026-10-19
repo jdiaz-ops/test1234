@@ -74,15 +74,6 @@ export function VariantPicker({
     });
   }, [optionNames, variants]);
 
-  // Para el toggle "mostrar la foto de la variante de color como botón" —
-  // solo tiene sentido en el eje que de verdad se llama "color" (o
-  // similar), usando la primera variante que tenga esa combinación de
-  // valor + foto propia.
-  function imageForOptionValue(idx: number, value: string): string | null {
-    const key = `option${idx + 1}Value` as "option1Value" | "option2Value" | "option3Value";
-    return variants.find((v) => v[key] === value && v.imageUrl)?.imageUrl ?? null;
-  }
-
   const allChosen = optionNames.every((_, idx) => selected[idx]);
   const matchedVariant = allChosen
     ? variants.find((v) => {
@@ -124,9 +115,6 @@ export function VariantPicker({
   return (
     <div className="space-y-4">
       {optionNames.map((name, idx) => {
-        const isColorAxis = /color/i.test(name);
-        const showPhoto = isColorAxis && productDetail.colorVariantAsPhoto;
-
         if (!productDetail.variantsAsButtons) {
           return (
             <div key={name}>
@@ -156,30 +144,22 @@ export function VariantPicker({
             <div className="flex flex-wrap gap-2">
               {valuesByOption[idx].map((value) => {
                 const isSelected = selected[idx] === value;
-                const photoUrl = showPhoto ? imageForOptionValue(idx, value) : null;
                 const soldOut = valueSoldOut(idx, value);
+                // Sin "foto de la variante de color como botón" (se quitó del
+                // editor a pedido de la marca, 2026-10-19): siempre el nombre.
                 return (
                   <button
                     key={value}
                     type="button"
                     onClick={() => setSelected((prev) => ({ ...prev, [idx]: value }))}
                     title={soldOut ? `${value} — agotado` : value}
-                    className={
-                      photoUrl
-                        ? `rounded-full overflow-hidden w-10 h-10 border-2 ${isSelected ? "border-brand-accent" : "border-brand-line"} ${soldOut ? "opacity-40" : ""}`
-                        : `text-sm rounded-full px-4 py-1.5 border ${
-                            isSelected
-                              ? "bg-brand-button text-brand-button-text border-brand-button"
-                              : "border-brand-line text-brand-ink hover:bg-brand-accent-soft"
-                          } ${soldOut ? "line-through opacity-50" : ""}`
-                    }
+                    className={`text-sm rounded-full px-4 py-1.5 border ${
+                      isSelected
+                        ? "bg-brand-button text-brand-button-text border-brand-button"
+                        : "border-brand-line text-brand-ink hover:bg-brand-accent-soft"
+                    } ${soldOut ? "line-through opacity-50" : ""}`}
                   >
-                    {photoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- foto de la variante
-                      <img src={photoUrl} alt={value} className="w-full h-full object-cover" />
-                    ) : (
-                      value
-                    )}
+                    {value}
                   </button>
                 );
               })}

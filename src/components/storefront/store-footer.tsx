@@ -46,8 +46,7 @@ export function StoreFooter({
     hasMenu ||
     (config.menuSecondary.show && (hasPages || menuItems.length > 0)) ||
     hasContact ||
-    hasSocial ||
-    config.seals.length > 0;
+    hasSocial;
 
   if (!hasAnything) return null;
 
@@ -168,18 +167,8 @@ export function StoreFooter({
         )}
       </div>
 
-      {config.seals.length > 0 && (
-        <div className="border-t border-white/10 py-4">
-          <div className="max-w-[1600px] mx-auto px-4 sm:px-8 flex items-center justify-center gap-3 flex-wrap opacity-90">
-            {config.seals.map((seal, i) => (
-              // eslint-disable-next-line @next/next/no-img-element -- sello subido por la marca
-              <img key={i} src={seal.imageUrl} alt="" className="h-6 w-auto" />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Sin "{marca} · vendido con Marcolini" al pie (2026-10-01). */}
+      {/* Sin "{marca} · vendido con Marcolini" al pie (2026-10-01) ni
+          "Sellos personalizados" (se quitaron del editor, 2026-10-19). */}
       <div className="pb-4" />
     </footer>
   );

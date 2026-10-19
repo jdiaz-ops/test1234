@@ -51,25 +51,6 @@ export const SECTION_TYPE_LABEL: Record<SectionType, string> = {
   CUSTOM_BLOCK: "Bloque personalizado",
 };
 
-export const SECTION_TYPE_DESCRIPTION: Record<SectionType, string> = {
-  BANNER: "Una o varias imágenes de ancho completo (armá un carrusel), al tamaño de la imagen, horizontal o cuadrado, cada una con su propio link, más título/texto/botón opcionales — el hero de tu tienda (podés agregar varios).",
-  FEATURED_COLLECTION: "Muestra los productos de una de tus colecciones en una cuadrícula.",
-  TEXT: "Un título y un párrafo — para un mensaje de bienvenida, institucional, o contar algo de tu marca (podés agregar varios).",
-  IMAGE_CAROUSEL: "Una o más imágenes de ancho completo, sin texto — el hero clásico de tienda.",
-  SHIPPING_INFO_BANNERS: "Hasta 4 sellos con ícono, título y descripción — envíos, pagos, seguridad, cambios y devoluciones.",
-  CATEGORY_BANNERS: "Hasta 3 banners, cada uno enlazado a una de tus colecciones.",
-  CATEGORY_GRID: "Hasta 6 categorías en cuadrícula, cada una enlazada a una de tus colecciones — para \"comprar por categoría\".",
-  PROMO_BANNERS: "Hasta 3 banners promocionales sueltos, cada uno con su propio link.",
-  FEATURED_PRODUCTS: "Elige a mano qué productos destacar, en grilla o carrusel.",
-  NEW_PRODUCTS: "Tus productos más recientes, en grilla o carrusel — se arma solo.",
-  ON_SALE_PRODUCTS: "Productos con descuento activo (se arma solo), o los de una colección, o elegidos a mano — en grilla o carrusel.",
-  BRAND_CAROUSEL: "Tira de logos o imágenes chicas — marcas asociadas, sellos, \"como se vio en\".",
-  VIDEO: "Un video de YouTube o Vimeo embebido, con título opcional.",
-  INSTAGRAM_CTA: "Banner simple invitando a seguir tu cuenta de Instagram.",
-  PRODUCT_CATALOG: "Todos tus productos activos, en la plantilla que elegiste — se arma solo.",
-  CUSTOM_BLOCK: "Arma lo que necesites: texto con botón, imagen con texto, tarjetas o columnas, preguntas frecuentes o testimonios, con tus propios colores.",
-};
-
 /// Cada slide es su propia imagen con su propio link — click en la
 /// imagen lleva ahí (independiente del botón de abajo, que es un CTA
 /// aparte superpuesto a todo el carrusel). Ver conversación del

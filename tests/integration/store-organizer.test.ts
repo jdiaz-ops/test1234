@@ -88,9 +88,8 @@ describe.skipIf(!hasDb)("organizador automático de tienda", () => {
     expect(plan.productNames.find((n) => n.from === "PUSHER METALICO")?.to).toBe("Pusher metalico");
     expect(plan.menu.map((m) => m.label)).toEqual(["Inicio", "Esmaltes", "Herramientas", "Otros productos", "Todos los productos"]);
     expect(plan.stats).toMatchObject({ products: 7, active: 6, soldOut: 1, withSales: 2, collectionsBefore: 4, collectionsAfter: 3 });
-    // Ajustes por reglas: la tienda lleva inventario y no tiene páginas ni
-    // sellos propios.
-    expect(plan.settings).toEqual({ purchaseInfo: true, lowStock: true, cartSuggestions: true, footerContact: true, footerPages: false });
+    // Ajustes por reglas: la tienda no tiene páginas ni sellos propios.
+    expect(plan.settings).toEqual({ purchaseInfo: true, cartSuggestions: true, footerContact: true, footerPages: false });
     expect(plan.productDescriptions).toEqual([]);
     expect(plan.productsWithoutDescription).toHaveLength(6);
     expect(plan.productsWithoutDescription).not.toContain(lima);
@@ -127,7 +126,7 @@ describe.skipIf(!hasDb)("organizador automático de tienda", () => {
       descriptions: 1,
       collectionBanners: 2,
     });
-    expect(summary.settings).toEqual(expect.arrayContaining(["sellos de confianza en la ficha", "aviso de últimas unidades", "sugerencias en el carrito"]));
+    expect(summary.settings).toEqual(expect.arrayContaining(["sellos de confianza en la ficha", "sugerencias en el carrito"]));
     expect(summary.products.renamed).toBeGreaterThan(0);
 
     // La ficha entra saneada; las colecciones principales con foto reciben
@@ -144,7 +143,8 @@ describe.skipIf(!hasDb)("organizador automático de tienda", () => {
     expect((await prisma.brandCollection.findFirstOrThrow({ where: { brandId: brand.id, slug: "otros-productos" } })).bannerUrl).toBeNull();
     const themeAfter = await getPublishedTheme(brand.id);
     expect(themeAfter.productDetail.purchaseInfo.map((i) => i.title)).toEqual(["Envíos a todo el país", "Pagos seguros", "Cambios y garantía"]);
-    expect(themeAfter.productDetail.lowStock).toMatchObject({ enabled: true, threshold: 3 });
+    // El aviso de "últimas unidades" ya no existe (se quitó de Diseño y de la vitrina).
+    expect(themeAfter.productDetail.lowStock.enabled).toBe(false);
     expect(themeAfter.cart.suggestComplementary).toBe(true);
     expect(themeAfter.footer.contact.show).toBe(true);
     expect(themeAfter.footer.aboutUs.show).toBe(false);

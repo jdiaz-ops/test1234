@@ -85,12 +85,11 @@ const planSchema = z.object({
   settings: z
     .object({
       purchaseInfo: z.boolean(),
-      lowStock: z.boolean(),
       cartSuggestions: z.boolean(),
       footerContact: z.boolean(),
       footerPages: z.boolean(),
     })
-    .default({ purchaseInfo: false, lowStock: false, cartSuggestions: false, footerContact: false, footerPages: false }),
+    .default({ purchaseInfo: false, cartSuggestions: false, footerContact: false, footerPages: false }),
   stats: z.object({
     products: z.number(),
     active: z.number(),

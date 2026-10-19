@@ -2,10 +2,7 @@ import { isAdminActingAsBrand, requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { DesignEditorPanel } from "@/components/portal/design-editor/design-editor-panel";
 import { getDraftTheme } from "@/server/services/brand-theme-service";
-import {
-  listStorePages,
-  listStorefrontMenuItems,
-} from "@/server/services/store-page-service";
+import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { listStorefrontSections } from "@/server/services/storefront-section-service";
 import { SECTION_TYPES, type SectionType } from "@/lib/storefront-sections";
 
@@ -20,9 +17,8 @@ export default async function TiendaDisenoPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 
-  const [theme, pages, sections, menuItems, importTools] = await Promise.all([
+  const [theme, sections, menuItems, importTools] = await Promise.all([
     getDraftTheme(profile.id),
-    listStorePages(profile.id),
     listStorefrontSections(profile.id),
     listStorefrontMenuItems(profile.id),
     // "Traer el menú de la tienda original": solo cuando Juan entra con
@@ -32,17 +28,11 @@ export default async function TiendaDisenoPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
+      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-6">
         Diseño
       </h1>
-      <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Colores, tipografía, encabezado, página de inicio, catálogo y todo lo
-        que hace que tu tienda se sienta tuya. Nada de esto se ve en tu tienda
-        hasta que le des &ldquo;Publicar cambios&rdquo;.
-      </p>
       <DesignEditorPanel
         initialTheme={theme}
-        storePages={pages.map((p) => ({ slug: p.slug, title: p.title }))}
         initialSections={sections
           .filter((s): s is typeof s & { type: SectionType } =>
             (SECTION_TYPES as readonly string[]).includes(s.type),

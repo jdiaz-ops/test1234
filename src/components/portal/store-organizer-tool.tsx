@@ -38,7 +38,6 @@ export type OrganizerPlanView = {
   collectionBanners: boolean;
   settings: {
     purchaseInfo: boolean;
-    lowStock: boolean;
     cartSuggestions: boolean;
     footerContact: boolean;
     footerPages: boolean;
@@ -237,7 +236,6 @@ export function summaryText(s: OrganizerSummary) {
 function settingsText(settings: OrganizerPlanView["settings"]) {
   return [
     settings.purchaseInfo ? "sellos de confianza en la ficha de producto" : "",
-    settings.lowStock ? "aviso de últimas unidades con el inventario real" : "",
     settings.cartSuggestions ? "sugerencias en el carrito" : "",
     settings.footerContact ? "contacto en el pie de página" : "",
     settings.footerPages ? "páginas de información en el pie de página" : "",

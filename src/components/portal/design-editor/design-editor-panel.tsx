@@ -106,7 +106,6 @@ const NAV_GROUPS: { title: string; items: { key: NavKey; label: string }[] }[] =
 /// entera hasta "Publicar cambios". Ver conversación del 2026-09-14.
 export function DesignEditorPanel({
   initialTheme,
-  storePages,
   initialSections,
   initialMenuItems,
   storefrontSlug,
@@ -114,7 +113,6 @@ export function DesignEditorPanel({
   originalStoreUrl = null,
 }: {
   initialTheme: ThemeConfig;
-  storePages: { slug: string; title: string }[];
   initialSections: StorefrontSectionRow[];
   initialMenuItems: StorefrontMenuItemRow[];
   /// Herramienta "Traer el menú de la tienda original" (solo admin).
@@ -294,7 +292,7 @@ export function DesignEditorPanel({
           {active === "footer" && <FooterSection theme={theme} patch={patch} />}
           {active === "productListing" && <ProductListingSection theme={theme} patch={patch} />}
           {active === "productDetail" && (
-            <ProductDetailSection theme={theme} patch={patch} storePages={storePages} />
+            <ProductDetailSection theme={theme} patch={patch} />
           )}
           {active === "cart" && <CartSection theme={theme} patch={patch} />}
           {active === "mobileNav" && <MobileNavSection theme={theme} patch={patch} />}

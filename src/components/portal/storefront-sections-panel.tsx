@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   SECTION_TYPES,
   SECTION_TYPE_LABEL,
-  SECTION_TYPE_DESCRIPTION,
   DEFAULT_SECTION_CONFIG,
   type SectionType,
   type BannerConfig,
@@ -1005,13 +1004,7 @@ export function StorefrontSectionsPanel({ initialSections }: { initialSections: 
 
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-5">
-      <p className="text-sm font-medium text-brand-ink mb-1">Secciones de tu página de inicio</p>
-      <p className="text-xs text-brand-ink-soft mb-4 max-w-lg">
-        Arma tu página con secciones ya diseñadas — prende, apaga, reordena y
-        llena el contenido, sin tocar código. Este es el único lugar para
-        agregar o quitar elementos de tu página de inicio, incluido tu
-        catálogo de productos (sección &quot;Catálogo de productos&quot;).
-      </p>
+      <p className="text-sm font-medium text-brand-ink mb-4">Secciones de tu página de inicio</p>
 
       {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 
@@ -1078,7 +1071,6 @@ export function StorefrontSectionsPanel({ initialSections }: { initialSections: 
               className="w-full text-left rounded-lg border border-brand-line p-3 hover:border-brand-accent hover:bg-brand-accent-soft"
             >
               <p className="text-sm font-medium text-brand-ink">{SECTION_TYPE_LABEL[t]}</p>
-              <p className="text-xs text-brand-ink-soft mt-0.5">{SECTION_TYPE_DESCRIPTION[t]}</p>
             </button>
           ))}
           <button type="button" onClick={() => setAdding(false)} className="text-xs text-brand-ink-soft hover:underline">

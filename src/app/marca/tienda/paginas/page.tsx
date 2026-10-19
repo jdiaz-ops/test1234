@@ -19,9 +19,7 @@ export default async function TiendaPaginasPage() {
       </h1>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         Contenido propio de tu tienda — &ldquo;Sobre nosotros&rdquo;,
-        preguntas frecuentes, y lo que quieras agregar. Para el menú que
-        conecta estas páginas, ve a Diseño → &ldquo;Menú de
-        navegación&rdquo;.
+        preguntas frecuentes, y lo que quieras agregar.
       </p>
       <StorePagesPanel
         initialPages={pages.map((p) => ({
