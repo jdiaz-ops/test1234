@@ -91,13 +91,14 @@ const productName = z.object({ id: z.string(), name: z.string().min(2).max(255) 
 const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("prepare") }),
   z.object({ action: z.literal("classify"), collections: z.array(definedCollection).min(1).max(12), ids: z.array(z.string()).min(1).max(200) }),
-  z.object({ action: z.literal("plan"), mode: z.literal("reglas") }),
+  // Un solo "plan" (zod no admite dos miembros con el mismo action): con
+  // mode "ia" tienen que venir las definiciones y asignaciones.
   z.object({
     action: z.literal("plan"),
-    mode: z.literal("ia"),
-    definitions: z.array(definedCollection).min(1).max(12),
-    assignments: z.array(assignment).max(5000),
-    productNames: z.array(productName).max(5000),
+    mode: z.enum(["reglas", "ia"]),
+    definitions: z.array(definedCollection).max(12).optional(),
+    assignments: z.array(assignment).max(5000).optional(),
+    productNames: z.array(productName).max(5000).optional(),
   }),
   z.object({ action: z.literal("apply"), plan: planSchema }),
   z.object({ action: z.literal("undo") }),
@@ -127,7 +128,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true, ...result });
       }
       case "plan": {
-        const plan = await planStoreOrganizer(profile.id, data.mode === "reglas" ? { mode: "reglas" } : { mode: "ia", definitions: data.definitions, assignments: data.assignments, productNames: data.productNames });
+        if (data.mode === "ia" && !data.definitions?.length) {
+          return NextResponse.json({ error: "Faltan las colecciones definidas. Vuelve a generar el plan." }, { status: 400 });
+        }
+        const plan = await planStoreOrganizer(
+          profile.id,
+          data.mode === "reglas"
+            ? { mode: "reglas" }
+            : { mode: "ia", definitions: data.definitions ?? [], assignments: data.assignments ?? [], productNames: data.productNames ?? [] },
+        );
         return NextResponse.json({ ok: true, plan, lastRun: await lastOrganizerRun(profile.id) });
       }
       case "undo": {
