@@ -17,8 +17,9 @@ import type { ShippingAddress } from "@/lib/validation/creator";
 
 export class SampleError extends Error {}
 
-/// Campos de envío tal cual se guardan en SampleRequest.
-function shippingColumns(shipping: ShippingAddress) {
+/// Campos de envío tal cual se guardan en SampleRequest (y en
+/// PrBoxRequest, ver pr-box-service.ts).
+export function shippingColumns(shipping: ShippingAddress) {
   return {
     shippingName: shipping.shippingName,
     shippingDocument: shipping.shippingDocument,
@@ -33,7 +34,7 @@ function shippingColumns(shipping: ShippingAddress) {
 
 /// La última dirección usada queda como la del creador — la próxima
 /// muestra sale con el formulario ya lleno (2026-10-01).
-async function rememberShipping(creatorId: string, shipping: ShippingAddress) {
+export async function rememberShipping(creatorId: string, shipping: ShippingAddress) {
   const saved = { ...shippingColumns(shipping), shippingNotes: shipping.shippingNotes || "" };
   await prisma.creatorProfile.update({ where: { id: creatorId }, data: { savedShipping: saved } });
 }

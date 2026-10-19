@@ -266,6 +266,7 @@ model CreatorProfile {
   challengeUrgencyPings ChallengeUrgencyPing[]
   collections           Collection[]
   sampleRequests        SampleRequest[]
+  prBoxRequests         PrBoxRequest[]
   invitations           EnrollmentInvitation[]
   licensableContent     LicensableContent[]
   contentLicenses       ContentLicense[]
@@ -786,6 +787,7 @@ model BrandProfile {
 
   storeOrders         StoreOrder[]
   storeSaleFees       StoreSaleFee[]
+  prBoxes             PrBox[]
   /// El aliado comercial que la presentó, si lo hay (ver AllyReferral).
   allyReferral        AllyReferral?
   productReviews      ProductReview[]
@@ -1374,6 +1376,8 @@ model StoreOrder {
 
   /// Solo cuando kind = SAMPLE — la solicitud que originó este pedido.
   sampleRequest SampleRequest?
+  /// O la Caja PR que se le aprobó a una creadora.
+  prBoxRequest  PrBoxRequest?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1558,6 +1562,112 @@ model SampleRequest {
   /// Evita que el mismo creador spamee el mismo producto con solicitudes
   /// mientras ya tiene una pendiente sin resolver.
   @@index([brandId, status])
+  @@index([creatorId, status])
+}
+
+// ----------------------------------------------------------------------------
+// CAJAS PR (2026-10-19)
+// Un kit armado solo para creadoras (un lanzamiento, una caja de prensa): no
+// es un producto y no sale en la tienda. La marca pone fotos, qué incluye,
+// cuántas tiene (las creadoras no lo ven) y el brief: qué contenido quiere,
+// mensajes clave y fechas. Las creadoras la piden desde el marketplace y la
+// marca aprueba, o la marca se la propone a creadoras puntuales. Al aprobar
+// se usa una unidad y se crea un pedido $0 (kind SAMPLE) con la dirección,
+// que la marca envía desde ahí (guía y estado en el pedido); la creadora
+// sube el link de su publicación. Ver pr-box-service.ts.
+// ----------------------------------------------------------------------------
+
+enum PrBoxStatus {
+  DRAFT // la marca la está armando: nadie más la ve
+  OPEN // las creadoras la ven y la pueden pedir
+  CLOSED // ya no se puede pedir; lo aprobado sigue su curso
+}
+
+model PrBox {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  name     String
+  /// Qué trae, una cosa por línea.
+  contents String   @db.Text
+  /// Fotos; la primera es la portada.
+  images   String[]
+  /// Cuántas hay para regalar y cuántas ya se aprobaron. Las creadoras no
+  /// ven ninguna de las dos.
+  units     Int
+  unitsUsed Int @default(0)
+
+  /// El brief: qué contenido quiere y lo que no puede faltar.
+  contentBrief String @db.Text
+  keyMessages  String @default("") @db.Text
+  /// Hasta cuándo se puede pedir (ese día incluido), cuándo la envía la
+  /// marca y hasta cuándo hay para publicar — las 00:00 del día en Colombia.
+  requestUntil DateTime?
+  shipsOn      DateTime?
+  publishBy    DateTime?
+
+  status        PrBoxStatus @default(DRAFT)
+  /// true: sale en el marketplace y cualquier creadora la pide. false: solo
+  /// la ven las creadoras a las que la marca se la propone.
+  inMarketplace Boolean     @default(true)
+
+  requests PrBoxRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([brandId, createdAt])
+  @@index([status])
+}
+
+enum PrBoxRequestStatus {
+  REQUESTED // la creadora la pidió; la marca decide
+  PROPOSED // la marca se la propuso; la creadora decide
+  APPROVED // va para ella: se usó una unidad y está su pedido $0
+  REJECTED // la marca dijo que no
+  DECLINED // la creadora no aceptó la propuesta
+}
+
+/// Una creadora y una Caja PR: una sola por caja.
+model PrBoxRequest {
+  id String @id @default(cuid())
+
+  boxId     String
+  box       PrBox          @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  creatorId String
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  initiatedBy SampleRequestInitiator
+  /// De la creadora (por qué ella) o de la marca (al proponérsela).
+  message     String?
+
+  /// Igual que SampleRequest: se llenan cuando ella la pide o acepta.
+  shippingName     String?
+  shippingDocument String?
+  shippingEmail    String?
+  shippingPhone    String?
+  shippingRegion   String?
+  shippingCity     String?
+  shippingAddress  String?
+  shippingNotes    String?
+
+  status         PrBoxRequestStatus
+  rejectedReason String?
+  decidedAt      DateTime?
+
+  /// Su publicación con la caja.
+  postUrl     String?
+  publishedAt DateTime?
+
+  /// El pedido $0 que se crea al aprobar: de ahí sale el envío.
+  orderId String?     @unique
+  order   StoreOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([boxId, creatorId])
   @@index([creatorId, status])
 }
 

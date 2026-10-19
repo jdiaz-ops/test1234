@@ -12,6 +12,10 @@ import { InvitationsPanel } from "@/components/portal/invitations-panel";
 import { SAMPLES_ENABLED } from "@/lib/features";
 import { publicStoreUrl } from "@/lib/store-url";
 import { brandLogoSrc } from "@/lib/logo-src";
+import { defaultShippingFor } from "@/lib/sample-shipping";
+import { prBoxStage } from "@/lib/pr-box";
+import { listCreatorPrBoxRequests, listOpenPrBoxes, orderShipped } from "@/server/services/pr-box-service";
+import { CreatorPrBoxesPanel, type CreatorPrBox } from "@/components/portal/creator-pr-boxes-panel";
 import Link from "next/link";
 
 export default async function MarketplacePage({
@@ -25,7 +29,7 @@ export default async function MarketplacePage({
     where: { userId: session!.user.id },
   });
 
-  const [allOffers, enrollments, verticals, invitations] = await Promise.all([
+  const [allOffers, enrollments, verticals, invitations, openBoxes, boxRequests, user] = await Promise.all([
     listActiveOffers({
       verticalIds: params.vertical ? [params.vertical] : undefined,
       search: params.buscar,
@@ -33,6 +37,9 @@ export default async function MarketplacePage({
     getEnrollmentsForCreator(profile.id),
     prisma.vertical.findMany({ orderBy: { name: "asc" } }),
     listCreatorInvitations(profile.id),
+    SAMPLES_ENABLED ? listOpenPrBoxes() : Promise.resolve([]),
+    SAMPLES_ENABLED ? listCreatorPrBoxRequests(profile.id) : Promise.resolve([]),
+    prisma.user.findUniqueOrThrow({ where: { id: profile.userId }, select: { email: true } }),
   ]);
 
   // Filtro "solo con muestras" — aparte del query de Prisma porque es un
@@ -57,9 +64,33 @@ export default async function MarketplacePage({
   // (pedido del 2026-10-04).
   const joinedOffers = offers.filter((o) => enrollmentByOffer.has(o.id));
   const exploreOffers = offers.filter((o) => !enrollmentByOffer.has(o.id));
-  const tab = params.pestana === "tuyas" ? "tuyas" : "explorar";
+  const tab = params.pestana === "tuyas" ? "tuyas" : params.pestana === "cajas" && SAMPLES_ENABLED ? "cajas" : "explorar";
+
+  // Cajas PR (ver pr-box-service.ts): su código con cada marca para
+  // recordárselo en el brief, y en qué va cada caja suya.
+  const now = new Date();
+  const codeByBrand = new Map(enrollments.filter((e) => e.status === "ACTIVE").map((e) => [e.offer.brandId, e.discountCode]));
+  function boxView(box: (typeof openBoxes)[number]): CreatorPrBox {
+    return {
+      id: box.id,
+      name: box.name,
+      contents: box.contents,
+      images: box.images,
+      contentBrief: box.contentBrief,
+      keyMessages: box.keyMessages,
+      requestUntil: box.requestUntil?.toISOString() ?? null,
+      shipsOn: box.shipsOn?.toISOString() ?? null,
+      publishBy: box.publishBy?.toISOString() ?? null,
+      brand: { name: box.brand.companyName, logoSrc: brandLogoSrc(box.brand) },
+      code: codeByBrand.get(box.brandId) ?? null,
+    };
+  }
+  const requestedBoxIds = new Set(boxRequests.map((r) => r.boxId));
+  const boxesToRequest = openBoxes.filter((b) => !requestedBoxIds.has(b.id));
+  const proposals = boxRequests.filter((r) => r.status === "PROPOSED");
   const filtered = Boolean(params.buscar || params.vertical || soloMuestras);
-  function tabHref(target: "explorar" | "tuyas") {
+  function tabHref(target: "explorar" | "tuyas" | "cajas") {
+    if (target === "cajas") return "/creador/marketplace?pestana=cajas";
     const q = new URLSearchParams();
     if (params.buscar) q.set("buscar", params.buscar);
     if (params.vertical) q.set("vertical", params.vertical);
@@ -160,6 +191,21 @@ export default async function MarketplacePage({
         conseguir tu código de descuento único.
       </p>
 
+      {tab !== "cajas" && proposals.length > 0 && (
+        <Link
+          href={tabHref("cajas")}
+          className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800 hover:bg-purple-100"
+        >
+          <span>
+            {proposals.length === 1
+              ? `${proposals[0].box.brand.companyName} te propuso su Caja PR "${proposals[0].box.name}".`
+              : `Tienes ${proposals.length} Cajas PR que te propusieron las marcas.`}
+          </span>
+          <span className="shrink-0 font-medium">Ver →</span>
+        </Link>
+      )}
+
+      {tab !== "cajas" && (
       <form className="flex flex-wrap gap-3 mb-8" action="/creador/marketplace">
         {tab === "tuyas" && <input type="hidden" name="pestana" value="tuyas" />}
         <input
@@ -199,6 +245,7 @@ export default async function MarketplacePage({
           Filtrar
         </button>
       </form>
+      )}
 
       <InvitationsPanel
         initialInvitations={invitations.map((inv) => ({
@@ -226,11 +273,12 @@ export default async function MarketplacePage({
         suggestedCode={profile.baseCode}
       />
 
-      <div className="flex gap-1 border-b border-brand-line mb-6" role="tablist">
+      <div className="flex gap-1 overflow-x-auto border-b border-brand-line mb-6" role="tablist">
         {(
           [
             { key: "explorar", label: "Explorar marcas", count: exploreOffers.length },
             { key: "tuyas", label: "Tus marcas", count: joinedOffers.length },
+            ...(SAMPLES_ENABLED ? [{ key: "cajas" as const, label: "Cajas PR", count: boxesToRequest.length + proposals.length }] : []),
           ] as const
         ).map((t) => (
           <Link
@@ -238,7 +286,7 @@ export default async function MarketplacePage({
             href={tabHref(t.key)}
             role="tab"
             aria-selected={tab === t.key}
-            className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+            className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
               tab === t.key
                 ? "border-brand-accent text-brand-ink"
                 : "border-transparent text-brand-ink-soft hover:text-brand-ink"
@@ -249,7 +297,21 @@ export default async function MarketplacePage({
         ))}
       </div>
 
-      {shownOffers.length === 0 ? (
+      {tab === "cajas" ? (
+        <CreatorPrBoxesPanel
+          boxes={boxesToRequest.map(boxView)}
+          requests={boxRequests.map((r) => ({
+            id: r.id,
+            stage: prBoxStage({ status: r.status, postUrl: r.postUrl, shipped: orderShipped(r.order) }, r.box.publishBy, now),
+            message: r.message,
+            rejectedReason: r.rejectedReason,
+            postUrl: r.postUrl,
+            order: r.order ? { carrier: r.order.carrier, trackingNumber: r.order.trackingNumber, shippedAt: r.order.shippedAt?.toISOString() ?? null } : null,
+            box: boxView(r.box),
+          }))}
+          defaultShipping={defaultShippingFor(profile, user.email)}
+        />
+      ) : shownOffers.length === 0 ? (
         <div className="text-sm text-brand-ink-soft">
           {tab === "tuyas" ? (
             filtered ? (

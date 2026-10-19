@@ -6,6 +6,8 @@ import {
   listBrandSampleRequests,
 } from "@/server/services/sample-service";
 import { SAMPLES_ENABLED } from "@/lib/features";
+import { PrBoxesPanel } from "@/components/portal/pr-boxes-panel";
+import { brandPrBoxView, listBrandPrBoxes } from "@/server/services/pr-box-service";
 
 export default async function TiendaMuestrasPage() {
   // Función apagada al lanzar (ver src/lib/features.ts).
@@ -14,10 +16,12 @@ export default async function TiendaMuestrasPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 
-  const [products, requests] = await Promise.all([
+  const [products, requests, boxes] = await Promise.all([
     listBrandSampleCatalog(profile.id),
     listBrandSampleRequests(profile.id),
+    listBrandPrBoxes(profile.id),
   ]);
+  const now = new Date();
 
   return (
     <div>
@@ -25,9 +29,12 @@ export default async function TiendaMuestrasPage() {
         Muestras
       </h1>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Envía muestras de productos a creadoras para que los prueben y los
-        muestren en su contenido.
+        Envía muestras de productos o arma Cajas PR para que las creadoras
+        prueben tu marca y la muestren en su contenido.
       </p>
+      <div className="mb-12">
+        <PrBoxesPanel boxes={boxes.map((box) => brandPrBoxView(box, now))} />
+      </div>
       <StoreSamplesPanel
         initialProducts={products.map((p) => ({
           id: p.id,

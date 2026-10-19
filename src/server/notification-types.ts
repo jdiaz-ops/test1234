@@ -69,6 +69,33 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     placeholders: "marca,producto",
   },
   {
+    key: "PR_BOX_PROPOSED",
+    label: "Una marca te propuso su Caja PR",
+    audience: "CREATOR",
+    channelEmail: true,
+    messageTemplate:
+      '{marca} te propone su Caja PR "{caja}". Mira el brief y acéptala en Marketplace → Cajas PR.',
+    placeholders: "marca,caja",
+  },
+  {
+    key: "PR_BOX_APPROVED",
+    label: "Caja PR aprobada",
+    audience: "CREATOR",
+    channelEmail: true,
+    messageTemplate:
+      '{marca} aprobó tu Caja PR "{caja}". {detalle}',
+    placeholders: "marca,caja,detalle",
+  },
+  {
+    key: "PR_BOX_REJECTED",
+    label: "Caja PR no aprobada",
+    audience: "CREATOR",
+    channelEmail: true,
+    messageTemplate:
+      '{marca} no puede enviarte la Caja PR "{caja}" esta vez.{razon}',
+    placeholders: "marca,caja,razon",
+  },
+  {
     key: "ENROLLMENT_INVITED_CREATOR",
     label: "Una marca te invitó a unirte",
     audience: "CREATOR",
@@ -272,6 +299,41 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
     messageTemplate:
       '{creador} aceptó tu muestra de "{producto}". Ya está en Pedidos, lista para despachar.',
     placeholders: "creador,producto",
+  },
+  {
+    key: "PR_BOX_REQUESTED",
+    label: "Una creadora pidió tu Caja PR",
+    audience: "BRAND",
+    channelEmail: true,
+    messageTemplate:
+      '{creador} pidió tu Caja PR "{caja}". Apruébala o recházala en Muestras.',
+    placeholders: "creador,caja",
+  },
+  {
+    key: "PR_BOX_ACCEPTED",
+    label: "Una creadora aceptó tu Caja PR",
+    audience: "BRAND",
+    channelEmail: true,
+    messageTemplate:
+      '{creador} aceptó tu Caja PR "{caja}". Ya puedes enviarla: la dirección está en Muestras.',
+    placeholders: "creador,caja",
+  },
+  {
+    key: "PR_BOX_DECLINED",
+    label: "Una creadora no aceptó tu Caja PR",
+    audience: "BRAND",
+    messageTemplate:
+      '{creador} no aceptó tu Caja PR "{caja}".',
+    placeholders: "creador,caja",
+  },
+  {
+    key: "PR_BOX_PUBLISHED",
+    label: "Una creadora publicó con tu Caja PR",
+    audience: "BRAND",
+    channelEmail: true,
+    messageTemplate:
+      '{creador} publicó su contenido con tu Caja PR "{caja}": {link}',
+    placeholders: "creador,caja,link",
   },
   {
     key: "PAID_CONTENT_REQUEST_ACCEPTED",
