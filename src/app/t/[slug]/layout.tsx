@@ -17,6 +17,7 @@ import { redirect } from "next/navigation";
 import { listStorePages } from "@/server/services/store-page-service";
 import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
+import { resolvePhotoShape } from "@/server/services/photo-shape-service";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import {
   themeToCssVars,
@@ -75,12 +76,18 @@ export default async function StorefrontLayout({
     );
   }
 
-  const [theme, menuItemsRaw, basePath, pagesRaw] = await Promise.all([
+  const [savedTheme, menuItemsRaw, basePath, pagesRaw] = await Promise.all([
     getStorefrontTheme(brand.id),
     listStorefrontMenuForShoppers(brand.id),
     getStoreBasePath(slug),
     listStorePages(brand.id),
   ]);
+  // Forma de las fotos en "Automática": la que más usan las fotos de la
+  // tienda (medida y guardada aparte, ver photo-shape-service.ts).
+  const theme =
+    savedTheme.productListing.imageRatio === "auto"
+      ? { ...savedTheme, productListing: { ...savedTheme.productListing, imageRatio: resolvePhotoShape(brand) } }
+      : savedTheme;
   const menuItems = menuItemsRaw;
   // Las páginas propias (políticas, quiénes somos) van en la segunda
   // columna del pie de página — ver StoreFooter.

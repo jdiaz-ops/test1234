@@ -285,14 +285,15 @@ const productListingSchema = withDefaults({
   /// abierta por link directo. Prendido: se ven con la etiqueta "Agotado".
   /// Ver product-stock.ts y conversación del 2026-10-18.
   showSoldOut: z.boolean().default(false),
-  /// Forma de la foto en las tarjetas de producto. "natural" (por defecto):
-  /// cada foto con su propia forma, sin recortarle nada — como "Adaptar a
-  /// la imagen" en Shopify. Antes era siempre cuadrada y a las fotos
-  /// verticales se les cortaba arriba y abajo, con el texto que traen
-  /// (pedido del 2026-10-19: "las imágenes se cortan"). "square" y
-  /// "portrait" (4:5) dejan todas las tarjetas parejas recortando lo que
-  /// sobre.
-  imageRatio: z.enum(["natural", "square", "portrait"]).default("natural"),
+  /// Forma de la foto en las tarjetas de producto — todas las tarjetas
+  /// iguales, recortando parejo lo que sobre. "auto" (por defecto): la
+  /// forma que más usan las fotos de la tienda, medida por la plataforma
+  /// (ver photo-shape-service.ts); o cuadradas, o verticales 4:5. Antes
+  /// eran siempre cuadradas y a las fotos verticales se les cortaba el
+  /// texto de arriba y de abajo; "cada foto con su forma" (el "natural" que
+  /// existió unas horas) dejaba las tarjetas disparejas y se quitó: quien lo
+  /// tenga guardado pasa a "auto". Conversación del 2026-10-19.
+  imageRatio: z.preprocess((v) => (v === "natural" ? "auto" : v), z.enum(["auto", "square", "portrait"]).default("auto")),
 });
 
 // ----------------------------------------------------------------------------
@@ -428,6 +429,9 @@ export const themeConfigSchema = z.object({
 });
 
 export type ThemeConfig = z.infer<typeof themeConfigSchema>;
+
+/// La forma real de las tarjetas una vez resuelta la "auto" de la tienda.
+export type PhotoShape = "square" | "portrait";
 
 export const DEFAULT_THEME_CONFIG: ThemeConfig = themeConfigSchema.parse({});
 

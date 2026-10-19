@@ -28,7 +28,6 @@ export function StoreImage({
   sizes,
   priority,
   natural,
-  reserve = [2000, 1000],
 }: {
   src: string;
   alt: string;
@@ -42,10 +41,6 @@ export function StoreImage({
   /// como el banner en modo "original". false (por defecto) = llena el
   /// marco de su contenedor, que debe tener posición y tamaño.
   natural?: boolean;
-  /// Con `natural`: la proporción que ocupa mientras carga (ancho, alto).
-  /// Por defecto la de un banner; una tarjeta de producto reserva un
-  /// cuadrado, que es lo más común, para que la página salte menos.
-  reserve?: [number, number];
 }) {
   if (!canOptimize(src)) {
     return (
@@ -65,8 +60,8 @@ export function StoreImage({
       <Image
         src={src}
         alt={alt}
-        width={reserve[0]}
-        height={reserve[1]}
+        width={2000}
+        height={1000}
         sizes={sizes}
         priority={priority}
         className={`w-full h-auto block ${className ?? ""}`}

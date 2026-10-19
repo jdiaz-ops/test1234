@@ -596,6 +596,13 @@ model BrandProfile {
   /// Ícono de la pestaña del navegador en su tienda (favicon). Si no hay,
   /// la tienda usa el logo. Ver app/t/[slug]/layout.tsx.
   faviconUrl  String?
+  /// La forma que más usan las fotos de sus productos ("square" o
+  /// "portrait"), medida por la plataforma para que las tarjetas de la
+  /// tienda queden todas iguales cuando Diseño → Forma de las fotos está en
+  /// "Automática". photoShapeAt = cuándo se midió (se vuelve a medir cada
+  /// dos días o después de importar). Ver photo-shape-service.ts.
+  photoShape   String?
+  photoShapeAt DateTime?
   description String?
   city        String?
   country     String  @default("Colombia")

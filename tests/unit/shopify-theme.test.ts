@@ -132,7 +132,8 @@ describe("leer el diseño de la portada de Shopify", () => {
         .join("");
     expect(extractProductImageRatio(cards(125, 125.0, 125))).toBe("portrait");
     expect(extractProductImageRatio(cards(100, 100))).toBe("square");
-    expect(extractProductImageRatio(cards(125, 100, 133.3))).toBe("natural");
+    // Cada foto con su forma ("adaptar a la imagen"): queda la automática.
+    expect(extractProductImageRatio(cards(125, 100, 133.3))).toBeNull();
     expect(extractProductImageRatio(DAWN)).toBeNull();
   });
 

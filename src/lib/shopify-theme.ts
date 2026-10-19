@@ -777,21 +777,21 @@ export function extractLogoWidth(html: string, baseUrl: string): number | null {
   return fromAttr.length > 0 ? Math.round(fromAttr[0]) : null;
 }
 
-export type ProductImageRatio = "natural" | "square" | "portrait";
+export type ProductImageRatio = "square" | "portrait";
 
 /// La forma de las fotos en las tarjetas de producto de la tienda. Los
 /// temas de Shopify de la familia Dawn ponen en cada tarjeta
 /// --ratio-percent (alto ÷ ancho × 100) según el ajuste "Proporción de
-/// imagen": todas al 100 % = cuadradas, todas al 125 % = verticales 4:5;
-/// cualquier otra cosa es "adaptar a la imagen" (cada foto con su forma).
-/// null si la página no tiene tarjetas de producto que lo digan.
+/// imagen": todas al 100 % = cuadradas, todas al 125 % = verticales 4:5.
+/// Cualquier otra cosa ("adaptar a la imagen", cada una con su forma) o
+/// una página sin tarjetas: null, y en Marcolini queda "Automática".
 export function extractProductImageRatio(html: string): ProductImageRatio | null {
   const values: number[] = [];
   for (const m of html.matchAll(/product-card-wrapper[\s\S]{0,800}?--ratio-percent\s*:\s*(\d+(?:\.\d+)?)%/gi)) values.push(parseFloat(m[1]));
   if (values.length === 0) return null;
   if (values.every((v) => Math.abs(v - 100) < 1)) return "square";
   if (values.every((v) => Math.abs(v - 125) < 1)) return "portrait";
-  return "natural";
+  return null;
 }
 
 export function extractFaviconUrl(html: string, baseUrl: string): string | null {

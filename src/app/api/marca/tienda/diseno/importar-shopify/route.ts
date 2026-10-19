@@ -21,7 +21,7 @@ const bodySchema = z.object({
   fonts: z.object({ headingFont: z.string().max(60), bodyFont: z.string().max(60) }).optional().nullable(),
   logoUrl: imageUrl,
   logoWidth: z.number().int().min(40).max(400).optional().nullable(),
-  productImageRatio: z.enum(["natural", "square", "portrait"]).optional().nullable(),
+  productImageRatio: z.enum(["square", "portrait"]).optional().nullable(),
   faviconUrl: imageUrl,
   pixels: z
     .object({

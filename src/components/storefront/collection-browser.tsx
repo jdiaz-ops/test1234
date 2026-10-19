@@ -57,13 +57,16 @@ function FacetGroup({
       <ul className="space-y-1.5">
         {visible.map((v) => (
           <li key={v.value}>
-            <label className="flex items-center gap-2 text-sm text-brand-ink cursor-pointer">
-              <input type="checkbox" checked={chosen.includes(v.value)} onChange={() => onToggle(v.value)} className="accent-brand-ink" />
+            <label className="flex items-start gap-2 text-sm text-brand-ink cursor-pointer">
+              <input type="checkbox" checked={chosen.includes(v.value)} onChange={() => onToggle(v.value)} className="accent-brand-ink mt-[3px] shrink-0" />
               {facet.key === COLOR_FAMILY_FACET && colorFamilySwatch(v.value) && (
-                <span aria-hidden className="w-3.5 h-3.5 shrink-0 rounded-full border border-brand-line" style={{ background: colorFamilySwatch(v.value)! }} />
+                <span aria-hidden className="w-3.5 h-3.5 mt-[3px] shrink-0 rounded-full border border-brand-line" style={{ background: colorFamilySwatch(v.value)! }} />
               )}
-              <span className="flex-1 truncate">{v.value}</span>
-              <span className="text-xs text-brand-ink-soft tabular-nums">{v.count}</span>
+              {/* Un nombre largo ("Gel Polish Platinum | Platinum Gel
+                  Profesional") baja a otra línea en vez de salirse de la
+                  columna — pedido del 2026-10-19. */}
+              <span className="flex-1 min-w-0 break-words leading-snug">{v.value}</span>
+              <span className="text-xs text-brand-ink-soft tabular-nums shrink-0 mt-[2px]">{v.count}</span>
             </label>
           </li>
         ))}
@@ -135,7 +138,7 @@ function FilterPanel({
                     onChange={() => setState({ ...state, price: toggle(state.price, b.key) })}
                     className="accent-brand-ink"
                   />
-                  <span className="flex-1">{b.label}</span>
+                  <span className="flex-1 min-w-0">{b.label}</span>
                   <span className="text-xs text-brand-ink-soft tabular-nums">{b.count}</span>
                 </label>
               </li>
@@ -196,8 +199,11 @@ export function CollectionBrowser({ products, basePath }: { products: CardProduc
 
   return (
     <div className="sm:grid sm:grid-cols-[220px_1fr] sm:gap-8 lg:grid-cols-[240px_1fr]">
-      <aside className="hidden sm:block">
-        <div className="sticky top-24">{panel}</div>
+      <aside className="hidden sm:block min-w-0">
+        {/* Con muchos filtros la columna es más alta que la pantalla: se
+            desplaza sola, así se llega al último filtro sin bajar toda la
+            colección (pedido del 2026-10-19). */}
+        <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain pr-2 pb-4">{panel}</div>
       </aside>
       <div className="min-w-0">
         <div className="flex items-center justify-between gap-3 mb-4">

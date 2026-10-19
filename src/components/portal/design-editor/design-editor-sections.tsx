@@ -702,16 +702,16 @@ export function ProductListingSection({ theme, patch }: { theme: ThemeConfig; pa
           onChange={(e) => patch({ productListing: { imageRatio: e.target.value } })}
           className="input text-sm"
         >
-          <option value="natural">Como vienen, sin recortar</option>
-          <option value="square">Cuadradas (recorta lo que sobre)</option>
-          <option value="portrait">Verticales 4:5 (recorta lo que sobre)</option>
+          <option value="auto">Automática: la forma que más usan tus fotos</option>
+          <option value="square">Cuadradas</option>
+          <option value="portrait">Verticales 4:5</option>
         </select>
       </Field>
       <p className="text-[11px] text-brand-ink-soft -mt-2">
-        Con &quot;Como vienen&quot;, si todas tus fotos tienen la misma forma las
-        tarjetas quedan parejas. Tamaño recomendado: 1000px de ancho (mínimo
-        800px) — así se ve nítida en pantallas de alta resolución sin pesar
-        de más.
+        Todas las tarjetas quedan iguales; a una foto de otra forma se le
+        recorta parejo lo que sobre. Tamaño recomendado: 1000px de ancho
+        (mínimo 800px) — así se ve nítida en pantallas de alta resolución
+        sin pesar de más.
       </p>
       <Checkbox
         label="Mostrar productos agotados"
