@@ -187,8 +187,10 @@ async function main() {
       let shown = 0;
       for (const m of text.matchAll(pattern)) {
         if (shown++ >= 150) break;
+        // Una coincidencia larga (por ejemplo "query X[\s\S]{0,2000}") se
+        // muestra completa; una corta, con 260 caracteres de contexto.
         const start = Math.max(0, m.index - 220);
-        console.log(`@${m.index}: ${text.slice(start, m.index + 260).replace(/\s+/g, " ")}`);
+        console.log(`@${m.index}: ${text.slice(start, m.index + Math.max(260, m[0].length + 40)).replace(/\s+/g, " ")}`);
       }
     }
     console.log("---- fin ----");

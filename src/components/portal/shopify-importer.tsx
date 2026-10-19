@@ -133,6 +133,7 @@ const PLATFORM_LABEL: Record<StorePlatform, string> = {
   shopify: "Shopify",
   woocommerce: "WooCommerce",
   tiendanube: "Tiendanube",
+  ecometri: "Ecometri",
   generic: "otra plataforma",
 };
 const API_IMPORT = "/api/marca/tienda/productos/importar-shopify";
@@ -229,8 +230,18 @@ async function postJson(url: string, body: unknown) {
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => null);
-  if (!res.ok || !data?.ok) throw new Error(data?.error ?? "No pudimos completar este paso. Intenta de nuevo.");
+  if (!res.ok || !data?.ok) {
+    throw Object.assign(new Error(data?.error ?? "No pudimos completar este paso. Intenta de nuevo."), { status: res.status });
+  }
   return data;
+}
+
+/// Un 422 del lector de otras tiendas es un motivo concreto ("no
+/// encontramos productos", "no pudimos leer esa tienda de Ecometri"):
+/// vale más mostrarlo que seguir como Shopify y terminar con el error
+/// genérico de ese lector.
+function isStoreReadRejection(err: unknown) {
+  return err instanceof Error && (err as { status?: number }).status === 422;
 }
 
 function emptyStats(): ShopifyCsvStats {
@@ -486,7 +497,19 @@ export function ShopifyImporter({
         const step = queue.shift()!;
         try {
           const r = (await postJson(API_READ_OTHER, { origin, step })) as ScanResult;
-          for (const p of r.products) if (!byHandle.has(p.handle)) byHandle.set(p.handle, p);
+          // El mismo producto puede llegar por varios pasos (en Ecometri,
+          // una vez en la lista completa y otra por cada colección): se
+          // queda el primero y se le suman las colecciones y lo que le falte.
+          for (const p of r.products) {
+            const prev = byHandle.get(p.handle);
+            if (!prev) {
+              byHandle.set(p.handle, p);
+              continue;
+            }
+            for (const name of p.collectionNames) if (!prev.collectionNames.includes(name)) prev.collectionNames.push(name);
+            if (!prev.description && p.description) prev.description = p.description;
+            if (prev.images.length === 0 && p.images.length > 0) prev.images = p.images;
+          }
           if (platform === "generic" && r.platform !== "generic") platform = r.platform;
           warnings.push(...r.warnings);
           queue.push(...r.next);
@@ -518,6 +541,11 @@ export function ShopifyImporter({
     }
     stats.unknownStock = products.filter((p) => p.stock == null || p.hasVariants).length;
     const collections = categoriesToCollections(scraped);
+    // La foto de cada colección, cuando la plataforma la publica (Ecometri).
+    for (const collection of collections) {
+      const category = first.categories.find((c) => c.imageUrl && c.name.trim().toLowerCase() === collection.name.trim().toLowerCase());
+      if (category?.imageUrl) collection.imageUrl = category.imageUrl;
+    }
     const notes: string[] = [];
 
     // Páginas informativas (envíos, cambios, privacidad, quiénes somos…).
@@ -555,6 +583,22 @@ export function ShopifyImporter({
         });
       const menu = translate(read.menu);
       theme = { ...read, menu, pageLinks: [], policyLinks: [] };
+      // Lo que la plataforma publica de la tienda manda sobre lo que el
+      // lector de la portada adivina: en Ecometri la página trae el logo
+      // y las redes de Ecometri, no los de la marca.
+      const info = first.storeInfo;
+      if (info) {
+        theme = {
+          ...theme,
+          storeName: info.name || theme.storeName,
+          metaDescription: info.description || theme.metaDescription,
+          logoUrl: info.logoUrl ?? theme.logoUrl,
+          social:
+            platform === "ecometri"
+              ? { instagram: null, tiktok: null, facebook: null, email: null, phone: null, whatsapp: info.whatsapp }
+              : { ...theme.social, whatsapp: info.whatsapp ?? theme.social.whatsapp },
+        };
+      }
     } catch (err) {
       notes.push(`No se pudo leer el diseño de la tienda: ${message(err)}`);
     }
@@ -608,9 +652,10 @@ export function ShopifyImporter({
       // ¿Es Shopify? Si no, va por el lector de otras plataformas. Si esta
       // revisión falla, se sigue como Shopify (su lector explica el error).
       setReadingStep("Revisando la tienda…");
-      const detected = (await postJson(API_READ_OTHER, { origin: null, step: { step: "detect", url } }).catch(
-        () => null,
-      )) as ScanResult | null;
+      const detected = (await postJson(API_READ_OTHER, { origin: null, step: { step: "detect", url } }).catch((err) => {
+        if (isStoreReadRejection(err)) throw err;
+        return null;
+      })) as ScanResult | null;
       if (detected && detected.platform !== "shopify") {
         await readOtherStore(detected);
         return;

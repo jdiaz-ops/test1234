@@ -5,7 +5,7 @@ import { limitOrReject } from "@/lib/rate-limit";
 import { OtherStoreError, scanStore } from "@/server/services/other-store-reader";
 
 /// Un paso de la lectura de una tienda que no es Shopify (WooCommerce,
-/// Tiendanube o cualquier otra) — ver other-store-reader.ts. El navegador
+/// Tiendanube, Ecometri o cualquier otra) — ver other-store-reader.ts. El navegador
 /// (shopify-importer.tsx) va pidiendo los pasos que devuelve cada
 /// respuesta. Solo lee; la importación va por importar-shopify.
 export const maxDuration = 60;
@@ -17,6 +17,15 @@ const bodySchema = z.object({
     z.object({ step: z.literal("woo-products"), page: z.number().int().min(1).max(200), base: z.string().max(400) }),
     z.object({ step: z.literal("pages"), urls: z.array(z.string().url().max(1000)).min(1).max(6) }),
     z.object({ step: z.literal("page"), url: z.string().url().max(1000) }),
+    z.object({
+      step: z.literal("ecometri-products"),
+      store: z.string().regex(/^[a-z0-9_.-]{1,100}$/i),
+      collection: z.string().regex(/^[a-z0-9-]{0,80}$/i),
+      name: z.string().max(80).nullable(),
+      offset: z.number().int().min(0).max(100000),
+      phone: z.string().regex(/^\d{0,20}$/),
+      currency: z.string().max(3).nullable(),
+    }),
   ]),
 });
 

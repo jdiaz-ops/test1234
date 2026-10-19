@@ -20,6 +20,16 @@ import {
   type WooStoreProduct,
 } from "@/lib/store-scrape";
 import { safeFetch, safeFetchJson, safeFetchText, SafeFetchError } from "@/server/integrations/safe-fetch";
+import {
+  ECOMETRI_PAGE_SIZE,
+  ecometriProductsUrl,
+  isEcometriHost,
+  isEcometriHtml,
+  parseEcometriProduct,
+  parseEcometriProductsResponse,
+  parseEcometriStorePage,
+  type EcometriStorePage,
+} from "@/lib/ecometri";
 
 /// Lee una tienda que NO es Shopify (WooCommerce, Tiendanube o cualquier
 /// otra) para el importador por link (shopify-importer.tsx), por pasos
@@ -32,6 +42,11 @@ import { safeFetch, safeFetchJson, safeFetchText, SafeFetchError } from "@/serve
 ///
 /// Si el paso "detectar" encuentra una tienda Shopify, responde
 /// platform = "shopify" sin más pasos: esa la lee shopify-store-reader.ts.
+///
+/// Ecometri (tiendas por WhatsApp, {marca}.ecometri.shop) tampoco se puede
+/// leer página por página (la portada y cada producto redirigen a una
+/// colección, y una colección solo muestra 12 productos): se leen la
+/// tienda de la portada y los productos de su API pública — ver ecometri.ts.
 
 export class OtherStoreError extends Error {}
 
@@ -39,9 +54,33 @@ export type ScanStep =
   | { step: "detect"; url: string }
   | { step: "woo-products"; page: number; base: string }
   | { step: "pages"; urls: string[] }
-  | { step: "page"; url: string };
+  | { step: "page"; url: string }
+  | EcometriProductsStep;
 
-export type ScanCategory = { name: string; url: string | null };
+/// Una página de productos de la API de Ecometri: collection = "" trae todos
+/// los productos de la tienda; con el id de una colección, los de esa
+/// (así se sabe a cuál pertenece cada uno). phone y currency vienen de la
+/// portada y hacen falta para armar los links y los precios.
+export type EcometriProductsStep = {
+  step: "ecometri-products";
+  store: string;
+  collection: string;
+  name: string | null;
+  offset: number;
+  phone: string;
+  currency: string | null;
+};
+
+export type ScanCategory = { name: string; url: string | null; imageUrl?: string | null };
+
+/// Datos de la tienda que la plataforma publica aparte del HTML (hoy solo
+/// Ecometri): mandan sobre lo que el lector de la portada adivine.
+export type ScanStoreInfo = {
+  name: string;
+  description: string;
+  logoUrl: string | null;
+  whatsapp: string | null;
+};
 
 export type ScanResult = {
   origin: string;
@@ -56,6 +95,8 @@ export type ScanResult = {
   /// Pasos que el navegador debe pedir después de este.
   next: ScanStep[];
   warnings: string[];
+  /// Solo en "detect", y solo cuando la plataforma lo publica (Ecometri).
+  storeInfo: ScanStoreInfo | null;
 };
 
 const WOO_PAGE_SIZE = 20;
@@ -64,7 +105,7 @@ const MAX_SITEMAPS = 25;
 const MAX_CATEGORY_PAGES_TO_CRAWL = 20;
 
 function emptyResult(origin: string, platform: StorePlatform): ScanResult {
-  return { origin, platform, storeName: "", products: [], categories: [], infoPages: [], page: null, next: [], warnings: [] };
+  return { origin, platform, storeName: "", products: [], categories: [], infoPages: [], page: null, next: [], warnings: [], storeInfo: null };
 }
 
 /// "mitienda.com", "https://mitienda.com/collections/x" → "https://mitienda.com".
@@ -138,6 +179,16 @@ async function detect(input: string): Promise<ScanResult> {
   const storeName = storeNameFromHtml(html, origin);
   const hinted = detectPlatformFromHtml(html);
 
+  // Ecometri: los datos de la tienda vienen en la misma página; los
+  // productos, de su API (ver ecometri.ts).
+  if (hinted === "ecometri" || isEcometriHtml(html) || isEcometriHost(new URL(origin).hostname)) {
+    const page = parseEcometriStorePage(html);
+    if (page) return detectEcometri(origin, page);
+    if (isEcometriHost(new URL(origin).hostname)) {
+      throw new OtherStoreError("No pudimos leer los datos de esa tienda de Ecometri. Prueba con la dirección principal (https://latienda.ecometri.shop).");
+    }
+  }
+
   // Shopify: /products.json existe en toda tienda Shopify, incluso con
   // dominio propio — se prueba siempre, no solo cuando el HTML lo sugiere.
   const shopify = await safeFetchJson(`${origin}/products.json?limit=1`).catch(() => null);
@@ -169,6 +220,37 @@ async function detect(input: string): Promise<ScanResult> {
   if (hinted === "shopify") return { ...emptyResult(origin, "shopify"), storeName };
   const result = await discoverPages(origin, hinted, storeName, html);
   return { ...result, infoPages: extractInfoPageLinks(html, origin) };
+}
+
+/// Ecometri: la portada (o cualquier colección) trae la tienda completa —
+/// nombre, logo, moneda, colecciones y el número de WhatsApp que arma las
+/// rutas. Los productos se piden a la API: primero todos (collection ""),
+/// y luego cada colección visible para saber a cuál pertenece cada uno
+/// (el navegador une los dos por handle).
+function detectEcometri(origin: string, page: EcometriStorePage): ScanResult {
+  const { store } = page;
+  const result: ScanResult = { ...emptyResult(origin, "ecometri"), storeName: store.name };
+  const visible = store.collections.filter((c) => c.public);
+  result.categories = visible.map((c) => ({
+    name: c.name,
+    url: `${origin}/${store.phone ? `${store.phone}/` : ""}collections/${c.slug}/`,
+    imageUrl: c.imageUrl,
+  }));
+  result.storeInfo = {
+    name: store.name,
+    description: store.description,
+    logoUrl: store.logoUrl,
+    whatsapp: store.phone || null,
+  };
+  const base = { step: "ecometri-products" as const, store: store.basename, offset: 0, phone: store.phone, currency: store.currency };
+  result.next = [
+    { ...base, collection: "", name: null },
+    ...visible.map((c) => ({ ...base, collection: c.id, name: c.name })),
+  ];
+  if (store.currency && store.currency !== "COP") {
+    result.warnings.push(`La tienda vende en ${store.currency}: los precios se importan tal cual.`);
+  }
+  return result;
 }
 
 /// Tiendanube y cualquier otra plataforma: se buscan las páginas de
@@ -296,6 +378,36 @@ async function wooProducts(origin: string, base: string, page: number): Promise<
   return result;
 }
 
+const ECOMETRI_STORE_ID = /^[a-z0-9_.-]{1,100}$/i;
+const ECOMETRI_COLLECTION_ID = /^[a-z0-9-]{0,80}$/i;
+
+async function ecometriProducts(origin: string, step: EcometriProductsStep): Promise<ScanResult> {
+  const result = emptyResult(origin, "ecometri");
+  if (!ECOMETRI_STORE_ID.test(step.store) || !ECOMETRI_COLLECTION_ID.test(step.collection)) {
+    throw new OtherStoreError("Paso de escaneo inválido.");
+  }
+  const body = await safeFetchJson(ecometriProductsUrl(step.store, step.collection, step.offset), { timeoutMs: 12000 });
+  if (!body) {
+    if (step.offset === 0) {
+      result.warnings.push(step.name ? `No se pudo leer la colección "${step.name}".` : "No se pudo leer la lista de productos de Ecometri.");
+    }
+    return result;
+  }
+  const { products, total } = parseEcometriProductsResponse(body);
+  const ctx = { origin, phone: step.phone, currency: step.currency, collectionName: step.name };
+  for (const p of products) {
+    const parsed = parseEcometriProduct(p, ctx);
+    if (parsed) result.products.push(parsed);
+  }
+  const read = step.offset + products.length;
+  const more = products.length >= ECOMETRI_PAGE_SIZE && (total == null || read < total);
+  if (more && read < MAX_PRODUCTS) result.next.push({ ...step, offset: read });
+  else if (more && step.collection === "") {
+    result.warnings.push(`La tienda tiene más de ${MAX_PRODUCTS} productos — se leerán los primeros ${MAX_PRODUCTS}.`);
+  }
+  return result;
+}
+
 async function productPages(origin: string, urls: string[]): Promise<ScanResult> {
   const result = emptyResult(origin, "generic");
   const pages = await pool(urls.slice(0, PAGES_PER_STEP), PAGES_PER_STEP, async (url) => {
@@ -328,5 +440,7 @@ export async function scanStore(origin: string | null, step: ScanStep): Promise<
       return productPages(base, step.urls);
     case "page":
       return infoPage(base, step.url);
+    case "ecometri-products":
+      return ecometriProducts(base, step);
   }
 }

@@ -54,7 +54,7 @@ export type ScrapedProduct = {
   sourceUrl: string;
 };
 
-export type StorePlatform = "shopify" | "woocommerce" | "tiendanube" | "generic";
+export type StorePlatform = "shopify" | "woocommerce" | "tiendanube" | "ecometri" | "generic";
 
 export const MAX_IMAGES_PER_PRODUCT = 20;
 export const MAX_PRODUCTS = 2000;
@@ -151,7 +151,7 @@ function uniqueNames(names: string[]) {
   return out;
 }
 
-function plainTextToHtml(value: string) {
+export function plainTextToHtml(value: string) {
   if (!value) return "";
   if (/<[a-z][\s\S]*>/i.test(value)) return value;
   return value
@@ -474,6 +474,8 @@ function tiendanubeVariants(html: string): TiendanubeVariant[] {
 
 export function detectPlatformFromHtml(html: string): StorePlatform {
   if (/cdn\.shopify\.com|Shopify\.theme|shopify-section/i.test(html)) return "shopify";
+  // Tiendas por WhatsApp de Ecometri ({marca}.ecometri.shop) — ver ecometri.ts.
+  if (/apiv2\.ecometri\.shop|ecometri\.com\?ref=store/i.test(html)) return "ecometri";
   if (/tiendanube|nuvemshop|d26lpennugtm8s\.cloudfront\.net|LS\.store/i.test(html)) return "tiendanube";
   if (/woocommerce|wp-content\/plugins\/woocommerce/i.test(html)) return "woocommerce";
   return "generic";
