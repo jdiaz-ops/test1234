@@ -196,6 +196,21 @@ async function main() {
     console.log("---- fin ----");
     return;
   }
+  if (process.argv[3] === "post") {
+    // Modo "post": manda PATRON como cuerpo JSON a la dirección (por ejemplo
+    // una consulta GraphQL de otra plataforma) y muestra la respuesta.
+    const res = await fetch(url, {
+      method: "POST",
+      redirect: "follow",
+      headers: { ...headers, "content-type": "application/json", accept: "application/json" },
+      body: process.env.PATRON || "{}",
+    });
+    const text = await res.text();
+    console.log(`Estado ${res.status} · ${res.headers.get("content-type") ?? "?"} · ${text.length} caracteres · URL final ${res.url}`);
+    console.log(text.slice(0, 300_000));
+    console.log("---- fin ----");
+    return;
+  }
   if (process.argv[3] === "url") {
     // Modo "url": muestra lo que responde una dirección cualquiera (por
     // ejemplo /api/salud de la plataforma), sin interpretar nada.
