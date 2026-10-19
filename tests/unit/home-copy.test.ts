@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildHomeOutline, type HomeOutline, type HomeOutlineItem } from "@/lib/shopify-theme";
+import { buildHomeOutline, extractColors, type HomeOutline, type HomeOutlineItem } from "@/lib/shopify-theme";
 import { homeCopyResponseSchema, homeCopyToSections, outlineForPrompt, type HomeCopyResponse } from "@/lib/home-copy";
 import { buildGoogleFontsUrl, fontStack, parseThemeConfig } from "@/lib/brand-theme";
 
@@ -144,6 +144,52 @@ describe("esquema de la portada para la copia fiel", () => {
     expect(prompt).toMatch(/L\d+ botón «Comprar ahora» → \/collections\/anillos/);
     expect(prompt).toMatch(/P\d+ productos: 2 \(anillo-sol, anillo-luna\)/);
     expect(prompt).not.toContain("cdn/shop");
+  });
+
+  it("tarjetas que dicen lo mismo pero llevan a lugares distintos van todas; un producto destacado queda solo como su producto", () => {
+    const html = `<html><body><main>
+      <div id="shopify-section-template--1__collection_list" class="shopify-section">
+        <div class="card"><img src="//cdn.shopify.com/a.jpg" width="500" height="500"><h3><a href="/collections/acrysoft">COMPRA AQUI</a></h3></div>
+        <div class="card"><img src="//cdn.shopify.com/b.jpg" width="500" height="500"><h3><a href="/collections/builder-gel">COMPRA AQUI</a></h3></div>
+        <div class="card"><h3><a href="/collections/builder-gel">COMPRA AQUI</a></h3></div>
+      </div>
+      <div id="shopify-section-template--1__video_carousel" class="shopify-section">
+        <a href="/collections/builder-gel">SMART BUILDER GEL</a><a href="/collections/builder-gel">29.750</a>
+      </div>
+      <div id="shopify-section-template--1__featured_product" class="shopify-section">
+        <a class="skip-to-content-link button visually-hidden" href="#ProductInfo">Ir directamente a la información del producto</a>
+        <media-gallery><img src="//cdn.shopify.com/p1.jpg" width="600" height="900"><img src="//cdn.shopify.com/p2.jpg" width="600" height="900"></media-gallery>
+        <h2>Bases para Frances | 12 ml</h2><p>Oferta / Agotado</p><p>Impuesto incluido.</p><span>REF:#247</span>
+        <a href="/products/bases-para-frances">Ver todos los detalles</a>
+      </div>
+    </main></body></html>`;
+    const shop = buildHomeOutline(html, "https://www.beautysolutionshop.com/");
+    const prompt = outlineForPrompt(shop);
+    expect(byKind(shop, "heading").map((h) => (h.kind === "heading" ? h.href : ""))).toEqual(["/collections/acrysoft", "/collections/builder-gel"]);
+    expect(prompt).toContain("SMART BUILDER GEL");
+    expect(prompt).not.toContain("29.750");
+    expect(prompt).not.toContain("Ir directamente");
+    expect(shop.items.slice(-2)).toEqual([
+      expect.objectContaining({ kind: "section", hint: "featured product" }),
+      expect.objectContaining({ kind: "products", handles: ["bases-para-frances"] }),
+    ]);
+  });
+
+  it("dos barras angostas en rojo no vuelven roja la página; la barra sí queda con su rojo (Beauty Solution)", () => {
+    const filler = "<p>texto</p>".repeat(400);
+    const html = `<html><head><style>:root, .color-scheme-1 { --color-background: 255,255,255; --color-foreground: 0,0,0; }
+      .color-scheme-4 { --color-background: 254,0,0; --color-foreground: 255,255,255; }</style></head><body class="gradient"><main>
+      <section id="shopify-section-template--1__slideshow" class="shopify-section">${filler}<div class="banner color-scheme-1"><h2>Nueva</h2></div></section>
+      <section id="shopify-section-template--1__scrolling_bar_Ck73kh" class="shopify-section"><div class="marquee color-scheme-4"><p>SOMOS LA MARCA #1</p></div></section>
+      <section id="shopify-section-template--1__collection_list" class="shopify-section">${filler}<div class="color-scheme-1"></div></section>
+      <section id="shopify-section-template--1__scrolling_bar_ECLNdp" class="shopify-section"><div class="marquee color-scheme-4"><p>DESCUENTOS</p></div></section>
+    </main></body></html>`;
+    expect(extractColors(html)).toMatchObject({ fondo: "#ffffff", texto: "#000000" });
+    const bars = byKind(buildHomeOutline(html, BASE), "section").filter((s) => s.kind === "section" && s.hint === "scrolling bar");
+    expect(bars).toEqual([
+      expect.objectContaining({ background: "#fe0000", textColor: "#ffffff" }),
+      expect.objectContaining({ background: "#fe0000", textColor: "#ffffff" }),
+    ]);
   });
 
   it("en Elementor separa por sus secciones y lee el fondo de cada una en su CSS", () => {

@@ -374,8 +374,8 @@ function schemeBlocks(html: string): SchemeBlock[] {
 /// Qué esquema pinta el cuerpo de la página. Horizon pone un esquema por
 /// sección (el de :root puede ser el de la barra de anuncio, no el de la
 /// página — amglowspa.com salió con fondo rosa por eso), así que manda el
-/// más usado por las secciones del contenido; si no, el de <body>; si no,
-/// el que Dawn pega a body ("body, .color-scheme-1 {"); si no, el primero.
+/// que más ocupa en las secciones del contenido; si no, el de <body>; si
+/// no, el que Dawn pega a body ("body, .color-scheme-1 {"); si no, el primero.
 function bodySchemeName(html: string, blocks: SchemeBlock[]): string | null {
   if (blocks.length === 0) return null;
   const names = new Set(blocks.map((b) => b.name));
@@ -393,9 +393,11 @@ function bodySchemeName(html: string, blocks: SchemeBlock[]): string | null {
     .map((m) => m.index)
     .filter((i): i is number => i != null);
   for (const [k, start] of starts.entries()) {
-    // Solo el comienzo de esa sección, sin meterse en la siguiente.
-    const name = tokenIn(main.slice(start, Math.min(start + 1200, starts[k + 1] ?? Infinity)));
-    if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
+    // Cada sección cuenta por lo que ocupa: dos barras angostas de texto
+    // en rojo no pintan la página (beautysolutionshop.com, 2026-10-19).
+    const part = main.slice(start, starts[k + 1] ?? main.length);
+    const name = tokenIn(part);
+    if (name) counts.set(name, (counts.get(name) ?? 0) + part.length);
   }
   let best: string | null = null;
   for (const [name, count] of counts) if (best == null || count > (counts.get(best) ?? 0)) best = name;
@@ -2237,10 +2239,11 @@ const SLIDE_CLONE_RE = /<(?:div|li)\b[^>]*\bclass=["'][^"']*\b(?:slick-cloned|sw
 const DESKTOP_HIDDEN_RE =
   /<(?:div|section|span|figure|picture|li|a)\b[^>]*\bclass=["'][^"']*(?:\blarge-up-hide\b|\bmedium-up--hide\b|\bhide-desktop\b|\bhidden-desktop\b|\bmobile-only\b|\bmd:hidden\b|\blg:hidden\b)[^"']*["'][^>]*>/i;
 /// Textos solo para lectores de pantalla ("Precio habitual", "Siguiente").
-const SCREEN_READER_RE = /<(?:span|div|p|h[1-6]|label|small)\b[^>]*\bclass=["'][^"']*\b(?:visually-hidden|sr-only|screen-reader-text|hidden-text)\b[^"']*["'][^>]*>/i;
+const SCREEN_READER_RE =
+  /<(?:span|div|p|h[1-6]|label|small|a)\b[^>]*\bclass=["'][^"']*\b(?:visually-hidden|sr-only|screen-reader-text|hidden-text|skip-to-content-link)\b[^"']*["'][^>]*>/i;
 /// Textos de tarjetas y controles que no son contenido de la portada.
 const OUTLINE_NOISE_TEXT_RE =
-  /^(?:precio(?: (?:habitual|de venta|de oferta|unitario|regular|normal))?|por|oferta|agotado|vendido|sold out|sale|añadir al carrito|agregar al carrito|add to cart|ver opciones|seleccionar opciones|elegir opciones|cerrar|anterior|siguiente|previous|next|pausar|reproducir|play|pause|cargando…?|loading…?|\d+\s*\/\s*\d+|\d+\s+de\s+\d+|(?:desde\s*)?(?:col)?\$\s*[\d.,]+(?:\s*(?:cop|usd))?(?:\s*[-–]\s*\$?\s*[\d.,]+)?)$/i;
+  /^(?:precio(?: (?:habitual|de venta|de oferta|unitario|regular|normal))?|por|oferta|agotado|vendido|sold out|sale|añadir al carrito|agregar al carrito|add to cart|ver opciones|seleccionar opciones|elegir opciones|cerrar|anterior|siguiente|previous|next|pausar|reproducir|play|pause|cargando…?|loading…?|cantidad|impuesto incluido\.?|oferta\s*\/\s*agotado|\d+\s*\/\s*\d+|\d+\s+de\s+\d+|(?:desde\s*)?(?:col)?\$\s*[\d.,]+(?:\s*(?:cop|usd))?(?:\s*[-–]\s*\$?\s*[\d.,]+)?|\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?(?:\s*cop)?)$/i;
 /// Fotos que nunca son contenido (las de siempre de IMAGE_NOISE_RE, sin
 /// los íconos y logos: acá sirven para sellos y tiras de marcas).
 const OUTLINE_IMAGE_NOISE_RE = /placeholder|data:image|\/wp-includes\/|spinner|preloader|blank\.|1x1|gravatar|emoji|favicon|captcha|\.gif(?:\?|$)/i;
@@ -2288,7 +2291,9 @@ function outlinePush(b: OutlineBuilder, item: OutlineInput) {
   }
   if (item.kind === "section") b.seenTexts = new Set();
   if ("text" in item) {
-    const key = item.kind === "link" ? `link:${item.text.toLowerCase()}|${item.href}` : `${item.kind}:${item.text.toLowerCase()}`;
+    // Con su link: varias tarjetas que dicen "COMPRA AQUÍ" llevan a
+    // categorías distintas y van todas.
+    const key = `${item.kind}:${item.text.toLowerCase()}|${"href" in item ? item.href : ""}`;
     if (b.seenTexts.has(key)) return;
     b.seenTexts.add(key);
   }
@@ -2400,6 +2405,9 @@ function outlineScan(b: OutlineBuilder, html: string) {
         anchorText = "";
         continue;
       }
+      // Links seguidos sin texto entre ellos (botones, un nombre y su
+      // precio): cada uno por su lado.
+      if (runAnchors.length > 0 && !cleanRun(runPlain)) flush();
       const href = attr(whole, "href");
       const product = href ? genericProductHandle(href, b.baseUrl) : null;
       anchor = { href: outlineHref(b, href), product, button: /\b(?:button|btn|cta)\b/i.test(attr(whole, "class") ?? ""), run: runId };
@@ -2607,6 +2615,18 @@ export function buildHomeOutline(html: string, baseUrl: string, extraCss = ""): 
         .replace(/[_-]+/g, " ")
         .toLowerCase()
         .trim();
+      if (/\b(?:featured|main) product\b/.test(hint)) {
+        // Un producto destacado: su galería, variantes y botones son del
+        // producto (que ya se importa); en el esquema queda solo él.
+        const scratch: OutlineBuilder = { ...b, items: [], truncated: false, seenImages: new Set(b.seenImages), seenTexts: new Set(), pendingProducts: [] };
+        outlineScan(scratch, outlineReady(inner, baseUrl));
+        const handles = Array.from(new Set(scratch.items.flatMap((i) => (i.kind === "products" ? i.handles : []))));
+        if (handles.length === 0) continue;
+        outlinePush(b, { kind: "section", hint, ...blockColors(`${match[0]}${inner}`, colors) });
+        b.pendingProducts.push(...handles);
+        outlineFlushProducts(b);
+        continue;
+      }
       outlinePush(b, { kind: "section", hint: hint || "sección", ...blockColors(`${match[0]}${inner}`, colors) });
       outlineScan(b, outlineReady(inner, baseUrl));
     }
