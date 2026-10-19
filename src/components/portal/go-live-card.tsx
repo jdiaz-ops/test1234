@@ -122,12 +122,17 @@ export function GoLiveCard({
   // servidor: con otra lista (otro `checklist`) ya no aplica.
   const [optimistic, setOptimistic] = useState<{ base: GoLiveChecklist; done: Partial<Record<GoLiveKey, boolean>> }>({ base: checklist, done: {} });
   const [openKey, setOpenKey] = useState<GoLiveKey | null>(null);
+  const [optionalOpen, setOptionalOpen] = useState<GoLiveKey | null>(null);
   const [busy, setBusy] = useState<GoLiveKey | null>(null);
 
   const overrides = optimistic.base === checklist ? optimistic.done : {};
   const items: GoLiveItem[] = checklist.items.map((i) => (overrides[i.key] === undefined ? i : { ...i, done: overrides[i.key]! }));
-  const pending = items.filter((i) => !i.done);
-  const total = items.length;
+  // Lo opcional (hoy el inventario) va aparte: no cuenta ni frena la
+  // salida a la venta (ver buildItems en go-live-service.ts).
+  const required = items.filter((i) => !i.optional);
+  const optionalPending = items.filter((i) => i.optional && !i.done);
+  const pending = required.filter((i) => !i.done);
+  const total = required.length;
   const done = total - pending.length;
   const complete = pending.length === 0;
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -159,22 +164,6 @@ export function GoLiveCard({
     } finally {
       setBusy(null);
     }
-  }
-
-  // A la venta: queda solo la confirmación (si algo se desarma, como los
-  // pagos, la lista vuelve sola).
-  if (live) {
-    return (
-      <section className="mb-6 flex items-center gap-3 rounded-2xl bg-brand-ink px-5 py-4 text-white">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15">
-          <FlagIcon />
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">¡Estás a la venta en el marketplace!</p>
-          <p className="text-xs text-white/80">Las creadoras pueden encontrar tu marca, unirse a tu programa y vender con su código.</p>
-        </div>
-      </section>
-    );
   }
 
   // Lo listo se va de la lista, así que todo se cuenta sobre lo que falta
@@ -210,7 +199,7 @@ export function GoLiveCard({
                 disabled={busy === "inventario"}
                 className="rounded-full border border-brand-line bg-brand-surface px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-accent-soft disabled:opacity-50"
               >
-                Así está bien, marcar como listo
+                Así está bien, vender sin límite
               </button>
               <Link href={item.href} className="text-xs text-brand-ink-soft hover:underline">
                 Más opciones en Productos
@@ -236,6 +225,67 @@ export function GoLiveCard({
           </Link>
         );
     }
+  }
+
+  const optionalSteps =
+    optionalPending.length > 0 ? (
+      <div className="space-y-2">
+        {optionalPending.map((item) => {
+          const isOpen = optionalOpen === item.key;
+          return (
+            <div key={item.key} className="rounded-xl border border-brand-line bg-brand-surface px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setOptionalOpen(isOpen ? null : item.key)}
+                aria-expanded={isOpen}
+                className="flex w-full items-start justify-between gap-3 text-left"
+              >
+                <span className="flex min-w-0 gap-3">
+                  <span className="mt-0.5 shrink-0 text-brand-ink-soft">
+                    <StepIcon stepKey={item.key} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-brand-ink">
+                      {item.label}
+                      <span className="ml-2 rounded-full bg-brand-bg px-2 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-brand-ink-soft">
+                        Opcional
+                      </span>
+                    </span>
+                    {!isOpen && <span className="mt-0.5 block text-xs text-brand-ink-soft">{item.detail}</span>}
+                  </span>
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
+                    isOpen ? "text-brand-ink-soft hover:text-brand-ink" : "border border-brand-line text-brand-ink hover:bg-brand-accent-soft"
+                  }`}
+                >
+                  {isOpen ? "Cerrar" : "Hacer ahora"}
+                </span>
+              </button>
+              {isOpen && <div className="mt-3">{stepBody(item)}</div>}
+            </div>
+          );
+        })}
+      </div>
+    ) : null;
+
+  // A la venta: queda la confirmación, y debajo lo opcional que falte (si
+  // algo se desarma, como los pagos, la lista vuelve sola).
+  if (live) {
+    return (
+      <div className="mb-6 space-y-3">
+        <section className="flex items-center gap-3 rounded-2xl bg-brand-ink px-5 py-4 text-white">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15">
+            <FlagIcon />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">¡Estás a la venta en el marketplace!</p>
+            <p className="text-xs text-white/80">Las creadoras pueden encontrar tu marca, unirse a tu programa y vender con su código.</p>
+          </div>
+        </section>
+        {optionalSteps}
+      </div>
+    );
   }
 
   return (
@@ -323,6 +373,7 @@ export function GoLiveCard({
           </div>
         </li>
       </ol>
+      {optionalSteps && <div className="border-t border-brand-line px-5 py-4 sm:px-6">{optionalSteps}</div>}
     </section>
   );
 }

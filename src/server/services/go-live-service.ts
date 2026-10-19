@@ -12,6 +12,11 @@ import { publicStoreUrl } from "@/lib/store-url";
 /// control. Pedido del 2026-10-19: estos cinco pasos, en este orden,
 /// reemplazan los 4 pasos de "Empieza aquí" (antes la lista era "Lo que
 /// falta para vender", con productos, fotos, dominio y pedido de prueba).
+///
+/// El inventario es opcional (`optional`, también del 2026-10-19: "es un
+/// proceso demorado… ¿cómo reducimos el gap para ponerlos a trabajar
+/// pronto?"): no cuenta en done/total ni frena la salida; una tienda
+/// copiada vende sin límite (lo agotado en su tienda llega agotado).
 
 export type GoLiveKey = "productos" | "inventario" | "pagos" | "envios" | "fotos" | "legal" | "dominio" | "prueba" | "programa";
 
@@ -145,11 +150,12 @@ function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
       label: "Pon el inventario de lo que controlas",
       detail:
         noStock > 0
-          ? `${noStock} ${noStock === 1 ? "producto se vende" : "productos se venden"} sin control de inventario. Si así lo quieres, márcalo como listo.`
+          ? `${noStock} ${noStock === 1 ? "producto se vende" : "productos se venden"} sin control de inventario, sin límite. Si quieres controlarlo, ponles unidades.`
           : "Todo tiene inventario.",
       done: noStock === 0 || manual.has("inventario"),
       manual: true,
       href: "/marca/tienda/productos",
+      optional: true,
     },
     {
       key: "programa",
@@ -163,8 +169,9 @@ function buildItems(brand: BrandFields, counts: Counts): GoLiveChecklist {
       href: "/marca/cuenta?tab=oferta",
     },
   ];
-  const done = items.filter((i) => i.done).length;
-  return { items, done, total: items.length, complete: done === items.length, storeUrl };
+  const required = items.filter((i) => !i.optional);
+  const done = required.filter((i) => i.done).length;
+  return { items, done, total: required.length, complete: done === required.length, storeUrl };
 }
 
 /// La lista completa de una marca (con el conteo exacto de fotos externas).
@@ -212,7 +219,7 @@ export async function getGoLiveSummaries(brands: (BrandFields & { id: string })[
       pendingRates: pendingBy.get(brand.id) ?? 0,
       activeOffers: offersBy.get(brand.id) ?? 0,
     });
-    out.set(brand.id, { done: list.done, total: list.total, missing: list.items.filter((i) => !i.done).map((i) => i.label) });
+    out.set(brand.id, { done: list.done, total: list.total, missing: list.items.filter((i) => !i.done && !i.optional).map((i) => i.label) });
   }
   return out;
 }
@@ -296,6 +303,19 @@ export async function listNoStockProducts(brandId: string, query?: string | null
         : null,
     })),
   };
+}
+
+/// "Pon N unidades a todos los que faltan" (pedido del 2026-10-19): a todo
+/// lo que se vende sin control de inventario, de una vez — productos sin
+/// variantes y cada variante sin unidades. Lo que ya tiene unidades no se
+/// toca.
+export async function setStockForAllNoStock(brandId: string, stock: number) {
+  const base = { brandId, manual: true, status: { not: "DRAFT" as const }, type: "PHYSICAL" as const };
+  const [products, variants] = await prisma.$transaction([
+    prisma.product.updateMany({ where: { ...base, hasVariants: false, stock: null }, data: { stock } }),
+    prisma.productVariant.updateMany({ where: { stock: null, product: { ...base, hasVariants: true } }, data: { stock } }),
+  ]);
+  return { products: products.count, variants: variants.count };
 }
 
 /// Las unidades de un producto sin variantes, o de una variante.

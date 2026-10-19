@@ -289,6 +289,28 @@ export function InventoryStep({ onDoneAll }: { onDoneAll: () => void }) {
     return () => clearTimeout(timer);
   }, [query]);
 
+  // "Poner N unidades a todos los que faltan" (2026-10-19).
+  const [bulk, setBulk] = useState("10");
+  const [bulkSaving, setBulkSaving] = useState(false);
+  async function applyToAll() {
+    const stock = Number(bulk);
+    if (!Number.isInteger(stock) || stock < 1) {
+      setError("Pon un número entero de unidades, de 1 en adelante.");
+      return;
+    }
+    setError(null);
+    setBulkSaving(true);
+    try {
+      await send("/api/marca/tienda/salida/inventario", "PATCH", { all: true, stock });
+      const next = await load(query);
+      if (next.total === 0) onDoneAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar.");
+    } finally {
+      setBulkSaving(false);
+    }
+  }
+
   async function save(product: NoStockProduct, variantId: string | null, stock: number) {
     setError(null);
     try {
@@ -307,6 +329,29 @@ export function InventoryStep({ onDoneAll }: { onDoneAll: () => void }) {
         Escribe cuántas unidades tienes; se guarda solo.
         {data && !query.trim() && data.total > 0 ? ` Faltan ${data.total}.` : ""}
       </p>
+      {data && !query.trim() && data.total > 1 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-line bg-brand-surface px-3 py-2 text-sm text-brand-ink">
+          <span>¿Tienes más o menos lo mismo de todo? Pon</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={bulk}
+            onChange={(e) => setBulk(e.target.value)}
+            aria-label="Unidades para todos"
+            className="w-20 rounded-lg border border-brand-line bg-brand-bg px-2 py-1 text-sm tabular-nums"
+          />
+          <span>unidades a cada uno.</span>
+          <button
+            type="button"
+            onClick={applyToAll}
+            disabled={bulkSaving}
+            className="rounded-full bg-brand-accent px-4 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {bulkSaving ? "Guardando…" : `Poner a los ${data.total}`}
+          </button>
+        </div>
+      )}
       <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" className="input text-sm" />
       {data === null ? (
         <p className="text-sm text-brand-ink-soft">Un momento…</p>

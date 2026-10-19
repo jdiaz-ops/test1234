@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { applyExtractedProfile } from "@/server/services/brand-profile-import-service";
-import { getGoLiveChecklist, listNoStockProducts, normalizeTaxId, saveLegalStep, setGoLiveCheck, setStepStock } from "@/server/services/go-live-service";
+import { getGoLiveChecklist, listNoStockProducts, normalizeTaxId, saveLegalStep, setGoLiveCheck, setStepStock, setStockForAllNoStock } from "@/server/services/go-live-service";
 import { createBrand, createProduct, createSellingBrand, hasDb } from "./helpers";
 import { GET as sitemap } from "@/app/t/[slug]/sitemap.xml/route";
 import { GET as robots } from "@/app/t/[slug]/robots.txt/route";
@@ -19,6 +19,9 @@ describe.skipIf(!hasDb)("lo que falta para ser visible en el marketplace", () =>
     expect(byKey.programa.done).toBe(false);
     expect(byKey.programa.href).toBe("/marca/cuenta?tab=oferta");
     expect(first.storeUrl).toContain(brand.storefrontSlug);
+    // El inventario es opcional: no cuenta en el total (2026-10-19).
+    expect(byKey.inventario.optional).toBe(true);
+    expect(first.total).toBe(4);
 
     await createProduct(brand.id, { name: "Sin control", price: 9000, stock: null });
     await expect(setGoLiveCheck(brand.id, "pagos" as never, true)).rejects.toThrow();
@@ -51,6 +54,11 @@ describe.skipIf(!hasDb)("lo que falta para ser visible en el marketplace", () =>
     expect(list.complete).toBe(false);
     await prisma.offer.create({ data: { brandId: brand.id, name: "Programa", defaultCommissionPercent: 8, defaultDiscountPercent: 10 } });
     expect((await getGoLiveChecklist(brand.id))!.complete).toBe(true);
+    // Un producto que se vende sin límite no frena la salida a la venta.
+    await createProduct(brand.id, { name: "Sin control", price: 9000, stock: null });
+    const after = (await getGoLiveChecklist(brand.id))!;
+    expect(after.items.find((i) => i.key === "inventario")!.done).toBe(false);
+    expect(after.complete).toBe(true);
   });
 
   it("los pasos se hacen desde el Dashboard: razón social y NIT, e inventario de productos y variantes", async () => {
@@ -140,5 +148,18 @@ describe.skipIf(!hasDb)("sitemap y robots de la tienda", () => {
     expect(txt).toContain("Disallow: /checkout");
     expect(txt).toContain(`Sitemap: ${base}/sitemap.xml`);
     expect((await sitemap(new Request("http://x/sitemap.xml"), { params: Promise.resolve({ slug: "no-existe-xyz" }) })).status).toBe(404);
+  });
+
+  it("pone las mismas unidades a todo lo que se vende sin control, sin tocar lo que ya tiene", async () => {
+    const brand = await createBrand();
+    await createProduct(brand.id, { name: "Sin control", price: 9000, stock: null });
+    const counted = await createProduct(brand.id, { name: "Con 3", price: 9000, stock: 3 });
+    const gel = await createProduct(brand.id, { name: "Gel", price: 9000, stock: null, variants: [{ label: "Rojo", stock: null }, { label: "Azul", stock: 5 }] });
+
+    expect(await setStockForAllNoStock(brand.id, 10)).toEqual({ products: 1, variants: 1 });
+    expect((await listNoStockProducts(brand.id)).total).toBe(0);
+    expect((await prisma.product.findUniqueOrThrow({ where: { id: counted.id } })).stock).toBe(3);
+    const variants = await prisma.productVariant.findMany({ where: { productId: gel.id }, orderBy: { position: "asc" } });
+    expect(variants.map((v) => v.stock)).toEqual([10, 5]);
   });
 });
