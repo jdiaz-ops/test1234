@@ -41,7 +41,7 @@ export default async function CreadoresVinculadosPage() {
       <CreatorsTabs active="vinculados" />
       <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
         Los creadores que ya están en tu programa, con su código, sus ventas y
-        su comisión. Desde acá les propones muestras y productos sueltos.
+        su comisión. Desde acá les propones muestras y productos.
       </p>
 
       <EnrollmentsPanel

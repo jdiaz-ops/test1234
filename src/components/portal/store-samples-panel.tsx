@@ -500,7 +500,7 @@ export function StoreSamplesPanel({
     <div className="space-y-10">
       <div>
         <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
-          Productos sueltos que te pidieron
+          Productos que te pidieron
         </h2>
         <p className="text-sm text-brand-ink-soft mb-4">
           Creadoras que pidieron un producto de tu catálogo.
@@ -528,7 +528,7 @@ export function StoreSamplesPanel({
 
       <div>
         <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
-          Productos sueltos para regalar
+          Productos para enviar
         </h2>
         <p className="text-sm text-brand-ink-soft mb-4">
           Productos de tu catálogo que las creadoras te pueden pedir uno por

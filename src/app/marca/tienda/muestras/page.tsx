@@ -29,8 +29,8 @@ export default async function TiendaMuestrasPage() {
         Muestras
       </h1>
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
-        Regala muestras o productos sueltos a las creadoras para que prueben
-        tu marca y la muestren en su contenido.
+        Envía muestras o productos a las creadoras para que prueben tu marca
+        y la muestren en su contenido.
       </p>
       <div className="mb-12">
         <PrBoxesPanel boxes={boxes.map((box) => brandPrBoxView(box, now))} />

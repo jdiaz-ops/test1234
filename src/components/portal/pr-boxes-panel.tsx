@@ -292,23 +292,33 @@ function PrBoxEditor({ box, onDone }: { box?: PrBoxView; onDone: () => void }) {
         </div>
       </div>
 
-      <fieldset className="space-y-2">
-        <legend className="mb-1 text-sm text-brand-ink">¿Quién la puede pedir?</legend>
-        {PR_BOX_AUDIENCE.map((option) => (
-          <label key={option.key} className="flex items-start gap-2 text-sm text-brand-ink">
-            <input
-              type="radio"
-              name="pr-box-audience"
-              checked={draft.inMarketplace === option.inMarketplace && draft.allowProposals === option.allowProposals}
-              onChange={() => setDraft((d) => ({ ...d, inMarketplace: option.inMarketplace, allowProposals: option.allowProposals }))}
-              className="mt-1"
-            />
-            <span>
-              {option.label}
-              <span className="block text-xs text-brand-ink-soft">{option.hint}</span>
-            </span>
-          </label>
-        ))}
+      <fieldset>
+        <legend className="mb-2 text-sm text-brand-ink">Quién puede recibirla</legend>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {PR_BOX_AUDIENCE.map((option) => {
+            const checked = draft.inMarketplace === option.inMarketplace && draft.allowProposals === option.allowProposals;
+            return (
+              <label
+                key={option.key}
+                className={`flex cursor-pointer flex-col gap-1 rounded-xl border p-3 transition-colors motion-reduce:transition-none ${
+                  checked ? "border-brand-accent bg-brand-accent-soft/40" : "border-brand-line hover:border-brand-ink-soft"
+                }`}
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-brand-ink">
+                  <input
+                    type="radio"
+                    name="pr-box-audience"
+                    checked={checked}
+                    onChange={() => setDraft((d) => ({ ...d, inMarketplace: option.inMarketplace, allowProposals: option.allowProposals }))}
+                    className="accent-brand-accent"
+                  />
+                  {option.label}
+                </span>
+                <span className="text-xs text-brand-ink-soft">{option.hint}</span>
+              </label>
+            );
+          })}
+        </div>
       </fieldset>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -650,13 +660,6 @@ function RequestRow({ request, box }: { request: PrBoxRequestView; box: PrBoxVie
 
 // ---------------------------------------------------------- Cada muestra
 
-/// Al lado del estado de la muestra.
-const AUDIENCE_SHORT: Record<(typeof PR_BOX_AUDIENCE)[number]["key"], string> = {
-  both: "En el marketplace y por invitación",
-  marketplace: "Solo en el marketplace",
-  invited: "Solo invitadas",
-};
-
 function statusPill(box: PrBoxView) {
   if (box.status === "DRAFT") return { label: "Borrador", tone: "bg-neutral-100 text-neutral-700 border-neutral-200" };
   if (box.status === "CLOSED") return { label: "Cerrada", tone: "bg-neutral-100 text-neutral-600 border-neutral-200" };
@@ -705,7 +708,7 @@ function PrBoxCard({ box }: { box: PrBoxView }) {
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-display font-semibold text-brand-ink">{box.name}</p>
             <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${pill.tone}`}>{pill.label}</span>
-            <span className="text-[11px] text-brand-ink-soft">{AUDIENCE_SHORT[prBoxAudience(box).key]}</span>
+            <span className="text-[11px] text-brand-ink-soft">{prBoxAudience(box).label}</span>
           </div>
           <p className="mt-0.5 text-xs text-brand-ink-soft tabular-nums">
             {[

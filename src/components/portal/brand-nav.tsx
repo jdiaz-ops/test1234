@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CAMPAIGNS_ENABLED, REVIEWS_ENABLED, SAMPLES_ENABLED, SUGGESTIONS_ENABLED } from "@/lib/features";
+import { CAMPAIGNS_ENABLED, SAMPLES_ENABLED, SUGGESTIONS_ENABLED } from "@/lib/features";
 import { SETTINGS_PATHS } from "@/components/portal/settings-shell";
+import { STORE_PATHS } from "@/components/portal/store-shell";
 
 // Mensajes queda oculto por ahora (no se usa en esta fase) — el código y la
 // ruta siguen intactos, solo se quitó del menú. Perfil, Facturación,
 // Conexión de tienda, Oferta y comisión, Productos y Transacciones se
-// consolidaron dentro de Cuenta. Notificaciones va dentro de Configuración
-// (ver settingsChildren), con su burbuja de pendientes. Creadores va justo debajo de
+// consolidaron dentro de Cuenta. Notificaciones va suelta, justo antes del
+// buzón, con su burbuja de pendientes (2026-10-20). Creadores va justo debajo de
 // Dashboard (orden pedido el 2026-09-14) y abre en Buscar: es la acción
 // que más queremos que las marcas usen.
 //
@@ -40,22 +40,11 @@ const storeItems: { href: string; label: string }[] = [
   { href: "/marca/tienda/clientes", label: "Clientes" },
 ];
 
-/// Configuración se despliega con lo que se arma una vez y se toca poco:
-/// el catálogo, el diseño, las páginas y las notificaciones (pedido del
-/// 2026-10-19: "dentro de configuración van productos, colecciones, diseño,
-/// páginas y notificación… así tenemos una página más minimalista"). El
-/// propio "Configuración" abre los ajustes (perfil, programa, pagos,
-/// envíos… ver SettingsShell) y queda marcado en todas esas rutas. Reseñas
-/// se quitó (REVIEWS_ENABLED, src/lib/features.ts).
-const settingsChildren: { href: string; label: string }[] = [
-  { href: "/marca/tienda/productos", label: "Productos" },
-  { href: "/marca/tienda/colecciones", label: "Colecciones" },
-  { href: "/marca/tienda/diseno", label: "Diseño" },
-  { href: "/marca/tienda/paginas", label: "Páginas" },
-  // Escondida mientras su interruptor esté apagado. Se filtra abajo.
-  { href: "/marca/tienda/resenas", label: "Reseñas" },
-  { href: "/marca/notificaciones", label: "Notificaciones" },
-];
+/// "Tienda" abre Productos, Colecciones, Diseño y Páginas con pestañas
+/// (ver StoreShell) y "Configuración" los ajustes (perfil, programa, pagos,
+/// envíos… ver SettingsShell). Antes las cuatro de la tienda y
+/// Notificaciones se desplegaban adentro de Configuración (2026-10-19);
+/// pedido del 2026-10-20: "los pasas en una pestaña que se llama tienda".
 
 function Badge({ count, title }: { count: number; title?: string }) {
   if (count <= 0) return null;
@@ -81,11 +70,8 @@ export function BrandNav({
   onboarding?: { completedCount: number; total: number };
 }) {
   const pathname = usePathname();
-  const children = settingsChildren.filter((item) => REVIEWS_ENABLED || item.href !== "/marca/tienda/resenas");
+  const onStore = STORE_PATHS.some((href) => pathname.startsWith(href));
   const onSettings = SETTINGS_PATHS.includes(pathname);
-  const childActive = children.some((item) => pathname.startsWith(item.href));
-  const [open, setOpen] = useState(false);
-  const expanded = open || onSettings || childActive;
   const linkClass = (active: boolean) =>
     `flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
       active ? "bg-brand-accent-soft text-brand-accent font-medium" : "text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink"
@@ -131,35 +117,16 @@ export function BrandNav({
         </Link>
       ))}
 
-      <div className={`flex items-center rounded-lg ${onSettings ? "bg-brand-accent-soft" : "hover:bg-brand-accent-soft"}`}>
-        <Link
-          href="/marca/tienda/configuracion"
-          className={`flex flex-1 items-center justify-between px-3 py-2 text-sm ${onSettings ? "text-brand-accent font-medium" : childActive ? "text-brand-ink" : "text-brand-ink-soft hover:text-brand-ink"}`}
-        >
-          Configuración
-          {/* Cerrado, las notificaciones sin leer se ven acá. */}
-          {!expanded && <Badge count={unreadNotifications} title="Notificaciones sin leer" />}
-        </Link>
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={expanded}
-          aria-label={expanded ? "Ocultar las opciones de Configuración" : "Ver las opciones de Configuración"}
-          className="px-3 py-2 text-xs text-brand-ink-soft hover:text-brand-ink"
-        >
-          <span className={`inline-block transition-transform ${expanded ? "rotate-180" : ""}`}>▾</span>
-        </button>
-      </div>
-      {expanded && (
-        <div className="ml-3 flex flex-col gap-0.5 border-l border-brand-line pl-3">
-          {children.map((item) => (
-            <Link key={item.href} href={item.href} className={linkClass(pathname.startsWith(item.href))}>
-              {item.label}
-              {item.href === "/marca/notificaciones" && <Badge count={unreadNotifications} />}
-            </Link>
-          ))}
-        </div>
-      )}
+      <Link href="/marca/tienda/productos" className={linkClass(onStore)}>
+        Tienda
+      </Link>
+      <Link href="/marca/tienda/configuracion" className={linkClass(onSettings)}>
+        Configuración
+      </Link>
+      <Link href="/marca/notificaciones" className={linkClass(pathname.startsWith("/marca/notificaciones"))}>
+        Notificaciones
+        <Badge count={unreadNotifications} title="Notificaciones sin leer" />
+      </Link>
 
       {/* Buzón de sugerencias (2026-10-19): también se abre desde la nube
           de la esquina (SuggestionBubble). */}

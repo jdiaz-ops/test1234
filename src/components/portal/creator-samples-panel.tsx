@@ -356,7 +356,7 @@ export function CreatorSamplesPanel({
       {offers.length > 0 && (
         <div>
           <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
-            Productos sueltos que te ofrecieron
+            Productos que te ofrecieron
           </h2>
           <p className="text-sm text-brand-ink-soft mb-4">
             Marcas que te quieren regalar un producto directamente a ti.
@@ -379,7 +379,7 @@ export function CreatorSamplesPanel({
 
       <div>
         <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
-          Productos sueltos
+          Productos
         </h2>
         <p className="text-sm text-brand-ink-soft mb-4">
           Productos del catálogo de cada marca, uno por uno y sin brief. Pide
@@ -388,7 +388,7 @@ export function CreatorSamplesPanel({
         </p>
         {initialProducts.length === 0 ? (
           <p className="text-sm text-brand-ink-soft">
-            Todavía no hay productos sueltos — vuelve pronto.
+            Todavía no hay productos — vuelve pronto.
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -490,11 +490,11 @@ export function CreatorSamplesPanel({
 
       <div>
         <h2 className="font-display text-base font-semibold text-brand-ink mb-1">
-          Productos sueltos que pediste
+          Productos que pediste
         </h2>
         {requests.length === 0 ? (
           <p className="text-sm text-brand-ink-soft">
-            Todavía no has pedido ningún producto suelto.
+            Todavía no has pedido ningún producto.
           </p>
         ) : (
           <div className="space-y-2">

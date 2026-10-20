@@ -118,6 +118,14 @@ function ProviderGuides() {
   );
 }
 
+/// Lo que hay que hacer, en orden (pedido del 2026-10-20: "para conectar
+/// concretamente qué hay que hacer?").
+const STEPS = [
+  "Escribe tu dominio aquí abajo y toca «Guardar dominio».",
+  "Te mostramos un registro: cópialo en la página donde compraste tu dominio (GoDaddy, Hostinger, Cloudflare…) y toca «Verificar».",
+  "Te mostramos uno más para copiar igual. Cuando tu dominio abra la tienda, te avisamos. Tus links de siempre siguen funcionando.",
+];
+
 function Chip({ tone, children }: { tone: "ok" | "wait"; children: React.ReactNode }) {
   return (
     <span
@@ -271,14 +279,23 @@ export function CustomDomainForm({
 
   return (
     <div className="rounded-2xl border border-brand-line bg-brand-surface p-5 mt-6">
-      <p className="text-sm font-medium text-brand-ink mb-1">Dominio propio (opcional, gratis)</p>
+      <p className="text-sm font-medium text-brand-ink mb-1">Dominio propio</p>
       <p className="text-xs text-brand-ink-soft mb-4 max-w-lg">
-        Tu tienda en tu propio dominio, en vez de {storeSubdomain ?? "{tu-tienda}.marcolini.lat"}. Los links que ya
-        compartiste siguen funcionando: llevan a la misma página en tu dominio.
+        Para que tu tienda abra en tu dominio (ej. tumarca.com) en vez de {storeSubdomain ?? "tu link de Marcolini"}.
       </p>
 
       {!savedDomain ? (
-        <div className="space-y-3">
+        <div className="space-y-4">
+          <ol className="grid max-w-lg gap-2">
+            {STEPS.map((text, i) => (
+              <li key={text} className="flex gap-3 text-xs text-brand-ink-soft">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-accent-soft text-[11px] font-semibold text-brand-accent">
+                  {i + 1}
+                </span>
+                <span className="pt-0.5">{text}</span>
+              </li>
+            ))}
+          </ol>
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-0 flex-1 sm:flex-none">
               <label className="block text-xs text-brand-ink mb-1">Tu dominio</label>
@@ -299,9 +316,8 @@ export function CustomDomainForm({
             </button>
           </div>
           <p className="text-xs text-brand-ink-soft max-w-lg">
-            Si tu dominio hoy abre otra tienda (Shopify, Wix…), usa un subdominio como <span className="font-mono">tienda.tumarca.com</span>:
-            tu web sigue igual. El dominio completo (<span className="font-mono">tumarca.com</span>) muévelo cuando dejes la otra tienda; sus
-            links viejos de productos y colecciones llegan a la misma página en Marcolini.
+            ¿Ese dominio ya tiene una web (Shopify, Wix…)? Escribe uno como <span className="font-mono">tienda.tumarca.com</span> y tu
+            web actual no se toca.
           </p>
         </div>
       ) : (
@@ -320,7 +336,7 @@ export function CustomDomainForm({
           {!verified && token && (
             <div className="rounded-xl bg-brand-bg p-3 text-xs text-brand-ink-soft space-y-3">
               <p>
-                <span className="font-medium text-brand-ink">Paso 1 de 2: prueba que el dominio es tuyo.</span> Donde compraste el
+                <span className="font-medium text-brand-ink">Paso 2 de 3: prueba que el dominio es tuyo.</span> Donde compraste el
                 dominio, agrega este registro:
               </p>
               <Records records={[{ type: "TXT", name: `_marcolini-verify.${savedDomain}`, value: token }]} apex={apex} />
@@ -359,7 +375,7 @@ export function CustomDomainForm({
           {verified && !active && (
             <div className="rounded-xl bg-brand-bg p-3 text-xs text-brand-ink-soft space-y-3">
               <p>
-                <span className="font-medium text-brand-ink">Paso 2 de 2: apunta el dominio a Marcolini.</span> Agrega
+                <span className="font-medium text-brand-ink">Paso 3 de 3: apunta tu dominio a Marcolini.</span> Agrega
                 {(vercel?.records.length ?? 1) > 1 ? " estos registros" : " este registro"}:
               </p>
               {!vercel ? (

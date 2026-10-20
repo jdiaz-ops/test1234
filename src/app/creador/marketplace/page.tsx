@@ -103,7 +103,7 @@ export default async function MarketplacePage({
         {SAMPLES_ENABLED && offer.brand.products.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
             <span className="text-[10px] font-mono font-medium rounded-full px-2 py-0.5 bg-purple-100 text-purple-700">
-              Regala productos sueltos
+              Puedes pedir productos
             </span>
           </div>
         )}
@@ -214,7 +214,7 @@ export default async function MarketplacePage({
               value="1"
               defaultChecked={soloMuestras}
             />
-            Solo con productos sueltos para pedir
+            Solo con productos para pedir
           </label>
         )}
         <button

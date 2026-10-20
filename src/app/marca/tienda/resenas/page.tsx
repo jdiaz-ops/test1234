@@ -3,6 +3,7 @@ import { REVIEWS_ENABLED } from "@/lib/features";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { listBrandReviews } from "@/server/services/product-review-service";
 import { StoreReviewsPanel } from "@/components/portal/store-reviews-panel";
+import { StoreShell } from "@/components/portal/store-shell";
 
 export default async function TiendaResenasPage() {
   // Reseñas apagadas (ver src/lib/features.ts).
@@ -13,8 +14,7 @@ export default async function TiendaResenasPage() {
   const reviews = await listBrandReviews(profile.id);
 
   return (
-    <div>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">Reseñas</h1>
+    <StoreShell active="resenas">
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         Opiniones de quienes compraron tus productos. Ninguna se publica hasta que la apruebes.
       </p>
@@ -31,6 +31,6 @@ export default async function TiendaResenasPage() {
           createdAt: r.createdAt.toISOString(),
         }))}
       />
-    </div>
+    </StoreShell>
   );
 }

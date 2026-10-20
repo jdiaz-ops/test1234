@@ -90,7 +90,7 @@ export const PR_BOX_STAGE: Record<PrBoxStage, { brand: string; creator: string; 
 /// del 2026-10-19: "para que las marcas no vengan a decir envié a tal y no
 /// hizo").
 export const PR_BOX_DISCLAIMER =
-  "Marcolini conecta tu marca con las creadoras: no garantiza historias, reels ni publicaciones, ni responde por lo que ellas publiquen o comenten. Lo que acuerdes con cada una es entre ustedes.";
+  "Marcolini conecta tu marca con las creadoras: no garantiza historias, reels ni publicaciones, ni responde por lo que ellas publiquen o comenten.";
 
 const optionalDay = z
   .string()
@@ -132,12 +132,32 @@ export const prBoxInputSchema = z
   })
   .refine((data) => data.inMarketplace || data.allowProposals, { message: "Elige quién la puede pedir.", path: ["inMarketplace"] });
 
-/// "¿Quién la puede pedir?" — pedido del 2026-10-19: "ofrecer un mix,
-/// pueden pedirla y puedo ofrecerla".
+/// "Quién puede recibirla" — pedido del 2026-10-19: "ofrecer un mix,
+/// pueden pedirla y puedo ofrecerla"; nombres más claros el 2026-10-20
+/// ("esa parte es confusa, hazlo más pro"). El nombre también va al lado
+/// del estado de cada muestra.
 export const PR_BOX_AUDIENCE = [
-  { key: "both", inMarketplace: true, allowProposals: true, label: "Las dos: ellas la piden y tú también se la propones", hint: "Sale en el marketplace y además se la ofreces a las creadoras que quieras." },
-  { key: "marketplace", inMarketplace: true, allowProposals: false, label: "Solo la piden desde el marketplace", hint: "Ellas la piden y tú decides a quién se la apruebas." },
-  { key: "invited", inMarketplace: false, allowProposals: true, label: "Solo las creadoras a las que se la propongas", hint: "No sale en el marketplace." },
+  {
+    key: "both",
+    inMarketplace: true,
+    allowProposals: true,
+    label: "Marketplace e invitaciones",
+    hint: "Cualquier creadora la puede pedir en el marketplace y, además, tú se la propones a las que elijas.",
+  },
+  {
+    key: "marketplace",
+    inMarketplace: true,
+    allowProposals: false,
+    label: "Solo marketplace",
+    hint: "Las creadoras la piden en el marketplace y tú apruebas a quién se la envías.",
+  },
+  {
+    key: "invited",
+    inMarketplace: false,
+    allowProposals: true,
+    label: "Solo invitaciones",
+    hint: "No sale en el marketplace: solo la reciben las creadoras a las que se la propongas.",
+  },
 ] as const;
 
 export function prBoxAudience(box: { inMarketplace: boolean; allowProposals: boolean }) {
