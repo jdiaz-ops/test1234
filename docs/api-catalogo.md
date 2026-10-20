@@ -48,8 +48,12 @@ Respuestas de error: `401` (sin llave o inválida), `403` (cuenta de la creadora
 suspendida), `404` (la llave apunta a una vitrina que no existe), `429`
 (demasiadas llamadas, con `Retry-After`). El `401` trae `reason`:
 `no_keys` = Marcolini no tiene ninguna llave bien escrita en
-`CATALOG_API_KEYS` (el problema está de este lado); `mismatch` = sí tiene, pero
-la que llegó no coincide (revisar la del otro sitio).
+`CATALOG_API_KEYS` (el problema está de este lado); `missing_key` = no llegó
+ninguna llave (ojo: `fetch` suelta el encabezado `Authorization` si lo
+redirigen a otro dominio, por ejemplo de marcolini.lat a www.marcolini.lat —
+hay que llamar a la dirección final o seguir la redirección a mano);
+`mismatch` = llegó una que no coincide (revisar la del otro sitio). También
+trae `keyLengths`, el largo de las llaves de acá.
 
 ## Respuesta
 

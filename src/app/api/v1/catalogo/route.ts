@@ -23,26 +23,27 @@ function tooMany(retryAfterSeconds: number) {
 
 export async function GET(req: Request) {
   const keys = parseCatalogApiKeys(process.env.CATALOG_API_KEYS);
-  const slug = matchCatalogApiKey(keys, bearerToken(req));
+  const presented = bearerToken(req);
+  const slug = matchCatalogApiKey(keys, presented);
   if (!slug) {
     // Los intentos con llave equivocada se cuentan por IP, para que no se
     // pueda probar llaves sin freno.
     const attempts = await rateLimit(`catalogo-api-fallo:${clientIp(req)}`, 20, 600);
     if (!attempts.ok) return tooMany(attempts.retryAfterSeconds);
-    // `reason` le dice al otro sitio si el problema está de este lado (no
-    // hay ninguna llave bien escrita en CATALOG_API_KEYS) o del suyo (la
-    // que manda no coincide), y `keyLengths` cuántos caracteres tienen las
-    // de acá, para que pueda ver a cuál le sobra o le falta algo. Nunca se
-    // revela ninguna parte de una llave.
-    const noKeys = keys.length === 0;
+    // `reason` le dice al otro sitio dónde está el problema: de este lado
+    // (no hay ninguna llave bien escrita en CATALOG_API_KEYS), en el camino
+    // (no llegó ninguna llave — un fetch la suelta si lo redirigen a otro
+    // dominio) o del suyo (llegó una que no coincide). `keyLengths` dice
+    // cuántos caracteres tienen las de acá, para ver a cuál le sobra o le
+    // falta algo. Nunca se revela ninguna parte de una llave.
+    const reason = keys.length === 0 ? "no_keys" : presented ? "mismatch" : "missing_key";
+    const errors = {
+      no_keys: "Marcolini no tiene configurada ninguna llave del catálogo (CATALOG_API_KEYS vacía o sin el formato «slug:llave»).",
+      missing_key: "No llegó ninguna llave. Envíala como «Authorization: Bearer <llave>».",
+      mismatch: "La llave no coincide con ninguna de las que tiene Marcolini.",
+    };
     return NextResponse.json(
-      {
-        error: noKeys
-          ? "Marcolini no tiene configurada ninguna llave del catálogo (CATALOG_API_KEYS vacía o sin el formato «slug:llave»)."
-          : "La llave no coincide con ninguna de las que tiene Marcolini. Envíala como «Authorization: Bearer <llave>».",
-        reason: noKeys ? "no_keys" : "mismatch",
-        keyLengths: keys.map((k) => k.key.length),
-      },
+      { error: errors[reason], reason, keyLengths: keys.map((k) => k.key.length) },
       { status: 401, headers: { ...NO_STORE, "WWW-Authenticate": "Bearer" } },
     );
   }
