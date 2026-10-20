@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { StoreCollectionsPanel } from "@/components/portal/store-collections-panel";
 import { listBrandCollections } from "@/server/services/brand-collection-service";
 import { publicStoreUrl } from "@/lib/store-url";
+import { StoreShell } from "@/components/portal/store-shell";
 
 export default async function TiendaColeccionesPage() {
   const profile = await requireBrandProfile();
@@ -17,10 +18,7 @@ export default async function TiendaColeccionesPage() {
   const storeUrl = publicStoreUrl(profile);
 
   return (
-    <div>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
-        Colecciones
-      </h1>
+    <StoreShell active="colecciones">
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         Agrupa tus productos — por temporada, tipo, lo que te sirva. Cada
         colección puede tener su propia imagen y descripción.
@@ -29,6 +27,6 @@ export default async function TiendaColeccionesPage() {
         storeUrl={storeUrl}
         initialCollections={collections}
       />
-    </div>
+    </StoreShell>
   );
 }

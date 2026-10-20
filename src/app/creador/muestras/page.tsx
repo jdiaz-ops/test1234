@@ -41,7 +41,7 @@ export default async function CreadorMuestrasPage() {
         y lo muestren en su contenido.
       </p>
       {/* Arriba las muestras (antes Cajas PR, también en Marketplace →
-          Muestras) y abajo los productos sueltos del catálogo de cada marca
+          Muestras) y abajo los productos del catálogo de cada marca
           (pedido del 2026-10-19: dejar las dos, con nombres distintos). */}
       <div className="mb-12">
         <CreatorPrBoxesPanel boxes={prBoxes.boxes} requests={prBoxes.requests} defaultShipping={defaultShipping} />

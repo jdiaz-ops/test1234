@@ -6,6 +6,7 @@ import {
 } from "@/server/services/brand-store-product-service";
 import { StoreProductsPanel } from "@/components/portal/store-products-panel";
 import { publicStoreUrl } from "@/lib/store-url";
+import { StoreShell } from "@/components/portal/store-shell";
 
 export default async function TiendaProductosPage() {
   const profile = await requireBrandProfile();
@@ -21,10 +22,7 @@ export default async function TiendaProductosPage() {
   const storeUrl = publicStoreUrl(profile);
 
   return (
-    <div>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-2">
-        Productos
-      </h1>
+    <StoreShell active="productos">
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         El catálogo de tu tienda en Marcolini.
       </p>
@@ -33,6 +31,6 @@ export default async function TiendaProductosPage() {
         storeUrl={storeUrl}
         importTools={importTools}
       />
-    </div>
+    </StoreShell>
   );
 }

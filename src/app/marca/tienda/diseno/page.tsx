@@ -5,6 +5,7 @@ import { getDraftTheme } from "@/server/services/brand-theme-service";
 import { listStorefrontMenuItems } from "@/server/services/store-page-service";
 import { listStorefrontSections } from "@/server/services/storefront-section-service";
 import { SECTION_TYPES, type SectionType } from "@/lib/storefront-sections";
+import { StoreShell } from "@/components/portal/store-shell";
 
 /// Editor de Diseño — mismo panel único que Tiendanube: colores,
 /// tipografía, encabezado, menú de navegación (antes en Páginas), "Página
@@ -27,10 +28,7 @@ export default async function TiendaDisenoPage() {
   ]);
 
   return (
-    <div>
-      <h1 className="font-display text-2xl font-semibold text-brand-ink mb-6">
-        Diseño
-      </h1>
+    <StoreShell active="diseno">
       <DesignEditorPanel
         initialTheme={theme}
         initialSections={sections
@@ -43,6 +41,6 @@ export default async function TiendaDisenoPage() {
         menuImportTools={importTools}
         originalStoreUrl={profile.storeUrl ?? profile.websiteUrl ?? null}
       />
-    </div>
+    </StoreShell>
   );
 }

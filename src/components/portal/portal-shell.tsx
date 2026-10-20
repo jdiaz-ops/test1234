@@ -71,7 +71,10 @@ export function PortalShell({
         </Link>
       </div>
 
-      <div className="flex flex-1 min-h-0 relative">
+      {/* min-w-0: en computadora (fila) esta caja no crece con lo más ancho
+          de adentro (la tabla de Productos medía 56 px de más y corría la
+          página); lo ancho se desplaza en su propio recuadro (2026-10-20). */}
+      <div className="flex flex-1 min-h-0 min-w-0 relative">
         {/* Fondo oscuro detrás del drawer — cierra al tocar afuera. */}
         {open && (
           <div

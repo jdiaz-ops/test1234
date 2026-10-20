@@ -43,7 +43,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
   },
   {
     key: "SAMPLE_APPROVED",
-    label: "Producto suelto aprobado",
+    label: "Pedido de producto aprobado",
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
@@ -52,7 +52,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
   },
   {
     key: "SAMPLE_REJECTED",
-    label: "Producto suelto rechazado",
+    label: "Pedido de producto rechazado",
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
@@ -61,7 +61,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
   },
   {
     key: "SAMPLE_OFFERED",
-    label: "Una marca te ofreció un producto suelto",
+    label: "Una marca te ofreció un producto",
     audience: "CREATOR",
     channelEmail: true,
     messageTemplate:
@@ -284,7 +284,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
   },
   {
     key: "SAMPLE_REQUESTED",
-    label: "Una creadora pidió un producto suelto",
+    label: "Una creadora pidió un producto",
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:
@@ -293,7 +293,7 @@ export const NOTIFICATION_TYPE_DEFAULTS: Array<{
   },
   {
     key: "SAMPLE_OFFER_ACCEPTED",
-    label: "Una creadora aceptó tu producto suelto",
+    label: "Una creadora aceptó tu producto",
     audience: "BRAND",
     channelEmail: true,
     messageTemplate:

@@ -24,12 +24,12 @@ export default async function BuscarCreadoresPage() {
         Creadores
       </h1>
       <CreatorsTabs active="buscar" />
-      {/* Primero se invita; muestras y productos sueltos, en Vinculados cuando acepte
+      {/* Primero se invita; muestras y productos, en Vinculados cuando acepte
           (pedido del 2026-10-19). */}
       <p className="text-sm text-brand-ink-soft mb-8 max-w-lg">
         Creadoras de la red que todavía no están en tu programa: invítalas
         con la comisión que quieras ofrecerles. Cuando acepten, quedan en
-        Vinculados y ahí les puedes proponer muestras y productos sueltos.
+        Vinculados y ahí les puedes proponer muestras y productos.
       </p>
 
       <CreatorDirectoryPanel

@@ -13,8 +13,8 @@ import type { ShippingAddress } from "@/lib/validation/creator";
 /// con su brief; las creadoras la piden desde el marketplace (si la marca
 /// la dejó ahí) y la marca aprueba, o la marca se la propone a creadoras
 /// puntuales y ellas aceptan. Al aprobar se usa una unidad y se crea un
-/// pedido $0 (kind SAMPLE) con la dirección, como los productos sueltos
-/// (sample-service.ts): la marca la
+/// pedido $0 (kind SAMPLE) con la dirección, como los productos del
+/// catálogo (sample-service.ts): la marca la
 /// envía desde ahí y la creadora recibe la guía. Hasta ahí llega Marcolini:
 /// no sigue lo que ella publique (ver PR_BOX_DISCLAIMER; PrBoxRequest.postUrl
 /// quedó sin uso). Las unidades nunca salen hacia las creadoras.

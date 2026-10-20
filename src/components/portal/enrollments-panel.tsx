@@ -164,7 +164,7 @@ function OfferSampleForm({
     return (
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-brand-ink-soft">
-          No tienes productos sueltos para regalar — agrégalos en
+          No tienes productos para enviar — agrégalos en
           Muestras.
         </p>
         <button onClick={onDone} className="text-xs text-brand-ink-soft hover:underline shrink-0">
@@ -231,7 +231,7 @@ function OfferSampleForm({
         disabled={busy}
         className="bg-brand-accent text-white rounded-full px-4 py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-50"
       >
-        {busy ? "Enviando..." : "Ofrecer producto suelto"}
+        {busy ? "Enviando..." : "Ofrecer producto"}
       </button>
       <button onClick={onDone} className="text-xs text-brand-ink-soft hover:underline">
         Cancelar
@@ -569,7 +569,7 @@ export function EnrollmentsPanel({
                           title={openSamples[e.creatorId].productName}
                           className="text-xs text-brand-accent font-medium hover:underline whitespace-nowrap"
                         >
-                          Pidió un producto suelto → Revisar
+                          Pidió un producto → Revisar
                         </Link>
                       )}
                       {SAMPLES_ENABLED && prBoxes.length > 0 && (
@@ -592,7 +592,7 @@ export function EnrollmentsPanel({
                           }}
                           className="text-xs text-brand-accent font-medium hover:underline whitespace-nowrap"
                         >
-                          Ofrecer producto suelto
+                          Ofrecer producto
                         </button>
                       )}
                       {/* "Encargar contenido" oculto desde el 2026-09-14 — no
