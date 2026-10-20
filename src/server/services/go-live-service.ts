@@ -187,6 +187,26 @@ export async function getGoLiveChecklist(brandId: string): Promise<GoLiveCheckli
   return buildItems(brand, { noStock, zones, pendingRates, activeOffers });
 }
 
+/// Si la marca ya puede invitar creadoras a su programa: lo mismo que la
+/// hace visible en el marketplace (ver listActiveOffers) — aprobada y con
+/// toda la lista de su panel lista, o puesta visible a la fuerza por el
+/// admin para probar. Antes puede ver las creadoras, para entender la
+/// plataforma y darle ganas, pero no invitarlas (pedido del 2026-10-20).
+/// `missing`: los pasos que le faltan (sin tienda todavía, cuenta como 1).
+export type RecruitGate = { allowed: boolean; approved: boolean; missing: number };
+
+export async function getRecruitGate(brandId: string): Promise<RecruitGate> {
+  const brand = await prisma.brandProfile.findUniqueOrThrow({
+    where: { id: brandId },
+    select: { status: true, marketplaceVisibilityOverride: true },
+  });
+  if (brand.marketplaceVisibilityOverride === "FORCE_VISIBLE") return { allowed: true, approved: true, missing: 0 };
+  const checklist = await getGoLiveChecklist(brandId);
+  const missing = checklist ? checklist.total - checklist.done : 1;
+  const approved = brand.status === "APPROVED";
+  return { allowed: approved && missing === 0, approved, missing };
+}
+
 export type GoLiveSummary = { done: number; total: number; missing: string[] };
 
 /// Para la tabla de Marcas del admin y el marketplace: la misma lista de

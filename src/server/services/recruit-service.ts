@@ -5,6 +5,7 @@ import { awardWelcomeBonusIfEligible } from "@/server/services/challenge-service
 import { createNotification } from "@/server/services/notification-service";
 import { isBrandServiceDeactivated } from "@/server/services/payment-service";
 import { isDiscountCodeTakenInBrand } from "@/server/services/marketplace-service";
+import { getRecruitGate } from "@/server/services/go-live-service";
 
 /// Invitación directa de la marca a un creador (encontrado en el
 /// buscador) para unirse a una oferta — el equivalente a "Target
@@ -34,6 +35,14 @@ export async function inviteCreatorToOffer(
   }
   if (await isBrandServiceDeactivated(brandId)) {
     throw new RecruitError("Tu marca no está disponible por ahora.");
+  }
+  const gate = await getRecruitGate(brandId);
+  if (!gate.allowed) {
+    throw new RecruitError(
+      gate.missing > 0
+        ? "Termina el proceso de registro para empezar a invitar creadoras a tu programa."
+        : "Apenas aprobemos tu marca podrás invitar creadoras a tu programa.",
+    );
   }
 
   const creator = await prisma.creatorProfile.findUnique({

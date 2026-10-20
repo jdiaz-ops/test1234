@@ -277,7 +277,8 @@ export function GoLiveCard({
   }
 
   return (
-    <section aria-labelledby="go-live-title" className="mb-6 overflow-hidden rounded-2xl border border-brand-accent/25 bg-brand-surface">
+    // id: el link de "Termina el proceso de registro" (Buscar creadores) llega acá.
+    <section id="lo-que-falta" aria-labelledby="go-live-title" className="mb-6 scroll-mt-20 overflow-hidden rounded-2xl border border-brand-accent/25 bg-brand-surface">
       <div className="bg-brand-accent-soft/60 px-5 pb-5 pt-5 sm:px-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
