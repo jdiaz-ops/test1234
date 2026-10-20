@@ -2,7 +2,13 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildBrandStoreLink, buildProductLink } from "@/lib/brand-store-link";
 import { creatorVitrinaUrl } from "@/lib/creator-identity";
+import { COLOR_FAMILY_ATTRIBUTE, isColorFamily } from "@/lib/color-families";
+import { GROUP_ATTRIBUTE, readProductAttributes } from "@/lib/product-attributes";
+import { detectProductFamilies, SIZE_AXES } from "@/lib/product-families";
+import { splitLineName } from "@/lib/product-lines";
 import { IN_STOCK_WHERE } from "@/lib/product-stock";
+import { stripHtml } from "@/lib/sanitize-html";
+import { nicheCategoryOf } from "@/lib/shopify-categorize";
 import { portalUrl, publicStoreUrl } from "@/lib/store-url";
 
 /// Lo que devuelve la API de catálogo para creadoras (GET /api/v1/catalogo,
@@ -15,6 +21,12 @@ import { portalUrl, publicStoreUrl } from "@/lib/store-url";
 export const CATALOG_API_VERSION = 1;
 export const CATALOG_DEFAULT_LIMIT = 500;
 export const CATALOG_MAX_LIMIT = 1000;
+/// Ventana de "lo más vendido con el código de la creadora".
+export const SOLD_WINDOW_DAYS = 90;
+const DESCRIPTION_MAX = 300;
+/// Atributos que nombran la variante de un producto separado ("Tono":
+/// "Princesa"), en orden de preferencia.
+const VARIANT_ATTRIBUTES = ["Tono", "Color", "Aroma", "Sabor", "Diseño", "Modelo"];
 
 export class CreatorCatalogError extends Error {
   status: number;
@@ -90,6 +102,12 @@ export type CatalogBrand = {
   vitrinaOrder: number;
   joinedAt: string;
   productCount: number;
+  /// Envío gratis desde este subtotal (COP), según las zonas de envío de su
+  /// tienda en Marcolini; 0 = siempre gratis; null = no ofrece o no se sabe
+  /// (tiendas Shopify/WooCommerce). freeShippingAllZones = vale para todas
+  /// sus zonas (si no, solo en algunas, desde el menor de los montos).
+  freeShippingFrom: number | null;
+  freeShippingAllZones: boolean;
 };
 
 export type CatalogProduct = {
@@ -115,6 +133,32 @@ export type CatalogProduct = {
   featured: boolean;
   createdAt: string;
   updatedAt: string;
+  /// Texto plano, corto — para buscar ("libre de HEMA", "vegano").
+  description: string | null;
+  /// Atributos tal cual: { "Familia de color": "Nudes", Tono, Tamaño, Grupo… }.
+  attributes: Record<string, string>;
+  /// Una de las familias de color fijas de Marcolini (la pone la IA mirando
+  /// la foto), o null.
+  colorFamily: string | null;
+  /// La categoría del nicho con las mismas reglas con que Marcolini propone
+  /// colecciones (nicheCategoryOf): "Esmaltes", "Gel de construcción"…
+  nicheCategory: string | null;
+  /// La línea a la que pertenece ("Gel Polish Rosados") y qué es dentro de
+  /// ella ("Princesa"): del atributo Grupo, de la familia que se detecta por
+  /// el nombre, o de "Línea – Referencia". null si va solo.
+  line: string | null;
+  variant: string | null;
+  size: string | null;
+  /// Cuando el producto mismo tiene variantes (un esmalte con 12 tonos).
+  variantCount: number;
+  optionNames: string[];
+  /// Reseñas aprobadas.
+  rating: { average: number; count: number } | null;
+  /// Unidades que le quedan, solo si la tienda controla inventario.
+  unitsLeft: number | null;
+  /// Unidades vendidas con el código de la creadora en los últimos
+  /// SOLD_WINDOW_DAYS días (pedidos pagados en la tienda de Marcolini).
+  soldWithCode: number;
 };
 
 export type CreatorCatalog = {
@@ -174,6 +218,109 @@ function priceSpan(product: {
     .filter((p) => Number.isFinite(p) && p > 0);
   if (prices.length === 0) return { min: base, max: base };
   return { min: Math.min(...prices), max: Math.max(...prices) };
+}
+
+/// Unidades que quedan, solo cuando se controla inventario: sin variantes,
+/// su stock; con variantes, la suma — salvo que alguna se venda sin límite.
+function unitsLeft(product: { hasVariants: boolean; stock: number | null; variants: { stock: number | null }[] }): number | null {
+  if (!product.hasVariants || product.variants.length === 0) return product.stock == null ? null : Math.max(0, product.stock);
+  if (product.variants.some((v) => v.stock == null)) return null;
+  return product.variants.reduce((sum, v) => sum + Math.max(0, v.stock ?? 0), 0);
+}
+
+type ShippingRate = { price: Prisma.Decimal; pendingPrice: boolean; condition: string; conditionValue: Prisma.Decimal | null };
+
+/// Desde qué subtotal una zona envía gratis: una tarifa en $0 sin condición
+/// (siempre) o con "pedido mínimo"; null si no tiene ninguna gratis.
+function zoneFreeFrom(rates: ShippingRate[]): number | null {
+  const free = rates
+    .filter((r) => !r.pendingPrice && Number(r.price) === 0)
+    .map((r) => (r.condition === "NONE" ? 0 : r.condition === "MIN_ORDER_AMOUNT" && r.conditionValue != null ? Number(r.conditionValue) : null))
+    .filter((v): v is number => v != null);
+  return free.length > 0 ? Math.min(...free) : null;
+}
+
+/// Lo que no sale de la fila del producto: su familia (línea, variante,
+/// tamaño), reseñas, ventas con el código de la creadora y el envío gratis
+/// de cada marca. Las familias se arman con TODOS los productos de cada
+/// marca (no solo la página), igual que en la página de producto.
+async function catalogExtras(input: {
+  pageIds: string[];
+  productWhere: Prisma.ProductWhereInput;
+  brands: { brand: { id: string; storefrontSlug: string | null; customDomain: string | null; customDomainActiveAt: Date | null }; code: string }[];
+  now: Date;
+}) {
+  const since = new Date(input.now.getTime() - SOLD_WINDOW_DAYS * 86_400_000);
+  const nativeBrandIds = input.brands.filter((b) => publicStoreUrl(b.brand)).map((b) => b.brand.id);
+  const [names, ratings, sold, zones] = await Promise.all([
+    prisma.product.findMany({ where: input.productWhere, select: { id: true, brandId: true, name: true } }),
+    input.pageIds.length === 0
+      ? Promise.resolve([])
+      : prisma.productReview.groupBy({
+          by: ["productId"],
+          where: { productId: { in: input.pageIds }, status: "APPROVED" },
+          _avg: { rating: true },
+          _count: { _all: true },
+        }),
+    input.pageIds.length === 0
+      ? Promise.resolve([])
+      : prisma.storeOrderItem.groupBy({
+          by: ["productId"],
+          where: {
+            productId: { in: input.pageIds },
+            order: {
+              status: "PAID",
+              kind: "PURCHASE",
+              paidAt: { gte: since },
+              OR: input.brands.map((b) => ({ brandId: b.brand.id, discountCode: { equals: b.code, mode: "insensitive" as const } })),
+            },
+          },
+          _sum: { quantity: true },
+        }),
+    nativeBrandIds.length === 0
+      ? Promise.resolve([])
+      : prisma.shippingZone.findMany({
+          where: { brandId: { in: nativeBrandIds } },
+          select: { brandId: true, rates: { select: { price: true, pendingPrice: true, condition: true, conditionValue: true } } },
+        }),
+  ]);
+
+  const familyByProduct = new Map<string, { group: string; variant: string | null; size: string | null }>();
+  const namesByBrand = new Map<string, { id: string; name: string }[]>();
+  for (const n of names) namesByBrand.set(n.brandId, [...(namesByBrand.get(n.brandId) ?? []), { id: n.id, name: n.name }]);
+  for (const list of namesByBrand.values()) {
+    for (const family of detectProductFamilies(list)) {
+      for (const member of family.members) {
+        const sizeAxis = family.axes.find((a) => SIZE_AXES.has(a));
+        const variantAxis = family.axes.find((a) => !SIZE_AXES.has(a));
+        familyByProduct.set(member.id, {
+          group: family.group,
+          variant: variantAxis ? member.attrs[variantAxis] ?? null : null,
+          size: sizeAxis ? member.attrs[sizeAxis] ?? null : null,
+        });
+      }
+    }
+  }
+
+  const ratingByProduct = new Map(
+    ratings.map((r) => [r.productId, { average: r._avg.rating ?? 0, count: r._count._all }] as const),
+  );
+  const soldByProduct = new Map(
+    sold.filter((s) => s.productId).map((s) => [s.productId!, s._sum.quantity ?? 0] as const),
+  );
+
+  const shippingByBrand = new Map<string, { from: number; allZones: boolean }>();
+  const zonesByBrand = new Map<string, (number | null)[]>();
+  for (const zone of zones) zonesByBrand.set(zone.brandId, [...(zonesByBrand.get(zone.brandId) ?? []), zoneFreeFrom(zone.rates)]);
+  for (const [brandId, values] of zonesByBrand) {
+    const free = values.filter((v): v is number => v != null);
+    if (free.length === 0) continue;
+    const allZones = free.length === values.length;
+    // En todas: el monto que vale en todas (el mayor); si no, el menor.
+    shippingByBrand.set(brandId, { from: allZones ? Math.max(...free) : Math.min(...free), allZones });
+  }
+
+  return { familyByProduct, ratingByProduct, soldByProduct, shippingByBrand };
 }
 
 export async function getCreatorCatalog(
@@ -257,6 +404,8 @@ export async function getCreatorCatalog(
         visibleInVitrina: enrollment.storefrontVisible,
         vitrinaOrder: enrollment.storefrontOrder,
         joinedAt: enrollment.joinedAt.toISOString(),
+        freeShippingFrom: null,
+        freeShippingAllZones: false,
       },
     });
   }
@@ -298,6 +447,10 @@ export async function getCreatorCatalog(
         type: true,
         featured: true,
         hasVariants: true,
+        optionNames: true,
+        stock: true,
+        description: true,
+        attributes: true,
         createdAt: true,
         updatedAt: true,
         images: { select: { url: true }, orderBy: { position: "asc" }, take: 5 },
@@ -309,6 +462,20 @@ export async function getCreatorCatalog(
 
   const countByBrand = new Map(counts.map((c) => [c.brandId, c._count._all]));
   const page = rows.slice(0, limit);
+  const pageIds = page.map((p) => p.id);
+  const extras = await catalogExtras({
+    pageIds,
+    productWhere,
+    brands: [...byBrand.values()].map(({ brand, info }) => ({ brand, code: info.discountCode })),
+    now,
+  });
+  for (const { info } of byBrand.values()) {
+    const shipping = extras.shippingByBrand.get(info.id);
+    if (shipping) {
+      info.freeShippingFrom = shipping.from;
+      info.freeShippingAllZones = shipping.allZones;
+    }
+  }
 
   const products: CatalogProduct[] = page.map((product) => {
     const { brand, info } = byBrand.get(product.brandId)!;
@@ -316,6 +483,12 @@ export async function getCreatorCatalog(
     const compareAt = product.compareAtPrice == null ? null : Number(product.compareAtPrice);
     const imageUrl = absoluteUrl(product.imageUrl);
     const gallery = product.images.map((i) => absoluteUrl(i.url)).filter((u): u is string => Boolean(u));
+    const collections = [...new Set(product.brandCollections.map((c) => c.collection.name))];
+    const attributes = readProductAttributes(product.attributes);
+    const family = extras.familyByProduct.get(product.id);
+    const lineFromName = splitLineName(product.name);
+    const colorFamily = attributes[COLOR_FAMILY_ATTRIBUTE];
+    const rating = extras.ratingByProduct.get(product.id);
     return {
       id: product.id,
       brandId: product.brandId,
@@ -328,11 +501,25 @@ export async function getCreatorCatalog(
       currency: product.currency,
       url: absoluteUrl(buildProductLink(brand, product, info.discountCode))!,
       category: product.category,
-      collections: [...new Set(product.brandCollections.map((c) => c.collection.name))],
+      collections,
       type: product.type,
       featured: product.featured,
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
+      // Sin el espacio que deja cada etiqueta antes de la puntuación ("HEMA , vegano").
+      description: product.description ? stripHtml(product.description, DESCRIPTION_MAX).replace(/\s+([,.;:!?)])/g, "$1") || null : null,
+      attributes,
+      colorFamily: colorFamily && isColorFamily(colorFamily) ? colorFamily : null,
+      nicheCategory:
+        nicheCategoryOf(product.name) ?? (collections.length > 0 ? nicheCategoryOf(collections.join(" ")) : null) ?? (product.category ? nicheCategoryOf(product.category) : null),
+      line: attributes[GROUP_ATTRIBUTE] ?? family?.group ?? lineFromName?.line ?? null,
+      variant: VARIANT_ATTRIBUTES.map((a) => attributes[a]).find(Boolean) ?? family?.variant ?? lineFromName?.rest ?? null,
+      size: attributes["Tamaño"] ?? family?.size ?? null,
+      variantCount: product.hasVariants ? product.variants.length : 0,
+      optionNames: product.hasVariants ? product.optionNames : [],
+      rating: rating ? { average: Math.round(rating.average * 10) / 10, count: rating.count } : null,
+      unitsLeft: unitsLeft(product),
+      soldWithCode: extras.soldByProduct.get(product.id) ?? 0,
     };
   });
 

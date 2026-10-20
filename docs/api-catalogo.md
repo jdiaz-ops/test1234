@@ -119,6 +119,34 @@ trae `keyLengths`, el largo de las llaves de acá.
   mientras haya un Flash Sale activo; cada `%` es `null` si esa campaña no lo
   sube.
 
+### Datos para clasificar y filtrar (agregados el 2026-10-20)
+
+Por marca:
+
+- `freeShippingFrom`: desde qué subtotal envía gratis según las zonas de envío
+  de su tienda en Marcolini (`0` = siempre); `null` si no ofrece o no se sabe
+  (Shopify/WooCommerce). `freeShippingAllZones`: si vale en todas sus zonas (si
+  no, es el menor monto, solo en algunas).
+
+Por producto:
+
+- `description`: texto plano de hasta 300 caracteres.
+- `attributes`: los atributos tal cual (`Familia de color`, `Tono`, `Tamaño`,
+  `Grupo`…). `colorFamily`: una de las familias de color fijas de Marcolini
+  (la pone la IA mirando la foto) o `null`.
+- `nicheCategory`: la categoría del nicho con las mismas reglas con que
+  Marcolini propone colecciones (`Esmaltes`, `Gel de construcción`,
+  `Acrílico`, `Soft gel y tips`, `Decoración`, `Stamping`,
+  `Herramientas y equipos`, `Preparación y cuidado`, `Kits y combos`).
+- `line` / `variant` / `size`: la línea del producto y qué es dentro de ella
+  ("Gel Polish Rosados" / "Princesa" / "15 ml"), del atributo `Grupo`, de la
+  familia que se detecta por el nombre o de "Línea – Referencia".
+- `variantCount` / `optionNames`: cuando el producto mismo tiene variantes.
+- `rating`: `{ average, count }` de las reseñas aprobadas, o `null`.
+- `unitsLeft`: unidades que quedan, solo si la tienda controla inventario.
+- `soldWithCode`: unidades vendidas con el código de la creadora en los
+  últimos 90 días (pedidos pagados en la tienda de Marcolini).
+
 Código: `src/app/api/v1/catalogo/route.ts`,
 `src/server/services/creator-catalog-api-service.ts` y
 `src/lib/creator-api-keys.ts`.

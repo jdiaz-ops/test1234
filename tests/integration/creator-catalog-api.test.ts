@@ -154,6 +154,98 @@ describe.skipIf(!hasDb)("API de catálogo para creadoras", () => {
     expect(new Set([...first.products, ...second.products].map((p) => p.name))).toEqual(new Set(["Uno", "Dos", "Tres"]));
   });
 
+  it("enriquece cada producto: atributos, línea, reseñas, inventario, ventas con el código y envío", async () => {
+    const creator = await createCreator();
+    const { brand, offer } = await approvedBrandWithOffer(10);
+    await prisma.creatorOfferEnrollment.create({ data: { creatorId: creator.id, offerId: offer.id, discountCode: "NAILFEST" } });
+
+    const princesa = await createProduct(brand.id, { name: "Gel Polish Rosados – Princesa", price: 30000, stock: 3 });
+    await prisma.product.update({
+      where: { id: princesa.id },
+      data: {
+        attributes: { "Familia de color": "Rosados", Grupo: "Gel Polish Rosados", Tono: "Princesa", Tamaño: "15 ml" },
+        description: "<p>Libre de <b>HEMA</b>, vegano.</p>",
+      },
+    });
+    const chicle = await createProduct(brand.id, { name: "Gel Polish Rosados – Chicle", price: 30000, stock: null });
+    const coco = await createProduct(brand.id, { name: "Aceite de cutícula Coco 30ml", price: 18000, stock: null });
+    await createProduct(brand.id, { name: "Aceite de cutícula Uva 30ml", price: 18000, stock: null });
+    const lamp = await createProduct(brand.id, {
+      name: "Lámpara",
+      price: 90000,
+      stock: null,
+      variants: [
+        { label: "Blanca", stock: 2 },
+        { label: "Rosa", stock: 1 },
+      ],
+    });
+
+    const review = (rating: number, status: "APPROVED" | "PENDING", email: string) =>
+      prisma.productReview.create({ data: { brandId: brand.id, productId: princesa.id, authorName: "A", authorEmail: email, rating, body: "x", status } });
+    await review(5, "APPROVED", "a@x.test");
+    await review(4, "APPROVED", "b@x.test");
+    await review(1, "PENDING", "c@x.test");
+
+    const order = (code: string | null, status: "PAID" | "PENDING", paidAt: Date | null, quantity: number) =>
+      prisma.storeOrder.create({
+        data: {
+          brandId: brand.id,
+          reference: `mt_${randomUUID()}`,
+          buyerName: "C",
+          buyerEmail: `c-${randomUUID().slice(0, 6)}@x.test`,
+          buyerPhone: "3000000000",
+          shippingAddress: "Calle 1",
+          shippingCity: "Bogotá",
+          shippingRegion: "Bogotá",
+          subtotalCents: 3000000 * quantity,
+          totalCents: 3000000 * quantity,
+          paymentMode: "TEST",
+          discountCode: code,
+          status,
+          paidAt,
+          items: { create: [{ productId: princesa.id, name: "Princesa", unitPriceCents: 3000000, quantity }] },
+        },
+      });
+    await order("nailfest", "PAID", new Date(), 2);
+    await order("OTRA", "PAID", new Date(), 5);
+    await order("NAILFEST", "PENDING", null, 7);
+    await order("NAILFEST", "PAID", new Date(Date.now() - 100 * 86_400_000), 9);
+
+    await prisma.shippingZone.create({
+      data: {
+        brandId: brand.id,
+        name: "Bogotá",
+        regions: ["Bogotá"],
+        rates: {
+          create: [
+            { name: "Normal", price: 12000 },
+            { name: "Gratis", price: 0, condition: "MIN_ORDER_AMOUNT", conditionValue: 150000 },
+          ],
+        },
+      },
+    });
+    await prisma.shippingZone.create({ data: { brandId: brand.id, name: "Resto", regions: ["Antioquia"], rates: { create: [{ name: "Normal", price: 15000 }] } } });
+
+    const catalog = await getCreatorCatalog(creator.storefrontSlug);
+    expect(catalog.brands[0]).toMatchObject({ freeShippingFrom: 150000, freeShippingAllZones: false });
+    const byId = new Map(catalog.products.map((p) => [p.id, p]));
+
+    expect(byId.get(princesa.id)).toMatchObject({
+      colorFamily: "Rosados",
+      line: "Gel Polish Rosados",
+      variant: "Princesa",
+      size: "15 ml",
+      nicheCategory: "Esmaltes",
+      description: "Libre de HEMA, vegano.",
+      rating: { average: 4.5, count: 2 },
+      unitsLeft: 3,
+      soldWithCode: 2,
+    });
+    expect(byId.get(chicle.id)).toMatchObject({ line: "Gel Polish Rosados", variant: "Chicle", unitsLeft: null, rating: null, soldWithCode: 0 });
+    expect(byId.get(coco.id)!.line).not.toBeNull();
+    expect(byId.get(lamp.id)).toMatchObject({ variantCount: 2, optionNames: ["Color"], unitsLeft: 3, nicheCategory: "Herramientas y equipos" });
+  });
+
   it("rechaza una creadora suspendida o inexistente", async () => {
     const suspended = await createCreator({ suspended: true });
     await expect(getCreatorCatalog(suspended.storefrontSlug)).rejects.toMatchObject({ status: 403 });
