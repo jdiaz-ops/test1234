@@ -12,9 +12,24 @@ import {
 import { GET as ping } from "@/app/api/dominio/ping/route";
 import { createBrand, hasDb } from "./helpers";
 
-// El TXT de la marca, sin DNS real.
+// El TXT de la marca, sin DNS real: resolveTxt es el DNS de siempre (con
+// caché) y zoneTxt lo que contestan los nameservers del propio dominio.
 const resolveTxt = vi.fn();
-vi.mock("node:dns/promises", () => ({ default: { resolveTxt: (name: string) => resolveTxt(name) } }));
+const zoneTxt = vi.fn();
+vi.mock("node:dns/promises", () => ({
+  default: {
+    resolveTxt: (name: string) => resolveTxt(name),
+    resolveNs: async () => ["ns1.proveedor.test"],
+    resolve4: async () => ["192.0.2.53"],
+    Resolver: class {
+      setServers() {}
+      resolveTxt(name: string) {
+        return zoneTxt(name);
+      }
+    },
+  },
+}));
+const noTxt = () => Promise.reject(new Error("ENODATA"));
 
 /// https://{dominio}/api/dominio/ping como lo contestaría Marcolini, o nada
 /// (el DNS todavía no apunta).
@@ -37,6 +52,8 @@ describe.skipIf(!hasDb)("dominio propio", () => {
   beforeEach(() => {
     delete process.env.VERCEL_API_TOKEN;
     resolveTxt.mockReset();
+    zoneTxt.mockReset();
+    zoneTxt.mockImplementation(noTxt);
   });
   afterEach(() => {
     process.env = { ...env };
@@ -93,6 +110,33 @@ describe.skipIf(!hasDb)("dominio propio", () => {
     await expect(verifyCustomDomain(brand.id, { fetchImpl: deadFetch, retryDelayMs: 0 })).rejects.toBeInstanceOf(CustomDomainError);
     resolveTxt.mockRejectedValue(new Error("ENODATA"));
     await expect(verifyCustomDomain(brand.id, { fetchImpl: deadFetch, retryDelayMs: 0 })).rejects.toThrow(/No encontramos el registro TXT/);
+    // Los TXT de siempre en la raíz (SPF, Google) no son "código equivocado".
+    const { customDomain } = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brand.id } });
+    resolveTxt.mockImplementation((name: string) => (name === customDomain ? Promise.resolve([["v=spf1 include:_spf.google.com ~all"]]) : noTxt()));
+    await expect(verifyCustomDomain(brand.id, { fetchImpl: deadFetch, retryDelayMs: 0 })).rejects.toThrow(/No encontramos el registro TXT/);
+  });
+
+  it("acepta el código con el dominio repetido en el nombre, entre comillas o en la raíz", async () => {
+    for (const where of ["repetido", "raiz"] as const) {
+      const brand = await createBrand();
+      const domain = `hc-${randomUUID().slice(0, 8)}.co`;
+      const { customDomainVerificationToken: token } = await setCustomDomain(brand.id, domain);
+      const name = where === "repetido" ? `_marcolini-verify.${domain}.${domain}` : domain;
+      resolveTxt.mockImplementation((n: string) => (n === name ? Promise.resolve([["v=spf1 ~all"], [` "${token}" `]]) : noTxt()));
+      const { brand: verified } = await verifyCustomDomain(brand.id, { fetchImpl: deadFetch, retryDelayMs: 0 });
+      expect(verified.customDomainVerifiedAt).not.toBeNull();
+    }
+  });
+
+  it("si tocó «Verificar» antes de tiempo, les pregunta a los nameservers del dominio", async () => {
+    const brand = await createBrand();
+    const domain = `tienda.hc-${randomUUID().slice(0, 8)}.com.co`;
+    const { customDomainVerificationToken: token } = await setCustomDomain(brand.id, domain);
+    // El DNS de siempre todavía repite el "no existe"; el del dominio ya lo tiene.
+    resolveTxt.mockImplementation(noTxt);
+    zoneTxt.mockImplementation((n: string) => (n === `_marcolini-verify.${domain}` ? Promise.resolve([[token!]]) : noTxt()));
+    const { brand: verified } = await verifyCustomDomain(brand.id, { fetchImpl: deadFetch, retryDelayMs: 0 });
+    expect(verified.customDomainVerifiedAt).not.toBeNull();
   });
 
   it("ni el dominio ni su www pueden ser de otra marca", async () => {

@@ -2,7 +2,7 @@ import crypto from "crypto";
 import dns from "node:dns/promises";
 import { prisma } from "@/lib/prisma";
 import { ROOT_DOMAIN } from "@/lib/subdomain";
-import { companionDomain } from "@/lib/custom-domain";
+import { apexOf, companionDomain } from "@/lib/custom-domain";
 import { createNotification } from "@/server/services/notification-service";
 import {
   addDomainToVercel,
@@ -302,9 +302,62 @@ export async function removeCustomDomain(brandId: string) {
   });
 }
 
-/// Busca el registro TXT en _marcolini-verify.{dominio} y confirma que
-/// contiene el token que le dimos a la marca — eso prueba que el dominio es
-/// suyo. Después lo registra en Vercel (o le avisa al equipo para que lo
+type TxtResolver = { resolveTxt(name: string): Promise<string[][]> };
+
+/// Como a veces queda guardado el valor: con espacios o entre comillas.
+const cleanTxt = (value: string) => value.trim().replace(/^["'“”]+|["'“”]+$/g, "").trim().toLowerCase();
+
+/// Los nameservers del propio dominio contestan con lo que la marca acaba
+/// de guardar. El DNS de siempre, en cambio, puede tener guardado un "no
+/// existe" de cuando tocó «Verificar» antes de tiempo, y lo repite hasta
+/// una hora según el proveedor. null si no se pudieron averiguar.
+async function zoneResolver(apex: string): Promise<TxtResolver | null> {
+  try {
+    const hosts = (await dns.resolveNs(apex)).slice(0, 2);
+    const ips = (await Promise.all(hosts.map((host) => dns.resolve4(host).catch(() => [] as string[])))).flat();
+    if (ips.length === 0) return null;
+    const resolver = new dns.Resolver({ timeout: 1500, tries: 1 });
+    resolver.setServers(ips.slice(0, 2));
+    return resolver;
+  } catch {
+    return null;
+  }
+}
+
+/// Busca el código donde lo pedimos (_marcolini-verify.{dominio}) y donde
+/// suele quedar por error: con el dominio repetido (hay paneles que se lo
+/// agregan solos al nombre) o en la raíz del dominio (como lo piden Google
+/// y Meta). Esos registros solo los puede poner quien maneja el DNS del
+/// dominio, así que cualquiera prueba que es suyo. named: si en
+/// _marcolini-verify hay algo, para distinguir "código equivocado" de
+/// "todavía no está".
+async function findVerificationTxt(domain: string, token: string) {
+  const apex = apexOf(domain);
+  const read = async (resolver: TxtResolver, name: string) => {
+    try {
+      return (await resolver.resolveTxt(name)).map((chunks) => cleanTxt(chunks.join("")));
+    } catch {
+      return [];
+    }
+  };
+  const ask = async (resolver: TxtResolver) => {
+    const [ours, doubled, root] = await Promise.all([
+      read(resolver, `_marcolini-verify.${domain}`),
+      read(resolver, `_marcolini-verify.${domain}.${apex}`),
+      read(resolver, apex),
+    ]);
+    return { found: [...ours, ...doubled, ...root].includes(token), named: ours.length + doubled.length > 0 };
+  };
+  const cached = await ask(dns);
+  if (cached.found) return cached;
+  const zone = await zoneResolver(apex);
+  if (!zone) return cached;
+  const fresh = await ask(zone);
+  return { found: fresh.found, named: cached.named || fresh.named };
+}
+
+/// Busca el registro TXT (ver findVerificationTxt) y confirma que contiene
+/// el token que le dimos a la marca — eso prueba que el dominio es suyo. Después lo registra en Vercel (o le avisa al equipo para que lo
 /// haga a mano) y revisa de una vez si ya abre la tienda: si el DNS ya
 /// apuntaba, queda activo ahí mismo.
 export async function verifyCustomDomain(brandId: string, deps: CheckDeps = {}) {
@@ -313,18 +366,13 @@ export async function verifyCustomDomain(brandId: string, deps: CheckDeps = {}) 
     throw new CustomDomainError("Primero configura un dominio.");
   }
 
-  let records: string[][];
-  try {
-    records = await dns.resolveTxt(`_marcolini-verify.${brand.customDomain}`);
-  } catch {
-    throw new CustomDomainError(
-      "No encontramos el registro TXT todavía — el DNS puede tardar unos minutos en propagarse. Intenta de nuevo en un rato.",
-    );
-  }
-
-  const found = records.some((chunks) => chunks.join("") === brand.customDomainVerificationToken);
+  const { found, named } = await findVerificationTxt(brand.customDomain, brand.customDomainVerificationToken);
   if (!found) {
-    throw new CustomDomainError("El registro TXT no tiene el código correcto — revísalo y vuelve a intentar.");
+    throw new CustomDomainError(
+      named
+        ? "El registro TXT no tiene el código correcto — revísalo y vuelve a intentar."
+        : "No encontramos el registro TXT todavía — el DNS puede tardar unos minutos en propagarse. Intenta de nuevo en un rato.",
+    );
   }
 
   await prisma.brandProfile.update({
