@@ -31,7 +31,9 @@ export async function GET(req: Request) {
     if (!attempts.ok) return tooMany(attempts.retryAfterSeconds);
     // `reason` le dice al otro sitio si el problema está de este lado (no
     // hay ninguna llave bien escrita en CATALOG_API_KEYS) o del suyo (la
-    // que manda no coincide) — sin revelar ninguna llave.
+    // que manda no coincide), y `keyLengths` cuántos caracteres tienen las
+    // de acá, para que pueda ver a cuál le sobra o le falta algo. Nunca se
+    // revela ninguna parte de una llave.
     const noKeys = keys.length === 0;
     return NextResponse.json(
       {
@@ -39,6 +41,7 @@ export async function GET(req: Request) {
           ? "Marcolini no tiene configurada ninguna llave del catálogo (CATALOG_API_KEYS vacía o sin el formato «slug:llave»)."
           : "La llave no coincide con ninguna de las que tiene Marcolini. Envíala como «Authorization: Bearer <llave>».",
         reason: noKeys ? "no_keys" : "mismatch",
+        keyLengths: keys.map((k) => k.key.length),
       },
       { status: 401, headers: { ...NO_STORE, "WWW-Authenticate": "Bearer" } },
     );

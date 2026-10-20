@@ -12,22 +12,30 @@ export const MIN_CATALOG_KEY_LENGTH = 32;
 
 export type CatalogApiKeyEntry = { slug: string; key: string };
 
-/// Lo que se cuela al pegar en Vercel: comillas alrededor, espacios.
-function unwrap(value: string) {
-  return value.trim().replace(/^["'`]+|["'`]+$/g, "").trim();
+/// Lo que se cuela al pegar en Vercel alrededor de una llave o un slug:
+/// comillas, espacios, asteriscos, el punto de la frase de donde se copió.
+/// Una llave solo empieza y termina en letra o número (las de
+/// `openssl rand -hex 32` son así), y a las dos puntas — la variable y la
+/// que llega — se les quita lo mismo, así que siguen comparándose igual.
+export function cleanCatalogKey(value: string): string {
+  return value.trim().replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, "");
 }
 
 export function parseCatalogApiKeys(raw: string | null | undefined): CatalogApiKeyEntry[] {
   if (!raw) return [];
   return raw
+    .trim()
+    // "CATALOG_API_KEYS=nailfest:llave" pegado entero en el valor.
+    .replace(/^CATALOG_API_KEYS\s*=\s*/i, "")
     .split(/[\n,;]+/)
     .map((part) => {
-      const entry = unwrap(part);
-      const colon = entry.indexOf(":");
-      if (colon <= 0) return null;
-      const slug = unwrap(entry.slice(0, colon)).toLowerCase();
-      // "nailfest: llave" también vale (con espacio después de los dos puntos).
-      const key = unwrap(entry.slice(colon + 1));
+      const entry = part.trim();
+      const first = entry.indexOf(":");
+      if (first <= 0) return null;
+      const slug = cleanCatalogKey(entry.slice(0, first)).toLowerCase();
+      // Lo de después de los ÚLTIMOS dos puntos: "nailfest: llave" y
+      // "nailfest:nailfest:llave" también valen.
+      const key = cleanCatalogKey(entry.slice(entry.lastIndexOf(":") + 1));
       return slug && key.length >= MIN_CATALOG_KEY_LENGTH && !/\s/.test(key) ? { slug, key } : null;
     })
     .filter((entry): entry is CatalogApiKeyEntry => entry !== null);
@@ -42,7 +50,7 @@ function digest(value: string) {
 /// respuesta no deja adivinar una llave letra por letra.
 export function matchCatalogApiKey(entries: CatalogApiKeyEntry[], presented: string | null | undefined): string | null {
   if (!presented) return null;
-  const given = digest(presented);
+  const given = digest(cleanCatalogKey(presented));
   let match: string | null = null;
   for (const entry of entries) {
     if (timingSafeEqual(given, digest(entry.key)) && match === null) match = entry.slug;

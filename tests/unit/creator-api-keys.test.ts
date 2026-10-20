@@ -21,6 +21,15 @@ describe("llaves de la API de catálogo", () => {
     ]);
   });
 
+  it("perdona el punto de la frase, asteriscos, el slug repetido y el nombre de la variable", () => {
+    const only = [{ slug: "nailfest", key: KEY_B }];
+    expect(parseCatalogApiKeys(`nailfest:${KEY_B}.`)).toEqual(only);
+    expect(parseCatalogApiKeys(`**nailfest:${KEY_B}**`)).toEqual(only);
+    expect(parseCatalogApiKeys(`nailfest:nailfest:${KEY_B}`)).toEqual(only);
+    expect(parseCatalogApiKeys(`CATALOG_API_KEYS = nailfest:${KEY_B}`)).toEqual(only);
+    expect(matchCatalogApiKey(only, `${KEY_B}.`)).toBe("nailfest");
+  });
+
   it("ignora llaves cortas o con espacios adentro, entradas sin slug y la variable vacía", () => {
     expect(parseCatalogApiKeys(`corta:abc123,:${KEY_A},sinllave,${KEY_B}`)).toEqual([]);
     expect(parseCatalogApiKeys(`nailfest:${KEY_A.slice(0, 16)} ${KEY_A.slice(16)}`)).toEqual([]);

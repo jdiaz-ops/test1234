@@ -35,7 +35,7 @@ describe("GET /api/v1/catalogo sin llave válida", () => {
     process.env.CATALOG_API_KEYS = `nailfest:${KEY}`;
     const res = await call("e".repeat(40));
     expect(res.status).toBe(401);
-    expect((await res.json()).reason).toBe("mismatch");
+    expect(await res.json()).toMatchObject({ reason: "mismatch", keyLengths: [40] });
   });
 
   it("deja pasar la llave correcta", async () => {
