@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { OfferForm } from "@/components/portal/offer-form";
 import { socialProfileUrl, sortSocialLinks } from "@/lib/social-links";
@@ -21,8 +22,6 @@ type CreatorResult = {
   city: string | null;
   vertical: { name: string } | null;
   socialLinks: SocialLink[];
-  /// Lo que la deja ver confiable sin conocerla (ver searchCreators).
-  proof: { sales90d: number; brands: number; activeThisMonth: boolean };
   scoreData: ScoreData;
 };
 
@@ -224,21 +223,47 @@ function InvitePanel({
   );
 }
 
-/// Lo que la deja ver confiable sin conocerla por nombre.
-function ProofChips({ proof }: { proof: CreatorResult["proof"] }) {
-  const chips = [
-    proof.activeThisMonth ? { text: "Vendió este mes", tone: "bg-emerald-50 text-emerald-800 border-emerald-200" } : null,
-    proof.sales90d > 0 ? { text: `${proof.sales90d} ${proof.sales90d === 1 ? "venta" : "ventas"} en los últimos 90 días`, tone: "bg-brand-bg text-brand-ink border-brand-line" } : null,
-    proof.brands > 0 ? { text: `Trabaja con ${proof.brands} ${proof.brands === 1 ? "marca" : "marcas"}`, tone: "bg-brand-bg text-brand-ink border-brand-line" } : null,
-  ].filter((c): c is { text: string; tone: string } => Boolean(c));
-  if (chips.length === 0) return <span className="text-xs text-brand-ink-soft">Nueva en Marcolini: todavía no tiene ventas.</span>;
+/// A dónde lleva todo lo de invitar mientras la marca no termina sus pasos:
+/// la lista "Lo que falta para ser visible en el marketplace" del Dashboard.
+const STEPS_HREF = "/marca#lo-que-falta";
+
+function LockIcon({ className }: { className: string }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {chips.map((c) => (
-        <span key={c.text} className={`rounded-full border px-2.5 py-1 text-xs ${c.tone}`}>
-          {c.text}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
+}
+
+/// Mientras la marca no termina el registro (ver getRecruitGate): puede ver
+/// la red, pero invitar espera a que termine (pedido del 2026-10-20).
+function RecruitLockedBanner({ approved, missing }: { approved: boolean; missing: number }) {
+  return (
+    <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-brand-accent/30 bg-brand-accent-soft/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-accent text-white">
+          <LockIcon className="h-4 w-4" />
         </span>
-      ))}
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-brand-ink">
+            {missing > 0
+              ? "Termina el proceso de registro para empezar a invitar creadoras a tu programa y ser visible en el marketplace."
+              : "Ya terminaste tus pasos: apenas aprobemos tu marca podrás invitar creadoras y saldrás en el marketplace."}
+          </p>
+          {missing > 0 && (
+            <p className="mt-0.5 text-xs text-brand-ink-soft">
+              {missing === 1 ? "Te falta 1 paso." : `Te faltan ${missing} pasos.`} Mientras tanto, conoce a las creadoras de la red.
+            </p>
+          )}
+          {missing === 0 && !approved && <p className="mt-0.5 text-xs text-brand-ink-soft">Mientras tanto, conoce a las creadoras de la red.</p>}
+        </div>
+      </div>
+      {missing > 0 && (
+        <Link href={STEPS_HREF} className="shrink-0 self-start rounded-full bg-brand-accent px-5 py-2.5 text-center text-xs font-medium text-white hover:opacity-90 sm:self-center">
+          Ver los pasos que faltan →
+        </Link>
+      )}
     </div>
   );
 }
@@ -248,11 +273,14 @@ export function CreatorDirectoryPanel({
   offers,
   platformFeePercent,
   vatPercent,
+  recruit,
 }: {
   verticals: { id: string; name: string }[];
   offers: OfferOption[];
   platformFeePercent: number;
   vatPercent: number;
+  /// Si ya puede invitar (ver getRecruitGate en go-live-service.ts).
+  recruit: { allowed: boolean; approved: boolean; missing: number };
 }) {
   const [query, setQuery] = useState("");
   const [verticalId, setVerticalId] = useState("");
@@ -296,6 +324,7 @@ export function CreatorDirectoryPanel({
 
   return (
     <div>
+      {!recruit.allowed && <RecruitLockedBanner approved={recruit.approved} missing={recruit.missing} />}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
         <input
           value={query}
@@ -380,11 +409,16 @@ export function CreatorDirectoryPanel({
                 <p className="text-xs text-brand-ink-soft mt-2">{c.bio}</p>
               )}
 
-              <div className="mt-2">
-                <ProofChips proof={c.proof} />
-              </div>
-
-              {openCreatorId === c.id ? (
+              {!recruit.allowed ? (
+                <Link
+                  href={STEPS_HREF}
+                  title="Termina tus pasos para invitar creadoras"
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-brand-line px-4 py-1.5 text-xs font-medium text-brand-ink-soft hover:bg-brand-accent-soft"
+                >
+                  <LockIcon className="h-3.5 w-3.5" />
+                  Invitar a tu programa
+                </Link>
+              ) : openCreatorId === c.id ? (
                 <InvitePanel
                   creator={c}
                   offers={offers}

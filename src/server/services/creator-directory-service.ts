@@ -50,35 +50,14 @@ export async function searchCreators(filters: CreatorDirectoryFilters) {
 
   const eligible = creators.filter((c) => !excludedIds.has(c.id));
   const ids = eligible.map((c) => c.id);
-  const since90 = new Date(Date.now() - 90 * 24 * 3600 * 1000);
-  const [scores, sales90, enrollments] = await Promise.all([
-    computeCreatorScores(ids),
-    prisma.transaction.groupBy({
-      by: ["creatorId"],
-      where: { creatorId: { in: ids }, occurredAt: { gte: since90 }, status: { not: "REFUNDED" } },
-      _count: { _all: true },
-    }),
-    prisma.creatorOfferEnrollment.findMany({
-      where: { creatorId: { in: ids }, status: "ACTIVE" },
-      select: { creatorId: true, offer: { select: { brandId: true } } },
-    }),
-  ]);
-  const salesBy = new Map(sales90.map((r) => [r.creatorId, r._count._all]));
-  const brandsBy = new Map<string, Set<string>>();
-  for (const e of enrollments) brandsBy.set(e.creatorId, (brandsBy.get(e.creatorId) ?? new Set()).add(e.offer.brandId));
+  const scores = await computeCreatorScores(ids);
 
+  // Sin "Vendió este mes", "N ventas en los últimos 90 días" ni "Trabaja
+  // con N marcas" en la tarjeta (se quitaron a pedido del 2026-10-20): el
+  // score queda solo para ordenar y para el filtro de historial.
   let result = eligible.map((c) => ({
     ...c,
     scoreData: scores.get(c.id)!,
-    /// Para que la marca confíe sin conocerla por nombre (pedido del
-    /// 2026-10-19): cuántas ventas hizo en Marcolini en 90 días, con
-    /// cuántas marcas trabaja y si vendió este mes — sin montos, para no
-    /// mostrarle a una marca lo que venden las otras.
-    proof: {
-      sales90d: salesBy.get(c.id) ?? 0,
-      brands: brandsBy.get(c.id)?.size ?? 0,
-      activeThisMonth: scores.get(c.id)?.hasSaleLast30Days ?? false,
-    },
   }));
 
   if (filters.hasSalesHistory === true) {

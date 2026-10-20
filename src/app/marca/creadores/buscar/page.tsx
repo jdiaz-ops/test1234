@@ -5,15 +5,18 @@ import { listOffersForBrand } from "@/server/services/offer-service";
 import { CreatorDirectoryPanel } from "@/components/portal/creator-directory-panel";
 import { CreatorsTabs } from "@/components/portal/creators-tabs";
 import { getPlatformConfig } from "@/server/services/admin-config-service";
+import { getRecruitGate } from "@/server/services/go-live-service";
 
 export default async function BuscarCreadoresPage() {
   const profile = await requireBrandProfile();
   if (!profile) redirect("/login");
 
-  const [verticals, offers, config] = await Promise.all([
+  const [verticals, offers, config, recruit] = await Promise.all([
     prisma.vertical.findMany({ orderBy: { name: "asc" } }),
     listOffersForBrand(profile.id),
     getPlatformConfig(),
+    // Ver la red sí; invitar, cuando termine el registro (2026-10-20).
+    getRecruitGate(profile.id),
   ]);
 
   const activeOffers = offers.filter((o) => o.status === "ACTIVE");
@@ -43,6 +46,7 @@ export default async function BuscarCreadoresPage() {
         // Para armar el programa ahí mismo si todavía no tiene (ver OfferForm).
         platformFeePercent={profile.platformFeePercentOverride ? Number(profile.platformFeePercentOverride) : Number(config.defaultPlatformFeePercent)}
         vatPercent={Number(config.vatPercent)}
+        recruit={recruit}
       />
     </div>
   );

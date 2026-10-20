@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { REVIEWS_ENABLED } from "@/lib/features";
+import { SectionTabs } from "@/components/portal/section-tabs";
 
 /// Tienda: lo que arma la vitrina — productos, colecciones, diseño y
 /// páginas — en una sola entrada del menú con pestañas, presentadas como
@@ -32,23 +32,7 @@ export function StoreShell({ active, children }: { active: StoreSection; childre
     <div>
       <p className="font-mono text-xs text-brand-accent tracking-widest mb-2">TIENDA</p>
       <h1 className="font-display text-2xl font-semibold text-brand-ink mb-4">Tienda</h1>
-      {/* En el celular, una fila deslizable, igual que en Configuración. */}
-      <nav aria-label="Secciones de la tienda" className="flex gap-1 overflow-x-auto overflow-y-hidden -mx-1 px-1 pb-1 mb-6">
-        {visibleSections.map(([key, s]) => (
-          <Link
-            key={key}
-            href={s.href}
-            aria-current={key === active ? "page" : undefined}
-            className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm ${
-              key === active
-                ? "bg-brand-accent-soft text-brand-accent font-medium"
-                : "text-brand-ink-soft hover:bg-brand-accent-soft hover:text-brand-ink"
-            }`}
-          >
-            {s.label}
-          </Link>
-        ))}
-      </nav>
+      <SectionTabs label="Secciones de la tienda" tabs={visibleSections.map(([key, s]) => ({ key, ...s }))} active={active} />
       {children}
     </div>
   );
