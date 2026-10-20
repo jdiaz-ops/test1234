@@ -5,6 +5,7 @@ import { PlatformConfigForm } from "@/components/portal/platform-config-form";
 import { PlatformQrUpload } from "@/components/portal/platform-qr-upload";
 import { LegalContentForm } from "@/components/portal/legal-content-form";
 import { AiStatusCard } from "@/components/portal/ai-status-card";
+import { VercelStatusCard } from "@/components/portal/vercel-status-card";
 
 export default async function AdminConfiguracionPage() {
   const session = await auth();
@@ -23,6 +24,11 @@ export default async function AdminConfiguracionPage() {
       <h2 className="font-display font-semibold text-brand-ink mb-4">Inteligencia artificial</h2>
       <div className="mb-10">
         <AiStatusCard configured={Boolean(process.env.ANTHROPIC_API_KEY)} />
+      </div>
+
+      <h2 className="font-display font-semibold text-brand-ink mb-4">Dominios propios de las marcas</h2>
+      <div className="mb-10">
+        <VercelStatusCard configured={Boolean(process.env.VERCEL_API_TOKEN)} />
       </div>
 
       <h2 className="font-display font-semibold text-brand-ink mb-4">Tarifas, fechas y cobro a marcas</h2>

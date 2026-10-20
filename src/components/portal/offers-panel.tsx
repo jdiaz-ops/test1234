@@ -33,14 +33,14 @@ export function OffersPanel({
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-display font-semibold text-brand-ink">
-          {offers.length === 0 ? "Configura tu oferta" : "Tu oferta"}
+          {offers.length === 0 ? "Configura tu programa" : "Tu programa"}
         </h2>
         {!creating && offers.length === 0 && (
           <button
             onClick={() => setCreating(true)}
             className="text-sm text-brand-accent font-medium hover:underline"
           >
-            + Crear oferta
+            + Crear programa
           </button>
         )}
       </div>
@@ -88,14 +88,14 @@ export function OffersPanel({
                         offer.status === "ACTIVE" ? "text-brand-accent" : ""
                       }
                     >
-                      {offer.status === "ACTIVE" ? "Activa" : "Pausada"}
+                      {offer.status === "ACTIVE" ? "Activo" : "Pausado"}
                     </span>
                   </p>
                   <button
                     onClick={() => setEditingId(offer.id)}
                     className="text-xs bg-brand-accent-soft text-brand-accent font-medium rounded-full px-4 py-1.5 hover:bg-brand-accent hover:text-white transition-colors shrink-0"
                   >
-                    Editar oferta
+                    Editar programa
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mb-4 max-w-sm">

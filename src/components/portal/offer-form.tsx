@@ -70,7 +70,7 @@ export function OfferForm({
 
     if (!res.ok) {
       const body = await res.json();
-      setError(body.error ?? "No se pudo guardar la oferta.");
+      setError(body.error ?? "No se pudo guardar el programa.");
       return;
     }
 
@@ -210,8 +210,8 @@ export function OfferForm({
             }
             className="input"
           >
-            <option value="ACTIVE">Activa</option>
-            <option value="PAUSED">Pausada</option>
+            <option value="ACTIVE">Activo</option>
+            <option value="PAUSED">Pausado</option>
           </select>
         </div>
       )}

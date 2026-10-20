@@ -150,3 +150,49 @@ export async function getVercelDomainStatus(domain: string, fetchImpl: FetchLike
     records: recommendedDnsRecords(domain, project?.apexName, config),
   };
 }
+
+export type VercelConnectionStatus = {
+  /// Lo que hay en este despliegue (sin mostrar los valores).
+  token: boolean;
+  project: boolean;
+  team: boolean;
+  ok: boolean;
+  projectName: string | null;
+  /// Los dominios que ya tiene el proyecto (los de Marcolini y los de las marcas).
+  domains: string[] | null;
+  error: string | null;
+};
+
+/// Admin → Configuración → "Probar conexión" de los dominios propios: si
+/// el token y el proyecto están en este despliegue y Vercel los acepta.
+/// Solo lee, no agrega ni quita nada (pedido del 2026-10-20: "¿cómo
+/// probamos si funciona?").
+export async function checkVercelConnection(fetchImpl: FetchLike = fetch): Promise<VercelConnectionStatus> {
+  const base: VercelConnectionStatus = {
+    token: Boolean(token()),
+    project: Boolean(projectId()),
+    team: Boolean(process.env.VERCEL_TEAM_ID),
+    ok: false,
+    projectName: null,
+    domains: null,
+    error: null,
+  };
+  if (!base.token) return { ...base, error: "Este despliegue no tiene VERCEL_API_TOKEN: agrégalo en Vercel y haz Redeploy." };
+  if (!base.project) {
+    return { ...base, error: "Falta VERCEL_PROJECT_ID: en Vercel, revisa que esté marcada «Automatically expose System Environment Variables»." };
+  }
+  try {
+    const project = await call(fetchImpl, "GET", `/v9/projects/${encodeURIComponent(projectId())}`);
+    if (project.status === 401 || project.status === 403) {
+      return { ...base, error: "Vercel no aceptó el token: créalo de nuevo con el alcance marcolini1 y revisa que no esté vencido." };
+    }
+    if (project.status === 404) return { ...base, error: "Con ese token no se ve el proyecto: créalo con el alcance marcolini1." };
+    if (project.status >= 400) return { ...base, error: errorMessage(project.json, "Vercel respondió con un error.") };
+    const list = await call(fetchImpl, "GET", `/v9/projects/${encodeURIComponent(projectId())}/domains`);
+    const domains = list.status < 400 ? ((list.json as { domains?: { name: string }[] } | null)?.domains ?? []).map((d) => d.name) : null;
+    const projectName = (project.json as { name?: string } | null)?.name ?? null;
+    return { ...base, ok: true, projectName, domains };
+  } catch (err) {
+    return { ...base, error: err instanceof Error ? `No se pudo hablar con Vercel (${err.message}).` : "No se pudo hablar con Vercel." };
+  }
+}

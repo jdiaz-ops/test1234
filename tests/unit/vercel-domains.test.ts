@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   addDomainToVercel,
+  checkVercelConnection,
   getVercelDomainStatus,
   recommendedDnsRecords,
   removeDomainFromVercel,
@@ -125,6 +126,31 @@ describe("vercel-domains", () => {
         { type: "CNAME", name: "www", value: "cname.vercel-dns.com" },
       ],
     });
+  });
+
+  it("probar la conexión: token aceptado, rechazado o sin poner", async () => {
+    const api = fakeApi({
+      "GET /v9/projects/prj_1": () => ({ status: 200, json: { id: "prj_1", name: "test1234" } }),
+      "GET /v9/projects/prj_1/domains": () => ({ status: 200, json: { domains: [{ name: "marcolini.lat" }, { name: "tienda.marca.com" }] } }),
+    });
+    expect(await checkVercelConnection(api.fetchImpl)).toMatchObject({
+      ok: true,
+      projectName: "test1234",
+      domains: ["marcolini.lat", "tienda.marca.com"],
+      error: null,
+    });
+    // Solo lee.
+    expect(api.calls.every((c) => c.method === "GET")).toBe(true);
+
+    const denied = fakeApi({ "GET /v9/projects/prj_1": () => ({ status: 403, json: { error: { code: "forbidden", message: "Not authorized" } } }) });
+    expect(await checkVercelConnection(denied.fetchImpl)).toMatchObject({ ok: false, error: expect.stringMatching(/no aceptó el token/) });
+    const hidden = fakeApi({ "GET /v9/projects/prj_1": () => ({ status: 404 }) });
+    expect(await checkVercelConnection(hidden.fetchImpl)).toMatchObject({ ok: false, error: expect.stringMatching(/alcance marcolini1/) });
+
+    delete process.env.VERCEL_API_TOKEN;
+    const none = fakeApi({});
+    expect(await checkVercelConnection(none.fetchImpl)).toMatchObject({ ok: false, token: false, error: expect.stringMatching(/VERCEL_API_TOKEN/) });
+    expect(none.calls).toHaveLength(0);
   });
 
   it("quitar un dominio que no estaba no es error", async () => {
