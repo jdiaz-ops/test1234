@@ -357,9 +357,10 @@ async function findVerificationTxt(domain: string, token: string) {
 }
 
 /// Busca el registro TXT (ver findVerificationTxt) y confirma que contiene
-/// el token que le dimos a la marca — eso prueba que el dominio es suyo. Después lo registra en Vercel (o le avisa al equipo para que lo
-/// haga a mano) y revisa de una vez si ya abre la tienda: si el DNS ya
-/// apuntaba, queda activo ahí mismo.
+/// el token que le dimos a la marca — eso prueba que el dominio es suyo.
+/// Después lo registra en Vercel (o le avisa al equipo para que lo haga a
+/// mano) y revisa de una vez si ya abre la tienda: si el DNS ya apuntaba,
+/// queda activo ahí mismo.
 export async function verifyCustomDomain(brandId: string, deps: CheckDeps = {}) {
   const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId } });
   if (!brand.customDomain || !brand.customDomainVerificationToken) {
