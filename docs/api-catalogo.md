@@ -23,7 +23,9 @@ Es solo lectura: no crea, cambia ni borra nada en Marcolini.
    `openssl rand -hex 32`.
 2. En Vercel → proyecto de Marcolini → Settings → Environment Variables, pon
    `CATALOG_API_KEYS` con el slug de la vitrina de la creadora y la llave:
-   `nailfest:LA_LLAVE` (varias creadoras: separadas por coma). Redeploy.
+   `nailfest:LA_LLAVE` (varias creadoras: separadas por coma). Marcada para
+   Production. Redeploy. Se perdonan comillas alrededor y un espacio después
+   de los dos puntos.
 3. La misma llave va en el sitio de la creadora (en Nail Fest:
    `MARCOLINI_API_KEY`).
 
@@ -44,7 +46,10 @@ Authorization: Bearer LA_LLAVE
 
 Respuestas de error: `401` (sin llave o inválida), `403` (cuenta de la creadora
 suspendida), `404` (la llave apunta a una vitrina que no existe), `429`
-(demasiadas llamadas, con `Retry-After`).
+(demasiadas llamadas, con `Retry-After`). El `401` trae `reason`:
+`no_keys` = Marcolini no tiene ninguna llave bien escrita en
+`CATALOG_API_KEYS` (el problema está de este lado); `mismatch` = sí tiene, pero
+la que llegó no coincide (revisar la del otro sitio).
 
 ## Respuesta
 

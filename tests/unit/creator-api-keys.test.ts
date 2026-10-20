@@ -12,8 +12,18 @@ describe("llaves de la API de catálogo", () => {
     ]);
   });
 
-  it("ignora llaves cortas, entradas sin slug y la variable vacía", () => {
-    expect(parseCatalogApiKeys(`corta:abc123,:${KEY_A},sinllave`)).toEqual([]);
+  it("perdona lo que se cuela al pegar en Vercel: comillas, espacios, punto y coma", () => {
+    expect(parseCatalogApiKeys(`"nailfest:${KEY_A}"`)).toEqual([{ slug: "nailfest", key: KEY_A }]);
+    expect(parseCatalogApiKeys(` nailfest: ${KEY_A} `)).toEqual([{ slug: "nailfest", key: KEY_A }]);
+    expect(parseCatalogApiKeys(`nailfest:'${KEY_A}'; otra:${KEY_B}`)).toEqual([
+      { slug: "nailfest", key: KEY_A },
+      { slug: "otra", key: KEY_B },
+    ]);
+  });
+
+  it("ignora llaves cortas o con espacios adentro, entradas sin slug y la variable vacía", () => {
+    expect(parseCatalogApiKeys(`corta:abc123,:${KEY_A},sinllave,${KEY_B}`)).toEqual([]);
+    expect(parseCatalogApiKeys(`nailfest:${KEY_A.slice(0, 16)} ${KEY_A.slice(16)}`)).toEqual([]);
     expect(parseCatalogApiKeys("")).toEqual([]);
     expect(parseCatalogApiKeys(undefined)).toEqual([]);
   });

@@ -2,25 +2,33 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 /// Llaves de la API de catálogo para creadoras (ver
 /// src/app/api/v1/catalogo/route.ts). Viven en la variable de entorno
-/// CATALOG_API_KEYS como "slug:llave", separadas por coma o salto de
-/// línea — el slug es el de la vitrina de la creadora (storefrontSlug).
-/// Sin tabla ni pantalla: hoy la usa un solo sitio (Nail Fest, pedido del
-/// 2026-10-20) y dar o quitar acceso es editar la variable. Una llave de
-/// menos de 32 caracteres se ignora, para que nunca quede una adivinable.
+/// CATALOG_API_KEYS como "slug:llave", separadas por coma, punto y coma o
+/// salto de línea — el slug es el de la vitrina de la creadora
+/// (storefrontSlug). Sin tabla ni pantalla: hoy la usa un solo sitio (Nail
+/// Fest, pedido del 2026-10-20) y dar o quitar acceso es editar la
+/// variable. Una llave de menos de 32 caracteres se ignora, para que nunca
+/// quede una adivinable.
 export const MIN_CATALOG_KEY_LENGTH = 32;
 
 export type CatalogApiKeyEntry = { slug: string; key: string };
 
+/// Lo que se cuela al pegar en Vercel: comillas alrededor, espacios.
+function unwrap(value: string) {
+  return value.trim().replace(/^["'`]+|["'`]+$/g, "").trim();
+}
+
 export function parseCatalogApiKeys(raw: string | null | undefined): CatalogApiKeyEntry[] {
   if (!raw) return [];
   return raw
-    .split(/[\s,]+/)
-    .map((entry) => {
+    .split(/[\n,;]+/)
+    .map((part) => {
+      const entry = unwrap(part);
       const colon = entry.indexOf(":");
       if (colon <= 0) return null;
-      const slug = entry.slice(0, colon).trim().toLowerCase();
-      const key = entry.slice(colon + 1).trim();
-      return slug && key.length >= MIN_CATALOG_KEY_LENGTH ? { slug, key } : null;
+      const slug = unwrap(entry.slice(0, colon)).toLowerCase();
+      // "nailfest: llave" también vale (con espacio después de los dos puntos).
+      const key = unwrap(entry.slice(colon + 1));
+      return slug && key.length >= MIN_CATALOG_KEY_LENGTH && !/\s/.test(key) ? { slug, key } : null;
     })
     .filter((entry): entry is CatalogApiKeyEntry => entry !== null);
 }

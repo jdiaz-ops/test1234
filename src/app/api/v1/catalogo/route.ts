@@ -22,14 +22,24 @@ function tooMany(retryAfterSeconds: number) {
 }
 
 export async function GET(req: Request) {
-  const slug = matchCatalogApiKey(parseCatalogApiKeys(process.env.CATALOG_API_KEYS), bearerToken(req));
+  const keys = parseCatalogApiKeys(process.env.CATALOG_API_KEYS);
+  const slug = matchCatalogApiKey(keys, bearerToken(req));
   if (!slug) {
     // Los intentos con llave equivocada se cuentan por IP, para que no se
     // pueda probar llaves sin freno.
     const attempts = await rateLimit(`catalogo-api-fallo:${clientIp(req)}`, 20, 600);
     if (!attempts.ok) return tooMany(attempts.retryAfterSeconds);
+    // `reason` le dice al otro sitio si el problema está de este lado (no
+    // hay ninguna llave bien escrita en CATALOG_API_KEYS) o del suyo (la
+    // que manda no coincide) — sin revelar ninguna llave.
+    const noKeys = keys.length === 0;
     return NextResponse.json(
-      { error: "Falta la llave o no es válida. Envíala como «Authorization: Bearer <llave>»." },
+      {
+        error: noKeys
+          ? "Marcolini no tiene configurada ninguna llave del catálogo (CATALOG_API_KEYS vacía o sin el formato «slug:llave»)."
+          : "La llave no coincide con ninguna de las que tiene Marcolini. Envíala como «Authorization: Bearer <llave>».",
+        reason: noKeys ? "no_keys" : "mismatch",
+      },
       { status: 401, headers: { ...NO_STORE, "WWW-Authenticate": "Bearer" } },
     );
   }
