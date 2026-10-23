@@ -1,6 +1,7 @@
 import { cardProductSelect } from "@/lib/card-product-select";
 import { stockWhere, type StockOptions } from "@/lib/product-stock";
 import { randomUUID } from "node:crypto";
+import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { emitCustomerEvent, emitOrderEvent } from "@/server/services/webhook-service";
@@ -60,11 +61,14 @@ export class StoreOrderError extends Error {}
 // resto de las pasarelas en gateway-service.ts.
 export { wompiCheckoutUrl, wompiCustomerData };
 
-export async function getStorefrontBrand(slug: string) {
-  return prisma.brandProfile.findUnique({
+/// cache: en una misma visita la piden los metadatos, el layout y la
+/// página, y Prisma Postgres cobra cada consulta (el 2026-10-23 se acabó el
+/// plan gratis). Fuera de una página (cron, API, pruebas) no guarda nada.
+export const getStorefrontBrand = cache(async (slug: string) =>
+  prisma.brandProfile.findUnique({
     where: { storefrontSlug: slug },
-  });
-}
+  }),
+);
 
 /// Solo ACTIVE aparece en el catálogo — UNLISTED existe (se puede ver y
 /// comprar con el link directo, ver getStorefrontProduct) pero no sale
@@ -119,15 +123,16 @@ export async function findStorefrontProductByShopifyHandle(brandId: string, hand
   });
 }
 
-export async function getStorefrontProduct(brandId: string, slug: string) {
-  return prisma.product.findFirst({
+/// cache: lo piden los metadatos y la página (ver getStorefrontBrand).
+export const getStorefrontProduct = cache(async (brandId: string, slug: string) =>
+  prisma.product.findFirst({
     where: { brandId, manual: true, slug, status: { not: "DRAFT" } },
     include: {
       images: { orderBy: { position: "asc" } },
       variants: { orderBy: { position: "asc" } },
     },
-  });
-}
+  }),
+);
 
 /// Productos relacionados para el detalle de producto — mismo criterio
 /// simple: comparten al menos una colección con este, excluyéndolo a él.

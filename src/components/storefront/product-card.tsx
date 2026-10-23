@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/storefront/store-link";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { CardVariantPicker } from "@/components/storefront/card-variant-picker";
 import { CardPhoto } from "@/components/storefront/card-photo";

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/storefront/store-link";
 
 /// 404 de la vitrina — antes salía la página pelada de Next ("This page
 /// could not be found"). Sin los params de la ruta no se puede cargar la

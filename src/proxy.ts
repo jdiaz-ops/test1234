@@ -3,7 +3,29 @@ import { NextResponse, type NextRequest } from "next/server";
 import { extractSubdomainSlug, isPlatformHost, ROOT_DOMAIN } from "@/lib/subdomain";
 import { prisma } from "@/lib/prisma";
 import { slugTakenByBrand } from "@/lib/creator-identity";
+import { rememberFor } from "@/lib/remember-for";
 import { apexOf, customDomainRedirectUrl, REF_AT_COOKIE, REF_COOKIE, REF_MAX_AGE, refRemainingSeconds } from "@/lib/custom-domain";
+
+/// Lo que el proxy consulta en cada visita a una tienda (cada página y cada
+/// carga de datos), recordado un minuto por instancia del servidor: Prisma
+/// Postgres cobra cada consulta, y el 2026-10-23 se acabó el plan gratis y
+/// la base se bloqueó. Lo peor del minuto: un dominio propio recién
+/// verificado o activo puede tardar hasta 60 s en abrir o en recibir el
+/// subdominio. En las pruebas no recuerda nada.
+const MEMORY_MS = process.env.NODE_ENV === "test" ? 0 : 60_000;
+const creatorBySlug = rememberFor(MEMORY_MS, (slug) =>
+  prisma.creatorProfile.findUnique({ where: { storefrontSlug: slug }, select: { id: true } }),
+);
+const brandSlugTaken = rememberFor(MEMORY_MS, slugTakenByBrand);
+const brandBySlug = rememberFor(MEMORY_MS, (slug) =>
+  prisma.brandProfile.findUnique({ where: { storefrontSlug: slug }, select: { customDomain: true, customDomainActiveAt: true } }),
+);
+const brandByDomain = rememberFor(MEMORY_MS, (domain) =>
+  prisma.brandProfile.findUnique({
+    where: { customDomain: domain },
+    select: { storefrontSlug: true, customDomainVerifiedAt: true, customDomainActiveAt: true },
+  }),
+);
 
 const roleHome: Record<string, string> = {
   CREATOR: "/creador",
@@ -66,26 +88,20 @@ export default auth(async (req) => {
   // tomar uno ya usado, ver generateUniqueStorefrontSlug y
   // saveStorefrontSlug); si quedó un choque de antes, gana la marca.
   if (subdomainSlug) {
-    const creator = await prisma.creatorProfile.findUnique({
-      where: { storefrontSlug: subdomainSlug },
-      select: { id: true },
-    });
+    const creator = await creatorBySlug(subdomainSlug);
     // Link viejo con guiones (nail-fest.marcolini.lat): las vitrinas
     // quedaron sin guiones (migración 20261002230000) → al nuevo.
     if (!creator && subdomainSlug.includes("-")) {
       const compact = subdomainSlug.replace(/-/g, "");
-      const moved = await prisma.creatorProfile.findUnique({
-        where: { storefrontSlug: compact },
-        select: { id: true },
-      });
-      const brandHere = await slugTakenByBrand(subdomainSlug);
+      const moved = await creatorBySlug(compact);
+      const brandHere = await brandSlugTaken(subdomainSlug);
       if (moved && !brandHere) {
         const url = req.nextUrl.clone();
         url.hostname = `${compact}.${ROOT_DOMAIN}`;
         return NextResponse.redirect(url, 308);
       }
     }
-    if (creator && !(await slugTakenByBrand(subdomainSlug))) {
+    if (creator && !(await brandSlugTaken(subdomainSlug))) {
       const prefix = `/c/${subdomainSlug}`;
       const alreadyPrefixed = pathname === prefix || pathname.startsWith(`${prefix}/`);
       const rewritten = req.nextUrl.clone();
@@ -102,10 +118,7 @@ export default auth(async (req) => {
     // el subdominio sigue siendo la tienda. Así los links ya compartidos,
     // los QR y lo que tiene Google siguen sirviendo.
     if (!inIframe) {
-      const brand = await prisma.brandProfile.findUnique({
-        where: { storefrontSlug: subdomainSlug },
-        select: { customDomain: true, customDomainActiveAt: true },
-      });
+      const brand = await brandBySlug(subdomainSlug);
       if (brand?.customDomain && brand.customDomainActiveAt) {
         const target = customDomainRedirectUrl({
           customDomain: brand.customDomain,
@@ -151,19 +164,14 @@ export default auth(async (req) => {
   // tráfico de un dominio ajeno o sin verificar.
   if (!isApiRoute && !isPlatformHost(host)) {
     const hostname = host?.split(":")[0].toLowerCase() ?? "";
-    const brand = await prisma.brandProfile.findUnique({
-      where: { customDomain: hostname },
-      select: { storefrontSlug: true, customDomainVerifiedAt: true },
-    });
+    const brand = await brandByDomain(hostname);
     // La otra forma del dominio (www.tumarca.com si la marca puso
     // tumarca.com, o al revés) lleva al que eligió la marca, por si Vercel
     // todavía no tiene esa redirección — solo cuando ese ya abre la tienda.
     if (!brand) {
       const apex = apexOf(hostname);
       const main = hostname === apex ? `www.${apex}` : hostname === `www.${apex}` ? apex : null;
-      const owner = main
-        ? await prisma.brandProfile.findUnique({ where: { customDomain: main }, select: { customDomainActiveAt: true } })
-        : null;
+      const owner = main ? await brandByDomain(main) : null;
       if (main && owner?.customDomainActiveAt) {
         const url = new URL(`https://${main}${pathname}${search}`);
         return NextResponse.redirect(url, 308);
@@ -199,7 +207,7 @@ export default auth(async (req) => {
   // Mismo trato que /t/{slug}: lo ya compartido sigue funcionando. Si una
   // marca tiene ese mismo nombre, la vitrina se queda en /c/{slug}.
   const vitrinaMatch = !isApiRoute ? pathname.match(/^\/c\/([a-z0-9-]+)(\/.*)?$/) : null;
-  if (vitrinaMatch && !inIframe && !(await slugTakenByBrand(vitrinaMatch[1]))) {
+  if (vitrinaMatch && !inIframe && !(await brandSlugTaken(vitrinaMatch[1]))) {
     const [, slug, rest] = vitrinaMatch;
     const url = req.nextUrl.clone();
     url.hostname = `${slug}.${ROOT_DOMAIN}`;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/storefront/store-link";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
 import { getPublicBrandCollections } from "@/server/services/brand-collection-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";

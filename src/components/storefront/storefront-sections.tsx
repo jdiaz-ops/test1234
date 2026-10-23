@@ -1,5 +1,5 @@
 import { cardProductSelect } from "@/lib/card-product-select";
-import Link from "next/link";
+import Link from "@/components/storefront/store-link";
 import { StoreImage } from "@/components/storefront/store-image";
 import type {
   BannerConfig,

@@ -3,7 +3,7 @@
 import type React from "react";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/storefront/store-link";
 import { useCart } from "@/components/storefront/cart-context";
 import { useStorefrontTheme } from "@/components/storefront/storefront-theme-context";
 import { resolveColorRef } from "@/lib/brand-theme";

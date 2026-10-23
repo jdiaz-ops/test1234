@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/storefront/store-link";
 import { TrackInitiateCheckout } from "@/components/storefront/pixel-events";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";

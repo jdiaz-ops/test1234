@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/storefront/store-link";
 import { getStoreOrder } from "@/server/services/store-order-service";
 import { flattenQuery, settleOrderFromReturn } from "@/server/payments/return-check";
 import { ClearCartIfPaid } from "@/components/storefront/clear-cart-if-paid";

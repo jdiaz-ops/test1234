@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { isMenuPlaceholderUrl, type MenuNode } from "@/lib/menu-tree";
 import { isSoldOut, stockWhere } from "@/lib/product-stock";
@@ -32,7 +33,11 @@ export function collectionSlugOf(url: string): string | null {
   return m ? decodeURIComponent(m[1]).toLowerCase() : null;
 }
 
-export async function listStorefrontMenuForShoppers(brandId: string, options?: { showSoldOut?: boolean }): Promise<MenuNode[]> {
+/// cache: lo piden el layout y la página de la misma visita, y Prisma
+/// Postgres cobra cada consulta (ver getStorefrontBrand).
+export const listStorefrontMenuForShoppers = cache(menuForShoppers);
+
+async function menuForShoppers(brandId: string, options?: { showSoldOut?: boolean }): Promise<MenuNode[]> {
   const tree = await listStorefrontMenuTree(brandId);
   if (tree.length === 0) return tree;
   // Sin opción, manda lo publicado en Diseño → Página de colecciones.

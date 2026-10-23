@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/storefront/store-link";
 import { useCart } from "@/components/storefront/cart-context";
 import type { CardProduct, CardVariant } from "@/components/storefront/product-card";
 import { ProductPrice } from "@/components/storefront/product-card";

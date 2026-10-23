@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { cache } from "react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import type { ThemeConfig } from "@/lib/brand-theme";
@@ -33,8 +34,9 @@ async function isOwnerPreviewRequest(brandId: string): Promise<boolean> {
 /// la marca mirando su tienda desde la vista previa del editor (ver
 /// design-preview.tsx), lo publicado para todo el mundo. Así la vista
 /// previa es la tienda real con los cambios sin publicar, en vez de un
-/// dibujo aproximado. Ver conversación del 2026-09-30.
-export async function getStorefrontTheme(brandId: string): Promise<ThemeConfig> {
+/// dibujo aproximado. Ver conversación del 2026-09-30. cache: lo piden el
+/// layout y la página de la misma visita (ver getStorefrontBrand).
+export const getStorefrontTheme = cache(async (brandId: string): Promise<ThemeConfig> => {
   if (await isOwnerPreviewRequest(brandId)) return getDraftTheme(brandId);
   return getPublishedTheme(brandId);
-}
+});

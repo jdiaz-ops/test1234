@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/storefront/store-link";
 import type { ThemeConfig } from "@/lib/brand-theme";
 import { resolveColorRef } from "@/lib/brand-theme";
 

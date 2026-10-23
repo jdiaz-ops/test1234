@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/storefront/store-link";
 import type { SiblingGroup } from "@/server/services/product-sibling-service";
 
 /// "Tono: FACILITA · ¿Buscas otro tono de Salmón y Naranjas?" — los demás

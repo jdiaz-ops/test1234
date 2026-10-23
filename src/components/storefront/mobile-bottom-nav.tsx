@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/storefront/store-link";
 import { usePathname } from "next/navigation";
 import type { ThemeConfig } from "@/lib/brand-theme";
 import { resolveStoreLink } from "@/lib/resolve-store-link";
