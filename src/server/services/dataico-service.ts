@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import type { Prisma } from "@prisma/client";
+import type { ExternalSale, Prisma, StoreOrder } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { orderNumber } from "@/lib/order-math";
 import { resolveDaneLocation } from "@/lib/dane";
@@ -231,7 +231,13 @@ function splitName(full: string) {
   return { first, last: parts.slice(1).join(" ") || first };
 }
 
-function customerFor(order: InvoiceOrder) {
+/// Quien compra, como lo pide la factura: un pedido de la tienda o una venta
+/// de otra plataforma (ExternalSale), que no trae dirección.
+type InvoiceParty = Pick<StoreOrder, "billingIdType" | "billingIdNumber" | "billingName" | "buyerName" | "buyerFirstName" | "buyerLastName" | "buyerEmail"> & {
+  buyerPhone: string | null;
+} & Partial<Pick<StoreOrder, "billingAddress" | "billingRegion" | "billingCity" | "shippingAddress" | "shippingRegion" | "shippingCity">>;
+
+function customerFor(order: InvoiceParty) {
   const type = order.billingIdType && isBillingIdType(order.billingIdType) ? order.billingIdType : null;
   const raw = order.billingIdNumber?.trim();
   if (!type || !raw) {
@@ -261,8 +267,8 @@ function customerFor(order: InvoiceOrder) {
   const addressLine = useBilling ? order.billingAddress : order.shippingAddress;
   const location = addressLine
     ? resolveDaneLocation(
-        useBilling ? order.billingRegion : order.shippingRegion,
-        useBilling ? order.billingCity : order.shippingCity,
+        (useBilling ? order.billingRegion : order.shippingRegion) ?? null,
+        (useBilling ? order.billingCity : order.shippingCity) ?? null,
       )
     : null;
   return {
@@ -273,7 +279,7 @@ function customerFor(order: InvoiceOrder) {
     regimen: "ORDINARIO",
     ...(company ? { company_name: order.billingName?.trim() || order.buyerName } : { first_name: first, family_name: last }),
     email: order.buyerEmail,
-    phone: order.buyerPhone,
+    ...(order.buyerPhone != null ? { phone: order.buyerPhone } : {}),
     ...(addressLine && location
       ? { address_line: addressLine, department: location.department, city: location.city }
       : {}),
@@ -341,6 +347,85 @@ export function buildDataicoInvoice(
   };
 }
 
+/// Una línea de una venta externa (ExternalSale.items): el precio con IVA.
+export type ExternalSaleItem = { name: string; quantity: number; unitPriceCents: number; taxRate: number };
+
+/// ExternalSale.items leído con cuidado: lo que no tenga forma de línea se
+/// descarta (la API ya lo valida al guardarlo).
+export function externalSaleItems(raw: unknown): ExternalSaleItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const { name, quantity, unitPriceCents, taxRate } = item as Record<string, unknown>;
+    return typeof name === "string" && typeof quantity === "number" && typeof unitPriceCents === "number" && typeof taxRate === "number"
+      ? [{ name, quantity, unitPriceCents, taxRate }]
+      : [];
+  });
+}
+
+/// "Nail Fest" + su id → "NF-8K2J4M9QXA": la referencia corta de la venta en
+/// la factura (las iniciales de la plataforma y el final de su id).
+export function externalSaleReference(sale: Pick<ExternalSale, "source" | "externalId">) {
+  const initials = sale.source
+    .split(/\s+/)
+    .map((w) => w.charAt(0))
+    .join("")
+    .replace(/[^A-Za-z0-9]/g, "")
+    .toUpperCase();
+  return `${initials || "EXT"}-${sale.externalId.replace(/[^A-Za-z0-9]/g, "").slice(-10).toUpperCase()}`;
+}
+
+/// El cuerpo de POST /invoices para una venta de otra plataforma: igual al
+/// de un pedido, con lo vendido tal como lo mandó (sin descuento ni envío) y
+/// su propia tasa de IVA por línea.
+export function buildExternalSaleInvoice(
+  sale: ExternalSale,
+  connection: { accountId: string; env: "PRUEBAS" | "PRODUCCION"; prefix: string | null; resolutionNumber: string | null; sendEmail: boolean },
+  number: number,
+  paymentMeans: string,
+) {
+  const items = externalSaleItems(sale.items);
+  if (items.length === 0) throw new DataicoError("La venta no trae nada que facturar.");
+  const wrong = items.find((item) => !VALID_IVA_RATES.includes(item.taxRate));
+  if (wrong) throw new DataicoError(`La DIAN solo acepta IVA de 0, 5, 16 o 19 %, y «${wrong.name}» trae ${wrong.taxRate} %.`);
+  const issued = dataicoDate(sale.paidAt);
+  const reference = externalSaleReference(sale);
+
+  return {
+    actions: {
+      send_dian: true,
+      send_email: connection.sendEmail,
+      ...(connection.sendEmail ? { email: sale.buyerEmail } : {}),
+    },
+    invoice: {
+      env: connection.env,
+      dataico_account_id: connection.accountId,
+      number: String(number),
+      numbering: {
+        prefix: connection.prefix,
+        ...(connection.resolutionNumber ? { resolution_number: connection.resolutionNumber } : {}),
+        flexible: true,
+      },
+      issue_date: issued,
+      payment_date: issued,
+      invoice_type_code: "FACTURA_VENTA",
+      payment_means_type: "DEBITO",
+      payment_means: paymentMeans,
+      order_reference: reference,
+      notes: [`${sale.source} · venta ${reference}`],
+      customer: customerFor(sale),
+      items: items.map((item, i) => ({
+        sku: `${reference.split("-")[0]}-${i + 1}`,
+        description: item.name,
+        quantity: item.quantity,
+        price: Math.round((item.unitPriceCents / 100 / (1 + item.taxRate / 100)) * 100) / 100,
+        taxes: [{ "tax-category": "IVA", "tax-rate": item.taxRate }],
+      })),
+      charges: [],
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Emitir
 // ---------------------------------------------------------------------------
@@ -354,28 +439,110 @@ async function reserveNumber(brandId: string) {
   return (updated.nextNumber ?? 1) - 1;
 }
 
-async function wompiPaymentMethod(order: InvoiceOrder & { brand: unknown }) {
-  // Solo Wompi expone el medio de pago por API con la llave pública; con
-  // otra pasarela se factura con el medio por defecto.
-  if (order.paymentProvider !== "WOMPI" || !order.wompiTransactionId) return null;
+/// El medio de pago de una transacción de Wompi en la cuenta de la marca.
+/// Solo Wompi lo expone por API con la llave pública; con otra pasarela (o
+/// sin transacción) se factura con el medio por defecto.
+async function wompiPaymentMethod(brandId: string, paymentMode: "TEST" | "PRODUCTION", transactionId: string | null) {
+  if (!transactionId) return null;
   try {
-    const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: order.brandId } });
-    const keys = getActiveWompiKeys({ ...brand, paymentMode: order.paymentMode });
+    const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId } });
+    const keys = getActiveWompiKeys({ ...brand, paymentMode });
     if (!keys) return null;
-    const tx = (await fetchWompiTransaction(order.paymentMode, keys.publicKey, order.wompiTransactionId)) as
-      | { payment_method_type?: string }
-      | undefined;
+    const tx = (await fetchWompiTransaction(paymentMode, keys.publicKey, transactionId)) as { payment_method_type?: string } | undefined;
     return tx?.payment_method_type ?? null;
   } catch {
     return null;
   }
 }
 
-/// Emite la factura de un pedido pagado. Idempotente: si ya tiene factura
-/// o hay otra emisión en curso, no hace nada. Reserva el número una sola
-/// vez por pedido (un reintento usa el mismo), salvo que Dataico diga que
-/// ese número ya existe.
-export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISSUED" | "FAILED" | "SKIPPED"; error?: string }> {
+export type InvoiceResult = { status: "ISSUED" | "FAILED" | "SKIPPED"; error?: string };
+
+/// Los campos de la factura, que un pedido y una venta externa tienen igual.
+type InvoiceFields = {
+  einvoiceStatus?: "PENDING" | "ISSUED" | "FAILED";
+  einvoiceNumber?: string | null;
+  einvoiceUuid?: string | null;
+  einvoiceCufe?: string | null;
+  einvoicePdfUrl?: string | null;
+  einvoiceIssuedAt?: Date | null;
+  einvoiceError?: string | null;
+  einvoiceAttempts?: number | { increment: number };
+};
+
+/// La emisión toma un registro sin factura y sin otra emisión en curso (o
+/// con una que quedó colgada hace más de 15 minutos).
+function claimable(staleBefore: Date) {
+  return {
+    einvoiceUuid: null,
+    OR: [{ einvoiceStatus: null }, { einvoiceStatus: "FAILED" as const }, { einvoiceStatus: "PENDING" as const, updatedAt: { lt: staleBefore } }],
+  };
+}
+const CLAIM = { einvoiceStatus: "PENDING" as const, einvoiceAttempts: { increment: 1 }, einvoiceError: null };
+
+/// Emite una factura y guarda lo que pasó donde diga `record` (el pedido o
+/// la venta externa). Idempotente: si ya tiene factura o hay otra emisión
+/// en curso, no hace nada. Reserva el número una sola vez (un reintento usa
+/// el mismo), salvo que Dataico diga que ese número ya existe.
+async function emitInvoice(params: {
+  record: { claim: (staleBefore: Date) => Promise<boolean>; save: (data: InvoiceFields) => Promise<unknown> };
+  brandId: string;
+  connection: { authToken: string; prefix: string | null };
+  reservedNumber: string | null;
+  paymentMeans: () => Promise<string>;
+  payloadFor: (number: number, paymentMeans: string) => unknown;
+}): Promise<InvoiceResult> {
+  const { record, brandId, connection } = params;
+  if (!(await record.claim(new Date(Date.now() - 15 * 60 * 1000)))) return { status: "SKIPPED" };
+
+  const fail = async (error: string) => {
+    await record.save({ einvoiceStatus: "FAILED", einvoiceError: error });
+    return { status: "FAILED" as const, error };
+  };
+
+  try {
+    const paymentMeans = await params.paymentMeans();
+    let number = params.reservedNumber ? Number(params.reservedNumber) : await reserveNumber(brandId);
+    if (!params.reservedNumber) await record.save({ einvoiceNumber: String(number) });
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const payload = params.payloadFor(number, paymentMeans);
+      const res = await dataicoFetch("/invoices", connection.authToken, { method: "POST", body: payload });
+      if (res.ok) {
+        const inv = (
+          res.body && typeof res.body === "object" && "invoice" in res.body ? (res.body as { invoice: unknown }).invoice : res.body
+        ) as Record<string, unknown> | null;
+        const rejected = inv?.dian_status === "DIAN_RECHAZADO";
+        await record.save({
+          einvoiceStatus: rejected ? "FAILED" : "ISSUED",
+          einvoiceUuid: typeof inv?.uuid === "string" ? inv.uuid : null,
+          einvoiceNumber: typeof inv?.number === "string" ? inv.number : `${connection.prefix}${number}`,
+          einvoiceCufe: typeof inv?.cufe === "string" ? inv.cufe : null,
+          einvoicePdfUrl: typeof inv?.pdf_url === "string" ? inv.pdf_url : null,
+          einvoiceIssuedAt: new Date(),
+          einvoiceError: rejected ? "La DIAN rechazó la factura. Revísala en Dataico." : null,
+          // Rechazada: no se reintenta sola (crearía otra factura).
+          ...(rejected ? { einvoiceAttempts: MAX_ATTEMPTS } : {}),
+        });
+        return rejected ? { status: "FAILED", error: "La DIAN rechazó la factura." } : { status: "ISSUED" };
+      }
+      const error = describeDataicoError(res.status, res.body);
+      // Ese número ya se usó (ej. alguien facturó a mano en Dataico con la
+      // misma numeración): se toma el siguiente y se intenta otra vez.
+      if (/n[uú]mero|number/i.test(error) && /duplic|exist|usad/i.test(error)) {
+        number = await reserveNumber(brandId);
+        await record.save({ einvoiceNumber: String(number) });
+        continue;
+      }
+      return fail(error);
+    }
+    return fail("Dataico dice que los números de factura ya están usados. Revisa el siguiente número en Conexiones.");
+  } catch (err) {
+    return fail(err instanceof DataicoError ? err.message : "No se pudo emitir la factura.");
+  }
+}
+
+/// Emite la factura de un pedido pagado (ver emitInvoice).
+export async function issueOrderInvoice(orderId: string): Promise<InvoiceResult> {
   const order = await prisma.storeOrder.findUnique({ where: { id: orderId }, include: invoiceOrderInclude });
   if (!order || order.kind !== "PURCHASE" || order.status !== "PAID") return { status: "SKIPPED" };
   if (!dataicoAllowed(order.brand)) return { status: "SKIPPED" };
@@ -386,71 +553,42 @@ export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISS
   // no se cobró.
   if (order.paymentMode === "TEST" && connection.env === "PRODUCCION") return { status: "SKIPPED" };
 
-  const staleBefore = new Date(Date.now() - 15 * 60 * 1000);
-  const claimed = await prisma.storeOrder.updateMany({
-    where: {
-      id: order.id,
-      einvoiceUuid: null,
-      OR: [
-        { einvoiceStatus: null },
-        { einvoiceStatus: "FAILED" },
-        { einvoiceStatus: "PENDING", updatedAt: { lt: staleBefore } },
-      ],
+  return emitInvoice({
+    record: {
+      claim: async (staleBefore) =>
+        (await prisma.storeOrder.updateMany({ where: { id: order.id, ...claimable(staleBefore) }, data: CLAIM })).count > 0,
+      save: (data) => prisma.storeOrder.update({ where: { id: order.id }, data }),
     },
-    data: { einvoiceStatus: "PENDING", einvoiceAttempts: { increment: 1 }, einvoiceError: null },
+    brandId: order.brandId,
+    connection,
+    reservedNumber: order.einvoiceNumber,
+    paymentMeans: async () =>
+      paymentMeansFor(order.paymentProvider === "WOMPI" ? await wompiPaymentMethod(order.brandId, order.paymentMode, order.wompiTransactionId) : null),
+    payloadFor: (number, paymentMeans) => buildDataicoInvoice(order, connection, number, paymentMeans),
   });
-  if (claimed.count === 0) return { status: "SKIPPED" };
+}
 
-  const fail = async (error: string) => {
-    await prisma.storeOrder.update({ where: { id: order.id }, data: { einvoiceStatus: "FAILED", einvoiceError: error } });
-    return { status: "FAILED" as const, error };
-  };
+/// Emite la factura de una venta de otra plataforma (ExternalSale) con la
+/// misma conexión y la misma numeración que los pedidos de la tienda.
+export async function issueExternalSaleInvoice(saleId: string): Promise<InvoiceResult> {
+  const sale = await prisma.externalSale.findUnique({ where: { id: saleId }, include: { brand: { select: { storefrontSlug: true } } } });
+  if (!sale || !dataicoAllowed(sale.brand)) return { status: "SKIPPED" };
+  const connection = await getDataicoConnection(sale.brandId);
+  if (!connection?.enabled || !connection.prefix) return { status: "SKIPPED" };
+  if (sale.paymentMode === "TEST" && connection.env === "PRODUCCION") return { status: "SKIPPED" };
 
-  try {
-    const paymentMeans = paymentMeansFor(await wompiPaymentMethod(order));
-    let number = order.einvoiceNumber ? Number(order.einvoiceNumber) : await reserveNumber(order.brandId);
-    if (!order.einvoiceNumber) {
-      await prisma.storeOrder.update({ where: { id: order.id }, data: { einvoiceNumber: String(number) } });
-    }
-
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const payload = buildDataicoInvoice(order, connection, number, paymentMeans);
-      const res = await dataicoFetch("/invoices", connection.authToken, { method: "POST", body: payload });
-      if (res.ok) {
-        const inv = (
-          res.body && typeof res.body === "object" && "invoice" in res.body ? (res.body as { invoice: unknown }).invoice : res.body
-        ) as Record<string, unknown> | null;
-        const rejected = inv?.dian_status === "DIAN_RECHAZADO";
-        await prisma.storeOrder.update({
-          where: { id: order.id },
-          data: {
-            einvoiceStatus: rejected ? "FAILED" : "ISSUED",
-            einvoiceUuid: typeof inv?.uuid === "string" ? inv.uuid : null,
-            einvoiceNumber: typeof inv?.number === "string" ? inv.number : `${connection.prefix}${number}`,
-            einvoiceCufe: typeof inv?.cufe === "string" ? inv.cufe : null,
-            einvoicePdfUrl: typeof inv?.pdf_url === "string" ? inv.pdf_url : null,
-            einvoiceIssuedAt: new Date(),
-            einvoiceError: rejected ? "La DIAN rechazó la factura. Revísala en Dataico." : null,
-            // Rechazada: no se reintenta sola (crearía otra factura).
-            ...(rejected ? { einvoiceAttempts: MAX_ATTEMPTS } : {}),
-          },
-        });
-        return rejected ? { status: "FAILED", error: "La DIAN rechazó la factura." } : { status: "ISSUED" };
-      }
-      const error = describeDataicoError(res.status, res.body);
-      // Ese número ya se usó (ej. alguien facturó a mano en Dataico con la
-      // misma numeración): se toma el siguiente y se intenta otra vez.
-      if (/n[uú]mero|number/i.test(error) && /duplic|exist|usad/i.test(error)) {
-        number = await reserveNumber(order.brandId);
-        await prisma.storeOrder.update({ where: { id: order.id }, data: { einvoiceNumber: String(number) } });
-        continue;
-      }
-      return fail(error);
-    }
-    return fail("Dataico dice que los números de factura ya están usados. Revisa el siguiente número en Conexiones.");
-  } catch (err) {
-    return fail(err instanceof DataicoError ? err.message : "No se pudo emitir la factura.");
-  }
+  return emitInvoice({
+    record: {
+      claim: async (staleBefore) =>
+        (await prisma.externalSale.updateMany({ where: { id: sale.id, ...claimable(staleBefore) }, data: CLAIM })).count > 0,
+      save: (data) => prisma.externalSale.update({ where: { id: sale.id }, data }),
+    },
+    brandId: sale.brandId,
+    connection,
+    reservedNumber: sale.einvoiceNumber,
+    paymentMeans: async () => paymentMeansFor(await wompiPaymentMethod(sale.brandId, sale.paymentMode, sale.wompiTransactionId)),
+    payloadFor: (number, paymentMeans) => buildExternalSaleInvoice(sale, connection, number, paymentMeans),
+  });
 }
 
 /// Después de que un pedido queda pagado. Nunca tira error: la factura no
@@ -470,7 +608,25 @@ export function issueInvoiceAfterPayment(orderId: string) {
   }
 }
 
-/// Cron diario: reintenta las facturas que fallaron en los últimos 7 días.
+/// La factura de una venta externa, después de responderle a la otra
+/// plataforma (la emisión puede tardar). Nunca tira error.
+export function issueExternalSaleInvoiceAfter(saleId: string) {
+  const work = async () => {
+    try {
+      await issueExternalSaleInvoice(saleId);
+    } catch (err) {
+      console.error(`[dataico] No se pudo facturar la venta externa ${saleId}:`, err);
+    }
+  };
+  try {
+    after(work);
+  } catch {
+    return work();
+  }
+}
+
+/// Cron diario: reintenta las facturas que fallaron en los últimos 7 días,
+/// de pedidos y de ventas externas.
 export async function retryFailedInvoices() {
   const orders = await prisma.storeOrder.findMany({
     where: {
@@ -483,9 +639,22 @@ export async function retryFailedInvoices() {
     select: { id: true },
     take: 100,
   });
+  const sales = await prisma.externalSale.findMany({
+    where: {
+      einvoiceStatus: { in: ["FAILED", "PENDING"] },
+      einvoiceUuid: null,
+      einvoiceAttempts: { lt: MAX_ATTEMPTS },
+      paidAt: { gte: new Date(Date.now() - 7 * 24 * 3600 * 1000) },
+    },
+    select: { id: true },
+    take: 100,
+  });
   let issued = 0;
   for (const o of orders) {
     if ((await issueOrderInvoice(o.id).catch(() => ({ status: "FAILED" }))).status === "ISSUED") issued++;
   }
-  return { retried: orders.length, issued };
+  for (const sale of sales) {
+    if ((await issueExternalSaleInvoice(sale.id).catch(() => ({ status: "FAILED" }))).status === "ISSUED") issued++;
+  }
+  return { retried: orders.length + sales.length, issued };
 }

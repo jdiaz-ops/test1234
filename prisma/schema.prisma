@@ -591,13 +591,13 @@ model BrandProfile {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  companyName String
-  legalName   String? // razón social
-  taxId       String? // NIT
-  logoUrl     String?
+  companyName  String
+  legalName    String? // razón social
+  taxId        String? // NIT
+  logoUrl      String?
   /// Ícono de la pestaña del navegador en su tienda (favicon). Si no hay,
   /// la tienda usa el logo. Ver app/t/[slug]/layout.tsx.
-  faviconUrl  String?
+  faviconUrl   String?
   /// La forma que más usan las fotos de sus productos ("square" o
   /// "portrait"), medida por la plataforma para que las tarjetas de la
   /// tienda queden todas iguales cuando Diseño → Forma de las fotos está en
@@ -605,9 +605,9 @@ model BrandProfile {
   /// dos días o después de importar). Ver photo-shape-service.ts.
   photoShape   String?
   photoShapeAt DateTime?
-  description String?
-  city        String?
-  country     String  @default("Colombia")
+  description  String?
+  city         String?
+  country      String    @default("Colombia")
 
   /// Perfil más sólido — para que se vea profesional y sirva también para
   /// lo tributario/facturación (ver BrandInvoice).
@@ -717,6 +717,9 @@ model BrandProfile {
   webhookSigningSecret String?
   /// Conexión directa con Dataico (facturación electrónica por API).
   dataicoConnection    DataicoConnection?
+  /// Ventas de otras plataformas de la misma empresa que la marca factura
+  /// con esa conexión (ver ExternalSale).
+  externalSales        ExternalSale[]
 
   /// Dominio propio de la marca (ej. "tienda.marcauno.com"), gratis —
   /// alternativa al subdominio de arriba. Null hasta que la marca lo
@@ -739,10 +742,10 @@ model BrandProfile {
   /// mapa del sitio pasan al dominio propio, y el subdominio redirige a la
   /// misma página allá. Verificar el TXT solo prueba que es de la marca.
   /// Vuelve a null si deja de responder (la tienda sigue en el subdominio).
-  customDomainActiveAt  DateTime?
+  customDomainActiveAt          DateTime?
   /// Última revisión de la conexión (al abrir Configuración, con "Revisar
   /// conexión" y cada día, ver /api/cron/dominios).
-  customDomainCheckedAt DateTime?
+  customDomainCheckedAt         DateTime?
 
   /// Plantilla del catálogo de Mi tienda — ver enum StorefrontTemplate.
   storefrontTemplate StorefrontTemplate @default(CLASICA)
@@ -1599,19 +1602,19 @@ model PrBox {
   brandId String
   brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
 
-  name     String
+  name      String
   /// Qué trae, una cosa por línea.
-  contents String   @db.Text
+  contents  String   @db.Text
   /// Fotos; la primera es la portada.
-  images   String[]
+  images    String[]
   /// Cuántas hay para regalar y cuántas ya se aprobaron. Las creadoras no
   /// ven ninguna de las dos.
   units     Int
-  unitsUsed Int @default(0)
+  unitsUsed Int      @default(0)
 
   /// El brief: qué contenido quiere y lo que no puede faltar.
-  contentBrief String @db.Text
-  keyMessages  String @default("") @db.Text
+  contentBrief String    @db.Text
+  keyMessages  String    @default("") @db.Text
   /// Hasta cuándo se puede pedir (ese día incluido), cuándo la envía la
   /// marca y la fecha del lanzamiento — las 00:00 del día en Colombia. Antes
   /// la última era "publicar a más tardar" (publishBy); Marcolini no sigue lo
@@ -1620,7 +1623,7 @@ model PrBox {
   shipsOn      DateTime?
   launchOn     DateTime?
 
-  status        PrBoxStatus @default(DRAFT)
+  status         PrBoxStatus @default(DRAFT)
   /// true: sale en el marketplace y cualquier creadora la pide. false: solo
   /// la ven las creadoras a las que la marca se la propone.
   inMarketplace  Boolean     @default(true)
@@ -2672,27 +2675,27 @@ model BrandCollection {
   brandId String
   brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
 
-  name            String
-  slug            String
+  name             String
+  slug             String
   /// Se muestra en la página de la colección en la vitrina — opcional,
   /// antes solo existía el nombre. Ver conversación del 2026-09-14
   /// pidiendo poder gestionar colecciones como en Shopify.
-  description     String?
-  imageUrl        String?
+  description      String?
+  imageUrl         String?
   /// Banner ancho arriba de la página de la colección (y uno opcional
   /// para celular). Ver conversación del 2026-10-02.
-  bannerUrl       String?
-  bannerMobileUrl String?
-  position        Int                 @default(0)
+  bannerUrl        String?
+  bannerMobileUrl  String?
+  position         Int                 @default(0)
   /// Si sale en la página "Todas las categorías" de la tienda (/coleccion,
   /// a la que lleva "Categorías" de la barra de abajo en celular). Apagada,
   /// la colección sigue abierta por su link y en el menú. Ver conversación
   /// del 2026-10-19.
-  showInCategories Boolean          @default(true)
+  showInCategories Boolean             @default(true)
   /// Cómo se ordenan los productos en la vitrina: a mano (arrastrando, ver
   /// ProductBrandCollection.position) o automático. Como "Ordenar" de una
   /// colección en Shopify. Ver conversación del 2026-10-01.
-  sortOrder       CollectionSortOrder @default(MANUAL)
+  sortOrder        CollectionSortOrder @default(MANUAL)
 
   products ProductBrandCollection[]
 
@@ -3018,6 +3021,63 @@ model DataicoConnection {
 enum DataicoEnv {
   PRUEBAS
   PRODUCCION
+}
+
+/// Una venta que cobró otra plataforma de la misma empresa y que la marca
+/// factura con su conexión de Dataico, con su misma numeración de la DIAN.
+/// Hoy: las boletas de Nail Fest, que es de Audaz Lab S.A.S. como H la
+/// Cosedora (pedido del 2026-10-26). La otra plataforma la manda por la API
+/// (api/v1/facturas, ver docs/api-facturas.md) apenas su pago queda
+/// aprobado; no es un pedido de la tienda: no toca inventario, comisiones
+/// ni tarifa. Ver external-sale-service.ts.
+model ExternalSale {
+  id      String       @id @default(cuid())
+  brandId String
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  /// Quién la cobró ("Nail Fest") y su id allá (en Nail Fest, el del pago):
+  /// pedirla otra vez no crea otra venta ni otra factura.
+  source     String
+  externalId String
+
+  buyerName       String
+  buyerFirstName  String?
+  buyerLastName   String?
+  buyerEmail      String
+  buyerPhone      String?
+  /// Como en StoreOrder: CC, NIT, CE, PASAPORTE o PPT; sin documento, la
+  /// factura sale a consumidor final.
+  billingIdType   String?
+  billingIdNumber String?
+  /// Razón social, con NIT.
+  billingName     String?
+
+  /// Lo vendido: [{ name, quantity, unitPriceCents (con IVA), taxRate }].
+  items              Json
+  totalCents         Int
+  currency           String      @default("COP")
+  paidAt             DateTime
+  /// Una venta de prueba (Wompi en modo prueba) solo se factura en el
+  /// ambiente de pruebas de Dataico.
+  paymentMode        PaymentMode @default(PRODUCTION)
+  /// La transacción en la cuenta de Wompi de la marca: de ahí sale el medio
+  /// de pago de la factura.
+  wompiTransactionId String?
+
+  einvoiceStatus   EInvoiceStatus?
+  einvoiceNumber   String?
+  einvoiceUuid     String?
+  einvoiceCufe     String?
+  einvoicePdfUrl   String?
+  einvoiceError    String?
+  einvoiceAttempts Int             @default(0)
+  einvoiceIssuedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([brandId, source, externalId])
+  @@index([brandId, createdAt])
 }
 
 enum EInvoiceStatus {
