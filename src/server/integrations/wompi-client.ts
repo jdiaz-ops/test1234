@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { BrandProfile } from "@prisma/client";
 
 /// Integración con Wompi (wompi.co) para el checkout nativo de "Mi tienda".
@@ -115,7 +115,11 @@ function resolvePath(obj: unknown, path: string): unknown {
 
 /// Checksum de los eventos (webhook) = SHA256(valores de signature.properties
 /// concatenados en orden, resueltos por ruta contra el `data` del evento +
-/// el timestamp del evento + el events key), todo sin separadores.
+/// el timestamp del evento + el events key), todo sin separadores. Hoy
+/// Wompi manda transaction.id, transaction.status y
+/// transaction.amount_in_cents; si cambia la lista, esto sigue sirviendo.
+/// Se compara en tiempo constante y sin importar mayúsculas (los ejemplos
+/// de Wompi vienen en mayúsculas).
 export function verifyWompiEventChecksum(params: {
   data: unknown;
   properties: string[];
@@ -130,8 +134,18 @@ export function verifyWompiEventChecksum(params: {
     })
     .join("");
   const raw = concatenated + String(params.timestamp) + params.eventsKey;
-  const expected = createHash("sha256").update(raw).digest("hex");
-  return expected === params.checksum;
+  const expected = Buffer.from(createHash("sha256").update(raw).digest("hex"));
+  const received = Buffer.from(params.checksum.toLowerCase());
+  return expected.length === received.length && timingSafeEqual(expected, received);
+}
+
+/// Secreto de eventos de la cuenta de Wompi compartida con Nail Fest: con
+/// él se verifican sus eventos (NF-) antes de reenviarlos. Las marcas
+/// tienen el suyo en Configuración → Pagos. environment es el del evento
+/// ("test" en el sandbox). null si no está configurado.
+export function sharedWompiEventsSecret(environment: unknown): string | null {
+  const value = environment === "test" ? process.env.WOMPI_EVENTS_SECRET_TEST : process.env.WOMPI_EVENTS_SECRET;
+  return value?.trim() || null;
 }
 
 function apiBase(mode: "TEST" | "PRODUCTION") {

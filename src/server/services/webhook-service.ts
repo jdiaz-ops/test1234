@@ -1,11 +1,11 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
-import { after } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ROOT_DOMAIN } from "@/lib/subdomain";
 import { orderNumber } from "@/lib/order-math";
+import { runLater } from "@/lib/run-later";
 import { isWebhookTopic, type WebhookTopic } from "@/lib/webhook-topics";
 
 /// Conexiones: webhooks salientes de una tienda. Cuando pasa algo (un
@@ -436,17 +436,6 @@ export function buildOrderPayload(order: OrderForPayload) {
 // ---------------------------------------------------------------------------
 // Envío
 // ---------------------------------------------------------------------------
-
-/// Corre `work` después de responder si estamos dentro de una petición
-/// (no demora el webhook de Wompi ni la acción de la marca); fuera de una
-/// petición (pruebas, scripts) lo corre directo.
-function runLater(work: () => Promise<void>) {
-  try {
-    after(work);
-  } catch {
-    return work();
-  }
-}
 
 async function attemptDelivery(deliveryId: string) {
   const delivery = await prisma.webhookDelivery.findUnique({

@@ -62,6 +62,10 @@ Ve a "Settings" → "Environment Variables" del proyecto y agrega estas
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Tu correo real y una contraseña que elijas — será tu cuenta de administrador. **Ponlas antes del primer paso 7 (sembrar la base)** — si las dejas vacías, se crea una cuenta de pruebas insegura. |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Opcional — solo si quieres que la gente pueda entrar con "Continuar con Google". Se puede dejar vacío por ahora. |
 | `BLOB_READ_WRITE_TOKEN` | **Necesaria para que funcione subir logo, RUT, Cámara de Comercio y facturas.** En tu proyecto de Vercel: pestaña "Storage" → Create Database → Blob. Al crearlo, Vercel la agrega sola — no hay que copiar ni pegar nada. Sin esto, esas subidas no van a funcionar en producción (sí en tu computador, mientras pruebas). |
+| `WOMPI_EVENTS_SECRET` | El secreto de **Eventos** de producción de la cuenta de Wompi compartida con Nail Fest (Wompi → Desarrolladores → Secretos para integración técnica). Con él se verifican los eventos de Nail Fest (referencias `NF-`) antes de reenviarlos. Las llaves de Wompi de cada marca no van aquí: cada una las pone en su Configuración → Pagos. |
+| `NAILFEST_EVENTS_URL` / `RELAY_SHARED_SECRET` | Adónde se reenvían los eventos `NF-` (el `POST /api/wompi/events` de nailfest.lat) y la contraseña que va en el header `x-relay-secret`: un valor aleatorio largo, el mismo en el proyecto de Nail Fest. |
+| `WOMPI_SHOPIFY_RELAY_URL` | Opcional — adónde se reenvían los eventos de la cuenta compartida con referencia sin prefijo (la tienda Shopify, vía Conexa). Sin ella, se ignoran. |
+| `WOMPI_EVENTS_SECRET_TEST` | Opcional — el secreto de Eventos del sandbox de esa cuenta, solo si Nail Fest prueba en modo pruebas. |
 
 No necesitas tocar `SHOPIFY_APP_API_KEY`/`SHOPIFY_APP_API_SECRET` — esas
 son solo para el futuro, si Marcolini se registra como una app oficial de

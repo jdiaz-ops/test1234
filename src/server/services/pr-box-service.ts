@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { PR_BOX_REFERENCE_PREFIX } from "@/lib/payment-reference";
 import { createNotification } from "@/server/services/notification-service";
 import { isBrandServiceDeactivated } from "@/server/services/payment-service";
 import { updateOrderFulfillment } from "@/server/services/store-order-service";
@@ -178,7 +179,7 @@ async function approve(requestId: string, from: "REQUESTED" | "PROPOSED") {
       data: {
         brandId: request.box.brandId,
         kind: "SAMPLE",
-        reference: `prbox_${randomUUID()}`,
+        reference: `${PR_BOX_REFERENCE_PREFIX}${randomUUID()}`,
         buyerName: request.shippingName,
         buyerEmail: request.shippingEmail || request.creator.user.email,
         buyerPhone: request.shippingPhone,

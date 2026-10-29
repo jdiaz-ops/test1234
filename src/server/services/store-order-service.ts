@@ -1,9 +1,9 @@
 import { cardProductSelect } from "@/lib/card-product-select";
 import { stockWhere, type StockOptions } from "@/lib/product-stock";
-import { randomUUID } from "node:crypto";
 import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { newStoreOrderReference } from "@/lib/payment-reference";
 import { emitCustomerEvent, emitOrderEvent } from "@/server/services/webhook-service";
 import { issueInvoiceAfterPayment } from "@/server/services/dataico-service";
 import { getActivePaymentGateway, gatewayForOrder } from "@/server/payments/credentials";
@@ -532,7 +532,7 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
     throw new StoreOrderError("El total del pedido debe ser mayor a cero.");
   }
 
-  const reference = `mt_${randomUUID()}`;
+  const reference = newStoreOrderReference();
 
   const order = await prisma.$transaction(async (tx) => {
     // Apartar el inventario: un pedido sin pagar aparta sus unidades por

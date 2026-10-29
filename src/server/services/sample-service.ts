@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { SAMPLE_REFERENCE_PREFIX } from "@/lib/payment-reference";
 import { createNotification } from "@/server/services/notification-service";
 import { isBrandServiceDeactivated } from "@/server/services/payment-service";
 import type { ShippingAddress } from "@/lib/validation/creator";
@@ -133,7 +134,7 @@ async function finalizeApprovedSample(requestId: string) {
       data: {
         brandId: request.brandId,
         kind: "SAMPLE",
-        reference: `sample_${randomUUID()}`,
+        reference: `${SAMPLE_REFERENCE_PREFIX}${randomUUID()}`,
         buyerName: request.shippingName,
         buyerEmail: request.shippingEmail || creator.user.email,
         buyerPhone: request.shippingPhone,
