@@ -1,17 +1,16 @@
 /// Reenvío de eventos de Wompi a otra app. Una misma cuenta de Wompi cobra
-/// para Marcolini, Nail Fest y una tienda Shopify (vía Conexa), y Wompi
-/// permite una sola URL de eventos por cuenta: la de Marcolini (ver
-/// src/app/api/webhooks/wompi/route.ts). Lo que no es de Marcolini se
-/// reenvía con los mismos bytes con que llegó, así la otra app puede
-/// verificar el checksum de Wompi por su cuenta.
+/// para Marcolini y Nail Fest, y Wompi permite una sola URL de eventos por
+/// cuenta: la de Marcolini (ver src/app/api/webhooks/wompi/route.ts). Lo
+/// de Nail Fest se le reenvía con los mismos bytes con que llegó, así
+/// puede verificar el checksum de Wompi por su cuenta.
 
 /// Esperas antes de cada reintento: 4 intentos en total.
 export const RELAY_RETRY_DELAYS_MS = [1_000, 2_000, 4_000];
 const ATTEMPT_TIMEOUT_MS = 5_000;
 
 export type RelayTarget = {
-  /// Solo para los logs ("Nail Fest", "Shopify"). La URL no se registra:
-  /// la de Conexa puede llevar un token.
+  /// Solo para los logs ("Nail Fest"). La URL no se registra: puede
+  /// llevar un token.
   name: string;
   url: string;
   headers?: Record<string, string>;

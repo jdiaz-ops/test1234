@@ -40,20 +40,20 @@ function wompiHeaders(req: Request): Record<string, string> {
 
 /// Receptor único de eventos de Wompi. Llegan los de la cuenta de cada
 /// marca (cada una pone esta URL en su panel de Wompi) y los de la cuenta
-/// compartida con Nail Fest y una tienda Shopify (vía Conexa): Wompi
-/// permite una sola URL de eventos por cuenta. El prefijo de la referencia
-/// dice de quién es (ver referenceOwner), y la firma se verifica con el
-/// secreto de la cuenta que lo manda — nunca con uno solo para todos, o
-/// los pagos de las demás marcas se rechazarían (pedido del 2026-10-29):
+/// compartida con Nail Fest: Wompi permite una sola URL de eventos por
+/// cuenta. El prefijo de la referencia dice de quién es (ver
+/// referenceOwner), y la firma se verifica con el secreto de la cuenta que
+/// lo manda — nunca con uno solo para todos, o los pagos de las demás
+/// marcas se rechazarían (pedido del 2026-10-29):
 /// - mt_: un pedido de la tienda. Firma con la llave de eventos de la
 ///   marca (la del modo con que se cobró ese pedido) y se procesa;
 ///   repetido no duplica nada (ver applyPaymentResult).
 /// - NF-: de Nail Fest. Firma con WOMPI_EVENTS_SECRET y se reenvía tal cual
 ///   a NAILFEST_EVENTS_URL con x-relay-secret.
 /// - sample_ / prbox_: muestras de $0, nunca se cobran: se ignoran.
-/// - Cualquier otra: la tienda Shopify. Sin verificar (no tenemos ese
-///   secreto; Conexa lo verifica) se reenvía a WOMPI_SHOPIFY_RELAY_URL si
-///   está, nunca con x-relay-secret. Sin la variable, se ignora.
+/// - Cualquier otra (otras tiendas con referencias al azar): se ignora.
+///   La tienda Shopify que usaba la cuenta compartida ya no se usa
+///   (2026-11-02): ya no se le reenvía nada.
 /// Firma inválida: 401. Todo lo demás responde 200, aunque el reenvío
 /// falle (queda en el log). Si falla nuestra base al procesar un mt_, el
 /// error hace que Wompi lo reintente.
@@ -139,14 +139,8 @@ export async function POST(req: Request) {
       log(`referencia de una muestra (no se cobra por Wompi), ignorada: ${about}`);
       return ok();
 
-    case "other": {
-      const url = process.env.WOMPI_SHOPIFY_RELAY_URL?.trim();
-      if (!url) {
-        log(`referencia desconocida, ignorada: ${about}`);
-        return ok();
-      }
-      await runLater(() => relayWompiEvent({ name: "Shopify", url, headers: wompiHeaders(req) }, rawBody, { reference, transactionId }));
+    case "other":
+      log(`referencia desconocida, ignorada: ${about}`);
       return ok();
-    }
   }
 }

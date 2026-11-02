@@ -9,10 +9,9 @@ import { BUYER, createProduct, createSellingBrand, hasDb } from "./helpers";
 // Las de createSellingBrand (modo pruebas).
 const BRAND_EVENTS_KEY = "test_events_x";
 const BRAND_INTEGRITY_KEY = "test_integrity_x";
-// La cuenta compartida con Nail Fest y la tienda Shopify.
+// La cuenta compartida con Nail Fest.
 const SHARED_EVENTS_SECRET = "prod_events_compartido";
 const NAILFEST_URL = "https://nailfest.lat/api/wompi/events";
-const SHOPIFY_URL = "https://conexa.example/wompi/tienda";
 const RELAY_SECRET = "relay-secreto-de-prueba";
 
 const sha256 = (raw: string) => createHash("sha256").update(raw).digest("hex");
@@ -95,7 +94,6 @@ beforeEach(() => {
   process.env.WOMPI_EVENTS_SECRET = SHARED_EVENTS_SECRET;
   process.env.NAILFEST_EVENTS_URL = NAILFEST_URL;
   process.env.RELAY_SHARED_SECRET = RELAY_SECRET;
-  delete process.env.WOMPI_SHOPIFY_RELAY_URL;
 });
 
 afterEach(() => {
@@ -233,8 +231,8 @@ describe("webhook de Wompi: lo que es de otras apps", () => {
     expect(logged(error, "tras 1 intento: respondió 401")).toBe(true);
   });
 
-  it("referencia desconocida sin WOMPI_SHOPIFY_RELAY_URL: 200, solo queda en el log", async () => {
-    const event = wompiEvent({ id: "tx-shop-1", reference: "8f3a91c2d4", status: "APPROVED", amountInCents: 9900000 }, "secreto_de_otra_cuenta");
+  it("referencia desconocida: 200 aunque no se pueda verificar, no se reenvía nada y solo queda en el log", async () => {
+    const event = wompiEvent({ id: "tx-otra-1", reference: "8f3a91c2d4", status: "APPROVED", amountInCents: 9900000 }, "secreto_de_otra_cuenta");
     expect((await post(rawOf(event))).status).toBe(200);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(logged(info, "referencia desconocida, ignorada: 8f3a91c2d4")).toBe(true);
@@ -243,20 +241,5 @@ describe("webhook de Wompi: lo que es de otras apps", () => {
     const sample = wompiEvent({ id: "tx-s", reference: "prbox_123", status: "APPROVED", amountInCents: 0 }, "x");
     expect((await post(rawOf(sample))).status).toBe(200);
     expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("referencia desconocida con WOMPI_SHOPIFY_RELAY_URL: se reenvía intacta, sin verificar y sin x-relay-secret", async () => {
-    process.env.WOMPI_SHOPIFY_RELAY_URL = SHOPIFY_URL;
-    fetchMock.mockResolvedValue(new Response("ok"));
-    // Firmado con el secreto de otra cuenta: no se verifica.
-    const raw = rawOf(wompiEvent({ id: "tx-shop-2", reference: "8f3a91c2d5", status: "APPROVED", amountInCents: 9900000 }, "secreto_de_otra_cuenta"));
-
-    expect((await post(raw)).status).toBe(200);
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe(SHOPIFY_URL);
-    expect(init).toMatchObject({ method: "POST", body: raw });
-    expect((init as RequestInit).headers).toEqual({ "content-type": "application/json" });
   });
 });

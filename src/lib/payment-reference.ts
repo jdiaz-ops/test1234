@@ -18,8 +18,7 @@ export const newStoreOrderReference = () => `${STORE_ORDER_REFERENCE_PREFIX}${ra
 
 /// marcolini: un pedido de la tienda. marcolini-free: una muestra o caja
 /// PR (no debería llegar de Wompi). nailfest: de Nail Fest. other:
-/// cualquier otra (la tienda Shopify de la cuenta compartida, vía Conexa,
-/// usa referencias al azar sin prefijo).
+/// cualquier otra (otras tiendas con referencias al azar).
 export type ReferenceOwner = "marcolini" | "marcolini-free" | "nailfest" | "other";
 
 export function referenceOwner(reference: string): ReferenceOwner {
