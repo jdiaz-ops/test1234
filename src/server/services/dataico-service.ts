@@ -534,6 +534,8 @@ export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISS
     // la respuesta), Dataico devuelve esa misma. Uno nuevo se revisa antes
     // en Dataico (ver firstFreeNumber).
     let fresh = !order.einvoiceNumber;
+    // Si el número que va ahora se confirmó libre en esta misma emisión.
+    let checked = false;
     // (Sin el prefijo: una rechazada por la DIAN quedó guardada como "FE…".)
     let number = order.einvoiceNumber ? Number(order.einvoiceNumber.replace(/\D/g, "")) : await reserveNumber(order.brandId);
 
@@ -542,6 +544,7 @@ export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISS
         number = await claimFreeNumber(order.brandId, connection, number);
         await prisma.storeOrder.update({ where: { id: order.id }, data: { einvoiceNumber: String(number) } });
         fresh = false;
+        checked = true;
       }
       const payload = buildDataicoInvoice(order, connection, number, paymentMeans);
       const res = await dataicoFetch("/invoices", connection.authToken, { method: "POST", body: payload });
@@ -577,6 +580,12 @@ export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISS
       // Ese número ya se usó (ej. alguien facturó a mano en Dataico con la
       // misma numeración): se toma el siguiente y se intenta otra vez.
       if (/n[uú]mero|number/i.test(error) && /duplic|exist|usad/i.test(error)) {
+        // Con un número que este pedido ya había mandado, lo más probable
+        // es que esa factura sea la suya: saltar a otro número la facturaría
+        // dos veces.
+        if (!checked) {
+          return fail(`Dataico dice que la ${connection.prefix ?? ""}${number} ya existe: revisa en Dataico si es la de este pedido.`);
+        }
         number = await reserveNumber(order.brandId);
         fresh = true;
         continue;

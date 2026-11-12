@@ -240,6 +240,19 @@ describe.skipIf(!hasDb)("factura electrónica con Dataico", () => {
     });
   });
 
+  it("al reenviar un número que ya había mandado, si Dataico dice que existe no salta a otro (sería otra factura)", async () => {
+    const { order } = await paidOrder();
+    await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt: new Date() } });
+    responder = () => new Response(JSON.stringify({ errors: { customer: ["inválido"] } }), { status: 500 });
+    expect((await issueOrderInvoice(order.id)).status).toBe("FAILED");
+
+    responder = () => new Response(JSON.stringify({ errors: { number: ["El número ya existe (duplicado)"] } }), { status: 500 });
+    const again = await issueOrderInvoice(order.id);
+
+    expect(again).toMatchObject({ status: "FAILED", error: expect.stringContaining("FE10001 ya existe") });
+    expect(calls.map((c) => c.body!.invoice.number)).toEqual(["10001", "10001"]);
+  });
+
   it("si el número ya existe en Dataico usa el siguiente", async () => {
     const { order } = await paidOrder();
     await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt: new Date() } });
