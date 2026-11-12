@@ -249,7 +249,8 @@ export function DataicoConnectionCard({
             </div>
           </div>
           <p className="text-xs text-brand-ink-soft -mt-2">
-            Revisa en Dataico el último número que usaste con esa numeración y pon el siguiente. Marcolini sigue contando desde ahí.
+            Revisa en Dataico el último número que usaste con esa numeración y pon el siguiente. Antes de cada factura, Marcolini confirma
+            en Dataico que el número esté libre y salta los que ya se usaron a mano.
           </p>
 
           <div>

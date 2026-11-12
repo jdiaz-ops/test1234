@@ -21,6 +21,10 @@ export class DataicoError extends Error {}
 const DATAICO_API = "https://api.dataico.com/dataico_api/v2";
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_ATTEMPTS = 6;
+/// Consultas para encontrar el siguiente número libre (ver firstFreeNumber):
+/// alcanzan aunque se hayan hecho miles de facturas a mano.
+const LOOKUP_TIMEOUT_MS = 8_000;
+const MAX_NUMBER_LOOKUPS = 40;
 
 /// Consumidor final: la DIAN permite facturar sin identificar al
 /// comprador con este número.
@@ -43,14 +47,14 @@ export function isBillingIdType(value: string): value is BillingIdType {
 /// IVA que acepta la DIAN (según la especificación de Dataico).
 const VALID_IVA_RATES = [0, 5, 16, 19];
 
-async function dataicoFetch(path: string, authToken: string, init: { method: string; body?: unknown }) {
+async function dataicoFetch(path: string, authToken: string, init: { method: string; body?: unknown; timeoutMs?: number }) {
   let res: Response;
   try {
     res = await fetch(`${DATAICO_API}${path}`, {
       method: init.method,
       headers: { "Content-Type": "application/json", Accept: "application/json", "auth-token": authToken },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(init.timeoutMs ?? REQUEST_TIMEOUT_MS),
       cache: "no-store",
     });
   } catch (err) {
@@ -354,6 +358,118 @@ async function reserveNumber(brandId: string) {
   return (updated.nextNumber ?? 1) - 1;
 }
 
+type NumberingAccess = { authToken: string; prefix: string | null };
+
+/// Las facturas que trae una respuesta de Dataico, venga como venga: la
+/// factura sola, { invoice }, { invoices: [...] } o { data: [...] }.
+function invoicesIn(body: unknown): Record<string, unknown>[] {
+  const found: Record<string, unknown>[] = [];
+  const add = (value: unknown) => {
+    if (Array.isArray(value)) value.forEach(add);
+    else if (value && typeof value === "object") found.push(value as Record<string, unknown>);
+  };
+  if (body && typeof body === "object" && !Array.isArray(body)) {
+    const b = body as Record<string, unknown>;
+    add(b.invoice);
+    add(b.invoices);
+    add(b.data);
+  }
+  add(body);
+  return found;
+}
+
+/// Si en Dataico ya hay una factura con ese número: GET /invoices?number=FE18
+/// (la "Consulta de factura por API" de la ayuda de Dataico). Si Dataico no
+/// responde claro, no se factura todavía: mejor tarde que con la factura de
+/// otra compra.
+async function numberIsTaken(numbering: NumberingAccess, n: number) {
+  const full = `${numbering.prefix ?? ""}${n}`;
+  const res = await dataicoFetch(`/invoices?number=${encodeURIComponent(full)}`, numbering.authToken, {
+    method: "GET",
+    timeoutMs: LOOKUP_TIMEOUT_MS,
+  });
+  if (res.status === 404) return false;
+  if (!res.ok) {
+    throw new DataicoError(
+      `No pudimos confirmar en Dataico que el número ${full} esté libre (${describeDataicoError(res.status, res.body)}). Se vuelve a intentar sola.`,
+    );
+  }
+  return invoicesIn(res.body).some((inv) => {
+    if (typeof inv.number !== "string" && typeof inv.number !== "number") return false;
+    const value = String(inv.number).replace(/\s+/g, "").toUpperCase();
+    return value === full.toUpperCase() || value === String(n);
+  });
+}
+
+/// Dataico no da error si se le manda un número ya usado: devuelve la
+/// factura que ya existe, y Marcolini la guardaba como la de este pedido
+/// (así quedó la FE13744 del 4 de octubre en un pedido del 9 de noviembre,
+/// porque esa numeración también se usa para facturar a mano en Dataico).
+/// Por eso se pregunta antes. Los números se usan seguidos, así que se
+/// busca el primero libre saltando de a 1, 2, 4, 8… y después partiendo a
+/// la mitad: pocas consultas aunque Dataico vaya muy adelante.
+async function firstFreeNumber(numbering: NumberingAccess, from: number) {
+  let lookups = 0;
+  const taken = async (n: number) => {
+    lookups += 1;
+    if (lookups > MAX_NUMBER_LOOKUPS) {
+      throw new DataicoError(
+        `Dataico va muy adelante del siguiente número guardado (${numbering.prefix ?? ""}${from}). Revísalo en Conexiones.`,
+      );
+    }
+    return numberIsTaken(numbering, n);
+  };
+  if (!(await taken(from))) return from;
+  let lo = from;
+  let step = 1;
+  while (await taken(from + step)) {
+    lo = from + step;
+    step *= 2;
+  }
+  let hi = from + step;
+  while (hi - lo > 1) {
+    const mid = lo + Math.floor((hi - lo) / 2);
+    if (await taken(mid)) lo = mid;
+    else hi = mid;
+  }
+  return hi;
+}
+
+/// El primer número libre en Dataico desde `reserved` (que este pedido ya
+/// reservó), y lo deja reservado: el contador de la marca queda después de
+/// él, así se pone al día solo con las facturas hechas a mano.
+async function claimFreeNumber(brandId: string, numbering: NumberingAccess, reserved: number) {
+  let from = reserved;
+  for (let round = 0; round < 3; round++) {
+    const free = await firstFreeNumber(numbering, from);
+    if (free === from) return free;
+    const claimed = await prisma.dataicoConnection.updateMany({
+      where: { brandId, nextNumber: { lte: free } },
+      data: { nextNumber: free + 1 },
+    });
+    if (claimed.count === 1) return free;
+    // Otro pedido se lo llevó mientras tanto: se reserva otro.
+    from = await reserveNumber(brandId);
+  }
+  throw new DataicoError("No se pudo reservar un número de factura libre. Intenta de nuevo en un momento.");
+}
+
+/// Si la factura que devolvió Dataico es de otra compra: trae otra
+/// referencia de pedido, o ya está guardada en otro pedido de Marcolini.
+async function isAnotherOrdersInvoice(order: { id: string; reference: string }, inv: Record<string, unknown> | null) {
+  if (!inv) return false;
+  const simple = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (typeof inv.order_reference === "string" && simple(inv.order_reference) && simple(inv.order_reference) !== simple(orderNumber(order.reference))) {
+    return true;
+  }
+  const same = [
+    ...(typeof inv.uuid === "string" && inv.uuid ? [{ einvoiceUuid: inv.uuid }] : []),
+    ...(typeof inv.cufe === "string" && inv.cufe ? [{ einvoiceCufe: inv.cufe }] : []),
+  ];
+  if (same.length === 0) return false;
+  return Boolean(await prisma.storeOrder.findFirst({ where: { id: { not: order.id }, OR: same }, select: { id: true } }));
+}
+
 async function wompiPaymentMethod(order: InvoiceOrder & { brand: unknown }) {
   // Solo Wompi expone el medio de pago por API con la llave pública; con
   // otra pasarela se factura con el medio por defecto.
@@ -373,8 +489,8 @@ async function wompiPaymentMethod(order: InvoiceOrder & { brand: unknown }) {
 
 /// Emite la factura de un pedido pagado. Idempotente: si ya tiene factura
 /// o hay otra emisión en curso, no hace nada. Reserva el número una sola
-/// vez por pedido (un reintento usa el mismo), salvo que Dataico diga que
-/// ese número ya existe.
+/// vez por pedido (un reintento usa el mismo), salvo que ese número ya sea
+/// de otra factura en Dataico.
 export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISSUED" | "FAILED" | "SKIPPED"; error?: string }> {
   const order = await prisma.storeOrder.findUnique({ where: { id: orderId }, include: invoiceOrderInclude });
   if (!order || order.kind !== "PURCHASE" || order.status !== "PAID") return { status: "SKIPPED" };
@@ -408,18 +524,33 @@ export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISS
 
   try {
     const paymentMeans = paymentMeansFor(await wompiPaymentMethod(order));
-    let number = order.einvoiceNumber ? Number(order.einvoiceNumber) : await reserveNumber(order.brandId);
-    if (!order.einvoiceNumber) {
-      await prisma.storeOrder.update({ where: { id: order.id }, data: { einvoiceNumber: String(number) } });
-    }
+    // Un número que este pedido ya le mandó a Dataico se vuelve a mandar
+    // tal cual: si esa vez la factura sí se alcanzó a crear (ej. se cortó
+    // la respuesta), Dataico devuelve esa misma. Uno nuevo se revisa antes
+    // en Dataico (ver firstFreeNumber).
+    let fresh = !order.einvoiceNumber;
+    // (Sin el prefijo: una rechazada por la DIAN quedó guardada como "FE…".)
+    let number = order.einvoiceNumber ? Number(order.einvoiceNumber.replace(/\D/g, "")) : await reserveNumber(order.brandId);
 
     for (let attempt = 0; attempt < 3; attempt++) {
+      if (fresh) {
+        number = await claimFreeNumber(order.brandId, connection, number);
+        await prisma.storeOrder.update({ where: { id: order.id }, data: { einvoiceNumber: String(number) } });
+        fresh = false;
+      }
       const payload = buildDataicoInvoice(order, connection, number, paymentMeans);
       const res = await dataicoFetch("/invoices", connection.authToken, { method: "POST", body: payload });
       if (res.ok) {
         const inv = (
           res.body && typeof res.body === "object" && "invoice" in res.body ? (res.body as { invoice: unknown }).invoice : res.body
         ) as Record<string, unknown> | null;
+        // Devolvió la factura de otra compra con ese número, no creó esta:
+        // no se guarda y se usa el siguiente número libre.
+        if (await isAnotherOrdersInvoice(order, inv)) {
+          number = await reserveNumber(order.brandId);
+          fresh = true;
+          continue;
+        }
         const rejected = inv?.dian_status === "DIAN_RECHAZADO";
         await prisma.storeOrder.update({
           where: { id: order.id },
@@ -442,7 +573,7 @@ export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISS
       // misma numeración): se toma el siguiente y se intenta otra vez.
       if (/n[uú]mero|number/i.test(error) && /duplic|exist|usad/i.test(error)) {
         number = await reserveNumber(order.brandId);
-        await prisma.storeOrder.update({ where: { id: order.id }, data: { einvoiceNumber: String(number) } });
+        fresh = true;
         continue;
       }
       return fail(error);

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { applyWompiTransactionStatus } from "@/server/services/store-order-service";
@@ -7,18 +8,38 @@ import { createBrand, createPendingOrder, createProduct, hasDb } from "./helpers
 type Call = { url: string; headers: Record<string, string>; body: { actions: Record<string, unknown>; invoice: Record<string, unknown> } | null };
 let calls: Call[] = [];
 let responder: (call: Call) => Response;
+/// GET /invoices?number=: los números consultados y qué contesta Dataico
+/// (por defecto, que no existe).
+let lookups: string[] = [];
+let lookup: (number: string) => Response;
+
+/// Una factura nueva de Dataico, con su propio uuid y CUFE: la base de
+/// pruebas guarda las de corridas anteriores, y una repetida sería "de
+/// otra compra".
+const newInvoice = (number: string) => {
+  const id = randomUUID();
+  return Response.json(
+    { uuid: `uuid-${id}`, number, cufe: `cufe-${id}`, pdf_url: "https://dataico.com/x.pdf", dian_status: "DIAN_ACEPTADO" },
+    { status: 201 },
+  );
+};
+const notFound = () => Response.json({ errors: [{ error: "Factura no encontrada" }] }, { status: 404 });
 
 beforeEach(() => {
   calls = [];
-  responder = () =>
-    new Response(JSON.stringify({ uuid: "uuid-1", number: "FE10001", cufe: "cufe-1", pdf_url: "https://dataico.com/x.pdf", dian_status: "DIAN_ACEPTADO" }), {
-      status: 201,
-    });
+  lookups = [];
+  responder = () => newInvoice("FE10001");
+  lookup = notFound;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init: RequestInit) => {
       // La consulta del medio de pago a Wompi no hace falta en la prueba.
       if (url.includes("wompi.co")) return new Response("{}", { status: 404 });
+      if ((init.method ?? "GET") === "GET" && url.includes("/invoices?number=")) {
+        const number = new URL(url).searchParams.get("number")!;
+        lookups.push(number);
+        return lookup(number);
+      }
       const call = { url, headers: init.headers as Record<string, string>, body: init.body ? JSON.parse(init.body as string) : null };
       calls.push(call);
       return responder(call);
@@ -107,7 +128,9 @@ describe.skipIf(!hasDb)("factura electrónica con Dataico", () => {
     });
 
     const saved = await prisma.storeOrder.findUniqueOrThrow({ where: { id: order.id } });
-    expect(saved).toMatchObject({ einvoiceStatus: "ISSUED", einvoiceNumber: "FE10001", einvoiceUuid: "uuid-1", einvoicePdfUrl: "https://dataico.com/x.pdf" });
+    expect(saved).toMatchObject({ einvoiceStatus: "ISSUED", einvoiceNumber: "FE10001", einvoiceUuid: expect.stringMatching(/^uuid-/), einvoicePdfUrl: "https://dataico.com/x.pdf" });
+    // Antes de facturar se confirmó en Dataico que el número estaba libre.
+    expect(lookups).toEqual(["FE10001"]);
 
     // Ya facturado: otro intento no crea otra factura.
     await issueOrderInvoice(order.id);
@@ -165,9 +188,12 @@ describe.skipIf(!hasDb)("factura electrónica con Dataico", () => {
     let saved = await prisma.storeOrder.findUniqueOrThrow({ where: { id: order.id } });
     expect(saved.einvoiceError).toContain("customer");
 
-    responder = () => new Response(JSON.stringify({ uuid: "uuid-2", number: "FE10001" }), { status: 201 });
+    responder = () => newInvoice("FE10001");
     expect((await issueOrderInvoice(order.id)).status).toBe("ISSUED");
     expect(calls.map((c) => c.body!.invoice.number)).toEqual(["10001", "10001"]);
+    // El reintento manda el mismo número sin volver a consultarlo: si la
+    // primera vez se alcanzó a crear, Dataico devuelve esa misma factura.
+    expect(lookups).toEqual(["FE10001"]);
     saved = await prisma.storeOrder.findUniqueOrThrow({ where: { id: order.id } });
     expect(saved.einvoiceStatus).toBe("ISSUED");
   });
@@ -178,9 +204,64 @@ describe.skipIf(!hasDb)("factura electrónica con Dataico", () => {
     responder = (call) =>
       call.body!.invoice.number === "10001"
         ? new Response(JSON.stringify({ errors: { number: ["El número ya existe (duplicado)"] } }), { status: 500 })
-        : new Response(JSON.stringify({ uuid: "uuid-3", number: "FE10002" }), { status: 201 });
+        : newInvoice("FE10002");
     expect((await issueOrderInvoice(order.id)).status).toBe("ISSUED");
     expect(calls.map((c) => c.body!.invoice.number)).toEqual(["10001", "10002"]);
+  });
+
+  it("salta los números que ya se usaron en Dataico (facturas hechas a mano) y pone al día el contador", async () => {
+    const { brand, order } = await paidOrder();
+    await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt: new Date() } });
+    // En Dataico ya van hasta la FE10013, hechas a mano; Marcolini iba en la 10001.
+    lookup = (number) => (Number(number.replace("FE", "")) <= 10013 ? Response.json({ invoice: { number, uuid: `manual-${number}` } }) : notFound());
+    responder = () => newInvoice("FE10014");
+
+    expect((await issueOrderInvoice(order.id)).status).toBe("ISSUED");
+
+    expect(calls.map((c) => c.body!.invoice.number)).toEqual(["10014"]);
+    expect(lookups.length).toBeLessThan(12);
+    expect((await prisma.dataicoConnection.findUniqueOrThrow({ where: { brandId: brand.id } })).nextNumber).toBe(10015);
+    expect(await prisma.storeOrder.findUniqueOrThrow({ where: { id: order.id } })).toMatchObject({ einvoiceStatus: "ISSUED", einvoiceNumber: "FE10014" });
+  });
+
+  it("si Dataico devuelve la factura de otra compra, no la guarda y usa el siguiente número", async () => {
+    const { brand, order } = await paidOrder();
+    await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt: new Date() } });
+    // Otro pedido ya tiene la FE10001.
+    const product = await createProduct(brand.id, { name: "Otra", price: 5000, stock: 5 });
+    const other = await createPendingOrder(brand.id, [{ productId: product.id, quantity: 1, unitPrice: 5000 }]);
+    const theirs = `uuid-${randomUUID()}`;
+    await prisma.storeOrder.update({
+      where: { id: other.id },
+      data: { status: "PAID", einvoiceStatus: "ISSUED", einvoiceUuid: theirs, einvoiceNumber: "FE10001" },
+    });
+    responder = (call) =>
+      call.body!.invoice.number === "10001"
+        ? Response.json({ uuid: theirs, number: "FE10001", cufe: "cufe-de-la-otra" }, { status: 201 })
+        : call.body!.invoice.number === "10002"
+          ? // Hecha a mano en Dataico: trae otra referencia de pedido.
+            Response.json({ invoice: { uuid: `uuid-${randomUUID()}`, number: "FE10002", order_reference: "#OTRA0002" } }, { status: 201 })
+          : newInvoice("FE10003");
+
+    expect((await issueOrderInvoice(order.id)).status).toBe("ISSUED");
+
+    expect(calls.map((c) => c.body!.invoice.number)).toEqual(["10001", "10002", "10003"]);
+    const saved = await prisma.storeOrder.findUniqueOrThrow({ where: { id: order.id } });
+    expect(saved.einvoiceNumber).toBe("FE10003");
+    expect(saved.einvoiceUuid).not.toBe(theirs);
+  });
+
+  it("si no se puede confirmar en Dataico que el número esté libre, no factura y queda para reintentar", async () => {
+    const { order } = await paidOrder();
+    await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt: new Date() } });
+    lookup = () => new Response("Service Unavailable", { status: 503 });
+
+    expect((await issueOrderInvoice(order.id)).status).toBe("FAILED");
+
+    expect(calls).toHaveLength(0);
+    const saved = await prisma.storeOrder.findUniqueOrThrow({ where: { id: order.id } });
+    expect(saved).toMatchObject({ einvoiceStatus: "FAILED", einvoiceUuid: null });
+    expect(saved.einvoiceError).toContain("No pudimos confirmar en Dataico que el número FE10001 esté libre");
   });
 
   it("no factura en producción un pedido hecho en modo de prueba de Wompi", async () => {
