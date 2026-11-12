@@ -294,6 +294,7 @@ export function buildDataicoInvoice(
   connection: { accountId: string; env: "PRUEBAS" | "PRODUCCION"; prefix: string | null; resolutionNumber: string | null; sendEmail: boolean },
   number: number,
   paymentMeans: string,
+  issuedAt: Date = new Date(),
 ) {
   const rate = Number(order.brand.taxRatePercent);
   if (!VALID_IVA_RATES.includes(rate)) {
@@ -303,7 +304,10 @@ export function buildDataicoInvoice(
     order.subtotalCents > 0 && order.discountCents > 0
       ? Math.round((order.discountCents / order.subtotalCents) * 100 * 10_000) / 10_000
       : 0;
-  const issued = dataicoDate(order.paidAt ?? order.createdAt);
+  // La fecha en que se emite, no la del pago: la DIAN rechaza la factura
+  // si la fecha de generación no es la de la firma (regla FAD09e). Así
+  // pasó con un pedido pagado el 9 de noviembre y facturado el 12.
+  const issued = dataicoDate(issuedAt);
 
   return {
     actions: {
@@ -503,10 +507,11 @@ export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISS
   if (order.paymentMode === "TEST" && connection.env === "PRODUCCION") return { status: "SKIPPED" };
 
   const staleBefore = new Date(Date.now() - 15 * 60 * 1000);
+  // Una rechazada por la DIAN (ya tiene uuid) se reenvía a mano con el
+  // mismo número: Dataico no crea otra. El cron no las toma.
   const claimed = await prisma.storeOrder.updateMany({
     where: {
       id: order.id,
-      einvoiceUuid: null,
       OR: [
         { einvoiceStatus: null },
         { einvoiceStatus: "FAILED" },

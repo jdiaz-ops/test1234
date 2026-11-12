@@ -64,12 +64,23 @@ export function OrderInvoicePanel({
         <>
           {status === "FAILED" ? (
             <>
+              {/* Rechazada por la DIAN: la factura existe en Dataico (tiene
+                  CUFE) con este número, y «Reintentar» la reenvía (no crea
+                  otra). Sin CUFE, Dataico no alcanzó a crearla. */}
+              {number && cufe && (
+                <p className="text-brand-ink">
+                  <span className="text-[11px] font-medium rounded-md px-1.5 py-0.5 bg-red-100 text-red-800 mr-2">Rechazada</span>
+                  {number}
+                </p>
+              )}
               <p className="text-red-700 text-xs">{error ?? "No se pudo emitir."}</p>
               {/* Conexiones no está en las pestañas de Configuración (se
                   escondió el 2026-10-19), pero ahí vive la numeración. */}
-              <Link href="/marca/tienda/conexiones" className="block text-xs font-medium text-brand-accent hover:underline">
-                Revisar la numeración de Dataico →
-              </Link>
+              {/n[uú]mero|numeraci/i.test(error ?? "") && (
+                <Link href="/marca/tienda/conexiones" className="block text-xs font-medium text-brand-accent hover:underline">
+                  Revisar la numeración de Dataico →
+                </Link>
+              )}
             </>
           ) : (
             <p className="text-brand-ink-soft text-xs">Todavía no tiene factura.</p>

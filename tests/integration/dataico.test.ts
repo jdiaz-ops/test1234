@@ -198,6 +198,48 @@ describe.skipIf(!hasDb)("factura electrónica con Dataico", () => {
     expect(saved.einvoiceStatus).toBe("ISSUED");
   });
 
+  it("la factura lleva la fecha en que se emite, no la del pago (la DIAN lo exige: regla FAD09e)", async () => {
+    const { order } = await paidOrder();
+    const paidAt = new Date(Date.now() - 3 * 24 * 3600 * 1000);
+    await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt } });
+
+    await issueOrderInvoice(order.id);
+
+    const invoice = calls[0].body!.invoice as { issue_date: string; payment_date: string };
+    expect(invoice.issue_date.slice(0, 10)).toBe(dataicoDate(new Date()).slice(0, 10));
+    expect(invoice.issue_date.slice(0, 10)).not.toBe(dataicoDate(paidAt).slice(0, 10));
+    expect(invoice.payment_date).toBe(invoice.issue_date);
+  });
+
+  it("una rechazada por la DIAN se reenvía con el mismo número al reintentar, sin crear otra", async () => {
+    const { order } = await paidOrder();
+    await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt: new Date() } });
+    const uuid = `uuid-${randomUUID()}`;
+    responder = () => Response.json({ uuid, number: "FE10001", cufe: `cufe-${uuid}`, dian_status: "DIAN_RECHAZADO" }, { status: 201 });
+    expect((await issueOrderInvoice(order.id)).status).toBe("FAILED");
+    expect(await prisma.storeOrder.findUniqueOrThrow({ where: { id: order.id } })).toMatchObject({
+      einvoiceStatus: "FAILED",
+      einvoiceNumber: "FE10001",
+      einvoiceUuid: uuid,
+    });
+
+    // Corregida en Dataico: el reintento manda el mismo número y Dataico
+    // devuelve esa misma factura, ya aceptada.
+    responder = () =>
+      Response.json({ uuid, number: "FE10001", cufe: `cufe2-${uuid}`, pdf_url: "https://dataico.com/y.pdf", dian_status: "DIAN_ACEPTADO" }, { status: 201 });
+    expect((await issueOrderInvoice(order.id)).status).toBe("ISSUED");
+
+    expect(calls.map((c) => c.body!.invoice.number)).toEqual(["10001", "10001"]);
+    expect(lookups).toEqual(["FE10001"]);
+    expect(await prisma.storeOrder.findUniqueOrThrow({ where: { id: order.id } })).toMatchObject({
+      einvoiceStatus: "ISSUED",
+      einvoiceNumber: "FE10001",
+      einvoiceUuid: uuid,
+      einvoicePdfUrl: "https://dataico.com/y.pdf",
+      einvoiceError: null,
+    });
+  });
+
   it("si el número ya existe en Dataico usa el siguiente", async () => {
     const { order } = await paidOrder();
     await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt: new Date() } });
