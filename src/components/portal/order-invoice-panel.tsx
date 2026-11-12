@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 /// Factura electrónica del pedido (conexión directa con Dataico): número,
@@ -62,7 +63,14 @@ export function OrderInvoicePanel({
       ) : (
         <>
           {status === "FAILED" ? (
-            <p className="text-red-700 text-xs">{error ?? "No se pudo emitir."}</p>
+            <>
+              <p className="text-red-700 text-xs">{error ?? "No se pudo emitir."}</p>
+              {/* Conexiones no está en las pestañas de Configuración (se
+                  escondió el 2026-10-19), pero ahí vive la numeración. */}
+              <Link href="/marca/tienda/conexiones" className="block text-xs font-medium text-brand-accent hover:underline">
+                Revisar la numeración de Dataico →
+              </Link>
+            </>
           ) : (
             <p className="text-brand-ink-soft text-xs">Todavía no tiene factura.</p>
           )}
