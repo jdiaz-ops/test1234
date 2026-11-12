@@ -25,6 +25,11 @@ const MAX_ATTEMPTS = 6;
 /// alcanzan aunque se hayan hecho miles de facturas a mano.
 const LOOKUP_TIMEOUT_MS = 8_000;
 const MAX_NUMBER_LOOKUPS = 40;
+/// El precio sin IVA va con 6 decimales: redondeado a centavos, la suma de
+/// las líneas con su IVA no da lo que se cobró (la FE13766 salió por
+/// $27.999,99 de una venta de $28.000). Si Dataico no los acepta, la
+/// factura se manda con centavos (ver issueOrderInvoice).
+const PRICE_DECIMALS = 6;
 
 /// Consumidor final: la DIAN permite facturar sin identificar al
 /// comprador con este número.
@@ -294,8 +299,10 @@ export function buildDataicoInvoice(
   connection: { accountId: string; env: "PRUEBAS" | "PRODUCCION"; prefix: string | null; resolutionNumber: string | null; sendEmail: boolean },
   number: number,
   paymentMeans: string,
-  issuedAt: Date = new Date(),
+  options: { issuedAt?: Date; priceDecimals?: number } = {},
 ) {
+  const { issuedAt = new Date(), priceDecimals = PRICE_DECIMALS } = options;
+  const precision = 10 ** priceDecimals;
   const rate = Number(order.brand.taxRatePercent);
   if (!VALID_IVA_RATES.includes(rate)) {
     throw new DataicoError(`La DIAN solo acepta IVA de 0, 5, 16 o 19 %, y tu tienda tiene ${rate} %. Cámbialo en Configuración → General.`);
@@ -337,7 +344,7 @@ export function buildDataicoInvoice(
         sku: item.variant?.sku || item.product?.sku || item.product?.slug || `MKL-${order.number}-${i + 1}`,
         description: item.variantLabel ? `${item.name} - ${item.variantLabel}` : item.name,
         quantity: item.quantity,
-        price: Math.round((item.unitPriceCents / 100 / (1 + rate / 100)) * 100) / 100,
+        price: Math.round((item.unitPriceCents / 100 / (1 + rate / 100)) * precision) / precision,
         ...(discountRate > 0 ? { "discount-rate": discountRate } : {}),
         taxes: [{ "tax-category": "IVA", "tax-rate": rate }],
       })),
@@ -536,6 +543,7 @@ export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISS
     let fresh = !order.einvoiceNumber;
     // Si el número que va ahora se confirmó libre en esta misma emisión.
     let checked = false;
+    let priceDecimals = PRICE_DECIMALS;
     // (Sin el prefijo: una rechazada por la DIAN quedó guardada como "FE…".)
     let number = order.einvoiceNumber ? Number(order.einvoiceNumber.replace(/\D/g, "")) : await reserveNumber(order.brandId);
 
@@ -546,7 +554,7 @@ export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISS
         fresh = false;
         checked = true;
       }
-      const payload = buildDataicoInvoice(order, connection, number, paymentMeans);
+      const payload = buildDataicoInvoice(order, connection, number, paymentMeans, { priceDecimals });
       const res = await dataicoFetch("/invoices", connection.authToken, { method: "POST", body: payload });
       if (res.ok) {
         const inv = (
@@ -577,6 +585,11 @@ export async function issueOrderInvoice(orderId: string): Promise<{ status: "ISS
         return rejected ? { status: "FAILED", error: "La DIAN rechazó la factura." } : { status: "ISSUED" };
       }
       const error = describeDataicoError(res.status, res.body);
+      // No aceptó los decimales del precio: la misma factura, con centavos.
+      if (priceDecimals > 2 && /price|precio|decimal/i.test(error)) {
+        priceDecimals = 2;
+        continue;
+      }
       // Ese número ya se usó (ej. alguien facturó a mano en Dataico con la
       // misma numeración): se toma el siguiente y se intenta otra vez.
       if (/n[uú]mero|number/i.test(error) && /duplic|exist|usad/i.test(error)) {

@@ -319,6 +319,40 @@ describe.skipIf(!hasDb)("factura electrónica con Dataico", () => {
     expect(saved.einvoiceError).toContain("No pudimos confirmar en Dataico que el número FE10001 esté libre");
   });
 
+  /// 5 esmaltes de $4.000 con IVA: sin IVA, $3.361,34453… cada uno.
+  async function fiveAt4000() {
+    const { order } = await paidOrder();
+    await prisma.storeOrderItem.updateMany({ where: { orderId: order.id }, data: { unitPriceCents: 400_000, quantity: 5 } });
+    await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt: new Date() } });
+    return order;
+  }
+  const priceOf = (call: Call) => (call.body!.invoice.items as { price: number }[])[0].price;
+
+  it("el precio sin IVA va con decimales, así la factura suma lo que se cobró", async () => {
+    const order = await fiveAt4000();
+    await issueOrderInvoice(order.id);
+    const price = priceOf(calls[0]);
+    expect(price).toBe(3361.344538);
+    // Con IVA vuelve a dar los $20.000 cobrados; a centavos daba $19.999,97.
+    expect(Math.round(price * 5 * 1.19 * 100) / 100).toBe(20000);
+    expect(Math.round(3361.34 * 5 * 1.19 * 100) / 100).toBe(19999.97);
+  });
+
+  it("si Dataico no acepta los decimales del precio, la misma factura sale con centavos", async () => {
+    const order = await fiveAt4000();
+    responder = (call) =>
+      Number.isInteger(priceOf(call) * 100)
+        ? newInvoice("FE10001")
+        : Response.json({ errors: [{ path: "items.0.price", message: "solo se permiten 2 decimales" }] }, { status: 400 });
+
+    expect((await issueOrderInvoice(order.id)).status).toBe("ISSUED");
+
+    expect(calls.map((c) => [c.body!.invoice.number, priceOf(c)])).toEqual([
+      ["10001", 3361.344538],
+      ["10001", 3361.34],
+    ]);
+  });
+
   it("no factura en producción un pedido hecho en modo de prueba de Wompi", async () => {
     const { order } = await paidOrder();
     await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "PAID", paidAt: new Date(), paymentMode: "TEST" } });
