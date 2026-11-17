@@ -86,3 +86,11 @@ export const DATAICO_STORE_SLUGS = ["hlacosedora"];
 export function dataicoAllowed(brand: { storefrontSlug: string | null } | null | undefined) {
   return Boolean(brand?.storefrontSlug && DATAICO_STORE_SLUGS.includes(brand.storefrontSlug));
 }
+
+/// Actualizar inventario y precio de promoción con un archivo (CSV o
+/// Excel) desde Productos: solo H la Cosedora (pedido del 2026-11-17).
+export const INVENTORY_FILE_STORE_SLUGS = ["hlacosedora"];
+
+export function inventoryFileAllowed(brand: { storefrontSlug: string | null } | null | undefined) {
+  return Boolean(brand?.storefrontSlug && INVENTORY_FILE_STORE_SLUGS.includes(brand.storefrontSlug));
+}

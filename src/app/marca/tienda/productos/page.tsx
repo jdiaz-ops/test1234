@@ -7,6 +7,8 @@ import {
 import { StoreProductsPanel } from "@/components/portal/store-products-panel";
 import { publicStoreUrl } from "@/lib/store-url";
 import { StoreShell } from "@/components/portal/store-shell";
+import { InventoryFileUpdater } from "@/components/portal/inventory-file-updater";
+import { inventoryFileAllowed } from "@/lib/features";
 
 export default async function TiendaProductosPage() {
   const profile = await requireBrandProfile();
@@ -26,6 +28,13 @@ export default async function TiendaProductosPage() {
       <p className="text-sm text-brand-ink-soft mb-6 max-w-lg">
         El catálogo de tu tienda en Marcolini.
       </p>
+      {/* Inventario y precios de promoción con un archivo: solo H la
+          Cosedora (pedido del 2026-11-17). */}
+      {inventoryFileAllowed(profile) && (
+        <div className="mb-6">
+          <InventoryFileUpdater />
+        </div>
+      )}
       <StoreProductsPanel
         initialProducts={products.map(toManualProductSummary)}
         storeUrl={storeUrl}
