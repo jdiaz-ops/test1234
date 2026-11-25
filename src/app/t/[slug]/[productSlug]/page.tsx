@@ -25,6 +25,7 @@ import { getSiblingProducts } from "@/server/services/product-sibling-service";
 import { SiblingProducts } from "@/components/storefront/sibling-products";
 import { TRUST_ICON_OPTIONS } from "@/lib/brand-theme";
 import { storeCanonical } from "@/lib/store-url";
+import { storeShare } from "@/lib/store-share";
 
 export async function generateMetadata({
   params,
@@ -36,11 +37,18 @@ export async function generateMetadata({
   if (!brand) return {};
   const product = await getStorefrontProduct(brand.id, productSlug);
   if (!product) return {};
+  const title = `${product.name} — ${brand.companyName}`;
+  const description = product.description ? stripHtml(product.description) : undefined;
   return {
-    title: `${product.name} — ${brand.companyName}`,
-    description: product.description
-      ? stripHtml(product.description)
-      : undefined,
+    title,
+    description,
+    // Al compartir el producto (o en un anuncio que lleva a él): su
+    // nombre, su descripción y su foto.
+    openGraph: storeShare(brand, {
+      title,
+      description,
+      image: product.images[0]?.url ?? product.imageUrl,
+    }),
     alternates: storeCanonical(brand, `/${product.slug ?? productSlug}`),
   };
 }

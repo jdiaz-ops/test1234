@@ -9,6 +9,7 @@ import { CartProvider } from "@/components/storefront/cart-context";
 import { CartDrawer } from "@/components/storefront/cart-drawer";
 import { StorefrontThemeProvider } from "@/components/storefront/storefront-theme-context";
 import { getStorefrontBrand } from "@/server/services/store-order-service";
+import { storeDescription, storeShare } from "@/lib/store-share";
 import { resolveSlugRedirect } from "@/server/services/brand-store-config-service";
 import { ROOT_DOMAIN } from "@/lib/subdomain";
 import type { Metadata } from "next";
@@ -43,8 +44,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const brand = await getStorefrontBrand(slug);
-  const icon = brand?.faviconUrl || brand?.logoUrl;
-  return icon ? { icons: { icon, apple: icon } } : {};
+  if (!brand) return {};
+  const icon = brand.faviconUrl || brand.logoUrl;
+  // Lo que comparte cualquier página de la tienda que no traiga el suyo
+  // (sin esto heredaba el de Marcolini, ver store-share.ts).
+  return {
+    description: storeDescription(brand),
+    openGraph: storeShare(brand),
+    ...(icon ? { icons: { icon, apple: icon } } : {}),
+  };
 }
 
 export default async function StorefrontLayout({

@@ -9,6 +9,7 @@ import { StoreHeader } from "@/components/storefront/store-header";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { sanitizeProductDescription, stripHtml } from "@/lib/sanitize-html";
 import { storeCanonical } from "@/lib/store-url";
+import { storeShare } from "@/lib/store-share";
 
 export async function generateMetadata({
   params,
@@ -20,9 +21,12 @@ export async function generateMetadata({
   if (!brand) return {};
   const page = await getPublicStorePage(brand.id, pageSlug);
   if (!page) return {};
+  const title = `${page.title} — ${brand.companyName}`;
+  const description = page.body ? stripHtml(page.body) : undefined;
   return {
-    title: `${page.title} — ${brand.companyName}`,
-    description: page.body ? stripHtml(page.body) : undefined,
+    title,
+    description,
+    openGraph: storeShare(brand, { title, description }),
     alternates: storeCanonical(brand, `/pagina/${page.slug}`),
   };
 }

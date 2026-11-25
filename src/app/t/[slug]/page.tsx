@@ -8,6 +8,7 @@ import { listEnabledStorefrontSections } from "@/server/services/storefront-sect
 import { listStorefrontMenuForShoppers } from "@/server/services/storefront-menu-service";
 import { getStorefrontTheme } from "@/server/services/brand-theme-service";
 import { storeCanonical } from "@/lib/store-url";
+import { storeDescription, storeShare } from "@/lib/store-share";
 
 export async function generateMetadata({
   params,
@@ -18,12 +19,11 @@ export async function generateMetadata({
   const brand = await getStorefrontBrand(slug);
   if (!brand) return {};
   const title = `${brand.companyName} en Marcolini`;
-  const description =
-    brand.description || `Compra directo con ${brand.companyName}.`;
+  const description = storeDescription(brand);
   return {
     title,
     description,
-    openGraph: { title, description, type: "website" },
+    openGraph: storeShare(brand),
     alternates: storeCanonical(brand, "/"),
   };
 }

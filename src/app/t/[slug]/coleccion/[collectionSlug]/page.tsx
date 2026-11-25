@@ -11,6 +11,7 @@ import { CollectionBrowser } from "@/components/storefront/collection-browser";
 import { getStoreBasePath } from "@/lib/store-base-path";
 import { stripHtml } from "@/lib/sanitize-html";
 import { storeCanonical } from "@/lib/store-url";
+import { storeShare } from "@/lib/store-share";
 
 export async function generateMetadata({
   params,
@@ -22,9 +23,12 @@ export async function generateMetadata({
   if (!brand) return {};
   const collection = await getPublicBrandCollection(brand.id, collectionSlug);
   if (!collection) return {};
+  const title = `${collection.name} — ${brand.companyName}`;
+  const description = collection.description ? stripHtml(collection.description) : undefined;
   return {
-    title: `${collection.name} — ${brand.companyName}`,
-    description: collection.description ? stripHtml(collection.description) : undefined,
+    title,
+    description,
+    openGraph: storeShare(brand, { title, description, image: collection.imageUrl }),
     alternates: storeCanonical(brand, `/coleccion/${collection.slug}`),
   };
 }
