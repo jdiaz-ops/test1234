@@ -61,6 +61,13 @@ function titleCase(name: string) {
     .replace("d.c.", "D.C.");
 }
 
+/// Nombre del municipio con su código DANE de 5 dígitos ("05001" →
+/// "Medellín"), o null si no existe.
+export function municipalityName(code: string): string | null {
+  const found = COLOMBIA_MUNICIPALITIES.find(([c]) => c === code);
+  return found ? titleCase(found[1]) : null;
+}
+
 /// Municipios de un departamento, para sugerir la ciudad en el checkout.
 export function municipalitiesOf(region: string): string[] {
   const dept = REGION_DANE_CODE[region];

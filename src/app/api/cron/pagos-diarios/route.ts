@@ -21,6 +21,7 @@ import { evaluateCreatorBadges } from "@/server/services/creator-badge-service";
 import { sendOnboardingReminders } from "@/server/services/creator-onboarding-service";
 import { retryFailedDeliveries } from "@/server/services/webhook-service";
 import { retryFailedInvoices } from "@/server/services/dataico-service";
+import { refreshShippedEnviaOrders } from "@/server/services/envia-service";
 import { reconcilePendingOrders } from "@/server/services/store-order-service";
 import { notifyGatewayReady } from "@/server/services/payment-gateway-request-service";
 
@@ -97,6 +98,11 @@ async function runDailyJob() {
     console.error("[cron] Falló el reintento de facturas:", err);
     return { retried: 0, issued: 0 };
   });
+  // Guías de Envia en camino: por si no llegó el aviso de entrega.
+  const enviaTracking = await refreshShippedEnviaOrders().catch((err) => {
+    console.error("[cron] Falló la revisión de guías de Envia:", err);
+    return { checked: 0, delivered: 0 };
+  });
 
   const chargeResults = today === config.chargeDayOfMonth ? await runBrandCharges() : [];
   const payoutResults = today === config.payoutDayOfMonth ? await runCreatorPayouts() : [];
@@ -122,6 +128,8 @@ async function runDailyJob() {
     gatewayReady,
     invoicesRetried: invoiceRetries.retried,
     invoicesIssued: invoiceRetries.issued,
+    enviaLabelsChecked: enviaTracking.checked,
+    enviaLabelsDelivered: enviaTracking.delivered,
     brandCharges: chargeResults.length,
     creatorPayouts: payoutResults.length,
   };

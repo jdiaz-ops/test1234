@@ -5,7 +5,10 @@ import { canDeleteStoreOrder, getBrandOrderDetail } from "@/server/services/stor
 import { PAYMENT_PROVIDERS, isPaymentProviderId } from "@/lib/payment-providers";
 import { OrderArchiveActions } from "@/components/portal/order-archive-actions";
 import { getDataicoConnection } from "@/server/services/dataico-service";
-import { dataicoAllowed } from "@/lib/features";
+import { getEnviaConnection } from "@/server/services/envia-service";
+import { dataicoAllowed, enviaAllowed } from "@/lib/features";
+import { enviaStatusLabel } from "@/lib/envia-address";
+import { OrderEnviaPanel } from "@/components/portal/order-envia-panel";
 import { OrderInvoicePanel } from "@/components/portal/order-invoice-panel";
 import { prisma } from "@/lib/prisma";
 import { creatorVitrinaUrl } from "@/lib/creator-identity";
@@ -67,10 +70,13 @@ export default async function TiendaPedidoDetallePage({
   if (!profile) redirect("/login");
 
   const { orderId } = await params;
-  const [order, dataico] = await Promise.all([
+  const showEnvia = enviaAllowed(profile);
+  const [order, dataico, envia] = await Promise.all([
     getBrandOrderDetail(profile.id, orderId),
     // Dataico solo para las tiendas de DATAICO_STORE_SLUGS.
     dataicoAllowed(profile) ? getDataicoConnection(profile.id) : null,
+    // Y Envia para las de ENVIA_STORE_SLUGS.
+    showEnvia ? getEnviaConnection(profile.id) : null,
   ]);
   if (!order) notFound();
 
@@ -182,7 +188,53 @@ export default async function TiendaPedidoDetallePage({
               <p className="text-sm font-medium text-brand-ink mb-3">
                 Preparación y envío
               </p>
+              {envia ? (
+                <div className="mb-4">
+                  <OrderEnviaPanel
+                    orderId={order.id}
+                    sandbox={envia.sandbox}
+                    label={
+                      order.enviaCarrier && order.trackingNumber
+                        ? {
+                            carrier: order.carrier ?? order.enviaCarrier,
+                            trackingNumber: order.trackingNumber,
+                            labelUrl: order.enviaLabelUrl,
+                            trackUrl: order.trackingUrl,
+                            costCents: order.enviaCostCents,
+                            statusLabel:
+                              order.fulfillmentStatus === "DELIVERED" ? "Entregado" : enviaStatusLabel(order.enviaStatus),
+                            delivered: order.fulfillmentStatus === "DELIVERED",
+                          }
+                        : null
+                    }
+                    defaults={{
+                      lengthCm: envia.packageLengthCm,
+                      widthCm: envia.packageWidthCm,
+                      heightCm: envia.packageHeightCm,
+                      weightGrams: envia.packageWeightGrams,
+                      declaredValue: Math.max(0, Math.round((order.subtotalCents - order.discountCents) / 100)),
+                      street: (order.shippingAddress ?? "").slice(0, 200),
+                      region: order.shippingRegion ?? "",
+                      city: order.shippingCity ?? "",
+                      postalCode: order.shippingPostalCode ?? "",
+                      reference: (order.shippingNotes ?? "").slice(0, 120),
+                    }}
+                  />
+                </div>
+              ) : (
+                showEnvia && (
+                  <p className="text-xs text-brand-ink-soft mb-3">
+                    ¿Despachas con Envia?{" "}
+                    <Link href="/marca/tienda/conexiones" className="text-brand-accent hover:underline">
+                      Conecta tu cuenta
+                    </Link>{" "}
+                    y crea la guía desde aquí.
+                  </p>
+                )
+              )}
               <OrderFulfillmentPanel
+                // Se vuelve a armar cuando la guía de Envia cambia el envío.
+                key={`${order.trackingNumber ?? ""}-${order.fulfillmentStatus}`}
                 orderId={order.id}
                 initialStatus={order.fulfillmentStatus}
                 initialCarrier={order.carrier}

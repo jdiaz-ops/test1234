@@ -4,7 +4,9 @@ import { SettingsShell } from "@/components/portal/settings-shell";
 import { ConnectionsPanel } from "@/components/portal/connections-panel";
 import { getWebhookSigningSecret, listBrandWebhooks } from "@/server/services/webhook-service";
 import { getDataicoConnection } from "@/server/services/dataico-service";
-import { dataicoAllowed } from "@/lib/features";
+import { getEnviaConnection } from "@/server/services/envia-service";
+import { dataicoAllowed, enviaAllowed } from "@/lib/features";
+import { portalUrl } from "@/lib/store-url";
 
 export default async function TiendaConexionesPage() {
   const profile = await requireBrandProfile();
@@ -12,10 +14,13 @@ export default async function TiendaConexionesPage() {
 
   // Dataico solo existe para las tiendas de DATAICO_STORE_SLUGS.
   const showDataico = dataicoAllowed(profile);
-  const [webhooks, secret, dataico] = await Promise.all([
+  // Envia solo para las de ENVIA_STORE_SLUGS.
+  const showEnvia = enviaAllowed(profile);
+  const [webhooks, secret, dataico, envia] = await Promise.all([
     listBrandWebhooks(profile.id),
     getWebhookSigningSecret(profile.id),
     showDataico ? getDataicoConnection(profile.id) : null,
+    showEnvia ? getEnviaConnection(profile.id) : null,
   ]);
 
   return (
@@ -34,6 +39,32 @@ export default async function TiendaConexionesPage() {
                 nextNumber: dataico.nextNumber,
                 sendEmail: dataico.sendEmail,
                 enabled: dataico.enabled,
+              }
+            : null
+        }
+        showEnvia={showEnvia}
+        envia={
+          envia
+            ? {
+                // La llave nunca viaja completa al navegador.
+                tokenLast4: envia.apiToken.slice(-4),
+                sandbox: envia.sandbox,
+                webhookUrl: `${portalUrl()}/api/webhooks/envia/${envia.webhookSecret}`,
+                lastWebhookAt: envia.lastWebhookAt?.toISOString() ?? null,
+                originName: envia.originName,
+                originCompany: envia.originCompany,
+                originPhone: envia.originPhone,
+                originEmail: envia.originEmail,
+                originStreet: envia.originStreet,
+                originRegion: envia.originRegion,
+                originCity: envia.originCity,
+                originPostalCode: envia.originPostalCode,
+                originReference: envia.originReference,
+                packageLengthCm: envia.packageLengthCm,
+                packageWidthCm: envia.packageWidthCm,
+                packageHeightCm: envia.packageHeightCm,
+                packageWeightGrams: envia.packageWeightGrams,
+                packageContent: envia.packageContent,
               }
             : null
         }

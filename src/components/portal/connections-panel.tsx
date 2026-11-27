@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { WEBHOOK_TOPICS, webhookTopicLabel } from "@/lib/webhook-topics";
 import { formatShortDateTimeCo } from "@/lib/date-time-co";
 import { DataicoConnectionCard, type DataicoConnectionView } from "@/components/portal/dataico-connection-card";
+import { EnviaConnectionCard, type EnviaConnectionView } from "@/components/portal/envia-connection-card";
 
 type Delivery = {
   id: string;
@@ -277,12 +278,17 @@ export function ConnectionsPanel({
   signingSecret,
   dataico,
   showDataico,
+  envia,
+  showEnvia,
 }: {
   webhooks: Webhook[];
   signingSecret: string;
   dataico: DataicoConnectionView | null;
   /// Solo las tiendas de DATAICO_STORE_SLUGS (ver lib/features.ts).
   showDataico: boolean;
+  envia: EnviaConnectionView | null;
+  /// Solo las tiendas de ENVIA_STORE_SLUGS (ver lib/features.ts).
+  showEnvia: boolean;
 }) {
   const [creating, setCreating] = useState(false);
   const hasDataicoWebhook = webhooks.some((w) => /^https:\/\/([^/]+\.)?dataico\.com\//i.test(w.url));
@@ -296,6 +302,7 @@ export function ConnectionsPanel({
       </p>
 
       {showDataico && <DataicoConnectionCard initial={dataico} hasDataicoWebhook={hasDataicoWebhook} />}
+      {showEnvia && <EnviaConnectionCard initial={envia} />}
 
       <Card>
         <div className="px-5 pt-4 pb-3">

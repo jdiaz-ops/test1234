@@ -771,6 +771,9 @@ export async function updateOrderFulfillment(
     carrier?: string | null;
     trackingNumber?: string | null;
   },
+  /// notifyBuyer: false = sin el correo de "va en camino" (una guía de
+  /// prueba de Envia, ver envia-service.ts).
+  options: { notifyBuyer?: boolean } = {},
 ) {
   const order = await prisma.storeOrder.findFirst({
     where: { id: data.orderId, brandId },
@@ -809,7 +812,7 @@ export async function updateOrderFulfillment(
   });
   // La primera vez que sale, el comprador recibe la guía y el link de
   // rastreo. Ver conversación del 2026-09-30.
-  if (becomesShipped) await sendOrderShippedEmailFor(order.id);
+  if (becomesShipped && options.notifyBuyer !== false) await sendOrderShippedEmailFor(order.id);
   await emitOrderEvent(order.id, becomesShipped ? ["orders/updated", "orders/fulfilled"] : ["orders/updated"]);
   return result;
 }

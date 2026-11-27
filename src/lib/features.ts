@@ -94,3 +94,11 @@ export const INVENTORY_FILE_STORE_SLUGS = ["hlacosedora"];
 export function inventoryFileAllowed(brand: { storefrontSlug: string | null } | null | undefined) {
   return Boolean(brand?.storefrontSlug && INVENTORY_FILE_STORE_SLUGS.includes(brand.storefrontSlug));
 }
+
+/// Crear la guía con Envia.com desde el pedido (Tienda → Conexiones →
+/// Envia): solo H la Cosedora por ahora (pedido del 2026-11-27).
+export const ENVIA_STORE_SLUGS = ["hlacosedora"];
+
+export function enviaAllowed(brand: { storefrontSlug: string | null } | null | undefined) {
+  return Boolean(brand?.storefrontSlug && ENVIA_STORE_SLUGS.includes(brand.storefrontSlug));
+}

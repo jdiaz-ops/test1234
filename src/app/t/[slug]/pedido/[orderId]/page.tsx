@@ -65,6 +65,8 @@ export default async function StorefrontOrderStatusPage({
   const isService = order.servicePreferredAt != null;
   const allServicesConfirmed = order.items.every((i) => i.serviceConfirmedAt != null);
   const basePath = await getStoreBasePath(slug);
+  // El link de la guía (Envia lo da) o, si no, la página de la transportadora.
+  const trackUrl = order.trackingUrl ?? trackingUrlFor(order.carrier);
 
   return (
     <div className="min-h-screen bg-brand-bg flex items-center justify-center px-6 py-16">
@@ -109,14 +111,14 @@ export default async function StorefrontOrderStatusPage({
                 Número de guía: <span className="font-mono text-brand-ink">{order.trackingNumber}</span>
               </p>
             )}
-            {trackingUrlFor(order.carrier) && (
+            {trackUrl && (
               <a
-                href={trackingUrlFor(order.carrier)!}
+                href={trackUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block mt-1 text-brand-ink underline font-medium"
               >
-                Rastrear en {order.carrier}
+                {order.trackingUrl ? "Rastrear tu pedido" : `Rastrear en ${order.carrier}`}
               </a>
             )}
           </div>

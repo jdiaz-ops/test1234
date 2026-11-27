@@ -121,7 +121,7 @@ export async function sendOrderShippedEmailFor(orderId: string) {
       {
         carrier: order.carrier,
         trackingNumber: order.trackingNumber,
-        trackingUrl: trackingUrlFor(order.carrier),
+        trackingUrl: order.trackingUrl ?? trackingUrlFor(order.carrier),
       },
       buyerOrderUrl(order),
     );

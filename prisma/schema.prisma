@@ -717,6 +717,7 @@ model BrandProfile {
   webhookSigningSecret String?
   /// Conexión directa con Dataico (facturación electrónica por API).
   dataicoConnection    DataicoConnection?
+  enviaConnection      EnviaConnection?
 
   /// Dominio propio de la marca (ej. "tienda.marcauno.com"), gratis —
   /// alternativa al subdominio de arriba. Null hasta que la marca lo
@@ -1349,9 +1350,24 @@ model StoreOrder {
   fulfillmentStatus StoreOrderFulfillmentStatus @default(UNFULFILLED)
   carrier           String?
   trackingNumber    String?
+  /// Link de rastreo de esta guía (el que da Envia al crearla). Sin él, el
+  /// correo y la página del pedido usan la página de la transportadora
+  /// (ver trackingUrlFor).
+  trackingUrl       String?
   preparedAt        DateTime?
   shippedAt         DateTime?
   deliveredAt       DateTime?
+  /// Guía creada desde el pedido con Envia (ver envia-service.ts): código
+  /// de la transportadora y del servicio en Envia (para rastrearla o
+  /// anularla), el PDF para imprimir, lo que costó (de la cuenta de Envia
+  /// de la marca) y el último estado que reportó Envia. enviaLabelAt sin
+  /// enviaLabelUrl = la guía se está creando en este momento.
+  enviaCarrier      String?
+  enviaService      String?
+  enviaLabelUrl     String?
+  enviaCostCents    Int?
+  enviaLabelAt      DateTime?
+  enviaStatus       String?
 
   /// Notas internas de la marca sobre el pedido — nunca las ve el
   /// comprador. Ver conversación del 2026-09-14 (captura de referencia
@@ -3010,6 +3026,47 @@ model DataicoConnection {
   nextNumber       Int?
   /// Que Dataico le mande la factura por correo al comprador.
   sendEmail        Boolean    @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Conexión de la marca con su cuenta de Envia.com, para crear la guía
+/// desde el pedido (cotiza con las transportadoras de su cuenta, crea la
+/// guía, marca el pedido como enviado y Envia avisa cuando se entrega).
+/// Solo las tiendas de ENVIA_STORE_SLUGS (src/lib/features.ts). Ver
+/// envia-service.ts y conversación del 2026-11-27.
+model EnviaConnection {
+  id      String       @id @default(cuid())
+  brandId String       @unique
+  brand   BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  apiToken String
+  /// La llave es de la cuenta de pruebas de Envia (guías de mentira).
+  sandbox  Boolean @default(false)
+  /// Va en el link de avisos que la marca pega en Envia
+  /// (/api/webhooks/envia/<secreto>): así se sabe de qué marca es el aviso.
+  webhookSecret String    @unique
+  lastWebhookAt DateTime?
+
+  /// Desde dónde se despacha. originRegion es un departamento de
+  /// COLOMBIA_REGIONS y originCity un municipio de ese departamento.
+  originName       String
+  originCompany    String?
+  originPhone      String
+  originEmail      String?
+  originStreet     String
+  originRegion     String
+  originCity       String
+  originPostalCode String?
+  originReference  String?
+
+  /// El paquete de siempre (se puede cambiar en cada guía).
+  packageLengthCm    Int    @default(20)
+  packageWidthCm     Int    @default(15)
+  packageHeightCm    Int    @default(10)
+  packageWeightGrams Int    @default(500)
+  packageContent     String @default("Productos para uñas")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
