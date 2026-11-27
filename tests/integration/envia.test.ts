@@ -428,6 +428,20 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     const merged = await PDFDocument.load(await res.arrayBuffer());
     expect(merged.getPages().map((p) => p.getWidth())).toEqual([200, 100]);
 
+    // Con la hoja de empaque: primero ella (hoja carta, 612 de ancho) y
+    // después las guías, en el mismo orden; todo en un PDF.
+    const both = await guidesPdfRoute(
+      new Request("https://marcolini.lat/api/marca/tienda/pedidos/envia/guias", {
+        method: "POST",
+        body: JSON.stringify({ orderIds: [b.id, sinGuia.id, a.id, perdida.id], conEmpaque: true }),
+      }),
+    );
+    expect(both.status).toBe(200);
+    expect(both.headers.get("content-disposition")).toContain("guias-y-hoja-de-empaque.pdf");
+    expect(both.headers.get("X-Guias-Faltantes")).toBe("2");
+    const combined = await PDFDocument.load(await both.arrayBuffer());
+    expect(combined.getPages().map((p) => p.getWidth())).toEqual([612, 200, 100]);
+
     // Otra marca no baja las guías de esta.
     const other = await createBrand();
     session.profile = { id: other.id, storefrontSlug: "hlacosedora" };

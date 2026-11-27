@@ -59,6 +59,10 @@ export function useEnviaGuides() {
 
   async function quote(id: string) {
     set(id, { kind: "quoting" });
+    await fetchQuote(id);
+  }
+
+  async function fetchQuote(id: string) {
     const { ok, data } = await post({ action: "cotizar-rapido", orderId: id });
     if (!ok || !data?.quote) {
       set(id, { kind: "error", text: data?.error ?? "No se pudo cotizar. Revisa tu conexión a internet." });
@@ -88,29 +92,37 @@ export function useEnviaGuides() {
     states,
     quote,
     create,
-    quoteMany: (ids: string[]) => inBatches(ids, 3, quote),
-    /// Devuelve cuántas se crearon.
+    /// Todos quedan "cotizando" de una vez (así no se cotizan dos veces) y
+    /// se consultan de a 3.
+    async quoteMany(ids: string[]) {
+      if (ids.length === 0) return;
+      setStates((prev) => ({ ...prev, ...Object.fromEntries(ids.map((id) => [id, { kind: "quoting" } as GuideState])) }));
+      await inBatches(ids, 3, fetchQuote);
+    },
+    /// Devuelve los pedidos a los que sí se les creó la guía, en orden.
     async createMany(entries: { id: string; quote: Quote; weightGrams: number }[], onProgress: (done: number) => void) {
       let done = 0;
-      let created = 0;
+      const created = new Set<string>();
       await inBatches(entries, 2, async (e) => {
-        if (await create(e.id, e.quote, e.weightGrams)) created += 1;
+        if (await create(e.id, e.quote, e.weightGrams)) created.add(e.id);
         onProgress(++done);
       });
-      return created;
+      return entries.filter((e) => created.has(e.id)).map((e) => e.id);
     },
   };
 }
 
-/// Baja las guías de esos pedidos en un PDF (o varios, de a 30).
-export async function downloadGuides(orderIds: string[]): Promise<{ ok: boolean; text: string }> {
+/// Baja las guías de esos pedidos en un PDF (o varios, de a 30). Con
+/// `packing`, cada PDF empieza con la hoja de empaque de esos pedidos.
+export async function downloadGuides(orderIds: string[], options: { packing?: boolean } = {}): Promise<{ ok: boolean; text: string }> {
   let missing = 0;
   let files = 0;
+  const name = options.packing ? "guias-y-hoja-de-empaque" : "guias-envia";
   for (let i = 0; i < orderIds.length; i += MAX_PER_PDF) {
     const res = await fetch("/api/marca/tienda/pedidos/envia/guias", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderIds: orderIds.slice(i, i + MAX_PER_PDF) }),
+      body: JSON.stringify({ orderIds: orderIds.slice(i, i + MAX_PER_PDF), conEmpaque: options.packing === true }),
     }).catch(() => null);
     if (!res?.ok) {
       const data = await res?.json().catch(() => null);
@@ -120,7 +132,7 @@ export async function downloadGuides(orderIds: string[]): Promise<{ ok: boolean;
     const url = URL.createObjectURL(await res.blob());
     const link = document.createElement("a");
     link.href = url;
-    link.download = orderIds.length > MAX_PER_PDF ? `guias-envia-${i / MAX_PER_PDF + 1}.pdf` : "guias-envia.pdf";
+    link.download = orderIds.length > MAX_PER_PDF ? `${name}-${i / MAX_PER_PDF + 1}.pdf` : `${name}.pdf`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
     files += 1;
@@ -130,8 +142,10 @@ export async function downloadGuides(orderIds: string[]): Promise<{ ok: boolean;
     text:
       missing === 0
         ? files === 1
-          ? "Guías descargadas en un solo PDF."
-          : `Guías descargadas en ${files} PDF.`
+          ? options.packing
+            ? "Listo: la hoja de empaque y las guías quedaron en un solo PDF para imprimir."
+            : "Guías descargadas en un solo PDF."
+          : `Listo: quedó todo en ${files} PDF (de a ${MAX_PER_PDF} pedidos).`
         : `Faltaron ${missing} ${missing === 1 ? "guía" : "guías"}: descárgalas desde cada pedido.`,
   };
 }

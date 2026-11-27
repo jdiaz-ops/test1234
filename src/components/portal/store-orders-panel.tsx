@@ -291,6 +291,9 @@ export function StoreOrdersPanel({
     return canGuide(o) && state?.kind === "quoted" ? [{ id: o.id, quote: state.quote, weightGrams: state.weightGrams }] : [];
   });
   const quotedTotal = quoted.reduce((sum, q) => sum + q.quote.priceCents, 0);
+  // Mientras falte alguno por cotizar no se ofrece crear: si no, quedaría
+  // por fuera del lote sin que se note.
+  const stillQuoting = selectedRows.filter((o) => canGuide(o) && guideState(o)?.kind === "quoting").length;
   const withPdf = selectedRows.filter(guidePdf).map((o) => o.id);
   const plural = (n: number) => (n === 1 ? "guía" : "guías");
   const charge = envia?.sandbox
@@ -304,18 +307,28 @@ export function StoreOrdersPanel({
     setWorking(null);
   }
 
+  /// Crea las guías y, apenas termina, baja un solo PDF con la hoja de
+  /// empaque y las guías de lo que se creó, para imprimir de una vez.
   async function createSelected() {
     if (!window.confirm(`¿Crear ${quoted.length} ${plural(quoted.length)} por ${formatCOP(quotedTotal)} en total? ${charge}`)) return;
     setMessage(null);
     setWorking(`Creando 0 de ${quoted.length}…`);
     const created = await guides.createMany(quoted, (done) => setWorking(`Creando ${done} de ${quoted.length}…`));
-    setWorking(null);
-    setMessage(
-      created === quoted.length
-        ? { ok: true, text: `${created} ${created === 1 ? "guía creada" : "guías creadas"}. Descárgalas en un solo PDF con «Descargar guías».` }
-        : { ok: false, text: `Se crearon ${created} de ${quoted.length}. En la columna Guía dice por qué fallaron las otras.` },
-    );
     router.refresh();
+    const failed = quoted.length - created.length;
+    const failures = failed > 0 ? ` No se crearon ${failed}: en la columna Guía dice por qué.` : "";
+    if (created.length === 0) {
+      setWorking(null);
+      setMessage({ ok: false, text: `No se creó ninguna guía.${failures}` });
+      return;
+    }
+    setWorking("Bajando la hoja de empaque y las guías…");
+    const download = await downloadGuides(created, { packing: true });
+    setWorking(null);
+    setMessage({
+      ok: download.ok && failed === 0,
+      text: `${created.length} ${created.length === 1 ? "guía creada" : "guías creadas"}. ${download.text}${failures}`,
+    });
   }
 
   async function createOne(o: StoreOrderRow, quote: { carrierName: string; priceCents: number }, weightGrams: number) {
@@ -323,7 +336,13 @@ export function StoreOrdersPanel({
     if (!window.confirm(`¿Crear la guía del pedido #${ref} con ${quote.carrierName} por ${formatCOP(quote.priceCents)}? ${charge}`)) return;
     const state = guideState(o);
     if (state?.kind !== "quoted") return;
-    if (await guides.create(o.id, state.quote, weightGrams)) router.refresh();
+    if (!(await guides.create(o.id, state.quote, weightGrams))) return;
+    router.refresh();
+    // Igual que en lote: la hoja de empaque y la guía, listas para imprimir.
+    setMessage(null);
+    setWorking("Bajando la hoja de empaque y la guía…");
+    setMessage(await downloadGuides([o.id], { packing: true }));
+    setWorking(null);
   }
 
   // Hoja de empaque: los pedidos con envío, en el orden de la lista (el
@@ -358,11 +377,19 @@ export function StoreOrdersPanel({
   async function downloadSelected() {
     setMessage(null);
     setWorking("Preparando el PDF…");
-    setMessage(await downloadGuides(withPdf));
+    setMessage(await downloadGuides(withPdf, { packing: true }));
     setWorking(null);
   }
 
+  /// Al seleccionar pedidos por enviar, se cotizan solos (sin el botón
+  /// Cotizar): menos pasos (pedido del 2026-11-27).
+  function quoteNew(rows: StoreOrderRow[]) {
+    if (!envia) return;
+    void guides.quoteMany(rows.filter((o) => canGuide(o) && !guideState(o)).map((o) => o.id));
+  }
+
   function toggle(id: string) {
+    if (!selected.has(id)) quoteNew(shown.filter((o) => o.id === id));
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -486,7 +513,7 @@ export function StoreOrdersPanel({
                 Hoja de empaque (PDF)
               </button>
             )}
-            {envia && (toQuote.length > 0 || quoted.length > 0 || withPdf.length > 0) && (
+            {envia && (toQuote.length > 0 || stillQuoting > 0 || quoted.length > 0 || withPdf.length > 0) && (
               <span className="flex flex-wrap items-center gap-2 border-l border-brand-line pl-3">
                 {toQuote.length > 0 && (
                   <button
@@ -495,10 +522,15 @@ export function StoreOrdersPanel({
                     onClick={quoteSelected}
                     className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
                   >
-                    Cotizar {toQuote.length} {plural(toQuote.length)}
+                    Cotizar {toQuote.length} {plural(toQuote.length)} otra vez
                   </button>
                 )}
-                {quoted.length > 0 && (
+                {stillQuoting > 0 && (
+                  <span className="text-xs text-brand-ink-soft">
+                    Cotizando {stillQuoting} {stillQuoting === 1 ? "pedido" : "pedidos"}…
+                  </span>
+                )}
+                {quoted.length > 0 && stillQuoting === 0 && (
                   <button
                     type="button"
                     disabled={busy || working != null}
@@ -515,7 +547,7 @@ export function StoreOrdersPanel({
                     onClick={downloadSelected}
                     className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
                   >
-                    Descargar {withPdf.length} {plural(withPdf.length)} (PDF)
+                    Hoja de empaque + {withPdf.length} {plural(withPdf.length)} (PDF)
                   </button>
                 )}
                 {working && <span className="text-xs text-brand-ink-soft">{working}</span>}
@@ -532,8 +564,8 @@ export function StoreOrdersPanel({
 
         {view === "toShip" && envia && shown.length > 0 && (
           <p className="px-4 py-2 text-xs text-brand-ink-soft border-b border-brand-line bg-brand-bg/50">
-            Selecciona los pedidos y dale «Cotizar» para ver el flete de cada uno con {envia.carrierName ?? "tus transportadoras"}. Después creas
-            todas las guías y las descargas en un solo PDF.
+            Selecciona los pedidos y el flete de cada uno con {envia.carrierName ?? "tus transportadoras"} sale solo. Al crear las guías se
+            baja un solo PDF con la hoja de empaque y las guías, listo para imprimir.
           </p>
         )}
 
@@ -565,7 +597,10 @@ export function StoreOrdersPanel({
                       type="checkbox"
                       aria-label="Seleccionar todos"
                       checked={allShownSelected}
-                      onChange={() => setSelected(allShownSelected ? new Set() : new Set(shown.map((o) => o.id)))}
+                      onChange={() => {
+                        if (!allShownSelected) quoteNew(shown);
+                        setSelected(allShownSelected ? new Set() : new Set(shown.map((o) => o.id)));
+                      }}
                       className="w-4 h-4 accent-brand-ink"
                     />
                   </th>

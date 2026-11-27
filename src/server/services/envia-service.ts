@@ -26,6 +26,7 @@ import {
   type EnviaShipment,
 } from "@/server/integrations/envia-client";
 import { StoreOrderError, updateOrderFulfillment } from "@/server/services/store-order-service";
+import { packingSlipsPdf } from "@/server/services/packing-slip-service";
 
 /// Guías con Envia.com desde el pedido, con la cuenta de Envia de la marca:
 /// cotiza con sus transportadoras, crea la guía (se cobra de su saldo en
@@ -441,18 +442,26 @@ async function downloadPdf(url: string): Promise<Uint8Array | null> {
 }
 
 /// Las guías de varios pedidos en un solo PDF, en el orden pedido, para
-/// imprimirlas de una vez. `missing`: las que no se pudieron incluir.
-export async function mergedOrderLabels(brandId: string, orderIds: string[]) {
+/// imprimirlas de una vez. Con `packing`, primero la hoja de empaque de esos
+/// mismos pedidos (los que tienen guía), en el mismo orden: todo se
+/// imprime junto en papel carta (pedido del 2026-11-27). `missing`: las
+/// guías que no se pudieron incluir.
+export async function mergedOrderLabels(brandId: string, orderIds: string[], options: { packing?: boolean } = {}) {
   const ids = orderIds.slice(0, MAX_LABELS_PER_PDF);
   const orders = await prisma.storeOrder.findMany({
     where: { brandId, id: { in: ids }, enviaLabelUrl: { not: null } },
     select: { id: true, enviaLabelUrl: true },
   });
   const urlOf = new Map(orders.map((o) => [o.id, o.enviaLabelUrl!]));
-  const urls = ids.flatMap((id) => (urlOf.has(id) ? [urlOf.get(id)!] : []));
+  const labeled = ids.filter((id) => urlOf.has(id));
+  const urls = labeled.map((id) => urlOf.get(id)!);
   const files = await inBatches(urls, 5, downloadPdf);
 
   const merged = await PDFDocument.create();
+  if (options.packing && labeled.length > 0) {
+    const sheet = await PDFDocument.load(await packingSlipsPdf(brandId, labeled));
+    for (const page of await merged.copyPages(sheet, sheet.getPageIndices())) merged.addPage(page);
+  }
   let missing = ids.length - urls.length;
   for (const bytes of files) {
     if (!bytes) {

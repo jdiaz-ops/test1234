@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
+import { downloadGuides } from "@/components/portal/store-orders-envia";
 
 export type OrderEnviaLabel = {
   carrier: string;
@@ -71,7 +72,7 @@ export function OrderEnviaPanel({
   const [quotes, setQuotes] = useState<Quote[] | null>(null);
   const [failed, setFailed] = useState<string[]>([]);
   const [chosen, setChosen] = useState<number | null>(null);
-  const [busy, setBusy] = useState<"cotizar" | "crear" | "estado" | "anular" | null>(null);
+  const [busy, setBusy] = useState<"cotizar" | "crear" | "estado" | "anular" | "pdf" | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function send(action: "cotizar" | "crear" | "estado" | "anular", extra: Record<string, unknown> = {}) {
@@ -124,7 +125,17 @@ export function OrderEnviaPanel({
     if (!window.confirm(ask)) return;
     const body = await send("crear", { ...shipment(), carrier: q.carrier, service: q.service, priceCents: q.priceCents });
     if (!body) return;
+    // Apenas se crea, la hoja de empaque y la guía en un solo PDF.
+    await downloadPdf();
     router.refresh();
+  }
+
+  async function downloadPdf() {
+    setBusy("pdf");
+    setMessage(null);
+    const result = await downloadGuides([orderId], { packing: true });
+    setBusy(null);
+    if (!result.ok) setMessage(result);
   }
 
   async function refreshStatus() {
@@ -177,13 +188,23 @@ export function OrderEnviaPanel({
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {label.labelUrl && (
+            <button
+              type="button"
+              onClick={downloadPdf}
+              disabled={busy != null}
+              className="bg-brand-accent text-white rounded-full px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {busy === "pdf" ? "Preparando el PDF..." : "Hoja de empaque + guía (PDF)"}
+            </button>
+          )}
+          {label.labelUrl && (
             <a
               href={label.labelUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-brand-accent text-white rounded-full px-4 py-2 text-sm font-medium hover:opacity-90"
+              className="text-sm border border-brand-line rounded-full px-4 py-2 hover:bg-brand-accent-soft"
             >
-              Descargar guía (PDF)
+              Solo la guía
             </a>
           )}
           {label.trackUrl && (
