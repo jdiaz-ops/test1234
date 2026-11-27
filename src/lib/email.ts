@@ -23,7 +23,28 @@ export function isPlaceholderEmail(email: string | null | undefined) {
   return Boolean(email && email.toLowerCase().endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`));
 }
 
-async function send(to: string, subject: string, html: string): Promise<EmailSendResult> {
+/// El remitente con otro nombre visible y la misma dirección:
+/// "H la Cosedora" <no-reply@…>. Los correos a quien compra en una tienda
+/// salen con el nombre de la marca, porque la gente no sabe qué es
+/// Marcolini (pedido del 2026-11-27). Los de la plataforma (a marcas y
+/// creadoras) siguen saliendo como Marcolini.
+export function fromWithName(name: string, from: string = FROM): string {
+  const address = /<([^>]+)>/.exec(from)?.[1]?.trim() ?? from.trim();
+  const clean = name
+    .replace(/[\r\n"\\<>]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 70);
+  return clean ? `"${clean}" <${address}>` : from;
+}
+
+async function send(
+  to: string,
+  subject: string,
+  html: string,
+  /// fromName: el nombre que ve quien lo recibe (el de la marca).
+  options: { fromName?: string } = {},
+): Promise<EmailSendResult> {
   if (isPlaceholderEmail(to)) {
     console.log(`[email] Sin dueña todavía: no se manda "${subject}" a ${to}.`);
     return { ok: false, error: "La marca todavía no tiene correo de contacto." };
@@ -39,7 +60,8 @@ async function send(to: string, subject: string, html: string): Promise<EmailSen
     // Resend NO lanza error cuando rechaza un correo (dominio sin
     // verificar, remitente de prueba, límite…): lo devuelve en `error`.
     // Antes no se leía y esos rechazos pasaban en silencio (2026-10-01).
-    const { data, error } = await resend.emails.send({ from: FROM, to, subject, html });
+    const from = options.fromName ? fromWithName(options.fromName) : FROM;
+    const { data, error } = await resend.emails.send({ from, to, subject, html });
     if (error) {
       console.error(`[email] Resend rechazó el correo a ${to} ("${subject}"): ${error.name} — ${error.message}`);
       return { ok: false, error: `${error.message} (${error.name})` };
@@ -178,7 +200,8 @@ export async function sendServiceBookingConfirmedEmail(
     `${params.companyName} confirmó tu reserva — ${params.serviceName}`,
     `<p>¡Buenas noticias! ${params.companyName} confirmó tu reserva de "${params.serviceName}".</p>
      <p><strong>Fecha y hora: ${params.confirmedAt}</strong></p>
-     ${params.meetingInfo ? `<p>${params.meetingInfo.replace(/\n/g, "<br/>")}</p>` : ""}`
+     ${params.meetingInfo ? `<p>${params.meetingInfo.replace(/\n/g, "<br/>")}</p>` : ""}`,
+    { fromName: params.companyName },
   );
 }
 
@@ -401,6 +424,7 @@ ${itemsTable(data)}
 ${addressBlock(data)}
 ${orderUrl ? button(orderUrl, "Ver mi pedido") : ""}`,
     ),
+    { fromName: data.brandName },
   );
 }
 
@@ -536,6 +560,7 @@ ${
 ${shipment.trackingUrl ? button(shipment.trackingUrl, "Rastrear mi envío") : ""}
 ${orderUrl ? `<p><a href="${escapeHtml(orderUrl)}">Ver mi pedido</a></p>` : ""}`,
     ),
+    { fromName: data.brandName },
   );
 }
 
@@ -558,6 +583,7 @@ export async function sendOrderRefundedEmail(
 ${reason ? `<p style="color:#555">Motivo: ${escapeHtml(reason)}</p>` : ""}
 <p>El dinero vuelve por el mismo medio con el que pagaste. Según tu banco puede tardar algunos días hábiles en verse.</p>`,
     ),
+    { fromName: data.brandName },
   );
 }
 
