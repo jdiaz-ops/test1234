@@ -608,7 +608,7 @@ export function StoreOrdersPanel({
         {view === "toShip" && envia && shown.length > 0 && (
           <p className="px-4 py-2 text-xs text-brand-ink-soft border-b border-brand-line bg-brand-bg/50">
             El flete de cada pedido con {envia.carrierName ?? "tus transportadoras"} sale solo. Selecciona los pedidos y crea las guías: se
-            baja un solo PDF con la hoja de empaque y las guías, listo para imprimir.
+            baja un solo PDF con la hoja de empaque y las guías (de a 4 por hoja carta), listo para imprimir.
           </p>
         )}
 

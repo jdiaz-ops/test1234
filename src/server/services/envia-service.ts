@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { EnviaConnection, StoreOrder } from "@prisma/client";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, type PDFPage } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
 import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
@@ -31,6 +31,7 @@ import {
 } from "@/server/integrations/envia-client";
 import { StoreOrderError, updateOrderFulfillment } from "@/server/services/store-order-service";
 import { packingSlipsPdf } from "@/server/services/packing-slip-service";
+import { addLabelSheets } from "@/server/services/label-sheets";
 
 /// Guías con Envia.com desde el pedido, con la cuenta de Envia de la marca:
 /// cotiza con sus transportadoras, crea la guía (se cobra de su saldo en
@@ -606,8 +607,9 @@ async function downloadPdf(url: string): Promise<Uint8Array | null> {
 /// Las guías de varios pedidos en un solo PDF, en el orden pedido, para
 /// imprimirlas de una vez. Con `packing`, primero la hoja de empaque de esos
 /// mismos pedidos (los que tienen guía), en el mismo orden: todo se
-/// imprime junto en papel carta (pedido del 2026-11-27). `missing`: las
-/// guías que no se pudieron incluir.
+/// imprime junto en papel carta (pedido del 2026-11-27). Las guías van
+/// varias por hoja a tamaño real (de a 4 las de Interrapidísimo; ver
+/// label-sheets.ts). `missing`: las guías que no se pudieron incluir.
 export async function mergedOrderLabels(brandId: string, orderIds: string[], options: { packing?: boolean } = {}) {
   const ids = orderIds.slice(0, MAX_LABELS_PER_PDF);
   const orders = await prisma.storeOrder.findMany({
@@ -625,18 +627,19 @@ export async function mergedOrderLabels(brandId: string, orderIds: string[], opt
     for (const page of await merged.copyPages(sheet, sheet.getPageIndices())) merged.addPage(page);
   }
   let missing = ids.length - urls.length;
+  const labelPages: PDFPage[] = [];
   for (const bytes of files) {
     if (!bytes) {
       missing += 1;
       continue;
     }
     try {
-      const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
-      for (const page of await merged.copyPages(doc, doc.getPageIndices())) merged.addPage(page);
+      labelPages.push(...(await PDFDocument.load(bytes, { ignoreEncryption: true })).getPages());
     } catch {
       missing += 1;
     }
   }
+  missing += (await addLabelSheets(merged, labelPages)).failed;
   if (merged.getPageCount() === 0) {
     throw new EnviaServiceError("No se pudo descargar ninguna guía. Descárgalas desde cada pedido o desde tu cuenta de Envia.");
   }

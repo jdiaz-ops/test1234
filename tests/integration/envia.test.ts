@@ -1,4 +1,4 @@
-import { PDFDocument } from "pdf-lib";
+import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFStream } from "pdf-lib";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // La marca que entra al portal (las rutas la piden a la sesión).
@@ -34,7 +34,7 @@ const labelPdfs: Record<string, Uint8Array<ArrayBuffer>> = {};
 beforeAll(async () => {
   for (const [name, size] of [["a", 100], ["b", 200]] as const) {
     const doc = await PDFDocument.create();
-    doc.addPage([size, size]);
+    doc.addPage([size, size]).drawText(`Guia ${name}`, { x: 10, y: size / 2, size: 10 });
     labelPdfs[`https://s3.envia.com/labels/${name}.pdf`] = new Uint8Array(await doc.save());
   }
 });
@@ -219,6 +219,15 @@ async function paidOrder() {
 }
 
 const orderOf = (id: string) => prisma.storeOrder.findUniqueOrThrow({ where: { id } });
+
+/// El ancho de cada guía dibujada en esa hoja del PDF (para saber cuál es).
+function drawnLabelWidths(pdf: PDFDocument, index: number): number[] {
+  const xobjects = pdf.getPage(index).node.Resources()?.lookupMaybe(PDFName.of("XObject"), PDFDict);
+  return (xobjects?.values() ?? []).map((ref) => {
+    const bbox = pdf.context.lookup(ref, PDFStream).dict.lookup(PDFName.of("BBox"), PDFArray);
+    return bbox.lookup(2, PDFNumber).asNumber() - bbox.lookup(0, PDFNumber).asNumber();
+  });
+}
 
 /// La cotización desde la lista (falla si el pedido ya tenía guía).
 async function quoteFor(brandId: string, orderId: string) {
@@ -751,8 +760,11 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     expect(res.headers.get("content-type")).toBe("application/pdf");
     // El que no tiene guía y la que no se pudo bajar.
     expect(res.headers.get("X-Guias-Faltantes")).toBe("2");
+    // En hojas carta (de distinto tamaño, cada guía en su hoja), en el
+    // orden de la lista: primero la de 200 puntos y después la de 100.
     const merged = await PDFDocument.load(await res.arrayBuffer());
-    expect(merged.getPages().map((p) => p.getWidth())).toEqual([200, 100]);
+    expect(merged.getPages().map((p) => p.getWidth())).toEqual([612, 612]);
+    expect([drawnLabelWidths(merged, 0), drawnLabelWidths(merged, 1)]).toEqual([[200], [100]]);
 
     // Con la hoja de empaque: primero ella (hoja carta, 612 de ancho) y
     // después las guías, en el mismo orden; todo en un PDF.
@@ -766,7 +778,8 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     expect(both.headers.get("content-disposition")).toContain("guias-y-hoja-de-empaque.pdf");
     expect(both.headers.get("X-Guias-Faltantes")).toBe("2");
     const combined = await PDFDocument.load(await both.arrayBuffer());
-    expect(combined.getPages().map((p) => p.getWidth())).toEqual([612, 200, 100]);
+    expect(combined.getPages().map((p) => p.getWidth())).toEqual([612, 612, 612]);
+    expect([drawnLabelWidths(combined, 1), drawnLabelWidths(combined, 2)]).toEqual([[200], [100]]);
 
     // Otra marca no baja las guías de esta.
     const other = await createBrand();
