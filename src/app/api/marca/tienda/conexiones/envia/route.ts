@@ -15,6 +15,11 @@ const schema = z.object({
   sandbox: z.boolean(),
   originName: z.string().trim().min(2, "Escribe quién despacha").max(80),
   originCompany: z.string().trim().max(80).nullable().optional(),
+  originIdNumber: z
+    .string()
+    .trim()
+    .max(20)
+    .refine((v) => v.replace(/[^0-9a-z]/gi, "").length >= 5, "Escribe el NIT o la cédula de quien envía"),
   originPhone: z.string().trim().min(7, "Escribe el celular de quien despacha").max(20),
   originEmail: z.string().trim().max(120).nullable().optional(),
   originStreet: z.string().trim().min(5, "Escribe la dirección de despacho").max(200),

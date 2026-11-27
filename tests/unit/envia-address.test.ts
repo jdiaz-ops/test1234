@@ -3,6 +3,7 @@ import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
 import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
   ENVIA_STATE_CODE,
+  enviaIdNumber,
   districtOf,
   splitStreet,
   enviaCarrierName,
@@ -47,6 +48,14 @@ describe("direcciones de Colombia para Envia", () => {
     expect(splitStreet(long)).toEqual({ street: long, number: "S/N" });
     expect(districtOf("Cra 70 # 1-2, barrio El Poblado, casa 3", "Medellín")).toBe("El Poblado");
     expect(districtOf("Calle 1 # 2-3", "Bogotá")).toBe("Bogotá");
+  });
+
+  it("NIT sin dígito de verificación; cédula y pasaporte sin puntos ni espacios", () => {
+    expect(enviaIdNumber("900.123.456-7")).toBe("900123456");
+    expect(enviaIdNumber("900123456 - 7")).toBe("900123456");
+    expect(enviaIdNumber("1.020.304.050")).toBe("1020304050");
+    expect(enviaIdNumber("ab 123456")).toBe("AB123456");
+    expect(enviaIdNumber(null)).toBe("");
   });
 
   it("texto sin tildes ni caracteres raros, y celular de 10 dígitos", () => {

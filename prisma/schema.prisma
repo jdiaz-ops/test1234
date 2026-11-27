@@ -3053,6 +3053,10 @@ model EnviaConnection {
   /// COLOMBIA_REGIONS y originCity un municipio de ese departamento.
   originName       String
   originCompany    String?
+  /// NIT (sin dígito de verificación) o cédula de quien envía: las
+  /// transportadoras de Colombia lo exigen para crear la guía ("Origin
+  /// identification number is required"). Sin él se usa BrandProfile.taxId.
+  originIdNumber   String?
   originPhone      String
   originEmail      String?
   originStreet     String

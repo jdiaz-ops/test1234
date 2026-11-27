@@ -84,6 +84,10 @@ function fakeEnvia(requested: string, init?: RequestInit): Response {
         { status: 400 },
       );
     }
+    // Interrapidísimo y las demás de Colombia exigen el NIT o la cédula de quien envía.
+    if (!(body?.origin as Record<string, string> | undefined)?.identificationNumber) {
+      return Response.json({ meta: "error", error: { code: 400, message: "Origin identification number is required." } }, { status: 400 });
+    }
     for (const side of ["origin", "destination"] as const) {
       const address = body?.[side] as Record<string, string> | undefined;
       for (const field of ["number", "district"]) {
@@ -136,6 +140,7 @@ afterEach(() => {
 const ORIGIN = {
   sandbox: false,
   originName: "H la Cosedora",
+  originIdNumber: "900.123.456-7",
   originPhone: "+57 300 123 4567",
   originStreet: "Calle 10 # 43-12",
   originRegion: "Antioquia",
@@ -162,7 +167,14 @@ async function paidOrderIn(brandId: string) {
   const pending = await createPendingOrder(brandId, [{ productId: product.id, quantity: 1, unitPrice: 45000 }]);
   const order = await prisma.storeOrder.update({
     where: { id: pending.id },
-    data: { status: "PAID", paidAt: new Date(), buyerName: "Ana Muñoz", shippingCity: "Envigado" },
+    data: {
+      status: "PAID",
+      paidAt: new Date(),
+      buyerName: "Ana Muñoz",
+      shippingCity: "Envigado",
+      billingIdType: "CC",
+      billingIdNumber: "1.020.304.050",
+    },
   });
   return { product, order };
 }
@@ -256,6 +268,9 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
       shipment: { type: 1, carrier: "servientrega", service: "ground" },
       // En hoja carta, como imprime H la Cosedora.
       settings: { printFormat: "PDF", printSize: "PAPER_LETTER", currency: "COP" },
+      // NIT sin dígito de verificación, y la cédula de la compradora.
+      origin: { identificationNumber: "900123456" },
+      destination: { identificationNumber: "1020304050" },
     });
 
     const shipped = await orderOf(order.id);
@@ -278,6 +293,20 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
       "ya tiene guía",
     );
     expect(calls.filter((c) => c.url.endsWith("/ship/generate/"))).toHaveLength(1);
+  });
+
+  it("sin NIT o cédula de quien envía no se intenta la guía; con el NIT de la marca, sí", async () => {
+    const { brand, order } = await paidOrder();
+    await prisma.enviaConnection.update({ where: { brandId: brand.id }, data: { originIdNumber: null } });
+    await expect(createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" })).rejects.toThrow(
+      "Falta el NIT o la cédula de quien envía",
+    );
+    expect(calls.some((c) => c.url.endsWith("/ship/generate/"))).toBe(false);
+
+    // El NIT que la marca ya tiene en Configuración sirve.
+    await prisma.brandProfile.update({ where: { id: brand.id }, data: { taxId: "901.555.444-2" } });
+    await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
+    expect(calls.find((c) => c.url.endsWith("/ship/generate/"))?.body).toMatchObject({ origin: { identificationNumber: "901555444" } });
   });
 
   it("si la transportadora no da la guía en hoja carta, se crea en 4x6", async () => {

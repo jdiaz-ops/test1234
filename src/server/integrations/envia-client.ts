@@ -39,6 +39,8 @@ export type EnviaAddress = {
   number: string;
   /// El barrio.
   district: string;
+  /// NIT o cédula (las transportadoras de Colombia lo piden al crear la guía).
+  identificationNumber?: string;
   /// En Colombia, el código DANE de 8 dígitos del municipio.
   city: string;
   state: string;

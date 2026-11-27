@@ -6,6 +6,7 @@ import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
   districtOf,
   enviaCarrierName,
+  enviaIdNumber,
   enviaPhone,
   enviaPlace,
   enviaStateCode,
@@ -77,6 +78,8 @@ export type EnviaConnectionInput = {
   sandbox: boolean;
   originName: string;
   originCompany?: string | null;
+  /// NIT o cédula de quien envía.
+  originIdNumber?: string | null;
   originPhone: string;
   originEmail?: string | null;
   originStreet: string;
@@ -126,6 +129,7 @@ export async function saveEnviaConnection(brandId: string, input: EnviaConnectio
     sandbox: input.sandbox,
     originName: input.originName.trim(),
     originCompany: input.originCompany?.trim() || null,
+    originIdNumber: enviaIdNumber(input.originIdNumber) || null,
     originPhone: input.originPhone.trim(),
     originEmail: input.originEmail?.trim() || null,
     originStreet: input.originStreet.trim(),
@@ -192,12 +196,26 @@ async function buildShipment(conn: EnviaConnection, order: StoreOrder, input: La
   const destination = await destinationPlace(conn, input.destination.region, input.destination.city);
   const from = splitStreet(enviaText(conn.originStreet));
   const to = splitStreet(enviaText(input.destination.street));
+  // Quien envía: el de la conexión o, si no lo tiene, el NIT de la marca.
+  const originId =
+    enviaIdNumber(conn.originIdNumber) ||
+    enviaIdNumber(
+      (await prisma.brandProfile.findUnique({ where: { id: conn.brandId }, select: { taxId: true } }))?.taxId,
+    );
+  if (!originId) {
+    throw new EnviaServiceError(
+      "Falta el NIT o la cédula de quien envía: agrégalo en Tienda → Conexiones → Envia (las transportadoras lo exigen).",
+    );
+  }
+  const buyerId = enviaIdNumber(order.billingIdNumber);
   return {
     origin: {
       name: enviaText(conn.originName, 60),
-      ...(conn.originCompany ? { company: enviaText(conn.originCompany, 60) } : {}),
+      // Sin empresa, el mismo nombre (algunas transportadoras la piden).
+      company: enviaText(conn.originCompany || conn.originName, 60),
       ...(conn.originEmail ? { email: conn.originEmail } : {}),
       phone: enviaPhone(conn.originPhone),
+      identificationNumber: originId,
       street: from.street,
       number: from.number,
       district: enviaText(districtOf(conn.originStreet, origin.cityName), 60),
@@ -211,6 +229,8 @@ async function buildShipment(conn: EnviaConnection, order: StoreOrder, input: La
       name: enviaText(order.buyerName, 60),
       email: order.buyerEmail,
       phone: enviaPhone(order.buyerPhone),
+      // La cédula que dio la compradora en el checkout (para la factura).
+      ...(buyerId ? { identificationNumber: buyerId } : {}),
       street: to.street,
       number: to.number,
       district: enviaText(districtOf(input.destination.street, destination.cityName), 60),

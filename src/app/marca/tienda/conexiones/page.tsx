@@ -43,6 +43,7 @@ export default async function TiendaConexionesPage() {
             : null
         }
         showEnvia={showEnvia}
+        brandTaxId={profile.taxId}
         envia={
           envia
             ? {
@@ -53,6 +54,7 @@ export default async function TiendaConexionesPage() {
                 lastWebhookAt: envia.lastWebhookAt?.toISOString() ?? null,
                 originName: envia.originName,
                 originCompany: envia.originCompany,
+                originIdNumber: envia.originIdNumber,
                 originPhone: envia.originPhone,
                 originEmail: envia.originEmail,
                 originStreet: envia.originStreet,

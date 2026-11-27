@@ -13,6 +13,7 @@ export type EnviaConnectionView = {
   lastWebhookAt: string | null;
   originName: string;
   originCompany: string | null;
+  originIdNumber: string | null;
   originPhone: string;
   originEmail: string | null;
   originStreet: string;
@@ -31,7 +32,14 @@ const DEFAULT_PACKAGE = { length: "20", width: "15", height: "10", weight: "500"
 
 /// Conexión con la cuenta de Envia.com de la marca: con ella crea la guía
 /// desde el detalle del pedido. Ver envia-service.ts.
-export function EnviaConnectionCard({ initial }: { initial: EnviaConnectionView | null }) {
+export function EnviaConnectionCard({
+  initial,
+  brandTaxId,
+}: {
+  initial: EnviaConnectionView | null;
+  /// El NIT que la marca ya tiene en Configuración, para no escribirlo dos veces.
+  brandTaxId: string | null;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(Boolean(initial));
   const [token, setToken] = useState("");
@@ -39,6 +47,7 @@ export function EnviaConnectionCard({ initial }: { initial: EnviaConnectionView 
   const [sandbox, setSandbox] = useState(initial?.sandbox ?? false);
   const [originName, setOriginName] = useState(initial?.originName ?? "");
   const [originCompany, setOriginCompany] = useState(initial?.originCompany ?? "");
+  const [originIdNumber, setOriginIdNumber] = useState(initial?.originIdNumber ?? brandTaxId ?? "");
   const [originPhone, setOriginPhone] = useState(initial?.originPhone ?? "");
   const [originEmail, setOriginEmail] = useState(initial?.originEmail ?? "");
   const [originStreet, setOriginStreet] = useState(initial?.originStreet ?? "");
@@ -80,6 +89,7 @@ export function EnviaConnectionCard({ initial }: { initial: EnviaConnectionView 
         sandbox,
         originName,
         originCompany: originCompany || null,
+        originIdNumber,
         originPhone,
         originEmail: originEmail || null,
         originStreet,
@@ -255,6 +265,15 @@ export function EnviaConnectionCard({ initial }: { initial: EnviaConnectionView 
               <div>
                 <label className="block text-xs text-brand-ink mb-1">Empresa (opcional)</label>
                 <input value={originCompany} onChange={(e) => setOriginCompany(e.target.value)} className="input text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs text-brand-ink mb-1">NIT o cédula de quien envía</label>
+                <input
+                  value={originIdNumber}
+                  onChange={(e) => setOriginIdNumber(e.target.value)}
+                  placeholder="NIT sin dígito de verificación"
+                  className="input text-sm tabular-nums"
+                />
               </div>
               <div>
                 <label className="block text-xs text-brand-ink mb-1">Celular</label>

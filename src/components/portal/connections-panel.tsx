@@ -280,6 +280,7 @@ export function ConnectionsPanel({
   showDataico,
   envia,
   showEnvia,
+  brandTaxId = null,
 }: {
   webhooks: Webhook[];
   signingSecret: string;
@@ -289,6 +290,8 @@ export function ConnectionsPanel({
   envia: EnviaConnectionView | null;
   /// Solo las tiendas de ENVIA_STORE_SLUGS (ver lib/features.ts).
   showEnvia: boolean;
+  /// El NIT de la marca, para llenar el de quien envía en Envia.
+  brandTaxId?: string | null;
 }) {
   const [creating, setCreating] = useState(false);
   const hasDataicoWebhook = webhooks.some((w) => /^https:\/\/([^/]+\.)?dataico\.com\//i.test(w.url));
@@ -302,7 +305,7 @@ export function ConnectionsPanel({
       </p>
 
       {showDataico && <DataicoConnectionCard initial={dataico} hasDataicoWebhook={hasDataicoWebhook} />}
-      {showEnvia && <EnviaConnectionCard initial={envia} />}
+      {showEnvia && <EnviaConnectionCard initial={envia} brandTaxId={brandTaxId} />}
 
       <Card>
         <div className="px-5 pt-4 pb-3">

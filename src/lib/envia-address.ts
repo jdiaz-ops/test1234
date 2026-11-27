@@ -104,6 +104,16 @@ export function enviaText(text: string | null | undefined, max = 100): string {
     .trim();
 }
 
+/// NIT o cédula como los pide Envia: sin puntos ni espacios, y el NIT sin
+/// el dígito de verificación ("900.123.456-7" → "900123456"). Un
+/// documento con letras (pasaporte) queda con sus letras y números.
+export function enviaIdNumber(raw: string | null | undefined): string {
+  const value = (raw ?? "").trim();
+  if (/[a-z]/i.test(value)) return value.replace(/[^a-z0-9]/gi, "").toUpperCase();
+  const withoutCheckDigit = value.replace(/\s*-\s*\d\s*$/, "");
+  return withoutCheckDigit.replace(/\D/g, "");
+}
+
 /// Celular de 10 dígitos, sin +57 ni espacios.
 export function enviaPhone(raw: string | null | undefined): string {
   let digits = (raw ?? "").replace(/\D/g, "");
