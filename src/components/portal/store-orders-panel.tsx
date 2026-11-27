@@ -249,8 +249,8 @@ export function StoreOrdersPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const guides = useEnviaGuides();
-  /// Lo que está haciendo con las guías ("Creando 3 de 12…").
-  const [guideBusy, setGuideBusy] = useState<string | null>(null);
+  /// Lo que está haciendo con las guías o la hoja de empaque ("Creando 3 de 12…").
+  const [working, setWorking] = useState<string | null>(null);
   const counts = {
     all: initialOrders.filter((o) => inView(o, "all")).length,
     toShip: initialOrders.filter((o) => inView(o, "toShip")).length,
@@ -299,17 +299,17 @@ export function StoreOrdersPanel({
 
   async function quoteSelected() {
     setMessage(null);
-    setGuideBusy("Cotizando…");
+    setWorking("Cotizando…");
     await guides.quoteMany(toQuote.map((o) => o.id));
-    setGuideBusy(null);
+    setWorking(null);
   }
 
   async function createSelected() {
     if (!window.confirm(`¿Crear ${quoted.length} ${plural(quoted.length)} por ${formatCOP(quotedTotal)} en total? ${charge}`)) return;
     setMessage(null);
-    setGuideBusy(`Creando 0 de ${quoted.length}…`);
-    const created = await guides.createMany(quoted, (done) => setGuideBusy(`Creando ${done} de ${quoted.length}…`));
-    setGuideBusy(null);
+    setWorking(`Creando 0 de ${quoted.length}…`);
+    const created = await guides.createMany(quoted, (done) => setWorking(`Creando ${done} de ${quoted.length}…`));
+    setWorking(null);
     setMessage(
       created === quoted.length
         ? { ok: true, text: `${created} ${created === 1 ? "guía creada" : "guías creadas"}. Descárgalas en un solo PDF con «Descargar guías».` }
@@ -326,11 +326,40 @@ export function StoreOrdersPanel({
     if (await guides.create(o.id, state.quote, weightGrams)) router.refresh();
   }
 
+  // Hoja de empaque: los pedidos con envío, en el orden de la lista (el
+  // mismo del PDF de las guías). Ver packing-slip-service.ts.
+  const packable = selectedRows.filter((o) => o.status === "PAID" && o.shippingAddress != null).map((o) => o.id);
+
+  async function downloadPacking() {
+    setMessage(null);
+    setWorking("Preparando la hoja de empaque…");
+    const res = await fetch("/api/marca/tienda/pedidos/empaque", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderIds: packable.slice(0, 100) }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      const data = await res?.json().catch(() => null);
+      setMessage({ ok: false, text: data?.error ?? "No se pudo armar la hoja de empaque. Revisa tu conexión a internet." });
+    } else {
+      const url = URL.createObjectURL(await res.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "hoja-de-empaque.pdf";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      if (packable.length > 100) {
+        setMessage({ ok: false, text: "La hoja trae los primeros 100 pedidos: selecciona el resto y bájala otra vez." });
+      }
+    }
+    setWorking(null);
+  }
+
   async function downloadSelected() {
     setMessage(null);
-    setGuideBusy("Preparando el PDF…");
+    setWorking("Preparando el PDF…");
     setMessage(await downloadGuides(withPdf));
-    setGuideBusy(null);
+    setWorking(null);
   }
 
   function toggle(id: string) {
@@ -447,12 +476,22 @@ export function StoreOrdersPanel({
             {deletableCount < selectedRows.length && (
               <span className="text-xs text-brand-ink-soft">Las ventas reales no se eliminan: se archivan.</span>
             )}
+            {packable.length > 0 && (
+              <button
+                type="button"
+                disabled={busy || working != null}
+                onClick={downloadPacking}
+                className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
+              >
+                Hoja de empaque (PDF)
+              </button>
+            )}
             {envia && (toQuote.length > 0 || quoted.length > 0 || withPdf.length > 0) && (
               <span className="flex flex-wrap items-center gap-2 border-l border-brand-line pl-3">
                 {toQuote.length > 0 && (
                   <button
                     type="button"
-                    disabled={busy || guideBusy != null}
+                    disabled={busy || working != null}
                     onClick={quoteSelected}
                     className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
                   >
@@ -462,7 +501,7 @@ export function StoreOrdersPanel({
                 {quoted.length > 0 && (
                   <button
                     type="button"
-                    disabled={busy || guideBusy != null}
+                    disabled={busy || working != null}
                     onClick={createSelected}
                     className="rounded-md bg-brand-accent px-3 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
                   >
@@ -472,14 +511,14 @@ export function StoreOrdersPanel({
                 {withPdf.length > 0 && (
                   <button
                     type="button"
-                    disabled={busy || guideBusy != null}
+                    disabled={busy || working != null}
                     onClick={downloadSelected}
                     className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
                   >
                     Descargar {withPdf.length} {plural(withPdf.length)} (PDF)
                   </button>
                 )}
-                {guideBusy && <span className="text-xs text-brand-ink-soft">{guideBusy}</span>}
+                {working && <span className="text-xs text-brand-ink-soft">{working}</span>}
               </span>
             )}
             <button type="button" onClick={() => setSelected(new Set())} className="ml-auto text-xs text-brand-ink-soft hover:text-brand-ink">

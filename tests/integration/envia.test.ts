@@ -21,6 +21,7 @@ import {
 import { POST as webhookRoute } from "@/app/api/webhooks/envia/[secret]/route";
 import { POST as orderEnviaRoute } from "@/app/api/marca/tienda/pedidos/envia/route";
 import { POST as guidesPdfRoute } from "@/app/api/marca/tienda/pedidos/envia/guias/route";
+import { POST as packingRoute } from "@/app/api/marca/tienda/pedidos/empaque/route";
 import { createBrand, createPendingOrder, createProduct, hasDb } from "./helpers";
 
 const TRACKING = "2300123456";
@@ -434,6 +435,26 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
       new Request("https://marcolini.lat/api/marca/tienda/pedidos/envia/guias", { method: "POST", body: JSON.stringify({ orderIds: [a.id] }) }),
     );
     expect(foreign.status).toBe(400);
+  });
+
+  it("la hoja de empaque sale en PDF, solo con pedidos de la marca", async () => {
+    const brand = await createBrand();
+    const [a, b] = await Promise.all([paidOrderIn(brand.id), paidOrderIn(brand.id)]);
+    const send = (orderIds: string[]) =>
+      packingRoute(new Request("https://marcolini.lat/api/marca/tienda/pedidos/empaque", { method: "POST", body: JSON.stringify({ orderIds }) }));
+
+    // Cualquier marca, con o sin Envia.
+    session.profile = { id: brand.id, storefrontSlug: brand.storefrontSlug };
+    const res = await send([b.order.id, a.order.id]);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/pdf");
+    expect((await PDFDocument.load(await res.arrayBuffer())).getPageCount()).toBe(1);
+
+    const other = await createBrand();
+    session.profile = { id: other.id, storefrontSlug: other.storefrontSlug };
+    const foreign = await send([a.order.id]);
+    expect(foreign.status).toBe(400);
+    expect((await foreign.json()).error).toBe("Elige pedidos de tu tienda.");
   });
 
   it("solo las marcas con Envia habilitado pueden usar la ruta del pedido", async () => {
