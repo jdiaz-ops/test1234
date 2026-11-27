@@ -1087,8 +1087,9 @@ export async function reconcilePendingOrders(brandId?: string) {
   return { checked: pending.length, updated };
 }
 
-/// La burbuja de "Pedidos" en el menú: pedidos pagados con envío que
-/// todavía no salen (sin preparar o preparados).
+/// La burbuja de "Pedidos" en el menú: pedidos pagados con envío que falta
+/// preparar, los mismos de la vista «No preparados» (un pedido con guía ya
+/// está preparado; pedido del 2026-11-27).
 export async function countOpenOrders(brandId: string) {
   return prisma.storeOrder.count({
     where: {
@@ -1097,7 +1098,7 @@ export async function countOpenOrders(brandId: string) {
       status: "PAID",
       archivedAt: null,
       shippingAddress: { not: null },
-      fulfillmentStatus: { in: ["UNFULFILLED", "PREPARED"] },
+      fulfillmentStatus: "UNFULFILLED",
     },
   });
 }

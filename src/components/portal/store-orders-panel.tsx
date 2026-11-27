@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CARRIERS } from "@/lib/carriers";
 import {
@@ -227,6 +227,10 @@ const isUnprepared = (o: StoreOrderRow) => isToShip(o) && o.fulfillmentStatus ==
 
 type View = "all" | "toShip" | "incomplete" | "archived";
 
+/// Cuántos pedidos sin preparar se cotizan solos al abrir la lista (los
+/// más nuevos); los demás, al seleccionarlos.
+const AUTO_QUOTE_LIMIT = 60;
+
 function inView(o: StoreOrderRow, view: View) {
   if (view === "archived") return o.archived;
   if (o.archived) return false;
@@ -254,6 +258,22 @@ export function StoreOrdersPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const guides = useEnviaGuides();
+  const { quoteMany } = guides;
+  /// Los que ya se mandaron a cotizar solos (no se repiten).
+  const autoQuoted = useRef<Set<string>>(new Set());
+  // Con Envia, los pedidos «No preparado» con envío y sin guía se cotizan
+  // solos al abrir la lista, en cualquier pestaña: el flete ya está cuando
+  // se seleccionan (pedido del 2026-11-27).
+  useEffect(() => {
+    if (!envia) return;
+    const ids = initialOrders
+      .filter((o) => !o.archived && isUnprepared(o) && !o.envia && !autoQuoted.current.has(o.id))
+      .slice(0, AUTO_QUOTE_LIMIT)
+      .map((o) => o.id);
+    if (ids.length === 0) return;
+    for (const id of ids) autoQuoted.current.add(id);
+    void quoteMany(ids);
+  }, [envia, initialOrders, quoteMany]);
   /// Lo que está haciendo con las guías o la hoja de empaque ("Creando 3 de 12…").
   const [working, setWorking] = useState<string | null>(null);
   const counts = {
@@ -569,7 +589,7 @@ export function StoreOrdersPanel({
 
         {view === "toShip" && envia && shown.length > 0 && (
           <p className="px-4 py-2 text-xs text-brand-ink-soft border-b border-brand-line bg-brand-bg/50">
-            Selecciona los pedidos y el flete de cada uno con {envia.carrierName ?? "tus transportadoras"} sale solo. Al crear las guías se
+            El flete de cada pedido con {envia.carrierName ?? "tus transportadoras"} sale solo. Selecciona los pedidos y crea las guías: se
             baja un solo PDF con la hoja de empaque y las guías, listo para imprimir.
           </p>
         )}

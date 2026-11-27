@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 /// Guías de Envia desde la lista de pedidos, sin abrir cada pedido
 /// (pedido del 2026-11-27: "crear la guía desde el panel de pedidos… y que
@@ -55,21 +55,35 @@ async function inBatches<T>(items: T[], limit: number, work: (item: T) => Promis
 
 export function useEnviaGuides() {
   const [states, setStates] = useState<Record<string, GuideState>>({});
-  const set = (id: string, state: GuideState) => setStates((prev) => ({ ...prev, [id]: state }));
+  const set = useCallback((id: string, state: GuideState) => setStates((prev) => ({ ...prev, [id]: state })), []);
+
+  const fetchQuote = useCallback(
+    async (id: string) => {
+      const { ok, data } = await post({ action: "cotizar-rapido", orderId: id });
+      if (!ok || !data?.quote) {
+        set(id, { kind: "error", text: data?.error ?? "No se pudo cotizar. Revisa tu conexión a internet." });
+        return;
+      }
+      set(id, { kind: "quoted", quote: data.quote, weightGrams: data.weightGrams });
+    },
+    [set],
+  );
 
   async function quote(id: string) {
     set(id, { kind: "quoting" });
     await fetchQuote(id);
   }
 
-  async function fetchQuote(id: string) {
-    const { ok, data } = await post({ action: "cotizar-rapido", orderId: id });
-    if (!ok || !data?.quote) {
-      set(id, { kind: "error", text: data?.error ?? "No se pudo cotizar. Revisa tu conexión a internet." });
-      return;
-    }
-    set(id, { kind: "quoted", quote: data.quote, weightGrams: data.weightGrams });
-  }
+  /// Todos quedan "cotizando" de una vez (así no se cotizan dos veces) y
+  /// se consultan de a 3. Siempre la misma función (la usa un efecto).
+  const quoteMany = useCallback(
+    async (ids: string[]) => {
+      if (ids.length === 0) return;
+      setStates((prev) => ({ ...prev, ...Object.fromEntries(ids.map((id) => [id, { kind: "quoting" } as GuideState])) }));
+      await inBatches(ids, 3, fetchQuote);
+    },
+    [fetchQuote],
+  );
 
   async function create(id: string, q: Quote, weightGrams: number) {
     set(id, { kind: "creating", quote: q, weightGrams });
@@ -92,13 +106,7 @@ export function useEnviaGuides() {
     states,
     quote,
     create,
-    /// Todos quedan "cotizando" de una vez (así no se cotizan dos veces) y
-    /// se consultan de a 3.
-    async quoteMany(ids: string[]) {
-      if (ids.length === 0) return;
-      setStates((prev) => ({ ...prev, ...Object.fromEntries(ids.map((id) => [id, { kind: "quoting" } as GuideState])) }));
-      await inBatches(ids, 3, fetchQuote);
-    },
+    quoteMany,
     /// Devuelve los pedidos a los que sí se les creó la guía, en orden.
     async createMany(entries: { id: string; quote: Quote; weightGrams: number }[], onProgress: (done: number) => void) {
       let done = 0;

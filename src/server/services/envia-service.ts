@@ -29,7 +29,6 @@ import {
   type EnviaLabel,
   type EnviaShipment,
 } from "@/server/integrations/envia-client";
-import { postalCodeFromGoogle } from "@/server/integrations/google-geocoding";
 import { StoreOrderError, updateOrderFulfillment } from "@/server/services/store-order-service";
 import { packingSlipsPdf } from "@/server/services/packing-slip-service";
 
@@ -195,18 +194,15 @@ async function destinationPlace(conn: EnviaConnection, region: string, city: str
 
 /// El código postal del destino (6 dígitos, de 4-72): Interrapidísimo lo
 /// usa para la zona de reparto; con el de la ciudad pone uno genérico y la
-/// guía sale sin zona (guía del pedido #A32F4E55, 2026-11-27). Primero el
-/// que escribió la compradora en el checkout; si no lo escribió (o se
-/// corrigió la dirección), el de Google Maps; si no, el código DANE de la
-/// ciudad, como en el ejemplo de Envia.
-async function destinationPostalCode(order: StoreOrder, input: LabelInput, place: EnviaPlace, street: string) {
+/// guía sale sin zona (guía del pedido #A32F4E55, 2026-11-27). El que
+/// escribió la compradora en el checkout (si la dirección no se corrigió);
+/// si no, el código DANE de la ciudad, como en el ejemplo de Envia. (Buscarlo
+/// en Google Maps pedía una llave de Google: la marca no la quiere.)
+function destinationPostalCode(order: StoreOrder, input: LabelInput, place: EnviaPlace) {
   const sameAddress =
     input.destination.street.trim() === (order.shippingAddress ?? "").trim() &&
     input.destination.city.trim() === (order.shippingCity ?? "").trim();
-  const fromBuyer = sameAddress ? colombiaPostalCode(order.shippingPostalCode, place.city) : null;
-  if (fromBuyer) return fromBuyer;
-  const fromMap = await postalCodeFromGoogle({ street, city: place.cityName, region: input.destination.region });
-  return colombiaPostalCode(fromMap, place.city) ?? place.city;
+  return (sameAddress ? colombiaPostalCode(order.shippingPostalCode, place.city) : null) ?? place.city;
 }
 
 /// Origen y destino como los pide Envia para Colombia (su ejemplo de
@@ -241,9 +237,7 @@ async function buildShipment(
   }
   const buyerId = enviaIdNumber(order.billingIdNumber);
   const destinationStreet = standardStreet(input.destination.street);
-  const postalCode = options.danePostalCode
-    ? destination.city
-    : await destinationPostalCode(order, input, destination, destinationStreet);
+  const postalCode = options.danePostalCode ? destination.city : destinationPostalCode(order, input, destination);
   const numberAndDistrict = (place: EnviaPlace) =>
     options.filledNumber ? { number: "S/N", district: enviaText(place.cityName, 60) } : { number: "", district: "" };
   return {

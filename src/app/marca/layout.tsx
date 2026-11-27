@@ -27,7 +27,7 @@ export default async function MarcaLayout({
     }),
     countUnreadNotifications(session.user.id),
   ]);
-  // Burbuja de "Pedidos": pagados que todavía no salen (ver countOpenOrders).
+  // Burbuja de "Pedidos": pagados que falta preparar (ver countOpenOrders).
   const openOrders = await countOpenOrders(profile.id);
 
   // Bloqueo total del panel — mientras haya un corte OVERDUE o DEACTIVATED

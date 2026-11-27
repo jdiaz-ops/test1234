@@ -49,9 +49,7 @@ let labelSizes: string[];
 let rejectsEmptyNumber: boolean;
 /// Una transportadora que no acepta el código postal de 6 dígitos.
 let rejectsPostalCode: boolean;
-/// Lo que responde Google Maps al buscar una dirección (null: sin llave).
-let googleAnswer: { status: string; results?: unknown[] } | null;
-let googleQueries: string[];
+
 
 /// Envia de mentira: dos transportadoras en la cuenta; Coordinadora no
 /// cotiza esa ruta.
@@ -64,10 +62,6 @@ function fakeEnvia(requested: string, init?: RequestInit): Response {
   if (url.startsWith("https://s3.envia.com/labels/")) {
     const pdf = labelPdfs[url];
     return pdf ? new Response(pdf, { headers: { "content-type": "application/pdf" } }) : new Response("no", { status: 404 });
-  }
-  if (url.startsWith("https://maps.googleapis.com/maps/api/geocode/json?")) {
-    googleQueries.push(new URL(url).searchParams.get("address") ?? "");
-    return Response.json(googleAnswer ?? { status: "REQUEST_DENIED" });
   }
   if (headers.Authorization === "Bearer llave-vencida") return Response.json({ message: "Unauthorized" }, { status: 401 });
   const postal = (body?.destination as { postalCode?: string } | undefined)?.postalCode ?? "";
@@ -146,8 +140,7 @@ beforeEach(() => {
   labelSizes = ["PAPER_LETTER", "PAPER_4X6", "STOCK_4X6"];
   rejectsEmptyNumber = false;
   rejectsPostalCode = false;
-  googleAnswer = null;
-  googleQueries = [];
+
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => fakeEnvia(String(url), init)));
   vi.spyOn(console, "info").mockImplementation(() => {});
   // Los correos simulados (sin llave de Resend) salen por console.log.
@@ -159,7 +152,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  vi.unstubAllEnvs();
   vi.restoreAllMocks();
   session.profile = null;
 });
@@ -401,39 +393,6 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     calls = [];
     await quickQuoteOrder(brand.id, order.id);
     expect(calls.find((c) => c.url.endsWith("/ship/rate/"))?.body).toMatchObject({ destination: { postalCode: "05266000" } });
-  });
-
-  it("si la compradora no escribió el código postal, se busca en Google Maps", async () => {
-    const { brand, order } = await paidOrder();
-    vi.stubEnv("GOOGLE_MAPS_API_KEY", "llave-google");
-    await prisma.storeOrder.update({ where: { id: order.id }, data: { shippingAddress: "Calle 16 F 99 59, Torre 4", shippingCity: "Envigado" } });
-    googleAnswer = {
-      status: "OK",
-      results: [
-        {
-          types: ["street_address"],
-          address_components: [
-            { long_name: "99-59", types: ["street_number"] },
-            { long_name: "055422", types: ["postal_code"] },
-          ],
-        },
-      ],
-    };
-    await quickQuoteOrder(brand.id, order.id);
-    expect(googleQueries).toEqual(["Calle 16 F # 99-59, Torre 4, Envigado, Antioquia, Colombia"]);
-    expect(calls.find((c) => c.url.endsWith("/ship/rate/"))?.body).toMatchObject({ destination: { postalCode: "055422" } });
-
-    // Si Google solo ubica la calle (puede tener varios códigos), no se usa.
-    googleAnswer = { status: "OK", results: [{ types: ["route"], address_components: [{ long_name: "055400", types: ["postal_code"] }] }] };
-    calls = [];
-    await quickQuoteOrder(brand.id, order.id);
-    expect(calls.find((c) => c.url.endsWith("/ship/rate/"))?.body).toMatchObject({ destination: { postalCode: "05266000" } });
-
-    // Sin llave de Google no se busca.
-    vi.unstubAllEnvs();
-    googleQueries = [];
-    await quickQuoteOrder(brand.id, order.id);
-    expect(googleQueries).toEqual([]);
   });
 
   it("si Envia no acepta el código postal, cotiza y crea la guía con el de la ciudad", async () => {

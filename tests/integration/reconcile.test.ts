@@ -33,9 +33,10 @@ describe.skipIf(!hasDb)("pedidos pendientes que Wompi ya resolvió", () => {
     expect((await prisma.product.findUniqueOrThrow({ where: { id: product.id } })).stock).toBe(4);
     expect((await prisma.storeOrder.findUniqueOrThrow({ where: { id: abandoned.id } })).status).toBe("EXPIRED");
 
-    // La burbuja de Pedidos cuenta el pagado que falta por enviar.
+    // La burbuja de Pedidos cuenta el pagado que falta preparar; preparado
+    // (por ejemplo, con la guía creada) ya no.
     expect(await countOpenOrders(brand.id)).toBe(1);
-    await prisma.storeOrder.update({ where: { id: paid.id }, data: { fulfillmentStatus: "SHIPPED" } });
+    await prisma.storeOrder.update({ where: { id: paid.id }, data: { fulfillmentStatus: "PREPARED" } });
     expect(await countOpenOrders(brand.id)).toBe(0);
   });
 
