@@ -115,13 +115,12 @@ export function enviaText(text: string | null | undefined, max = 100): string {
     .trim();
 }
 
-/// NIT o cédula como los pide Envia: sin puntos ni espacios, y el NIT sin
-/// el dígito de verificación ("900.123.456-7" → "900123456"). Un
-/// documento con letras (pasaporte) queda con sus letras y números.
+/// NIT o cédula como los pide Envia: solo números ("Destination
+/// identification number must contain only digits"), y el NIT sin el
+/// dígito de verificación ("900.123.456-7" → "900123456"). Lo que la
+/// persona escriba de más ("C.C. 1.020.304.050") se quita.
 export function enviaIdNumber(raw: string | null | undefined): string {
-  const value = (raw ?? "").trim();
-  if (/[a-z]/i.test(value)) return value.replace(/[^a-z0-9]/gi, "").toUpperCase();
-  const withoutCheckDigit = value.replace(/\s*-\s*\d\s*$/, "");
+  const withoutCheckDigit = (raw ?? "").trim().replace(/\s*-\s*\d\s*$/, "");
   return withoutCheckDigit.replace(/\D/g, "");
 }
 

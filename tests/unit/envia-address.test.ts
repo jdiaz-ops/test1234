@@ -61,11 +61,13 @@ describe("direcciones de Colombia para Envia", () => {
     expect(colombiaPostalCode(null, "05001000")).toBeNull();
   });
 
-  it("NIT sin dígito de verificación; cédula y pasaporte sin puntos ni espacios", () => {
+  it("NIT sin dígito de verificación; cédula solo con números", () => {
     expect(enviaIdNumber("900.123.456-7")).toBe("900123456");
     expect(enviaIdNumber("900123456 - 7")).toBe("900123456");
     expect(enviaIdNumber("1.020.304.050")).toBe("1020304050");
-    expect(enviaIdNumber("ab 123456")).toBe("AB123456");
+    // Envia solo acepta números: "C.C." y letras se quitan.
+    expect(enviaIdNumber("C.C. 1.020.304.050")).toBe("1020304050");
+    expect(enviaIdNumber("ab 123456")).toBe("123456");
     expect(enviaIdNumber(null)).toBe("");
   });
 

@@ -310,7 +310,9 @@ export function StoreOrdersPanel({
     const state = guideState(o);
     return Boolean(o.envia?.labelUrl || (state?.kind === "created" && state.labelUrl));
   };
-  const toQuote = selectedRows.filter((o) => canGuide(o) && !["quoting", "quoted", "creating"].includes(guideState(o)?.kind ?? ""));
+  const toQuote = selectedRows.filter(
+    (o) => canGuide(o) && !["quoting", "quoted", "queued", "creating"].includes(guideState(o)?.kind ?? ""),
+  );
   const quoted = selectedRows.flatMap((o) => {
     const state = guideState(o);
     return canGuide(o) && state?.kind === "quoted" ? [{ id: o.id, quote: state.quote, weightGrams: state.weightGrams }] : [];
@@ -337,8 +339,16 @@ export function StoreOrdersPanel({
   async function createSelected() {
     if (!window.confirm(`¿Crear ${quoted.length} ${plural(quoted.length)} por ${formatCOP(quotedTotal)} en total? ${charge}`)) return;
     setMessage(null);
-    setWorking(`Creando 0 de ${quoted.length}…`);
-    const created = await guides.createMany(quoted, (done) => setWorking(`Creando ${done} de ${quoted.length}…`));
+    const total = quoted.length;
+    const progress = (done: number) =>
+      `Creando ${done} de ${total} ${plural(total)}… Al terminar se baja un solo PDF con todo. No cierres esta página.`;
+    setWorking(progress(0));
+    // Salir de la página corta el lote: el navegador pregunta antes.
+    const keep = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", keep);
+    const created = await guides.createMany(quoted, (done) => setWorking(progress(done))).finally(() =>
+      window.removeEventListener("beforeunload", keep),
+    );
     router.refresh();
     const failed = quoted.length - created.length;
     const failures = failed > 0 ? ` No se crearon ${failed}: en la columna Guía dice por qué.` : "";
@@ -363,11 +373,12 @@ export function StoreOrdersPanel({
     if (state?.kind !== "quoted") return;
     if (!(await guides.create(o.id, state.quote, weightGrams))) return;
     router.refresh();
-    // Igual que en lote: la hoja de empaque y la guía, listas para imprimir.
-    setMessage(null);
-    setWorking("Bajando la hoja de empaque y la guía…");
-    setMessage(await downloadGuides([o.id], { packing: true }));
-    setWorking(null);
+    // Sin bajar un PDF por cada una (pedido del 2026-11-27): se imprimen
+    // juntas, seleccionándolas.
+    setMessage({
+      ok: true,
+      text: `Guía del pedido #${ref} creada. Para imprimir, selecciona los pedidos y dale «Hoja de empaque + guías (PDF)»: sale un solo PDF.`,
+    });
   }
 
   // Hoja de empaque: los pedidos con envío, en el orden de la lista (el
@@ -538,44 +549,51 @@ export function StoreOrdersPanel({
                 Hoja de empaque (PDF)
               </button>
             )}
-            {envia && (toQuote.length > 0 || stillQuoting > 0 || quoted.length > 0 || withPdf.length > 0) && (
+            {envia && (working || toQuote.length > 0 || stillQuoting > 0 || quoted.length > 0 || withPdf.length > 0) && (
               <span className="flex flex-wrap items-center gap-2 border-l border-brand-line pl-3">
-                {toQuote.length > 0 && (
-                  <button
-                    type="button"
-                    disabled={busy || working != null}
-                    onClick={quoteSelected}
-                    className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
-                  >
-                    Cotizar {toQuote.length} {plural(toQuote.length)} otra vez
-                  </button>
+                {/* Mientras trabaja (creando un lote, bajando el PDF), solo el
+                    avance: nada se puede pedir dos veces. */}
+                {working ? (
+                  <span className="text-xs font-medium text-brand-ink">{working}</span>
+                ) : (
+                  <>
+                    {toQuote.length > 0 && (
+                      <button
+                        type="button"
+                        disabled={busy || working != null}
+                        onClick={quoteSelected}
+                        className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
+                      >
+                        Cotizar {toQuote.length} {plural(toQuote.length)} otra vez
+                      </button>
+                    )}
+                    {stillQuoting > 0 && (
+                      <span className="text-xs text-brand-ink-soft">
+                        Cotizando {stillQuoting} {stillQuoting === 1 ? "pedido" : "pedidos"}…
+                      </span>
+                    )}
+                    {quoted.length > 0 && stillQuoting === 0 && (
+                      <button
+                        type="button"
+                        disabled={busy || working != null}
+                        onClick={createSelected}
+                        className="rounded-md bg-brand-accent px-3 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+                      >
+                        Crear {quoted.length} {plural(quoted.length)} · {formatCOP(quotedTotal)}
+                      </button>
+                    )}
+                    {withPdf.length > 0 && (
+                      <button
+                        type="button"
+                        disabled={busy || working != null}
+                        onClick={downloadSelected}
+                        className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
+                      >
+                        Hoja de empaque + {withPdf.length} {plural(withPdf.length)} (PDF)
+                      </button>
+                    )}
+                  </>
                 )}
-                {stillQuoting > 0 && (
-                  <span className="text-xs text-brand-ink-soft">
-                    Cotizando {stillQuoting} {stillQuoting === 1 ? "pedido" : "pedidos"}…
-                  </span>
-                )}
-                {quoted.length > 0 && stillQuoting === 0 && (
-                  <button
-                    type="button"
-                    disabled={busy || working != null}
-                    onClick={createSelected}
-                    className="rounded-md bg-brand-accent px-3 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
-                  >
-                    Crear {quoted.length} {plural(quoted.length)} · {formatCOP(quotedTotal)}
-                  </button>
-                )}
-                {withPdf.length > 0 && (
-                  <button
-                    type="button"
-                    disabled={busy || working != null}
-                    onClick={downloadSelected}
-                    className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
-                  >
-                    Hoja de empaque + {withPdf.length} {plural(withPdf.length)} (PDF)
-                  </button>
-                )}
-                {working && <span className="text-xs text-brand-ink-soft">{working}</span>}
               </span>
             )}
             <button type="button" onClick={() => setSelected(new Set())} className="ml-auto text-xs text-brand-ink-soft hover:text-brand-ink">
@@ -697,6 +715,7 @@ export function StoreOrdersPanel({
                             eligible={canGuide(o)}
                             state={guideState(o)}
                             onQuote={() => void guides.quote(o.id)}
+                            busy={working != null}
                             onCreate={(quote, weightGrams) => void createOne(o, quote, weightGrams)}
                           />
                         </td>

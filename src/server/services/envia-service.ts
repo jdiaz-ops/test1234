@@ -52,12 +52,25 @@ const MAX_CARRIERS = 12;
 const CREATING_MS = 2 * 60_000;
 const TRACK_BATCH = 20;
 /// Guías por PDF combinado (Vercel no responde más de ~4,5 MB).
-export const MAX_LABELS_PER_PDF = 30;
+export const MAX_LABELS_PER_PDF = 50;
 
 const authOf = (conn: Pick<EnviaConnection, "apiToken" | "sandbox">): EnviaAuth => ({
   apiToken: conn.apiToken,
   sandbox: conn.sandbox,
 });
+
+/// Envia pidió esperar (429, muchas consultas seguidas): ese rechazo no
+/// cotiza ni crea guía, así que se espera y se intenta otra vez.
+async function withRateLimitRetry<T>(work: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await work();
+    } catch (err) {
+      if (!(err instanceof EnviaError && err.status === 429) || attempt >= 2) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 2_000 * (attempt + 1)));
+    }
+  }
+}
 
 function friendly(err: unknown): never {
   if (err instanceof EnviaError) throw new EnviaServiceError(err.message);
@@ -349,7 +362,9 @@ export async function quoteOrderShipping(brandId: string, orderId: string, input
 export async function quickQuoteOrder(brandId: string, orderId: string) {
   const conn = await requireConnection(brandId);
   const order = await loadOrder(brandId, orderId);
-  if (order.enviaCarrier) throw new EnviaServiceError("Este pedido ya tiene guía de Envia.");
+  // Ya la tiene (creada en otra pestaña, o la lista estaba desactualizada):
+  // se muestra la que hay, no un error.
+  if (order.enviaCarrier) return { existing: await existingLabel(brandId, order) };
   const input = await quickLabelInput(conn, order);
   const { quotes } = await quoteWith(conn, order, input);
   return { quote: quotes[0], weightGrams: input.packageWeightGrams };
@@ -380,7 +395,7 @@ async function quoteWith(conn: EnviaConnection, order: StoreOrder, input: LabelI
   carriers = carriers.slice(0, MAX_CARRIERS);
 
   const rateAll = (shipment: EnviaShipment) =>
-    Promise.allSettled(carriers.map((c) => rateCarrier(auth, shipment, c.code)));
+    Promise.allSettled(carriers.map((c) => withRateLimitRetry(() => rateCarrier(auth, shipment, c.code))));
   let results = await rateAll(await buildShipment(conn, order, input));
   // Si Envia no acepta el código postal, se cotiza con el de la ciudad.
   const nothing = results.every((r) => r.status === "rejected" || r.value.length === 0);
@@ -466,8 +481,28 @@ export async function quickCreateOrderLabel(brandId: string, orderId: string, ch
   return createWith(brandId, conn, order, { ...(await quickLabelInput(conn, order)), ...choice });
 }
 
+/// La guía que ya tiene el pedido, como la devuelve createWith. Si quedó
+/// "no preparado" con guía (se cortó a mitad), queda preparado.
+async function existingLabel(brandId: string, order: StoreOrder) {
+  if (order.fulfillmentStatus === "UNFULFILLED" && order.trackingNumber) {
+    await updateOrderFulfillment(brandId, { orderId: order.id, fulfillmentStatus: "PREPARED" }).catch((err) => {
+      if (!(err instanceof StoreOrderError)) throw err;
+    });
+  }
+  return {
+    carrier: order.carrier ?? enviaCarrierName(order.enviaCarrier ?? ""),
+    trackingNumber: order.trackingNumber ?? "",
+    labelUrl: order.enviaLabelUrl,
+    trackUrl: order.trackingUrl,
+    costCents: order.enviaCostCents,
+    existing: true,
+  };
+}
+
 async function createWith(brandId: string, conn: EnviaConnection, order: StoreOrder, input: LabelInput & LabelChoice) {
-  if (order.enviaCarrier) throw new EnviaServiceError("Este pedido ya tiene guía de Envia.");
+  // Pedir dos veces la misma guía (dos clics, dos pestañas, una lista
+  // desactualizada) devuelve la que ya tiene: nunca se compra otra.
+  if (order.enviaCarrier) return existingLabel(brandId, order);
   if (order.fulfillmentStatus === "DELIVERED") throw new EnviaServiceError("Este pedido ya está entregado.");
   if (conn.carrier && input.carrier.trim().toLowerCase() !== conn.carrier) {
     throw new EnviaServiceError(`Las guías se crean solo con ${enviaCarrierName(conn.carrier)}. Cotiza otra vez.`);
@@ -491,7 +526,9 @@ async function createWith(brandId: string, conn: EnviaConnection, order: StoreOr
   let label: EnviaLabel;
   const auth = authOf(conn);
   const generate = (s: EnviaShipment) =>
-    generateLabel(auth, s, input.carrier, input.service, { orderReference: orderNumber(order.reference) });
+    withRateLimitRetry(() =>
+      generateLabel(auth, s, input.carrier, input.service, { orderReference: orderNumber(order.reference) }),
+    );
   try {
     label = await generate(shipment).catch(async (err) => {
       const fix = addressFix(err);

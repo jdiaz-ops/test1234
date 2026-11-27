@@ -209,6 +209,13 @@ async function paidOrder() {
 
 const orderOf = (id: string) => prisma.storeOrder.findUniqueOrThrow({ where: { id } });
 
+/// La cotización desde la lista (falla si el pedido ya tenía guía).
+async function quoteFor(brandId: string, orderId: string) {
+  const result = await quickQuoteOrder(brandId, orderId);
+  if (!("quote" in result) || !result.quote) throw new Error("El pedido ya tenía guía");
+  return result;
+}
+
 describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
   it("conectar prueba la llave y guarda desde dónde se despacha", async () => {
     const brand = await createBrand();
@@ -315,10 +322,12 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     expect(labeled.preparedAt).not.toBeNull();
     expect(emails).not.toContain(order.buyerEmail);
 
-    // Una sola guía por pedido.
-    await expect(createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" })).rejects.toThrow(
-      "ya tiene guía",
-    );
+    // Una sola guía por pedido: pedirla otra vez devuelve la que ya tiene.
+    expect(await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" })).toMatchObject({
+      trackingNumber: TRACKING,
+      labelUrl: LABEL_PDF,
+      existing: true,
+    });
     expect(calls.filter((c) => c.url.endsWith("/ship/generate/"))).toHaveLength(1);
   });
 
@@ -334,6 +343,28 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     await prisma.brandProfile.update({ where: { id: brand.id }, data: { taxId: "901.555.444-2" } });
     await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
     expect(calls.find((c) => c.url.endsWith("/ship/generate/"))?.body).toMatchObject({ origin: { identificationNumber: "901555444" } });
+  });
+
+  it("un pedido que quedó con guía pero «No preparado» se muestra con su guía y queda preparado", async () => {
+    const { brand, order } = await paidOrder();
+    await prisma.storeOrder.update({
+      where: { id: order.id },
+      data: { enviaCarrier: "interrapidisimo", trackingNumber: TRACKING, carrier: "Interrapidísimo", enviaLabelUrl: LABEL_PDF, enviaCostCents: 741000 },
+    });
+    expect(await quickQuoteOrder(brand.id, order.id)).toMatchObject({
+      existing: { trackingNumber: TRACKING, labelUrl: LABEL_PDF, costCents: 741000 },
+    });
+    expect(await orderOf(order.id)).toMatchObject({ fulfillmentStatus: "PREPARED" });
+    expect(calls.some((c) => c.url.endsWith("/ship/rate/") || c.url.endsWith("/ship/generate/"))).toBe(false);
+  });
+
+  it("la cédula de la compradora va solo con números aunque la haya escrito con letras", async () => {
+    const { brand, order } = await paidOrder();
+    await prisma.storeOrder.update({ where: { id: order.id }, data: { billingIdNumber: "C.C. 1.020.304.050" } });
+    await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
+    expect(calls.find((c) => c.url.endsWith("/ship/generate/"))?.body).toMatchObject({
+      destination: { identificationNumber: "1020304050" },
+    });
   });
 
   it("si la transportadora no da la guía en hoja carta, se crea en 4x6", async () => {
@@ -399,7 +430,7 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     const { brand, order } = await paidOrder();
     await prisma.storeOrder.update({ where: { id: order.id }, data: { shippingPostalCode: "055420" } });
     rejectsPostalCode = true;
-    const { quote } = await quickQuoteOrder(brand.id, order.id);
+    const { quote } = await quoteFor(brand.id, order.id);
     const postals = () =>
       calls.filter((c) => c.url.endsWith("/ship/rate/")).map((c) => (c.body?.destination as { postalCode: string }).postalCode);
     expect(postals()).toContain("05266000");
@@ -450,7 +481,7 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
       ),
     );
     await saveEnviaConnection(brand.id, { ...ORIGIN, carrier: "interrapidisimo" });
-    const { quote } = await quickQuoteOrder(brand.id, order.id);
+    const { quote } = await quoteFor(brand.id, order.id);
     expect(quote).toMatchObject({ service: "mensajeria", priceCents: 741000 });
     // Dentro del pedido tampoco se ofrece el de oficina.
     const detail = await quoteOrderShipping(brand.id, order.id, LABEL);
@@ -651,7 +682,7 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
 
   it("desde la lista: cotiza con el paquete de siempre y el peso de los productos, y crea la guía", async () => {
     const { brand, product, order } = await paidOrder();
-    const light = await quickQuoteOrder(brand.id, order.id);
+    const light = await quoteFor(brand.id, order.id);
     expect(light.weightGrams).toBe(500);
     // La más barata.
     expect(light.quote).toMatchObject({ carrierName: "Servientrega", serviceName: "Terrestre", priceCents: 1250050 });
@@ -660,7 +691,7 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     await prisma.product.update({ where: { id: product.id }, data: { weight: 0.06 } });
     await prisma.storeOrderItem.updateMany({ where: { orderId: order.id }, data: { quantity: 20 } });
     calls = [];
-    const heavy = await quickQuoteOrder(brand.id, order.id);
+    const heavy = await quoteFor(brand.id, order.id);
     expect(heavy.weightGrams).toBe(1200);
     const rate = calls.find((c) => c.url.endsWith("/ship/rate/"))!;
     expect(rate.body).toMatchObject({
@@ -673,7 +704,8 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     expect(created).toMatchObject({ trackingNumber: TRACKING, labelUrl: LABEL_PDF, costCents: 1250050 });
     expect(calls.find((c) => c.url.endsWith("/ship/generate/"))?.body).toMatchObject({ packages: [{ weight: 1.2 }] });
     expect((await orderOf(order.id)).fulfillmentStatus).toBe("PREPARED");
-    await expect(quickQuoteOrder(brand.id, order.id)).rejects.toThrow("ya tiene guía");
+    // Ya tiene guía: la lista muestra esa, sin error.
+    expect(await quickQuoteOrder(brand.id, order.id)).toMatchObject({ existing: { trackingNumber: TRACKING, labelUrl: LABEL_PDF } });
   });
 
   it("las guías de varios pedidos salen en un solo PDF, en el orden de la lista", async () => {

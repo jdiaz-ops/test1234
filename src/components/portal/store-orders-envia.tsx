@@ -26,11 +26,14 @@ type Quote = {
 export type GuideState =
   | { kind: "quoting" }
   | { kind: "quoted"; quote: Quote; weightGrams: number }
+  /// En el lote que se está creando, esperando su turno.
+  | { kind: "queued"; quote: Quote; weightGrams: number }
   | { kind: "creating"; quote: Quote; weightGrams: number }
   | { kind: "created"; labelUrl: string | null; trackingNumber: string; costCents: number | null }
   | { kind: "error"; text: string };
 
-const MAX_PER_PDF = 30;
+/// Guías por PDF (ver MAX_LABELS_PER_PDF en envia-service.ts).
+const MAX_PER_PDF = 50;
 
 export function formatCOP(cents: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(cents / 100);
@@ -60,6 +63,12 @@ export function useEnviaGuides() {
   const fetchQuote = useCallback(
     async (id: string) => {
       const { ok, data } = await post({ action: "cotizar-rapido", orderId: id });
+      // Ya tenía guía (la lista estaba desactualizada): se muestra esa.
+      if (ok && data?.existing) {
+        const e = data.existing;
+        set(id, { kind: "created", labelUrl: e.labelUrl, trackingNumber: e.trackingNumber, costCents: e.costCents });
+        return;
+      }
       if (!ok || !data?.quote) {
         set(id, { kind: "error", text: data?.error ?? "No se pudo cotizar. Revisa tu conexión a internet." });
         return;
@@ -107,11 +116,17 @@ export function useEnviaGuides() {
     quote,
     create,
     quoteMany,
-    /// Devuelve los pedidos a los que sí se les creó la guía, en orden.
+    /// Devuelve los pedidos que quedaron con guía (también los que ya la
+    /// tenían), en orden. Todos quedan "en cola" de una vez, así no se
+    /// ofrece crearlos otra vez mientras tanto.
     async createMany(entries: { id: string; quote: Quote; weightGrams: number }[], onProgress: (done: number) => void) {
       let done = 0;
       const created = new Set<string>();
-      await inBatches(entries, 2, async (e) => {
+      setStates((prev) => ({
+        ...prev,
+        ...Object.fromEntries(entries.map((e) => [e.id, { kind: "queued", quote: e.quote, weightGrams: e.weightGrams } as GuideState])),
+      }));
+      await inBatches(entries, 3, async (e) => {
         if (await create(e.id, e.quote, e.weightGrams)) created.add(e.id);
         onProgress(++done);
       });
@@ -164,12 +179,15 @@ export function EnviaGuideCell({
   existing,
   eligible,
   state,
+  busy = false,
   onQuote,
   onCreate,
 }: {
   existing: OrderListEnvia;
   eligible: boolean;
   state: GuideState | undefined;
+  /// Mientras se crea un lote: sin botones (nada se pide dos veces).
+  busy?: boolean;
   onQuote: () => void;
   onCreate: (q: Quote, weightGrams: number) => void;
 }) {
@@ -197,6 +215,8 @@ export function EnviaGuideCell({
         </span>
       ) : !eligible ? null : state?.kind === "quoting" ? (
         <span className="text-brand-ink-soft">Cotizando…</span>
+      ) : state?.kind === "queued" ? (
+        <span className="text-brand-ink-soft">En cola…</span>
       ) : state?.kind === "creating" ? (
         <span className="text-brand-ink-soft">Creando guía…</span>
       ) : state?.kind === "quoted" ? (
@@ -208,18 +228,22 @@ export function EnviaGuideCell({
             {formatCOP(state.quote.priceCents)}
           </span>
           <span className="text-brand-ink-soft">{formatKg(state.weightGrams)}</span>
-          <button type="button" onClick={() => onCreate(state.quote, state.weightGrams)} className={smallButton}>
-            Crear
-          </button>
+          {!busy && (
+            <button type="button" onClick={() => onCreate(state.quote, state.weightGrams)} className={smallButton}>
+              Crear
+            </button>
+          )}
         </span>
       ) : state?.kind === "error" ? (
         <span className="inline-flex items-start gap-2">
           <span className="max-w-[18rem] whitespace-normal text-[11px] leading-snug text-red-600">{state.text}</span>
-          <button type="button" onClick={onQuote} className={smallButton}>
-            Reintentar
-          </button>
+          {!busy && (
+            <button type="button" onClick={onQuote} className={smallButton}>
+              Reintentar
+            </button>
+          )}
         </span>
-      ) : (
+      ) : busy ? null : (
         <button type="button" onClick={onQuote} className={smallButton}>
           Cotizar
         </button>
