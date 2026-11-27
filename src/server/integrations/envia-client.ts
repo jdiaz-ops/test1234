@@ -73,7 +73,9 @@ function errorMessage(status: number, json: Json): string {
   if (status === 402) return "No tienes saldo suficiente en Envia. Recarga tu cuenta y vuelve a intentarlo.";
   if (status === 429) return "Envia está recibiendo muchas consultas. Espera un momento y vuelve a intentarlo.";
   if (status >= 500) return "Envia tiene un problema en este momento. Intenta de nuevo en unos minutos.";
-  return detail ? `Envia: ${detail.trim().slice(0, 200)}` : `Envia respondió con un error (${status}).`;
+  // Envia pega todo lo que se le mandó ("…, data: {"origin":…}"): sobra.
+  const clean = detail?.replace(/,?\s*data:\s*[[{][\s\S]*$/, "").trim();
+  return clean ? `Envia: ${clean.slice(0, 200)}` : `Envia respondió con un error (${status}).`;
 }
 
 async function call(
@@ -194,18 +196,39 @@ export type EnviaLabel = {
   totalPrice: number | null;
 };
 
+/// Tamaños de la guía, en orden: hoja carta (H la Cosedora imprime todo en
+/// papel carta) y, si la transportadora no la da en carta, 4x6.
+export const LABEL_SIZES = ["PAPER_LETTER", "PAPER_4X6", "STOCK_4X6"] as const;
+
 /// Compra la guía: se cobra del saldo de la cuenta de Envia de la marca.
+/// Para crearla (no para cotizar) Envia exige `settings` (formato y tamaño
+/// de impresión): si rechaza el tamaño, se prueba con el siguiente; un
+/// rechazo así no crea guía.
 export async function generateLabel(
   auth: EnviaAuth,
   shipment: EnviaShipment,
   carrier: string,
   service: string,
 ): Promise<EnviaLabel> {
-  const json = await call("shipping", "/ship/generate/", {
-    auth,
-    method: "POST",
-    body: { ...shipmentBody(shipment), shipment: { type: 1, carrier: carrier.toLowerCase(), service } },
-  });
+  let json: Json = null;
+  for (const [i, printSize] of LABEL_SIZES.entries()) {
+    try {
+      json = await call("shipping", "/ship/generate/", {
+        auth,
+        method: "POST",
+        body: {
+          ...shipmentBody(shipment),
+          shipment: { type: 1, carrier: carrier.toLowerCase(), service },
+          settings: { printFormat: "PDF", printSize, currency: "COP" },
+        },
+      });
+      break;
+    } catch (err) {
+      const sizeRejected =
+        err instanceof EnviaError && (err.status === 400 || err.status === 422) && /print|size|tama/i.test(err.message);
+      if (!sizeRejected || i === LABEL_SIZES.length - 1) throw err;
+    }
+  }
   const row = rows(json)[0];
   const trackingNumber = text(row?.trackingNumber);
   if (!row || !trackingNumber) {

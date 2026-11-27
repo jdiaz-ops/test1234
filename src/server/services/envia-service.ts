@@ -290,7 +290,20 @@ export async function quickQuoteOrder(brandId: string, orderId: string) {
   if (order.enviaCarrier) throw new EnviaServiceError("Este pedido ya tiene guía de Envia.");
   const input = await quickLabelInput(conn, order);
   const { quotes } = await quoteWith(conn, order, input);
-  return { quote: quotes[0], weightGrams: input.packageWeightGrams };
+  return { quote: preferredQuote(quotes), weightGrams: input.packageWeightGrams };
+}
+
+/// Un servicio que deja el paquete en una oficina de la transportadora
+/// (ej. "Interrapidisimo Mensajería Domicilio - Oficina"): la compradora
+/// tendría que ir a recogerlo.
+export function isOfficeService(quote: Pick<ShippingQuote, "service" | "serviceName">) {
+  return /oficina/i.test(`${quote.service} ${quote.serviceName}`);
+}
+
+/// La más barata que llega a la casa de la compradora (si todas son a
+/// oficina, la más barata). `quotes` viene del más barato al más caro.
+export function preferredQuote<T extends Pick<ShippingQuote, "service" | "serviceName">>(quotes: T[]): T {
+  return quotes.find((q) => !isOfficeService(q)) ?? quotes[0];
 }
 
 async function quoteWith(conn: EnviaConnection, order: StoreOrder, input: LabelInput) {
@@ -337,7 +350,11 @@ async function quoteWith(conn: EnviaConnection, order: StoreOrder, input: LabelI
     );
   }
   quotes.sort((a, b) => a.priceCents - b.priceCents);
-  return { quotes, failed };
+  // Las compradoras esperan el pedido en su casa ("no a oficina, a
+  // domicilio", 2026-11-27): los servicios que lo dejan en una oficina de
+  // la transportadora no se ofrecen si hay uno a domicilio.
+  const home = quotes.filter((q) => !isOfficeService(q));
+  return { quotes: home.length > 0 ? home : quotes, failed };
 }
 
 type LabelChoice = { carrier: string; service: string; priceCents?: number };

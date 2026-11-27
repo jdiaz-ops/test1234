@@ -205,10 +205,8 @@ export function EnviaGuideCell({
           </button>
         </span>
       ) : state?.kind === "error" ? (
-        <span className="inline-flex items-center gap-2">
-          <span className="max-w-[12rem] truncate text-red-600" title={state.text}>
-            {state.text}
-          </span>
+        <span className="inline-flex items-start gap-2">
+          <span className="max-w-[18rem] whitespace-normal text-[11px] leading-snug text-red-600">{state.text}</span>
           <button type="button" onClick={onQuote} className={smallButton}>
             Reintentar
           </button>

@@ -41,6 +41,8 @@ beforeAll(async () => {
 type Call = { url: string; method: string; auth: string | null; body: Record<string, unknown> | null };
 let calls: Call[];
 let deliveredStatus: string;
+/// Tamaños de guía que acepta la transportadora en el Envia de mentira.
+let labelSizes: string[];
 
 /// Envia de mentira: dos transportadoras en la cuenta; Coordinadora no
 /// cotiza esa ruta.
@@ -73,6 +75,18 @@ function fakeEnvia(requested: string, init?: RequestInit): Response {
     });
   }
   if (url === "https://api.envia.com/ship/generate/") {
+    // Como Envia: para crear la guía exige los datos de impresión, y no
+    // todas las transportadoras dan la guía en cualquier tamaño.
+    const settings = body?.settings as { printFormat?: string; printSize?: string } | undefined;
+    if (!settings) {
+      return Response.json(
+        { meta: "error", error: { code: 400, message: `Required property missing: settings, data: ${JSON.stringify(body)}` } },
+        { status: 400 },
+      );
+    }
+    if (!labelSizes.includes(settings.printSize ?? "")) {
+      return Response.json({ meta: "error", error: { code: 400, message: "Invalid printSize for this carrier" } }, { status: 400 });
+    }
     const { carrier, service } = body?.shipment as { carrier: string; service: string };
     return Response.json({
       meta: "generate",
@@ -95,6 +109,7 @@ beforeEach(() => {
   calls = [];
   emails = [];
   deliveredStatus = "Delivered";
+  labelSizes = ["PAPER_LETTER", "PAPER_4X6", "STOCK_4X6"];
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => fakeEnvia(String(url), init)));
   vi.spyOn(console, "info").mockImplementation(() => {});
   // Los correos simulados (sin llave de Resend) salen por console.log.
@@ -216,7 +231,11 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     const label = await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
     expect(label).toMatchObject({ carrier: "Servientrega", trackingNumber: TRACKING, labelUrl: LABEL_PDF });
     const generate = calls.find((c) => c.url === "https://api.envia.com/ship/generate/")!;
-    expect(generate.body).toMatchObject({ shipment: { type: 1, carrier: "servientrega", service: "ground" } });
+    expect(generate.body).toMatchObject({
+      shipment: { type: 1, carrier: "servientrega", service: "ground" },
+      // En hoja carta, como imprime H la Cosedora.
+      settings: { printFormat: "PDF", printSize: "PAPER_LETTER", currency: "COP" },
+    });
 
     const shipped = await orderOf(order.id);
     expect(shipped).toMatchObject({
@@ -238,6 +257,56 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
       "ya tiene guía",
     );
     expect(calls.filter((c) => c.url.endsWith("/ship/generate/"))).toHaveLength(1);
+  });
+
+  it("si la transportadora no da la guía en hoja carta, se crea en 4x6", async () => {
+    const { brand, order } = await paidOrder();
+    labelSizes = ["PAPER_4X6"];
+    await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "interrapidisimo", service: "mensajeria" });
+    const sizes = calls
+      .filter((c) => c.url.endsWith("/ship/generate/"))
+      .map((c) => (c.body?.settings as { printSize: string }).printSize);
+    expect(sizes).toEqual(["PAPER_LETTER", "PAPER_4X6"]);
+    expect((await orderOf(order.id)).fulfillmentStatus).toBe("SHIPPED");
+  });
+
+  it("un error de Envia se muestra sin el volcado de datos que Envia le pega", async () => {
+    const { brand, order } = await paidOrder();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          { meta: "error", error: { message: 'Required property missing: settings, data: {"origin":{"name":"Audaz Lab SAS"}}' } },
+          { status: 400 },
+        ),
+      ),
+    );
+    await expect(createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" })).rejects.toThrow(
+      /^Envia: Required property missing: settings$/,
+    );
+  });
+
+  it("solo se ofrece el servicio a domicilio, no el que deja el paquete en una oficina", async () => {
+    const { brand, order } = await paidOrder();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) =>
+        String(url).endsWith("/ship/rate/")
+          ? Response.json({
+              data: [
+                { carrier: "interrapidisimo", service: "mensajeria_oficina", serviceDescription: "Interrapidisimo Mensajería Domicilio - Oficina", totalPrice: 7190 },
+                { carrier: "interrapidisimo", service: "mensajeria", serviceDescription: "Interrapidisimo Mensajeria", totalPrice: 7410 },
+              ],
+            })
+          : fakeEnvia(String(url), init),
+      ),
+    );
+    await saveEnviaConnection(brand.id, { ...ORIGIN, carrier: "interrapidisimo" });
+    const { quote } = await quickQuoteOrder(brand.id, order.id);
+    expect(quote).toMatchObject({ service: "mensajeria", priceCents: 741000 });
+    // Dentro del pedido tampoco se ofrece el de oficina.
+    const detail = await quoteOrderShipping(brand.id, order.id, LABEL);
+    expect(detail.quotes.map((q) => q.service)).toEqual(["mensajeria"]);
   });
 
   it("dos clics seguidos compran una sola guía", async () => {

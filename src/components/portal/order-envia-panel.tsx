@@ -113,7 +113,10 @@ export function OrderEnviaPanel({
     if (!body) return;
     setQuotes(body.quotes);
     setFailed(body.failed ?? []);
-    setChosen(body.quotes.length > 0 ? 0 : null);
+    // Por defecto, la más barata que llega a la casa (no a una oficina de
+    // la transportadora); ver preferredQuote en envia-service.ts.
+    const home = (body.quotes as Quote[]).findIndex((q) => !/oficina/i.test(`${q.service} ${q.serviceName}`));
+    setChosen(body.quotes.length > 0 ? Math.max(home, 0) : null);
   }
 
   async function create() {
