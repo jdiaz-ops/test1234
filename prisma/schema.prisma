@@ -3058,8 +3058,15 @@ model EnviaConnection {
   originStreet     String
   originRegion     String
   originCity       String
+  /// Sin uso desde el 2026-11-27: Envia toma como código postal el mismo
+  /// código DANE de la ciudad (así lo guarda su propio panel).
   originPostalCode String?
   originReference  String?
+
+  /// Si está, solo se cotiza y se crea la guía con esta transportadora
+  /// (código de Envia, ej. "interrapidisimo"); null = todas las de la
+  /// cuenta. H la Cosedora despacha solo por Interrapidísimo.
+  carrier String?
 
   /// El paquete de siempre (se puede cambiar en cada guía).
   packageLengthCm    Int    @default(20)

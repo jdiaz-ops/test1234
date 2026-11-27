@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireBrandProfile } from "@/lib/current-brand";
 import { enviaAllowed } from "@/lib/features";
 import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
+import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import { EnviaServiceError, deleteEnviaConnection, saveEnviaConnection } from "@/server/services/envia-service";
 
 const size = (label: string, max: number) =>
@@ -19,8 +20,9 @@ const schema = z.object({
   originStreet: z.string().trim().min(5, "Escribe la dirección de despacho").max(200),
   originRegion: z.enum(COLOMBIA_REGIONS, "Elige el departamento"),
   originCity: z.string().trim().min(2, "Escribe la ciudad de despacho").max(80),
-  originPostalCode: z.string().trim().max(10).nullable().optional(),
   originReference: z.string().trim().max(120).nullable().optional(),
+  /// Solo esta transportadora; null = todas las de la cuenta.
+  carrier: z.enum(ENVIA_CO_CARRIERS.map((c) => c.code), "Elige una transportadora de la lista").nullable().optional(),
   packageLengthCm: size("Largo", 300),
   packageWidthCm: size("Ancho", 300),
   packageHeightCm: size("Alto", 300),

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
+import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import { formatDateTimeCo } from "@/lib/date-time-co";
 
 export type EnviaConnectionView = {
@@ -17,8 +18,8 @@ export type EnviaConnectionView = {
   originStreet: string;
   originRegion: string;
   originCity: string;
-  originPostalCode: string | null;
   originReference: string | null;
+  carrier: string | null;
   packageLengthCm: number;
   packageWidthCm: number;
   packageHeightCm: number;
@@ -26,7 +27,7 @@ export type EnviaConnectionView = {
   packageContent: string;
 };
 
-const DEFAULT_PACKAGE = { length: "20", width: "15", height: "10", weight: "500", content: "Productos para uñas" };
+const DEFAULT_PACKAGE = { length: "20", width: "15", height: "10", weight: "500", content: "Cosméticos" };
 
 /// Conexión con la cuenta de Envia.com de la marca: con ella crea la guía
 /// desde el detalle del pedido. Ver envia-service.ts.
@@ -43,8 +44,8 @@ export function EnviaConnectionCard({ initial }: { initial: EnviaConnectionView 
   const [originStreet, setOriginStreet] = useState(initial?.originStreet ?? "");
   const [originRegion, setOriginRegion] = useState(initial?.originRegion ?? "");
   const [originCity, setOriginCity] = useState(initial?.originCity ?? "");
-  const [originPostalCode, setOriginPostalCode] = useState(initial?.originPostalCode ?? "");
   const [originReference, setOriginReference] = useState(initial?.originReference ?? "");
+  const [carrier, setCarrier] = useState(initial?.carrier ?? "");
   const [length, setLength] = useState(initial ? String(initial.packageLengthCm) : DEFAULT_PACKAGE.length);
   const [width, setWidth] = useState(initial ? String(initial.packageWidthCm) : DEFAULT_PACKAGE.width);
   const [height, setHeight] = useState(initial ? String(initial.packageHeightCm) : DEFAULT_PACKAGE.height);
@@ -84,8 +85,8 @@ export function EnviaConnectionCard({ initial }: { initial: EnviaConnectionView 
         originStreet,
         originRegion,
         originCity,
-        originPostalCode: originPostalCode || null,
         originReference: originReference || null,
+        carrier: carrier || null,
         packageLengthCm: Number(length),
         packageWidthCm: Number(width),
         packageHeightCm: Number(height),
@@ -229,6 +230,21 @@ export function EnviaConnectionCard({ initial }: { initial: EnviaConnectionView 
             </div>
           </div>
 
+          <div className="sm:w-80">
+            <label className="block text-xs text-brand-ink mb-1">Transportadora</label>
+            <select value={carrier} onChange={(e) => setCarrier(e.target.value)} className="input text-sm">
+              <option value="">Todas las de tu cuenta</option>
+              {ENVIA_CO_CARRIERS.map((c) => (
+                <option key={c.code} value={c.code}>
+                  Solo {c.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-brand-ink-soft mt-1">
+              {carrier ? "Al cotizar solo sale esta transportadora." : "Al cotizar ves el precio de cada una y escoges."}
+            </p>
+          </div>
+
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium text-brand-ink mb-1">Desde dónde despachas</legend>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -287,16 +303,7 @@ export function EnviaConnectionCard({ initial }: { initial: EnviaConnectionView 
                   ))}
                 </datalist>
               </div>
-              <div>
-                <label className="block text-xs text-brand-ink mb-1">Código postal (opcional)</label>
-                <input
-                  inputMode="numeric"
-                  value={originPostalCode}
-                  onChange={(e) => setOriginPostalCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="input text-sm tabular-nums"
-                />
-              </div>
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs text-brand-ink mb-1">Referencia (opcional)</label>
                 <input
                   value={originReference}

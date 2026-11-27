@@ -52,7 +52,9 @@ export function enviaStateCode(region: string | null | undefined): string | null
 export type EnviaPlace = {
   /// Departamento en código de Envia ("AN").
   state: string;
-  /// Municipio en código DANE de 8 dígitos ("05001000" = Medellín).
+  /// Municipio en código DANE de 8 dígitos ("05001000" = Medellín). Va
+  /// también como código postal: así guarda Envia las direcciones de
+  /// Colombia en su panel ("Calle…, 11001000, DC, 11001000, CO").
   city: string;
   /// Nombre del municipio, para mostrarlo ("Medellín").
   cityName: string;
@@ -66,24 +68,6 @@ export function enviaPlace(region: string | null | undefined, city: string | nul
   if (!state || !dane) return null;
   const code = `${dane.department}${dane.city}`;
   return { state, city: `${code}000`, cityName: municipalityName(code) ?? city?.trim() ?? "" };
-}
-
-/// Códigos postales reales de las ciudades principales.
-const MAIN_POSTAL_CODES: Record<string, string> = {
-  "11001000": "110111", // Bogotá
-  "05001000": "050001", // Medellín
-  "76001000": "760001", // Cali
-  "08001000": "080001", // Barranquilla
-  "13001000": "130001", // Cartagena
-};
-
-/// Envia pide código postal, pero en Colombia ubica por el código DANE:
-/// sin uno real, uno armado con el DANE de la ciudad sirve (como hace el
-/// módulo de Magento citado arriba).
-export function enviaPostalCode(daneCity: string, given?: string | null): string {
-  const digits = given?.replace(/\D/g, "") ?? "";
-  if (digits.length === 6) return digits;
-  return MAIN_POSTAL_CODES[daneCity] ?? daneCity.slice(0, 6);
 }
 
 /// Sin tildes ni caracteres especiales, en una línea: con UTF-8 en nombres

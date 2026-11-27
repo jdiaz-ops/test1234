@@ -30,7 +30,6 @@ const labelShape = {
     street: z.string().trim().min(5, "Escribe la dirección completa del destino").max(200),
     region: z.enum(COLOMBIA_REGIONS, "Elige el departamento del destino"),
     city: z.string().trim().min(2, "Escribe la ciudad del destino").max(80),
-    postalCode: z.string().trim().max(10).nullable().optional(),
     reference: z.string().trim().max(120).nullable().optional(),
   }),
 };

@@ -25,7 +25,6 @@ export type OrderEnviaDefaults = {
   street: string;
   region: string;
   city: string;
-  postalCode: string;
   reference: string;
 };
 
@@ -68,7 +67,6 @@ export function OrderEnviaPanel({
   const [street, setStreet] = useState(defaults.street);
   const [region, setRegion] = useState(defaults.region);
   const [city, setCity] = useState(defaults.city);
-  const [postalCode, setPostalCode] = useState(defaults.postalCode);
   const [reference, setReference] = useState(defaults.reference);
   const [quotes, setQuotes] = useState<Quote[] | null>(null);
   const [failed, setFailed] = useState<string[]>([]);
@@ -99,7 +97,7 @@ export function OrderEnviaPanel({
     packageHeightCm: Number(height),
     packageWeightGrams: Number(weight),
     declaredValue: Number(declaredValue || 0),
-    destination: { street, region, city, postalCode: postalCode || null, reference: reference || null },
+    destination: { street, region, city, reference: reference || null },
   });
 
   // Cambiar el paquete o el destino cambia el precio: hay que cotizar otra vez.
@@ -267,18 +265,9 @@ export function OrderEnviaPanel({
               <label className="block text-xs text-brand-ink mb-1">Ciudad</label>
               <input value={city} onChange={(e) => edited(setCity)(e.target.value)} className="input text-sm" />
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-xs text-brand-ink mb-1">Referencia (opcional)</label>
               <input value={reference} onChange={(e) => edited(setReference)(e.target.value)} className="input text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs text-brand-ink mb-1">Código postal (opcional)</label>
-              <input
-                inputMode="numeric"
-                value={postalCode}
-                onChange={(e) => edited(setPostalCode)(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                className="input text-sm tabular-nums"
-              />
             </div>
           </div>
         )}

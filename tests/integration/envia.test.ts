@@ -47,15 +47,16 @@ function fakeEnvia(requested: string, init?: RequestInit): Response {
     return Response.json({
       meta: "rate",
       data: [
-        { carrier: "servientrega", service: "express", serviceDescription: "Express", deliveryEstimate: "1 día", totalPrice: 18000, currency: "COP" },
-        { carrier: "servientrega", service: "ground", serviceDescription: "Terrestre", deliveryEstimate: "2-3 días", totalPrice: 12500.5, currency: "COP" },
+        { carrier, service: "express", serviceDescription: "Express", deliveryEstimate: "1 día", totalPrice: 18000, currency: "COP" },
+        { carrier, service: "ground", serviceDescription: "Terrestre", deliveryEstimate: "2-3 días", totalPrice: 12500.5, currency: "COP" },
       ],
     });
   }
   if (url === "https://api.envia.com/ship/generate/") {
+    const { carrier, service } = body?.shipment as { carrier: string; service: string };
     return Response.json({
       meta: "generate",
-      data: [{ carrier: "servientrega", service: "ground", trackingNumber: TRACKING, label: LABEL_PDF, trackUrl: TRACK_URL, totalPrice: 12500.5, currency: "COP" }],
+      data: [{ carrier, service, trackingNumber: TRACKING, label: LABEL_PDF, trackUrl: TRACK_URL, totalPrice: 12500.5, currency: "COP" }],
     });
   }
   if (url === "https://api.envia.com/ship/generaltrack/") {
@@ -162,13 +163,13 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     const rate = calls.find((c) => c.url === "https://api.envia.com/ship/rate/")!;
     expect(rate.auth).toBe("Bearer llave-buena");
     expect(rate.body).toMatchObject({
-      origin: { name: "H la Cosedora", phone: "3001234567", city: "05001000", state: "AN", country: "CO", postalCode: "050001" },
+      origin: { name: "H la Cosedora", phone: "3001234567", city: "05001000", state: "AN", country: "CO", postalCode: "05001000" },
       destination: {
         name: "Ana Munoz",
         street: "Carrera 43A # 1-50, apto 301",
         city: "05266000",
         state: "AN",
-        postalCode: "052660",
+        postalCode: "05266000",
         reference: "Porteria",
       },
       packages: [
@@ -324,7 +325,23 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     const quote = await quoteOrderShipping(brand.id, pending.id, LABEL);
     expect(quote.quotes.length).toBeGreaterThan(0);
     const rated = calls.filter((c) => c.url.endsWith("/ship/rate/")).map((c) => (c.body?.shipment as { carrier: string }).carrier);
-    expect(rated).toEqual(["servientrega", "coordinadora", "interrapidisimo", "tcc", "deprisa", "envia"]);
+    expect(rated).toEqual(["interrapidisimo", "servientrega", "coordinadora", "envia", "tcc", "deprisa"]);
+  });
+
+  it("con una sola transportadora elegida, solo se cotiza y se crea la guía con esa", async () => {
+    const { brand, order } = await paidOrder();
+    await saveEnviaConnection(brand.id, { ...ORIGIN, carrier: "interrapidisimo" });
+    calls = [];
+    const quote = await quoteOrderShipping(brand.id, order.id, LABEL);
+    expect(quote.quotes.map((q) => q.carrierName)).toEqual(["Interrapidísimo", "Interrapidísimo"]);
+    expect(calls.map((c) => c.url)).toEqual(["https://api.envia.com/ship/rate/"]);
+    expect(calls[0].body).toMatchObject({ shipment: { carrier: "interrapidisimo" } });
+
+    await expect(createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" })).rejects.toThrow(
+      "solo con Interrapidísimo",
+    );
+    await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "interRapidisimo", service: "ground" });
+    expect(await orderOf(order.id)).toMatchObject({ carrier: "Interrapidísimo", enviaCarrier: "interrapidisimo", fulfillmentStatus: "SHIPPED" });
   });
 
   it("solo las marcas con Envia habilitado pueden usar la ruta del pedido", async () => {

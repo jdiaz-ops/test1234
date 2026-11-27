@@ -1,11 +1,11 @@
 import { randomBytes } from "node:crypto";
 import type { EnviaConnection, StoreOrder } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
   enviaCarrierName,
   enviaPhone,
   enviaPlace,
-  enviaPostalCode,
   enviaStateCode,
   enviaText,
   isDeliveredStatus,
@@ -38,7 +38,7 @@ export class EnviaServiceError extends Error {}
 
 /// Si Envia no dice qué transportadoras tiene la cuenta, se cotiza con
 /// las que suele tener en Colombia.
-const DEFAULT_CARRIERS = ["servientrega", "coordinadora", "interrapidisimo", "tcc", "deprisa", "envia"];
+const DEFAULT_CARRIERS = ENVIA_CO_CARRIERS.map((c) => c.code);
 const MAX_CARRIERS = 12;
 /// Una guía "en creación" más vieja que esto se da por fallida (el
 /// proceso se cayó en la mitad) y se puede volver a intentar.
@@ -76,8 +76,9 @@ export type EnviaConnectionInput = {
   originStreet: string;
   originRegion: string;
   originCity: string;
-  originPostalCode?: string | null;
   originReference?: string | null;
+  /// Solo esta transportadora (código de Envia); null = todas.
+  carrier?: string | null;
   packageLengthCm: number;
   packageWidthCm: number;
   packageHeightCm: number;
@@ -124,8 +125,8 @@ export async function saveEnviaConnection(brandId: string, input: EnviaConnectio
     originStreet: input.originStreet.trim(),
     originRegion: input.originRegion,
     originCity: place.cityName,
-    originPostalCode: input.originPostalCode?.replace(/\D/g, "") || null,
     originReference: input.originReference?.trim() || null,
+    carrier: input.carrier?.trim().toLowerCase() || null,
     packageLengthCm: input.packageLengthCm,
     packageWidthCm: input.packageWidthCm,
     packageHeightCm: input.packageHeightCm,
@@ -156,7 +157,6 @@ export type LabelInput = {
     street: string;
     region: string;
     city: string;
-    postalCode?: string | null;
     reference?: string | null;
   };
 };
@@ -194,7 +194,7 @@ async function buildShipment(conn: EnviaConnection, order: StoreOrder, input: La
       city: origin.city,
       state: origin.state,
       country: "CO",
-      postalCode: enviaPostalCode(origin.city, conn.originPostalCode),
+      postalCode: origin.city,
       ...(conn.originReference ? { reference: enviaText(conn.originReference) } : {}),
     },
     destination: {
@@ -205,7 +205,7 @@ async function buildShipment(conn: EnviaConnection, order: StoreOrder, input: La
       city: destination.city,
       state: destination.state,
       country: "CO",
-      postalCode: enviaPostalCode(destination.city, input.destination.postalCode),
+      postalCode: destination.city,
       ...(input.destination.reference?.trim() ? { reference: enviaText(input.destination.reference) } : {}),
     },
     package: {
@@ -236,10 +236,13 @@ export async function quoteOrderShipping(brandId: string, orderId: string, input
   const shipment = await buildShipment(conn, order, input);
   const auth = authOf(conn);
 
-  let carriers = await listCarriers(auth).catch((err): { code: string; name: string | null }[] => {
-    if (isKeyRejected(err)) friendly(err);
-    return [];
-  });
+  // La marca despacha con una sola transportadora: solo esa se cotiza.
+  let carriers = conn.carrier
+    ? [{ code: conn.carrier, name: null }]
+    : await listCarriers(auth).catch((err): { code: string; name: string | null }[] => {
+        if (isKeyRejected(err)) friendly(err);
+        return [];
+      });
   if (carriers.length === 0) carriers = DEFAULT_CARRIERS.map((code) => ({ code, name: null }));
   carriers = carriers.slice(0, MAX_CARRIERS);
 
@@ -287,6 +290,9 @@ export async function createOrderLabel(
   const order = await loadOrder(brandId, orderId);
   if (order.enviaCarrier) throw new EnviaServiceError("Este pedido ya tiene guía de Envia.");
   if (order.fulfillmentStatus === "DELIVERED") throw new EnviaServiceError("Este pedido ya está entregado.");
+  if (conn.carrier && input.carrier.trim().toLowerCase() !== conn.carrier) {
+    throw new EnviaServiceError(`Las guías se crean solo con ${enviaCarrierName(conn.carrier)}. Cotiza otra vez.`);
+  }
   const shipment = await buildShipment(conn, order, input);
 
   // Dos clics seguidos (o dos pestañas) no compran dos guías.

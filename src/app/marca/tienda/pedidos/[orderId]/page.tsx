@@ -216,7 +216,6 @@ export default async function TiendaPedidoDetallePage({
                       street: (order.shippingAddress ?? "").slice(0, 200),
                       region: order.shippingRegion ?? "",
                       city: order.shippingCity ?? "",
-                      postalCode: order.shippingPostalCode ?? "",
                       reference: (order.shippingNotes ?? "").slice(0, 120),
                     }}
                   />

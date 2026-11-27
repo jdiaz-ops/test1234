@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
+import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
   ENVIA_STATE_CODE,
   enviaCarrierName,
   enviaPhone,
   enviaPlace,
-  enviaPostalCode,
   enviaStatusLabel,
   enviaText,
   isDeliveredStatus,
@@ -32,13 +32,6 @@ describe("direcciones de Colombia para Envia", () => {
     expect(enviaPlace("Otro país", "Medellín")).toBeNull();
   });
 
-  it("código postal: el que haya, el de la ciudad principal o uno armado con el DANE", () => {
-    expect(enviaPostalCode("05266000", "055420")).toBe("055420");
-    expect(enviaPostalCode("05001000")).toBe("050001");
-    expect(enviaPostalCode("05001000", "123")).toBe("050001");
-    expect(enviaPostalCode("05266000")).toBe("052660");
-  });
-
   it("texto sin tildes ni caracteres raros, y celular de 10 dígitos", () => {
     expect(enviaText("  Calle 10 # 43-12 — Peñón\nApto 301 ")).toBe("Calle 10 # 43-12 Penon Apto 301");
     expect(enviaText("Productos para uñas")).toBe("Productos para unas");
@@ -52,6 +45,8 @@ describe("direcciones de Colombia para Envia", () => {
     expect(enviaCarrierName("interRapidisimo")).toBe("Interrapidísimo");
     expect(enviaCarrierName("fedex", "FedEx")).toBe("FedEx");
     expect(enviaCarrierName("dhl")).toBe("DHL");
+    // La lista para elegir usa los mismos nombres.
+    for (const c of ENVIA_CO_CARRIERS) expect(enviaCarrierName(c.code)).toBe(c.name);
     expect(enviaStatusLabel("Delivered")).toBe("Entregado");
     expect(enviaStatusLabel("In Transit")).toBe("En camino");
     expect(enviaStatusLabel("Out for delivery")).toBe("En reparto");
