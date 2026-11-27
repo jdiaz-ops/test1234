@@ -70,27 +70,6 @@ export function enviaPlace(region: string | null | undefined, city: string | nul
   return { state, city: `${code}000`, cityName: municipalityName(code) ?? city?.trim() ?? "" };
 }
 
-/// Calle y número por separado, como los pide Envia para crear la guía
-/// ("Required property missing: number"). Con "#" ("Calle 16F # 99-59,
-/// apto 301") se parte ahí y Envia los vuelve a juntar en el mismo orden;
-/// sin "#", la dirección completa va como calle y el número "S/N" (sin
-/// número, como lo usa Envia), para no perder ni desordenar nada.
-export function splitStreet(address: string): { street: string; number: string } {
-  const clean = address.replace(/\s+/g, " ").trim();
-  const match = /^(.+?)\s*(?:#|\bno\.|\bn[°º])\s*(.+)$/i.exec(clean);
-  if (match && match[1].trim() && match[2].trim() && match[2].trim().length <= 40) {
-    return { street: match[1].trim(), number: match[2].trim() };
-  }
-  return { street: clean, number: "S/N" };
-}
-
-/// El barrio: el que la persona escribió ("…, barrio El Poblado") o, si
-/// no hay, la ciudad. Envia lo pide para crear la guía.
-export function districtOf(address: string, cityName: string): string {
-  const barrio = /\bbarrio\s+([^,#;]+)/i.exec(address)?.[1]?.trim();
-  return barrio || cityName;
-}
-
 /// Sin tildes ni caracteres especiales, en una línea: con UTF-8 en nombres
 /// y direcciones Envia a veces no devuelve tarifas.
 export function enviaText(text: string | null | undefined, max = 100): string {
@@ -148,31 +127,81 @@ export function enviaCarrierName(code: string, fallback?: string | null): string
 }
 
 function statusKey(status: string) {
+  // Con los números: "1 delivery attempt" no es "2 delivery attempts".
   return status
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z]/g, "");
+    .replace(/[^a-z0-9]/g, "");
 }
 
-const STATUS_LABELS: [keys: string[], label: string][] = [
-  [["created", "labelcreated", "creado", "creada", "information"], "Guía creada"],
-  [["pickup", "pickedup", "collected", "recolectado", "recogido"], "La recogió la transportadora"],
-  [["shipped", "intransit", "transit", "entransito"], "En camino"],
-  [["outfordelivery", "enreparto", "endistribucion"], "En reparto"],
-  [["delivered", "entregado", "entregada"], "Entregado"],
-  [["canceled", "cancelled", "cancelado", "cancelada", "anulado", "anulada"], "Anulada"],
-  [["returned", "return", "devuelto", "devolucion"], "Devuelto"],
-  [["exception", "incident", "delayed", "lost", "damaged", "novedad"], "Con novedad"],
+/// En qué va la guía, para saber qué hacer con el pedido:
+/// - "label": guía creada, la transportadora todavía no tiene el paquete.
+/// - "transit": la transportadora ya lo recogió (lo escaneó) y va en camino.
+/// - "delivered": entregado a la compradora.
+/// - "problem": hay que revisarlo (devuelto, perdido, dirección errada…).
+/// - "canceled": la guía se anuló.
+/// - "info": Envia no dice en qué va.
+export type EnviaStatusStage = "label" | "transit" | "delivered" | "problem" | "canceled" | "info";
+
+/// Los estados de Envia (su catálogo, docs.envia.com → Track Shipments) en
+/// español. `attention`: la marca debería mirarlo aunque vaya en camino.
+const STATUSES: [keys: string[], label: string, stage: EnviaStatusStage, attention?: boolean][] = [
+  [["created", "labelcreated", "creado", "creada"], "Guía creada", "label"],
+  [["pending", "pendiente"], "Pendiente", "label"],
+  [["outforpickup"], "Por recoger", "label"],
+  [["1pickupattempt"], "Intento de recogida fallido", "label", true],
+  [["information"], "Información nueva", "info"],
+  [["na"], "Sin información", "info"],
+  [["shipped", "intransit", "transit", "entransito"], "En camino", "transit"],
+  [["pickedup", "collected", "recogido", "recolectado"], "La recogió la transportadora", "transit"],
+  [["outfordelivery", "enreparto", "endistribucion"], "En reparto", "transit"],
+  [["partiallyshipped"], "Enviado en parte", "transit", true],
+  [["pickupatoffice"], "Para recoger en oficina", "transit", true],
+  [["redirected"], "Redirigido", "transit", true],
+  [["1deliveryattempt"], "1 intento de entrega", "transit", true],
+  [["2deliveryattempts"], "2 intentos de entrega", "transit", true],
+  [["3deliveryattempts"], "3 intentos de entrega", "transit", true],
+  [["deliveryattempt"], "Intento de entrega", "transit", true],
+  [["partiallydelivered"], "Entregado en parte", "transit", true],
+  [["delivered", "entregado", "entregada"], "Entregado", "delivered"],
+  [["canceled", "cancelled", "cancelado", "cancelada", "anulado", "anulada"], "Anulada", "canceled"],
+  [["returned", "return", "devuelto", "devolucion"], "Devuelto", "problem"],
+  [["deliveredatorigin"], "Devuelto a quien envía", "problem"],
+  [["lost", "perdido"], "Perdido", "problem"],
+  [["damaged"], "Dañado", "problem"],
+  [["returnproblem"], "Problema en la devolución", "problem"],
+  [["addresserror"], "Error en la dirección", "problem"],
+  [["undeliverable"], "No se pudo entregar", "problem"],
+  [["delayed"], "Retrasado", "problem"],
+  [["rejected"], "Rechazado", "problem"],
+  [["exception", "incident", "novedad"], "Con novedad", "problem"],
 ];
 
-/// El estado que reporta Envia ("Delivered", "In Transit"…) en español.
+const statusOf = (status: string | null | undefined) =>
+  status?.trim() ? STATUSES.find(([keys]) => keys.includes(statusKey(status))) : undefined;
+
+/// El estado que reporta Envia ("Delivered", "Out for Delivery"…) en español.
 export function enviaStatusLabel(status: string | null | undefined): string | null {
   if (!status?.trim()) return null;
-  const key = statusKey(status);
-  return STATUS_LABELS.find(([keys]) => keys.includes(key))?.[1] ?? status.trim();
+  return statusOf(status)?.[1] ?? status.trim();
+}
+
+/// null: un estado que no conocemos (no se toca el pedido).
+export function enviaStatusStage(status: string | null | undefined): EnviaStatusStage | null {
+  return statusOf(status)?.[2] ?? null;
+}
+
+/// Para el color del estado en el pedido.
+export function enviaStatusTone(status: string | null | undefined): "delivered" | "attention" | "canceled" | "normal" {
+  const found = statusOf(status);
+  if (!found) return "normal";
+  const [, , stage, attention] = found;
+  if (stage === "delivered") return "delivered";
+  if (stage === "canceled") return "canceled";
+  return stage === "problem" || attention ? "attention" : "normal";
 }
 
 export function isDeliveredStatus(status: string | null | undefined): boolean {
-  return Boolean(status) && ["delivered", "entregado", "entregada"].includes(statusKey(status!));
+  return enviaStatusStage(status) === "delivered";
 }

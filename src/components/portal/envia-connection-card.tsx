@@ -172,7 +172,8 @@ export function EnviaConnectionCard({
             <span className={`text-[11px] font-medium rounded-md px-1.5 py-0.5 ${status.className}`}>{status.label}</span>
           </span>
           <span className="block text-xs text-brand-ink-soft mt-0.5">
-            Crea la guía desde el pedido: cotizas con tus transportadoras, el pedido queda enviado y la compradora recibe su guía.
+            Crea la guía desde el pedido. Cuando la transportadora recoge el paquete, el pedido pasa a enviado y la compradora recibe
+            el seguimiento.
           </span>
         </span>
         <svg
@@ -351,9 +352,10 @@ export function EnviaConnectionCard({
 
           {initial && (
             <div className="space-y-2 rounded-xl border border-brand-line bg-brand-bg px-4 py-3">
-              <p className="text-sm font-medium text-brand-ink">Avisos de entrega</p>
+              <p className="text-sm font-medium text-brand-ink">Avisos de Envia</p>
               <p className="text-xs text-brand-ink-soft">
-                Para que el pedido pase solo a «Entregado» cuando llegue, pega este link en Envia, en la sección de desarrolladores →
+                Para que el pedido pase solo a «Enviado» cuando la transportadora recoja el paquete (y la compradora reciba el
+                seguimiento a tiempo) y a «Entregado» cuando llegue, pega este link en Envia, en la sección de desarrolladores →
                 Webhooks, con el aviso de cambios de estado del envío. Sin él, Marcolini revisa las guías una vez al día.
               </p>
               <div className="flex items-center gap-2">

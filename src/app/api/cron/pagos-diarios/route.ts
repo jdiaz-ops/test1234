@@ -98,10 +98,10 @@ async function runDailyJob() {
     console.error("[cron] Falló el reintento de facturas:", err);
     return { retried: 0, issued: 0 };
   });
-  // Guías de Envia en camino: por si no llegó el aviso de entrega.
+  // Guías de Envia sin entregar: por si no llegó el aviso de Envia.
   const enviaTracking = await refreshShippedEnviaOrders().catch((err) => {
     console.error("[cron] Falló la revisión de guías de Envia:", err);
-    return { checked: 0, delivered: 0 };
+    return { checked: 0, shipped: 0, delivered: 0 };
   });
 
   const chargeResults = today === config.chargeDayOfMonth ? await runBrandCharges() : [];
@@ -129,6 +129,7 @@ async function runDailyJob() {
     invoicesRetried: invoiceRetries.retried,
     invoicesIssued: invoiceRetries.issued,
     enviaLabelsChecked: enviaTracking.checked,
+    enviaLabelsShipped: enviaTracking.shipped,
     enviaLabelsDelivered: enviaTracking.delivered,
     brandCharges: chargeResults.length,
     creatorPayouts: payoutResults.length,

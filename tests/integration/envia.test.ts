@@ -6,6 +6,7 @@ const session = vi.hoisted(() => ({ profile: null as null | { id: string; storef
 vi.mock("@/lib/current-brand", () => ({ requireBrandProfile: async () => session.profile }));
 
 import { prisma } from "@/lib/prisma";
+import { orderNumber } from "@/lib/order-math";
 import {
   EnviaServiceError,
   cancelOrderLabel,
@@ -40,9 +41,12 @@ beforeAll(async () => {
 
 type Call = { url: string; method: string; auth: string | null; body: Record<string, unknown> | null };
 let calls: Call[];
-let deliveredStatus: string;
+/// El estado que responde Envia al rastrear.
+let trackStatus: string;
 /// Tamaños de guía que acepta la transportadora en el Envia de mentira.
 let labelSizes: string[];
+/// Una transportadora que no acepta el número de la dirección vacío.
+let rejectsEmptyNumber: boolean;
 
 /// Envia de mentira: dos transportadoras en la cuenta; Coordinadora no
 /// cotiza esa ruta.
@@ -69,8 +73,8 @@ function fakeEnvia(requested: string, init?: RequestInit): Response {
     return Response.json({
       meta: "rate",
       data: [
-        { carrier, service: "express", serviceDescription: "Express", deliveryEstimate: "1 día", totalPrice: 18000, currency: "COP" },
-        { carrier, service: "ground", serviceDescription: "Terrestre", deliveryEstimate: "2-3 días", totalPrice: 12500.5, currency: "COP" },
+        { carrier, service: "express", serviceDescription: "Express", deliveryEstimate: "1 día", totalPrice: 18000, currency: "COP", dropOff: 0 },
+        { carrier, service: "ground", serviceDescription: "Terrestre", deliveryEstimate: "2-3 días", totalPrice: 12500.5, currency: "COP", dropOff: 0 },
       ],
     });
   }
@@ -88,12 +92,17 @@ function fakeEnvia(requested: string, init?: RequestInit): Response {
     if (!(body?.origin as Record<string, string> | undefined)?.identificationNumber) {
       return Response.json({ meta: "error", error: { code: 400, message: "Origin identification number is required." } }, { status: 400 });
     }
+    // Como Envia: `number` tiene que venir (aunque sea vacío, como en su
+    // ejemplo de Colombia).
     for (const side of ["origin", "destination"] as const) {
-      const address = body?.[side] as Record<string, string> | undefined;
+      const address = (body?.[side] ?? {}) as Record<string, string>;
       for (const field of ["number", "district"]) {
-        if (!address?.[field]) {
+        if (!(field in address)) {
           return Response.json({ meta: "error", error: { code: 400, message: `Required property missing: ${field}` } }, { status: 400 });
         }
+      }
+      if (rejectsEmptyNumber && !address.number) {
+        return Response.json({ meta: "error", error: { code: 400, message: "The street number is required for this carrier." } }, { status: 400 });
       }
     }
     if (!labelSizes.includes(settings.printSize ?? "")) {
@@ -107,7 +116,7 @@ function fakeEnvia(requested: string, init?: RequestInit): Response {
   }
   if (url === "https://api.envia.com/ship/generaltrack/") {
     const numbers = (body?.trackingNumbers as string[]) ?? [];
-    return Response.json({ data: numbers.map((n) => ({ trackingNumber: n, status: deliveredStatus })) });
+    return Response.json({ data: numbers.map((n) => ({ trackingNumber: n, status: trackStatus })) });
   }
   if (url === "https://api.envia.com/ship/cancel/") {
     return Response.json({ data: { carrier: "servientrega", trackingNumber: TRACKING, balanceReturned: true } });
@@ -120,8 +129,9 @@ let emails: string[];
 beforeEach(() => {
   calls = [];
   emails = [];
-  deliveredStatus = "Delivered";
+  trackStatus = "Delivered";
   labelSizes = ["PAPER_LETTER", "PAPER_4X6", "STOCK_4X6"];
+  rejectsEmptyNumber = false;
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => fakeEnvia(String(url), init)));
   vi.spyOn(console, "info").mockImplementation(() => {});
   // Los correos simulados (sin llave de Resend) salen por console.log.
@@ -223,13 +233,16 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     expect(quote.failed).toEqual(["Coordinadora"]);
     const rate = calls.find((c) => c.url === "https://api.envia.com/ship/rate/")!;
     expect(rate.auth).toBe("Bearer llave-buena");
+    // Como el ejemplo de Envia para Colombia: la dirección completa en
+    // `street`, número y barrio vacíos, la ciudad con el código DANE.
     expect(rate.body).toMatchObject({
       origin: {
         name: "H la Cosedora",
+        phone_code: "CO",
         phone: "3001234567",
-        street: "Calle 10",
-        number: "43-12",
-        district: "Medellin",
+        street: "Calle 10 # 43-12",
+        number: "",
+        district: "",
         city: "05001000",
         state: "AN",
         country: "CO",
@@ -237,10 +250,10 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
       },
       destination: {
         name: "Ana Munoz",
-        // "Carrera 43A # 1-50, apto 301": calle y número aparte.
-        street: "Carrera 43A",
-        number: "1-50, apto 301",
-        district: "Envigado",
+        phone_code: "CO",
+        street: "Carrera 43A # 1-50, apto 301",
+        number: "",
+        district: "",
         city: "05266000",
         state: "AN",
         postalCode: "05266000",
@@ -259,23 +272,27 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
         },
       ],
       shipment: { type: 1 },
+      settings: { currency: "COP" },
     });
 
     const label = await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
     expect(label).toMatchObject({ carrier: "Servientrega", trackingNumber: TRACKING, labelUrl: LABEL_PDF });
     const generate = calls.find((c) => c.url === "https://api.envia.com/ship/generate/")!;
     expect(generate.body).toMatchObject({
-      shipment: { type: 1, carrier: "servientrega", service: "ground" },
+      // El número del pedido, para reconocer la guía en el panel de Envia.
+      shipment: { type: 1, carrier: "servientrega", service: "ground", reverse_pickup: 0, import: 0, orderReference: orderNumber(order.reference) },
       // En hoja carta, como imprime H la Cosedora.
       settings: { printFormat: "PDF", printSize: "PAPER_LETTER", currency: "COP" },
       // NIT sin dígito de verificación, y la cédula de la compradora.
-      origin: { identificationNumber: "900123456" },
+      origin: { street: "Calle 10 # 43-12", number: "", district: "", identificationNumber: "900123456" },
       destination: { identificationNumber: "1020304050" },
     });
 
-    const shipped = await orderOf(order.id);
-    expect(shipped).toMatchObject({
-      fulfillmentStatus: "SHIPPED",
+    // Queda preparado con su guía, sin correo: la transportadora todavía
+    // no tiene el paquete (puede recogerlo días después).
+    const labeled = await orderOf(order.id);
+    expect(labeled).toMatchObject({
+      fulfillmentStatus: "PREPARED",
       carrier: "Servientrega",
       trackingNumber: TRACKING,
       trackingUrl: TRACK_URL,
@@ -285,8 +302,9 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
       enviaCostCents: 1250050,
       enviaStatus: "Created",
     });
-    expect(shipped.shippedAt).not.toBeNull();
-    expect(emails).toContain(order.buyerEmail);
+    expect(labeled.shippedAt).toBeNull();
+    expect(labeled.preparedAt).not.toBeNull();
+    expect(emails).not.toContain(order.buyerEmail);
 
     // Una sola guía por pedido.
     await expect(createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" })).rejects.toThrow(
@@ -317,7 +335,20 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
       .filter((c) => c.url.endsWith("/ship/generate/"))
       .map((c) => (c.body?.settings as { printSize: string }).printSize);
     expect(sizes).toEqual(["PAPER_LETTER", "PAPER_4X6"]);
-    expect((await orderOf(order.id)).fulfillmentStatus).toBe("SHIPPED");
+    expect(await orderOf(order.id)).toMatchObject({ fulfillmentStatus: "PREPARED", trackingNumber: TRACKING });
+  });
+
+  it("si la transportadora no acepta el número de la dirección vacío, se llena y se crea la guía", async () => {
+    const { brand, order } = await paidOrder();
+    rejectsEmptyNumber = true;
+    await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
+    const tries = calls.filter((c) => c.url.endsWith("/ship/generate/")).map((c) => c.body);
+    expect(tries).toHaveLength(2);
+    expect(tries[1]).toMatchObject({
+      origin: { street: "Calle 10 # 43-12", number: "S/N", district: "Medellin" },
+      destination: { street: "Carrera 43A # 1-50, apto 301", number: "S/N", district: "Envigado" },
+    });
+    expect((await orderOf(order.id)).trackingNumber).toBe(TRACKING);
   });
 
   it("un error de Envia se muestra sin el volcado de datos que Envia le pega", async () => {
@@ -334,6 +365,30 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     await expect(createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" })).rejects.toThrow(
       /^Envia: Required property missing: settings$/,
     );
+  });
+
+  it("solo se ofrecen servicios a domicilio, primero los de puerta a puerta", async () => {
+    const { brand, order } = await paidOrder();
+    await prisma.enviaConnection.update({ where: { brandId: brand.id }, data: { carrier: "tcc" } });
+    const rates = (data: unknown[]) =>
+      vi.fn(async (url: string, init?: RequestInit) =>
+        String(url).endsWith("/ship/rate/") ? Response.json({ meta: "rate", data }) : fakeEnvia(String(url), init),
+      );
+    // El dropOff de Envia dice dónde entrega, aunque el nombre no lo diga.
+    vi.stubGlobal(
+      "fetch",
+      rates([
+        { carrier: "tcc", service: "a_oficina", serviceDescription: "Economico", totalPrice: 5000, dropOff: 1 },
+        { carrier: "tcc", service: "oficina_casa", serviceDescription: "Oficina - Domicilio", totalPrice: 6000, dropOff: 2 },
+        { carrier: "tcc", service: "puerta", serviceDescription: "Estandar", totalPrice: 9000, dropOffDescription: "Door - Door" },
+      ]),
+    );
+    const detail = await quoteOrderShipping(brand.id, order.id, LABEL);
+    expect(detail.quotes.map((q) => q.service)).toEqual(["puerta", "oficina_casa"]);
+
+    // Si solo hay entrega en oficina, no se ofrece nada y se explica.
+    vi.stubGlobal("fetch", rates([{ carrier: "tcc", service: "a_oficina", serviceDescription: "Economico", totalPrice: 5000, dropOff: 3 }]));
+    await expect(quoteOrderShipping(brand.id, order.id, LABEL)).rejects.toThrow("solo entrega en su oficina");
   });
 
   it("solo se ofrece el servicio a domicilio, no el que deja el paquete en una oficina", async () => {
@@ -401,18 +456,51 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
       });
 
     expect((await post("0".repeat(48), { trackingNumber: TRACKING })).status).toBe(404);
-    // Aunque el aviso diga otra cosa, manda lo que responde Envia.
-    deliveredStatus = "In Transit";
-    expect((await post(conn.webhookSecret, { data: { tracking_number: TRACKING, status: "Delivered" } })).status).toBe(200);
-    expect(await orderOf(order.id)).toMatchObject({ fulfillmentStatus: "SHIPPED", enviaStatus: "In Transit" });
+    // Guía creada, la transportadora no la ha recogido: nada cambia.
+    trackStatus = "Created";
+    expect((await post(conn.webhookSecret, { data: { tracking_number: TRACKING, status: "created" } })).status).toBe(200);
+    expect(await orderOf(order.id)).toMatchObject({ fulfillmentStatus: "PREPARED", shippedAt: null });
+    expect(emails).not.toContain(order.buyerEmail);
 
-    deliveredStatus = "Delivered";
-    expect((await post(conn.webhookSecret, { data: { trackingNumber: TRACKING } })).status).toBe(200);
+    // La recogió (aviso tracking.simple de Envia): pasa a enviado y ahora sí
+    // le llega el correo con el seguimiento. Aunque el aviso diga otra cosa,
+    // manda lo que responde Envia.
+    trackStatus = "Picked Up";
+    const notice = { type: "tracking.simple", data: { shipment_id: 98765, tracking_number: TRACKING, status: "delivered" } };
+    expect((await post(conn.webhookSecret, notice)).status).toBe(200);
+    expect(await orderOf(order.id)).toMatchObject({ fulfillmentStatus: "SHIPPED", enviaStatus: "Picked Up" });
+    expect(emails.filter((e) => e === order.buyerEmail)).toHaveLength(1);
+
+    // Avisos repetidos no repiten el correo.
+    trackStatus = "Out for Delivery";
+    await post(conn.webhookSecret, notice);
+    expect(emails.filter((e) => e === order.buyerEmail)).toHaveLength(1);
+
+    // Un aviso con otro formato (sin número de guía reconocible): se revisan
+    // las guías sin entregar de la marca.
+    trackStatus = "Delivered";
+    expect((await post(conn.webhookSecret, { evento: "cambio" })).status).toBe(200);
     const delivered = await orderOf(order.id);
     expect(delivered).toMatchObject({ fulfillmentStatus: "DELIVERED", enviaStatus: "Delivered" });
     expect(delivered.deliveredAt).not.toBeNull();
+    expect(emails.filter((e) => e === order.buyerEmail)).toHaveLength(1);
     expect(calls.every((c) => c.auth === "Bearer llave-buena")).toBe(true);
     expect((await prisma.enviaConnection.findUniqueOrThrow({ where: { id: conn.id } })).lastWebhookAt).not.toBeNull();
+  });
+
+  it("si la guía se anula en el panel de Envia, el pedido queda sin guía para crear otra", async () => {
+    const { brand, order } = await paidOrder();
+    await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
+    trackStatus = "Canceled";
+    await refreshShippedEnviaOrders();
+    expect(await orderOf(order.id)).toMatchObject({
+      fulfillmentStatus: "PREPARED",
+      trackingNumber: null,
+      enviaCarrier: null,
+      enviaLabelUrl: null,
+    });
+    await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
+    expect((await orderOf(order.id)).trackingNumber).toBe(TRACKING);
   });
 
   it("anular la guía deja el pedido preparado y sin guía, para crear otra", async () => {
@@ -431,15 +519,31 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     });
     // Se puede crear otra.
     await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
-    expect((await orderOf(order.id)).fulfillmentStatus).toBe("SHIPPED");
+    expect(await orderOf(order.id)).toMatchObject({ fulfillmentStatus: "PREPARED", trackingNumber: TRACKING });
   });
 
-  it("el repaso diario pasa a entregado lo que Envia ya entregó", async () => {
+  it("el repaso diario pasa a enviado lo que la transportadora recogió y a entregado lo entregado", async () => {
     const { brand, order } = await paidOrder();
     await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
-    const result = await refreshShippedEnviaOrders();
-    expect(result.delivered).toBeGreaterThanOrEqual(1);
+    trackStatus = "Shipped";
+    expect((await refreshShippedEnviaOrders()).shipped).toBeGreaterThanOrEqual(1);
+    expect((await orderOf(order.id)).fulfillmentStatus).toBe("SHIPPED");
+    expect(emails).toContain(order.buyerEmail);
+
+    trackStatus = "Delivered";
+    expect((await refreshShippedEnviaOrders()).delivered).toBeGreaterThanOrEqual(1);
     expect((await orderOf(order.id)).fulfillmentStatus).toBe("DELIVERED");
+  });
+
+  it("si ya llegó cuando Marcolini se entera, pasa a entregado sin el correo de «va en camino»", async () => {
+    const { brand, order } = await paidOrder();
+    await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
+    trackStatus = "Delivered";
+    await refreshShippedEnviaOrders();
+    const delivered = await orderOf(order.id);
+    expect(delivered).toMatchObject({ fulfillmentStatus: "DELIVERED" });
+    expect(delivered.shippedAt).not.toBeNull();
+    expect(emails).not.toContain(order.buyerEmail);
   });
 
   it("con la cuenta de pruebas de Envia, la compradora no recibe correo de una guía de mentira", async () => {
@@ -451,6 +555,10 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
       true,
     );
     expect(calls.map((c) => c.auth)).toContain("Bearer llave-de-pruebas");
+    expect((await orderOf(order.id)).fulfillmentStatus).toBe("PREPARED");
+    // Aunque Envia diga que la recogieron, una guía de prueba no le escribe a la compradora.
+    trackStatus = "Picked Up";
+    await refreshShippedEnviaOrders();
     expect((await orderOf(order.id)).fulfillmentStatus).toBe("SHIPPED");
     expect(emails).not.toContain(order.buyerEmail);
   });
@@ -485,8 +593,11 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     await expect(createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" })).rejects.toThrow(
       "solo con Interrapidísimo",
     );
+    // La transportadora va tal cual la devolvió la cotización.
+    calls = [];
     await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "interRapidisimo", service: "ground" });
-    expect(await orderOf(order.id)).toMatchObject({ carrier: "Interrapidísimo", enviaCarrier: "interrapidisimo", fulfillmentStatus: "SHIPPED" });
+    expect(calls.find((c) => c.url.endsWith("/ship/generate/"))?.body).toMatchObject({ shipment: { carrier: "interRapidisimo" } });
+    expect(await orderOf(order.id)).toMatchObject({ carrier: "Interrapidísimo", enviaCarrier: "interRapidisimo", fulfillmentStatus: "PREPARED" });
   });
 
   it("el peso del paquete es el de los productos, y nunca menos que el de siempre", () => {
@@ -510,7 +621,7 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     expect(heavy.weightGrams).toBe(1200);
     const rate = calls.find((c) => c.url.endsWith("/ship/rate/"))!;
     expect(rate.body).toMatchObject({
-      destination: { street: "Calle 1", number: "2-3", city: "05266000", state: "AN" },
+      destination: { street: "Calle 1 # 2-3", number: "", city: "05266000", state: "AN" },
       packages: [{ weight: 1.2, declaredValue: 45000, dimensions: { length: 20, width: 15, height: 10 } }],
     });
 
@@ -518,7 +629,7 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     const created = await quickCreateOrderLabel(brand.id, order.id, { carrier: quote.carrier, service: quote.service, priceCents: quote.priceCents });
     expect(created).toMatchObject({ trackingNumber: TRACKING, labelUrl: LABEL_PDF, costCents: 1250050 });
     expect(calls.find((c) => c.url.endsWith("/ship/generate/"))?.body).toMatchObject({ packages: [{ weight: 1.2 }] });
-    expect((await orderOf(order.id)).fulfillmentStatus).toBe("SHIPPED");
+    expect((await orderOf(order.id)).fulfillmentStatus).toBe("PREPARED");
     await expect(quickQuoteOrder(brand.id, order.id)).rejects.toThrow("ya tiene guía");
   });
 

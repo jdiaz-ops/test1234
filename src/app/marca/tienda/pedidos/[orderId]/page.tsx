@@ -7,7 +7,7 @@ import { OrderArchiveActions } from "@/components/portal/order-archive-actions";
 import { getDataicoConnection } from "@/server/services/dataico-service";
 import { getEnviaConnection, orderPackageWeightGrams } from "@/server/services/envia-service";
 import { dataicoAllowed, enviaAllowed } from "@/lib/features";
-import { enviaStatusLabel } from "@/lib/envia-address";
+import { enviaStatusLabel, enviaStatusTone } from "@/lib/envia-address";
 import { OrderEnviaPanel } from "@/components/portal/order-envia-panel";
 import { OrderInvoicePanel } from "@/components/portal/order-invoice-panel";
 import { prisma } from "@/lib/prisma";
@@ -205,7 +205,10 @@ export default async function TiendaPedidoDetallePage({
                             costCents: order.enviaCostCents,
                             statusLabel:
                               order.fulfillmentStatus === "DELIVERED" ? "Entregado" : enviaStatusLabel(order.enviaStatus),
+                            statusTone:
+                              order.fulfillmentStatus === "DELIVERED" ? "delivered" : enviaStatusTone(order.enviaStatus),
                             delivered: order.fulfillmentStatus === "DELIVERED",
+                            shipped: order.fulfillmentStatus === "SHIPPED" || order.fulfillmentStatus === "DELIVERED",
                           }
                         : null
                     }

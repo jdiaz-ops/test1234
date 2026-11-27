@@ -1,9 +1,11 @@
 /// Cliente de la API de Envia.com: cotizar, crear y anular guías, y
 /// rastrearlas. Las rutas y los campos son los del paquete oficial de Envia
 /// (@envia/envia-mcp: /ship/rate/, /ship/generate/, /ship/generaltrack/,
-/// /ship/cancel/, /available-carrier/) y los de Colombia (ciudad con
-/// código DANE, /locate) los del módulo de Magento citado en
-/// lib/envia-address.ts. Ver envia-service.ts.
+/// /ship/cancel/, /available-carrier/), revisados contra la documentación
+/// de Envia (docs.envia.com: Generate a Shipping Label, Get Shipping Rates,
+/// Track Shipments y Webhooks Guide, que la marca nos pasó el 2026-11-27).
+/// Colombia: ciudad y código postal con el código DANE, dirección completa
+/// en `street`, como en los ejemplos de Envia. Ver envia-service.ts.
 
 const BASES = {
   production: { shipping: "https://api.envia.com", queries: "https://queries.envia.com" },
@@ -33,11 +35,17 @@ export type EnviaAddress = {
   name: string;
   company?: string;
   email?: string;
+  /// "CO", como en los ejemplos de Envia para Colombia.
+  phone_code: string;
   phone: string;
+  /// En Colombia, la dirección completa como la escribió la persona
+  /// ("Carrera 50 #68-40, apto 301").
   street: string;
-  /// El número de la dirección (o "S/N"), aparte de la calle.
+  /// Envia exige que venga ("Required property missing: number"); en
+  /// Colombia va vacío, como en su ejemplo, porque el número ya está en
+  /// `street`.
   number: string;
-  /// El barrio.
+  /// El barrio; vacío como en el ejemplo de Envia para Colombia.
   district: string;
   /// NIT o cédula (las transportadoras de Colombia lo piden al crear la guía).
   identificationNumber?: string;
@@ -166,14 +174,32 @@ export type EnviaRate = {
   deliveryEstimate: string | null;
   totalPrice: number;
   currency: string;
+  /// Dónde recoge y dónde entrega (dropOff de Envia): 0 puerta a puerta,
+  /// 1 puerta a oficina, 2 oficina a puerta, 3 oficina a oficina. null si
+  /// Envia no lo dice.
+  dropOff: number | null;
 };
+
+const DROP_OFF_NAMES = ["door - door", "door - branch", "branch - door", "branch - branch"];
+
+function dropOffOf(r: Record<string, unknown>): number | null {
+  const code = typeof r.dropOff === "string" && r.dropOff.trim() !== "" ? Number(r.dropOff) : r.dropOff;
+  if (typeof code === "number" && Number.isInteger(code) && code >= 0 && code <= 3) return code;
+  const name = text(r.dropOffDescription)?.toLowerCase().replace(/\s+/g, " ");
+  const index = name ? DROP_OFF_NAMES.indexOf(name) : -1;
+  return index >= 0 ? index : null;
+}
 
 /// Tarifas de una transportadora (Envia cotiza una por petición).
 export async function rateCarrier(auth: EnviaAuth, shipment: EnviaShipment, carrier: string): Promise<EnviaRate[]> {
   const json = await call("shipping", "/ship/rate/", {
     auth,
     method: "POST",
-    body: { ...shipmentBody(shipment), shipment: { type: 1, carrier: carrier.toLowerCase() } },
+    body: {
+      ...shipmentBody(shipment),
+      shipment: { type: 1, carrier: carrier.toLowerCase() },
+      settings: { currency: "COP" },
+    },
   });
   return rows(json).flatMap((r) => {
     const totalPrice = Number(r.totalPrice);
@@ -188,6 +214,7 @@ export async function rateCarrier(auth: EnviaAuth, shipment: EnviaShipment, carr
         deliveryEstimate: text(r.deliveryEstimate),
         totalPrice,
         currency: text(r.currency) ?? "COP",
+        dropOff: dropOffOf(r),
       },
     ];
   });
@@ -209,12 +236,15 @@ export const LABEL_SIZES = ["PAPER_LETTER", "PAPER_4X6", "STOCK_4X6"] as const;
 /// Compra la guía: se cobra del saldo de la cuenta de Envia de la marca.
 /// Para crearla (no para cotizar) Envia exige `settings` (formato y tamaño
 /// de impresión): si rechaza el tamaño, se prueba con el siguiente; un
-/// rechazo así no crea guía.
+/// rechazo así no crea guía. `carrier` y `service` van tal cual los
+/// devolvió la cotización. `orderReference`: el número del pedido, para
+/// reconocer la guía en el panel de Envia.
 export async function generateLabel(
   auth: EnviaAuth,
   shipment: EnviaShipment,
   carrier: string,
   service: string,
+  options: { orderReference?: string } = {},
 ): Promise<EnviaLabel> {
   let json: Json = null;
   for (const [i, printSize] of LABEL_SIZES.entries()) {
@@ -224,7 +254,14 @@ export async function generateLabel(
         method: "POST",
         body: {
           ...shipmentBody(shipment),
-          shipment: { type: 1, carrier: carrier.toLowerCase(), service },
+          shipment: {
+            type: 1,
+            carrier,
+            service,
+            reverse_pickup: 0,
+            import: 0,
+            ...(options.orderReference ? { orderReference: options.orderReference } : {}),
+          },
           settings: { printFormat: "PDF", printSize, currency: "COP" },
         },
       });
@@ -253,7 +290,9 @@ export async function generateLabel(
   };
 }
 
-/// Estado actual de cada guía ("Created", "In Transit", "Delivered"…).
+/// Estado actual de cada guía, con los nombres del catálogo de Envia
+/// ("Created", "Picked Up", "Out for Delivery", "Delivered"…; ver
+/// enviaStatusStage en lib/envia-address.ts).
 export async function trackShipments(
   auth: EnviaAuth,
   trackingNumbers: string[],
@@ -275,7 +314,7 @@ export async function cancelLabel(
   const json = await call("shipping", "/ship/cancel/", {
     auth,
     method: "POST",
-    body: { carrier: carrier.toLowerCase(), trackingNumber },
+    body: { carrier, trackingNumber },
   });
   const data = json?.data as Record<string, unknown> | undefined;
   return { balanceReturned: typeof data?.balanceReturned === "boolean" ? data.balanceReturned : null };

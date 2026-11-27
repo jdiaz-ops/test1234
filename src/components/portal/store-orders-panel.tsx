@@ -298,7 +298,7 @@ export function StoreOrdersPanel({
   const plural = (n: number) => (n === 1 ? "guía" : "guías");
   const charge = envia?.sandbox
     ? "Son guías de prueba: no se cobran ni le llega correo a la compradora."
-    : "Se cobran de tu saldo en Envia y a la compradora le llega el correo con su guía.";
+    : "Se cobran de tu saldo en Envia. A cada compradora le llega el correo con el seguimiento cuando la transportadora recoja su paquete.";
 
   async function quoteSelected() {
     setMessage(null);

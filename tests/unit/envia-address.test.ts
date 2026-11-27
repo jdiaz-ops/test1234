@@ -4,12 +4,12 @@ import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
   ENVIA_STATE_CODE,
   enviaIdNumber,
-  districtOf,
-  splitStreet,
   enviaCarrierName,
   enviaPhone,
   enviaPlace,
   enviaStatusLabel,
+  enviaStatusStage,
+  enviaStatusTone,
   enviaText,
   isDeliveredStatus,
 } from "@/lib/envia-address";
@@ -35,21 +35,6 @@ describe("direcciones de Colombia para Envia", () => {
     expect(enviaPlace("Otro país", "Medellín")).toBeNull();
   });
 
-  it("calle y número aparte, sin perder ni desordenar la dirección", () => {
-    expect(splitStreet("Calle 16F # 99-59, apto 301")).toEqual({ street: "Calle 16F", number: "99-59, apto 301" });
-    expect(splitStreet("Carrera 43A No. 1-50")).toEqual({ street: "Carrera 43A", number: "1-50" });
-    // Sin "#": completa como calle y "S/N" (sin número).
-    expect(splitStreet("Calle 16 F 99 59 Parque Central Fontibón 2, Torre 4 Apartamento 1407")).toEqual({
-      street: "Calle 16 F 99 59 Parque Central Fontibón 2, Torre 4 Apartamento 1407",
-      number: "S/N",
-    });
-    // Lo que va después del "#" es demasiado largo para el número: completa.
-    const long = "Calle 1 # 2-3 conjunto residencial los almendros torre 7 apartamento 1203";
-    expect(splitStreet(long)).toEqual({ street: long, number: "S/N" });
-    expect(districtOf("Cra 70 # 1-2, barrio El Poblado, casa 3", "Medellín")).toBe("El Poblado");
-    expect(districtOf("Calle 1 # 2-3", "Bogotá")).toBe("Bogotá");
-  });
-
   it("NIT sin dígito de verificación; cédula y pasaporte sin puntos ni espacios", () => {
     expect(enviaIdNumber("900.123.456-7")).toBe("900123456");
     expect(enviaIdNumber("900123456 - 7")).toBe("900123456");
@@ -73,14 +58,61 @@ describe("direcciones de Colombia para Envia", () => {
     expect(enviaCarrierName("dhl")).toBe("DHL");
     // La lista para elegir usa los mismos nombres.
     for (const c of ENVIA_CO_CARRIERS) expect(enviaCarrierName(c.code)).toBe(c.name);
+  });
+
+  it("los estados del catálogo de Envia, en español y con lo que significan para el pedido", () => {
+    // El catálogo completo de Envia (docs.envia.com → Track Shipments).
+    const catalog = [
+      "Created", "Shipped", "Delivered", "Canceled", "Information", "N/A", "Pending", "Picked Up",
+      "Out for Delivery", "Lost", "Returned", "Pickup at Office", "Delivered at Origin", "Damaged",
+      "Redirected", "Out for Pickup", "1 delivery attempt", "2 delivery attempts", "3 delivery attempts",
+      "Return problem", "Address error", "Undeliverable", "Delayed", "Rejected", "1 pickup attempt",
+      "Partially Shipped", "Partially Delivered", "Delivery Attempt",
+    ];
+    for (const status of catalog) {
+      expect(enviaStatusStage(status), status).not.toBeNull();
+      expect(enviaStatusLabel(status), status).not.toBe(status);
+    }
+    expect(new Set(catalog.map(enviaStatusLabel)).size).toBe(catalog.length);
     expect(enviaStatusLabel("Delivered")).toBe("Entregado");
+    expect(enviaStatusLabel("Picked Up")).toBe("La recogió la transportadora");
+    expect(enviaStatusLabel("Out for Delivery")).toBe("En reparto");
+    expect(enviaStatusLabel("2 delivery attempts")).toBe("2 intentos de entrega");
     expect(enviaStatusLabel("In Transit")).toBe("En camino");
-    expect(enviaStatusLabel("Out for delivery")).toBe("En reparto");
     expect(enviaStatusLabel("Algo nuevo")).toBe("Algo nuevo");
     expect(enviaStatusLabel(null)).toBeNull();
+
+    // Con la guía creada la transportadora todavía no tiene el paquete.
+    expect(["Created", "Pending", "Out for Pickup", "1 pickup attempt"].map(enviaStatusStage)).toEqual([
+      "label",
+      "label",
+      "label",
+      "label",
+    ]);
+    // Ya lo recogió: ahí sí va en camino.
+    expect(["Shipped", "Picked Up", "Out for Delivery", "1 delivery attempt", "Pickup at Office"].map(enviaStatusStage)).toEqual(
+      ["transit", "transit", "transit", "transit", "transit"],
+    );
+    expect(enviaStatusStage("Information")).toBe("info");
+    expect(enviaStatusStage("Algo nuevo")).toBeNull();
+    expect(enviaStatusStage("Canceled")).toBe("canceled");
+
+    // Entregado es solo entregado a la compradora (el aviso de Envia viene en minúscula).
     expect(isDeliveredStatus("Delivered")).toBe(true);
+    expect(isDeliveredStatus("delivered")).toBe(true);
     expect(isDeliveredStatus("ENTREGADO")).toBe(true);
-    expect(isDeliveredStatus("Out for delivery")).toBe(false);
+    for (const status of ["Out for Delivery", "Delivered at Origin", "Partially Delivered", "1 delivery attempt", "Delivery Attempt"]) {
+      expect(isDeliveredStatus(status), status).toBe(false);
+    }
+    expect(enviaStatusLabel("Delivered at Origin")).toBe("Devuelto a quien envía");
+
+    // El color en el pedido: lo que hay que revisar resalta.
+    expect(enviaStatusTone("Delivered")).toBe("delivered");
+    expect(enviaStatusTone("Address error")).toBe("attention");
+    expect(enviaStatusTone("1 delivery attempt")).toBe("attention");
+    expect(enviaStatusTone("Out for Delivery")).toBe("normal");
+    expect(enviaStatusTone("Canceled")).toBe("canceled");
+    expect(enviaStatusTone(null)).toBe("normal");
   });
 
   it("por ahora es solo para H la Cosedora", () => {

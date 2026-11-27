@@ -13,7 +13,11 @@ export type OrderEnviaLabel = {
   costCents: number | null;
   /// Último estado de Envia, ya en español (ver enviaStatusLabel).
   statusLabel: string | null;
+  /// Ver enviaStatusTone.
+  statusTone: "delivered" | "attention" | "canceled" | "normal";
   delivered: boolean;
+  /// Ya pasó a enviado: la transportadora lo recogió (o se marcó a mano).
+  shipped: boolean;
 };
 
 export type OrderEnviaDefaults = {
@@ -36,6 +40,13 @@ type Quote = {
   serviceName: string;
   deliveryEstimate: string | null;
   priceCents: number;
+};
+
+const STATUS_TONES: Record<OrderEnviaLabel["statusTone"], string> = {
+  delivered: "bg-emerald-100 text-emerald-800",
+  attention: "bg-amber-100 text-amber-900",
+  canceled: "bg-brand-surface text-brand-ink-soft ring-1 ring-brand-line",
+  normal: "bg-purple-100 text-purple-700",
 };
 
 function formatCOP(cents: number) {
@@ -113,10 +124,9 @@ export function OrderEnviaPanel({
     if (!body) return;
     setQuotes(body.quotes);
     setFailed(body.failed ?? []);
-    // Por defecto, la más barata que llega a la casa (no a una oficina de
-    // la transportadora); ver preferredQuote en envia-service.ts.
-    const home = (body.quotes as Quote[]).findIndex((q) => !/oficina/i.test(`${q.service} ${q.serviceName}`));
-    setChosen(body.quotes.length > 0 ? Math.max(home, 0) : null);
+    // Vienen solo los que entregan en la casa, el mejor primero (ver
+    // quoteWith en envia-service.ts).
+    setChosen(body.quotes.length > 0 ? 0 : null);
   }
 
   async function create() {
@@ -124,7 +134,7 @@ export function OrderEnviaPanel({
     const q = quotes[chosen];
     const ask = sandbox
       ? `¿Crear la guía de prueba con ${q.carrierName}?`
-      : `¿Crear la guía con ${q.carrierName} por ${formatCOP(q.priceCents)}? Se cobra de tu saldo en Envia y la compradora recibe el correo con su guía.`;
+      : `¿Crear la guía con ${q.carrierName} por ${formatCOP(q.priceCents)}? Se cobra de tu saldo en Envia. La compradora recibe el correo con el seguimiento cuando la transportadora recoja el paquete.`;
     if (!window.confirm(ask)) return;
     const body = await send("crear", { ...shipment(), carrier: q.carrier, service: q.service, priceCents: q.priceCents });
     if (!body) return;
@@ -180,7 +190,7 @@ export function OrderEnviaPanel({
           <p className="text-sm font-medium text-brand-ink">Guía de Envia</p>
           {sandboxBadge}
           {label.statusLabel && (
-            <span className="text-[11px] font-medium rounded-md px-1.5 py-0.5 bg-purple-100 text-purple-700">
+            <span className={`text-[11px] font-medium rounded-md px-1.5 py-0.5 ${STATUS_TONES[label.statusTone]}`}>
               {label.statusLabel}
             </span>
           )}
@@ -241,6 +251,12 @@ export function OrderEnviaPanel({
         </div>
         {!label.labelUrl && (
           <p className="text-xs text-brand-ink-soft">Envia no mandó el PDF: descárgalo desde tu cuenta de Envia.</p>
+        )}
+        {!label.shipped && !sandbox && (
+          <p className="text-xs text-brand-ink-soft">
+            Cuando la transportadora recoja el paquete, el pedido pasa a «Enviado» y la compradora recibe el correo con el
+            seguimiento.
+          </p>
         )}
         {message && <p className={`text-sm ${message.ok ? "text-emerald-700" : "text-red-600"}`}>{message.text}</p>}
       </div>

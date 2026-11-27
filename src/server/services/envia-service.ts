@@ -4,17 +4,16 @@ import { PDFDocument } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
 import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
-  districtOf,
   enviaCarrierName,
   enviaIdNumber,
   enviaPhone,
   enviaPlace,
   enviaStateCode,
+  enviaStatusStage,
   enviaText,
-  splitStreet,
-  isDeliveredStatus,
   type EnviaPlace,
 } from "@/lib/envia-address";
+import { orderNumber } from "@/lib/order-math";
 import {
   EnviaError,
   cancelLabel,
@@ -33,9 +32,10 @@ import { packingSlipsPdf } from "@/server/services/packing-slip-service";
 
 /// Guías con Envia.com desde el pedido, con la cuenta de Envia de la marca:
 /// cotiza con sus transportadoras, crea la guía (se cobra de su saldo en
-/// Envia), deja el pedido como enviado con la guía y el link de rastreo
-/// (el comprador recibe el correo de siempre) y lo pasa a entregado cuando
-/// Envia avisa. Lo que antes hacía Envia con Shopify. Solo las tiendas de
+/// Envia) y deja el pedido preparado con la guía. Cuando Envia avisa que
+/// la transportadora recogió el paquete, el pedido pasa a enviado y la
+/// compradora recibe el correo con el seguimiento; después, a entregado.
+/// Lo que antes hacía Envia con Shopify. Solo las tiendas de
 /// ENVIA_STORE_SLUGS. Ver conversación del 2026-11-27.
 
 /// Mensaje para mostrarle a la marca tal cual.
@@ -190,12 +190,20 @@ async function destinationPlace(conn: EnviaConnection, region: string, city: str
   throw new EnviaServiceError(`No encontramos «${city}» en ${region}. Corrige la ciudad del destino.`);
 }
 
-async function buildShipment(conn: EnviaConnection, order: StoreOrder, input: LabelInput): Promise<EnviaShipment> {
+/// Origen y destino como los pide Envia para Colombia (su ejemplo de
+/// "Generate domestic shipment (Colombia)"): la dirección completa en
+/// `street`, `number` y `district` vacíos, ciudad y código postal con el
+/// código DANE. `filledNumber`: número "S/N" y la ciudad como barrio, para
+/// una transportadora que no los acepte vacíos (ver createWith).
+async function buildShipment(
+  conn: EnviaConnection,
+  order: StoreOrder,
+  input: LabelInput,
+  options: { filledNumber?: boolean } = {},
+): Promise<EnviaShipment> {
   const origin = enviaPlace(conn.originRegion, conn.originCity);
   if (!origin) throw new EnviaServiceError("Revisa la ciudad de despacho en Tienda → Conexiones → Envia.");
   const destination = await destinationPlace(conn, input.destination.region, input.destination.city);
-  const from = splitStreet(enviaText(conn.originStreet));
-  const to = splitStreet(enviaText(input.destination.street));
   // Quien envía: el de la conexión o, si no lo tiene, el NIT de la marca.
   const originId =
     enviaIdNumber(conn.originIdNumber) ||
@@ -208,17 +216,19 @@ async function buildShipment(conn: EnviaConnection, order: StoreOrder, input: La
     );
   }
   const buyerId = enviaIdNumber(order.billingIdNumber);
+  const numberAndDistrict = (place: EnviaPlace) =>
+    options.filledNumber ? { number: "S/N", district: enviaText(place.cityName, 60) } : { number: "", district: "" };
   return {
     origin: {
       name: enviaText(conn.originName, 60),
       // Sin empresa, el mismo nombre (algunas transportadoras la piden).
       company: enviaText(conn.originCompany || conn.originName, 60),
       ...(conn.originEmail ? { email: conn.originEmail } : {}),
+      phone_code: "CO",
       phone: enviaPhone(conn.originPhone),
       identificationNumber: originId,
-      street: from.street,
-      number: from.number,
-      district: enviaText(districtOf(conn.originStreet, origin.cityName), 60),
+      street: enviaText(conn.originStreet, 200),
+      ...numberAndDistrict(origin),
       city: origin.city,
       state: origin.state,
       country: "CO",
@@ -228,12 +238,12 @@ async function buildShipment(conn: EnviaConnection, order: StoreOrder, input: La
     destination: {
       name: enviaText(order.buyerName, 60),
       email: order.buyerEmail,
+      phone_code: "CO",
       phone: enviaPhone(order.buyerPhone),
-      // La cédula que dio la compradora en el checkout (para la factura).
+      // La cédula que dio la compradora en el checkout (es obligatoria).
       ...(buyerId ? { identificationNumber: buyerId } : {}),
-      street: to.street,
-      number: to.number,
-      district: enviaText(districtOf(input.destination.street, destination.cityName), 60),
+      street: enviaText(input.destination.street, 200),
+      ...numberAndDistrict(destination),
       city: destination.city,
       state: destination.state,
       country: "CO",
@@ -258,6 +268,8 @@ export type ShippingQuote = {
   serviceName: string;
   deliveryEstimate: string | null;
   priceCents: number;
+  /// Ver EnviaRate.dropOff.
+  dropOff: number | null;
 };
 
 /// Peso del paquete: lo que pesan los productos del pedido (el peso que
@@ -318,20 +330,18 @@ export async function quickQuoteOrder(brandId: string, orderId: string) {
   if (order.enviaCarrier) throw new EnviaServiceError("Este pedido ya tiene guía de Envia.");
   const input = await quickLabelInput(conn, order);
   const { quotes } = await quoteWith(conn, order, input);
-  return { quote: preferredQuote(quotes), weightGrams: input.packageWeightGrams };
+  return { quote: quotes[0], weightGrams: input.packageWeightGrams };
 }
 
-/// Un servicio que deja el paquete en una oficina de la transportadora
-/// (ej. "Interrapidisimo Mensajería Domicilio - Oficina"): la compradora
-/// tendría que ir a recogerlo.
-export function isOfficeService(quote: Pick<ShippingQuote, "service" | "serviceName">) {
-  return /oficina/i.test(`${quote.service} ${quote.serviceName}`);
-}
-
-/// La más barata que llega a la casa de la compradora (si todas son a
-/// oficina, la más barata). `quotes` viene del más barato al más caro.
-export function preferredQuote<T extends Pick<ShippingQuote, "service" | "serviceName">>(quotes: T[]): T {
-  return quotes.find((q) => !isOfficeService(q)) ?? quotes[0];
+/// Un servicio que deja el paquete en una oficina de la transportadora: la
+/// compradora tendría que ir a recogerlo, y para crearlo Envia pide la
+/// oficina (branchCode). Lo dice el dropOff de Envia (1 y 3 terminan en
+/// oficina) o el nombre, que termina en el destino: "Interrapidisimo
+/// Mensajería Domicilio - Oficina" recoge en la casa y entrega en oficina.
+export function deliversToOffice(quote: Pick<ShippingQuote, "service" | "serviceName" | "dropOff">) {
+  if (quote.dropOff === 1 || quote.dropOff === 3) return true;
+  const name = quote.serviceName?.trim() || quote.service;
+  return /oficina|sucursal|branch/i.test(name.split(/\s+-\s+/).pop() ?? name);
 }
 
 async function quoteWith(conn: EnviaConnection, order: StoreOrder, input: LabelInput) {
@@ -366,6 +376,7 @@ async function quoteWith(conn: EnviaConnection, order: StoreOrder, input: LabelI
         serviceName: rate.serviceName ?? rate.service,
         deliveryEstimate: rate.deliveryEstimate,
         priceCents: Math.round(rate.totalPrice * 100),
+        dropOff: rate.dropOff,
       });
     }
   });
@@ -377,18 +388,39 @@ async function quoteWith(conn: EnviaConnection, order: StoreOrder, input: LabelI
         : "Ninguna transportadora dio precio para este envío. Revisa la dirección y el paquete.",
     );
   }
-  quotes.sort((a, b) => a.priceCents - b.priceCents);
   // Las compradoras esperan el pedido en su casa ("no a oficina, a
   // domicilio", 2026-11-27): los servicios que lo dejan en una oficina de
-  // la transportadora no se ofrecen si hay uno a domicilio.
-  const home = quotes.filter((q) => !isOfficeService(q));
-  return { quotes: home.length > 0 ? home : quotes, failed };
+  // la transportadora no se ofrecen.
+  const home = quotes.filter((q) => !deliversToOffice(q));
+  if (home.length === 0) {
+    throw new EnviaServiceError(
+      "Para esta dirección la transportadora solo entrega en su oficina, no a domicilio. Si la compradora puede recogerlo allá, crea la guía desde tu cuenta de Envia.",
+    );
+  }
+  // Primero los de puerta a puerta (la transportadora recoge y entrega en
+  // la casa), y en cada grupo del más barato al más caro: el primero es el
+  // que se usa por defecto.
+  const rank = (q: ShippingQuote) => (q.dropOff == null || q.dropOff === 0 ? 0 : 1);
+  home.sort((a, b) => rank(a) - rank(b) || a.priceCents - b.priceCents);
+  return { quotes: home, failed };
+}
+
+/// Envia (o la transportadora) no aceptó el número o el barrio vacíos.
+function rejectsEmptyNumber(err: unknown) {
+  return (
+    err instanceof EnviaError &&
+    /\b(number|district|numero|barrio)\b/i.test(err.message) &&
+    !/identification|phone|tracking|telefono/i.test(err.message)
+  );
 }
 
 type LabelChoice = { carrier: string; service: string; priceCents?: number };
 
 /// Crea la guía con la transportadora y el servicio elegidos y deja el
-/// pedido como enviado con su guía (el comprador recibe el correo).
+/// pedido preparado con su guía. La compradora recibe el correo con el
+/// seguimiento cuando la transportadora recoja el paquete (applyTracking):
+/// la guía se puede crear el viernes y entregarse el martes, y no se le
+/// dice antes que va en camino (pedido del 2026-11-27).
 export async function createOrderLabel(brandId: string, orderId: string, input: LabelInput & LabelChoice) {
   const conn = await requireConnection(brandId);
   const order = await loadOrder(brandId, orderId);
@@ -425,8 +457,17 @@ async function createWith(brandId: string, conn: EnviaConnection, order: StoreOr
   }
 
   let label: EnviaLabel;
+  const auth = authOf(conn);
+  const generate = (s: EnviaShipment) =>
+    generateLabel(auth, s, input.carrier, input.service, { orderReference: orderNumber(order.reference) });
   try {
-    label = await generateLabel(authOf(conn), shipment, input.carrier, input.service);
+    label = await generate(shipment).catch(async (err) => {
+      if (!rejectsEmptyNumber(err)) throw err;
+      // Envia manda el número y el barrio vacíos en Colombia; si esta
+      // transportadora no los acepta así, se llenan y se intenta otra vez
+      // (un rechazo no crea guía ni cobra).
+      return generate(await buildShipment(conn, order, input, { filledNumber: true }));
+    });
   } catch (err) {
     await prisma.storeOrder.update({ where: { id: order.id }, data: { enviaLabelAt: null } });
     friendly(err);
@@ -438,24 +479,27 @@ async function createWith(brandId: string, conn: EnviaConnection, order: StoreOr
     await prisma.storeOrder.update({
       where: { id: order.id },
       data: {
-        enviaCarrier: label.carrier.toLowerCase(),
+        // Tal cual lo devuelve Envia: así se anula después.
+        enviaCarrier: label.carrier,
         enviaService: label.service,
         enviaLabelUrl: label.labelUrl,
         enviaCostCents: costCents,
         enviaLabelAt: now,
         enviaStatus: "Created",
         trackingUrl: label.trackUrl,
-        // Ya estaba como enviado con otra guía (puesta a mano): así el
-        // comprador recibe el correo con la nueva.
+        // Ya estaba como enviado con otra guía (puesta a mano): el correo
+        // con la nueva sale cuando la transportadora la recoja.
         ...(order.shippedAt && order.trackingNumber !== label.trackingNumber ? { shippedAt: null } : {}),
       },
     });
-    await updateOrderFulfillment(
-      brandId,
-      { orderId: order.id, fulfillmentStatus: "SHIPPED", carrier, trackingNumber: label.trackingNumber },
-      // Una guía de prueba no es real: la compradora no se entera.
-      { notifyBuyer: !conn.sandbox },
-    );
+    // Preparado con su guía, sin correo todavía: "enviado" es cuando la
+    // transportadora tiene el paquete.
+    await updateOrderFulfillment(brandId, {
+      orderId: order.id,
+      fulfillmentStatus: "PREPARED",
+      carrier,
+      trackingNumber: label.trackingNumber,
+    });
   } catch (err) {
     // La guía ya se compró: que quede el número en el registro.
     console.error(
@@ -526,59 +570,12 @@ export async function mergedOrderLabels(brandId: string, orderIds: string[], opt
   return { pdf: await merged.save(), missing };
 }
 
-type TrackedOrder = Pick<StoreOrder, "id" | "trackingNumber" | "fulfillmentStatus" | "enviaStatus">;
+type TrackedOrder = Pick<StoreOrder, "id" | "status" | "trackingNumber" | "fulfillmentStatus" | "enviaStatus">;
 
-/// Guarda el último estado de cada guía y pasa a entregado lo entregado.
-async function applyTracking(
-  brandId: string,
-  orders: TrackedOrder[],
-  results: { trackingNumber: string; status: string | null }[],
-) {
-  let delivered = 0;
-  for (const order of orders) {
-    const status = results.find((r) => r.trackingNumber === order.trackingNumber)?.status;
-    if (!status) continue;
-    if (status !== order.enviaStatus) {
-      await prisma.storeOrder.update({ where: { id: order.id }, data: { enviaStatus: status } });
-    }
-    if (isDeliveredStatus(status) && order.fulfillmentStatus !== "DELIVERED") {
-      try {
-        await updateOrderFulfillment(brandId, { orderId: order.id, fulfillmentStatus: "DELIVERED" });
-        delivered += 1;
-      } catch (err) {
-        // Ej. el pedido se devolvió mientras tanto: se deja como está.
-        if (!(err instanceof StoreOrderError)) throw err;
-      }
-    }
-  }
-  return delivered;
-}
-
-const trackedSelect = { id: true, trackingNumber: true, fulfillmentStatus: true, enviaStatus: true } as const;
-
-/// "Actualizar estado" en el pedido.
-export async function refreshOrderTracking(brandId: string, orderId: string) {
-  const conn = await requireConnection(brandId);
-  const order = await prisma.storeOrder.findFirst({
-    where: { id: orderId, brandId, enviaCarrier: { not: null } },
-    select: trackedSelect,
-  });
-  if (!order?.trackingNumber) throw new EnviaServiceError("Este pedido no tiene guía de Envia.");
-  const results = await trackShipments(authOf(conn), [order.trackingNumber]).catch(friendly);
-  await applyTracking(brandId, [order], results);
-  return { status: results.find((r) => r.trackingNumber === order.trackingNumber)?.status ?? null };
-}
-
-/// Anula la guía en Envia y deja el pedido como preparado, sin guía, para
-/// crear otra.
-export async function cancelOrderLabel(brandId: string, orderId: string) {
-  const conn = await requireConnection(brandId);
-  const order = await prisma.storeOrder.findFirst({ where: { id: orderId, brandId, enviaCarrier: { not: null } } });
-  if (!order?.trackingNumber || !order.enviaCarrier) throw new EnviaServiceError("Este pedido no tiene guía de Envia.");
-  if (order.fulfillmentStatus === "DELIVERED") throw new EnviaServiceError("La guía ya se entregó: no se puede anular.");
-  const result = await cancelLabel(authOf(conn), order.enviaCarrier, order.trackingNumber).catch(friendly);
+/// Deja el pedido preparado y sin guía (se anuló), para crear otra.
+async function clearEnviaLabel(orderId: string) {
   await prisma.storeOrder.update({
-    where: { id: order.id },
+    where: { id: orderId },
     data: {
       fulfillmentStatus: "PREPARED",
       carrier: null,
@@ -593,6 +590,97 @@ export async function cancelOrderLabel(brandId: string, orderId: string) {
       enviaStatus: null,
     },
   });
+}
+
+/// Guarda el último estado de cada guía y mueve el pedido:
+/// - La transportadora recogió el paquete: pasa a enviado y la compradora
+///   recibe el correo con el seguimiento (antes no, ver createWith).
+/// - Entregado: pasa a entregado (si nunca se vio en camino, sin el correo
+///   de "va en camino").
+/// - Guía anulada en Envia: el pedido queda preparado y sin guía.
+async function applyTracking(
+  conn: Pick<EnviaConnection, "brandId" | "sandbox">,
+  orders: TrackedOrder[],
+  results: { trackingNumber: string; status: string | null }[],
+) {
+  let shipped = 0;
+  let delivered = 0;
+  for (const order of orders) {
+    const status = results.find((r) => r.trackingNumber === order.trackingNumber)?.status;
+    if (!status) continue;
+    const stage = enviaStatusStage(status);
+    // (Un pedido devuelto se deja como está, con el estado de la guía.)
+    if (stage === "canceled" && order.status === "PAID" && order.fulfillmentStatus !== "DELIVERED") {
+      await clearEnviaLabel(order.id);
+      continue;
+    }
+    if (status !== order.enviaStatus) {
+      await prisma.storeOrder.update({ where: { id: order.id }, data: { enviaStatus: status } });
+    }
+    const sent = order.fulfillmentStatus === "SHIPPED" || order.fulfillmentStatus === "DELIVERED";
+    try {
+      if (stage === "delivered" && order.fulfillmentStatus !== "DELIVERED") {
+        await updateOrderFulfillment(conn.brandId, { orderId: order.id, fulfillmentStatus: "DELIVERED" }, { notifyBuyer: false });
+        delivered += 1;
+      } else if (stage === "transit" && !sent) {
+        // Una guía de prueba no es real: la compradora no se entera.
+        await updateOrderFulfillment(
+          conn.brandId,
+          { orderId: order.id, fulfillmentStatus: "SHIPPED" },
+          { notifyBuyer: !conn.sandbox },
+        );
+        shipped += 1;
+      }
+    } catch (err) {
+      // Ej. el pedido se devolvió mientras tanto: se deja como está.
+      if (!(err instanceof StoreOrderError)) throw err;
+    }
+  }
+  return { shipped, delivered };
+}
+
+const trackedSelect = { id: true, status: true, trackingNumber: true, fulfillmentStatus: true, enviaStatus: true } as const;
+
+/// Las guías de Envia que faltan por entregar (de los últimos 45 días),
+/// las más nuevas primero.
+function openEnviaOrders(where: { brandId?: string }, take: number) {
+  return prisma.storeOrder.findMany({
+    where: {
+      ...where,
+      status: "PAID",
+      fulfillmentStatus: { not: "DELIVERED" },
+      enviaCarrier: { not: null },
+      trackingNumber: { not: null },
+      enviaLabelAt: { gte: new Date(Date.now() - 45 * 24 * 60 * 60_000) },
+    },
+    select: { ...trackedSelect, brandId: true },
+    orderBy: { enviaLabelAt: "desc" },
+    take,
+  });
+}
+
+/// "Actualizar estado" en el pedido.
+export async function refreshOrderTracking(brandId: string, orderId: string) {
+  const conn = await requireConnection(brandId);
+  const order = await prisma.storeOrder.findFirst({
+    where: { id: orderId, brandId, enviaCarrier: { not: null } },
+    select: trackedSelect,
+  });
+  if (!order?.trackingNumber) throw new EnviaServiceError("Este pedido no tiene guía de Envia.");
+  const results = await trackShipments(authOf(conn), [order.trackingNumber]).catch(friendly);
+  await applyTracking(conn, [order], results);
+  return { status: results.find((r) => r.trackingNumber === order.trackingNumber)?.status ?? null };
+}
+
+/// Anula la guía en Envia y deja el pedido como preparado, sin guía, para
+/// crear otra.
+export async function cancelOrderLabel(brandId: string, orderId: string) {
+  const conn = await requireConnection(brandId);
+  const order = await prisma.storeOrder.findFirst({ where: { id: orderId, brandId, enviaCarrier: { not: null } } });
+  if (!order?.trackingNumber || !order.enviaCarrier) throw new EnviaServiceError("Este pedido no tiene guía de Envia.");
+  if (order.fulfillmentStatus === "DELIVERED") throw new EnviaServiceError("La guía ya se entregó: no se puede anular.");
+  const result = await cancelLabel(authOf(conn), order.enviaCarrier, order.trackingNumber).catch(friendly);
+  await clearEnviaLabel(order.id);
   return result;
 }
 
@@ -620,40 +708,37 @@ export function findEnviaConnectionBySecret(secret: string) {
 
 /// Aviso de Envia (un cambio de estado de una guía). No se confía en lo
 /// que dice el aviso: se consulta el estado a Envia con la llave de la
-/// marca.
+/// marca. Si el aviso no trae un número de guía de un pedido (otro formato
+/// de aviso, o una guía hecha por fuera de Marcolini), se revisan las guías
+/// sin entregar más nuevas de la marca.
 export async function processEnviaWebhook(conn: EnviaConnection, payload: unknown) {
   await prisma.enviaConnection.update({ where: { id: conn.id }, data: { lastWebhookAt: new Date() } });
   const numbers = trackingNumbersIn(payload).slice(0, 50);
-  if (numbers.length === 0) return { delivered: 0 };
-  const orders = await prisma.storeOrder.findMany({
-    where: { brandId: conn.brandId, trackingNumber: { in: numbers }, enviaCarrier: { not: null } },
-    select: trackedSelect,
-  });
-  if (orders.length === 0) return { delivered: 0 };
+  let orders =
+    numbers.length > 0
+      ? await prisma.storeOrder.findMany({
+          where: { brandId: conn.brandId, trackingNumber: { in: numbers }, enviaCarrier: { not: null } },
+          select: trackedSelect,
+        })
+      : [];
+  if (orders.length === 0) orders = await openEnviaOrders({ brandId: conn.brandId }, TRACK_BATCH);
+  if (orders.length === 0) return { shipped: 0, delivered: 0 };
   const results = await trackShipments(
     authOf(conn),
     orders.map((o) => o.trackingNumber!),
   );
-  return { delivered: await applyTracking(conn.brandId, orders, results) };
+  return applyTracking(conn, orders, results);
 }
 
-/// Repaso diario (cron) de las guías en camino, por si un aviso de Envia
-/// no llegó o la marca no configuró los avisos.
+/// Repaso diario (cron) de las guías sin entregar, por si un aviso de Envia
+/// no llegó o la marca no configuró los avisos: las que la transportadora
+/// ya recogió pasan a enviadas (con el correo) y las entregadas, a entregadas.
 export async function refreshShippedEnviaOrders() {
-  const since = new Date(Date.now() - 45 * 24 * 60 * 60_000);
-  const orders = await prisma.storeOrder.findMany({
-    where: {
-      fulfillmentStatus: "SHIPPED",
-      enviaCarrier: { not: null },
-      trackingNumber: { not: null },
-      enviaLabelAt: { gte: since },
-    },
-    select: { ...trackedSelect, brandId: true },
-    take: 500,
-  });
+  const orders = await openEnviaOrders({}, 500);
   const byBrand = new Map<string, typeof orders>();
   for (const o of orders) byBrand.set(o.brandId, [...(byBrand.get(o.brandId) ?? []), o]);
 
+  let shipped = 0;
   let delivered = 0;
   for (const [brandId, brandOrders] of byBrand) {
     const conn = await getEnviaConnection(brandId);
@@ -662,11 +747,13 @@ export async function refreshShippedEnviaOrders() {
       const batch = brandOrders.slice(i, i + TRACK_BATCH);
       try {
         const results = await trackShipments(authOf(conn), batch.map((o) => o.trackingNumber!));
-        delivered += await applyTracking(brandId, batch, results);
+        const moved = await applyTracking(conn, batch, results);
+        shipped += moved.shipped;
+        delivered += moved.delivered;
       } catch (err) {
         console.error(`[envia] No se pudo revisar el estado de las guías de la marca ${brandId}:`, err);
       }
     }
   }
-  return { checked: orders.length, delivered };
+  return { checked: orders.length, shipped, delivered };
 }
