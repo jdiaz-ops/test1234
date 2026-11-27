@@ -248,7 +248,11 @@ async function buildShipment(
       "Falta el NIT o la cédula de quien envía: agrégalo en Tienda → Conexiones → Envia (las transportadoras lo exigen).",
     );
   }
-  const buyerId = enviaIdNumber(order.billingIdNumber);
+  // El documento de la compradora: Envia lo exige ("Destination
+  // identification number is required") y solo con números. Si lo escribió
+  // sin ningún número (pasó con un pedido del 2026-11-27), va su celular,
+  // que siempre está: así la guía sale sin que nadie tenga que corregirla.
+  const buyerId = enviaIdNumber(order.billingIdNumber) || enviaPhone(order.buyerPhone);
   const destinationStreet = standardStreet(input.destination.street);
   const postalCode = options.danePostalCode ? destination.city : destinationPostalCode(order, input, destination);
   const numberAndDistrict = (place: EnviaPlace) =>
@@ -275,7 +279,6 @@ async function buildShipment(
       email: order.buyerEmail,
       phone_code: "CO",
       phone: enviaPhone(order.buyerPhone),
-      // La cédula que dio la compradora en el checkout (es obligatoria).
       ...(buyerId ? { identificationNumber: buyerId } : {}),
       street: enviaText(destinationStreet, 200),
       ...numberAndDistrict(destination),

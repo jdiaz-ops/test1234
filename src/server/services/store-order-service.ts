@@ -345,6 +345,15 @@ export async function createStoreOrder(slug: string, input: CreateOrderInput) {
   if (!(input.billingIdType && input.billingIdNumber?.trim())) {
     throw new StoreOrderError("Escribe tu número de documento.");
   }
+  // Cédula, NIT, CE y PPT son números (la transportadora no acepta otra
+  // cosa; un pedido del 2026-11-27 llegó con el documento sin números). El
+  // pasaporte puede tener letras.
+  if (input.billingIdType !== "PASAPORTE" && input.billingIdNumber.replace(/[\s.\-]/g, "").replace(/\D/g, "").length < 5) {
+    throw new StoreOrderError("Escribe tu número de documento solo con números.");
+  }
+  if (input.billingIdType !== "PASAPORTE" && /[a-z]/i.test(input.billingIdNumber)) {
+    throw new StoreOrderError("Escribe tu número de documento solo con números.");
+  }
 
   const productIds = input.items.map((i) => i.productId);
   const products = await prisma.product.findMany({

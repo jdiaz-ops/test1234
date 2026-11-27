@@ -237,6 +237,39 @@ describe.skipIf(!hasDb)("checkout: la ruta que usa el navegador", () => {
     expect(await prisma.storeOrder.count({ where: { brandId: brand.id } })).toBe(0);
   });
 
+  it("la cédula tiene que ser con números (el pasaporte puede tener letras)", async () => {
+    const brand = await createSellingBrand();
+    const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });
+    for (const billingIdNumber of ["Betty", "CC 1020304050", "12"]) {
+      const res = await post(brand.storefrontSlug!, {
+        ...BUYER,
+        buyerEmail: email("letras"),
+        items: [{ productId: placa.id, quantity: 1 }],
+        billingIdType: "CC",
+        billingIdNumber,
+      });
+      expect(res.status, billingIdNumber).toBe(400);
+      expect((await res.json()).error).toBe("Escribe tu número de documento solo con números.");
+    }
+    expect(await prisma.storeOrder.count({ where: { brandId: brand.id } })).toBe(0);
+    const ok = await post(brand.storefrontSlug!, {
+      ...BUYER,
+      buyerEmail: email("puntos"),
+      items: [{ productId: placa.id, quantity: 1 }],
+      billingIdType: "CC",
+      billingIdNumber: "1.020.304.050",
+    });
+    expect(ok.status).toBe(200);
+    const passport = await post(brand.storefrontSlug!, {
+      ...BUYER,
+      buyerEmail: email("pasaporte"),
+      items: [{ productId: placa.id, quantity: 1 }],
+      billingIdType: "PASAPORTE",
+      billingIdNumber: "AB123456",
+    });
+    expect(passport.status).toBe(200);
+  });
+
   it("devuelve la ventana de Wompi con los datos del comprador y guarda los campos nuevos", async () => {
     const brand = await createSellingBrand();
     const placa = await createProduct(brand.id, { name: "Placa", price: 15000, stock: 5 });

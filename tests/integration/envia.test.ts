@@ -95,9 +95,20 @@ function fakeEnvia(requested: string, init?: RequestInit): Response {
         { status: 400 },
       );
     }
-    // Interrapidísimo y las demás de Colombia exigen el NIT o la cédula de quien envía.
+    // Interrapidísimo y las demás de Colombia exigen el NIT o la cédula de
+    // quien envía y de quien recibe, solo con números.
     if (!(body?.origin as Record<string, string> | undefined)?.identificationNumber) {
       return Response.json({ meta: "error", error: { code: 400, message: "Origin identification number is required." } }, { status: 400 });
+    }
+    const destinationId = (body?.destination as Record<string, string> | undefined)?.identificationNumber;
+    if (!destinationId) {
+      return Response.json({ meta: "error", error: { code: 400, message: "Destination identification number is required." } }, { status: 400 });
+    }
+    if (!/^\d+$/.test(destinationId)) {
+      return Response.json(
+        { meta: "error", error: { code: 400, message: "Destination identification number must contain only digits." } },
+        { status: 400 },
+      );
     }
     // Como Envia: `number` tiene que venir (aunque sea vacío, como en su
     // ejemplo de Colombia).
@@ -365,6 +376,16 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     expect(calls.find((c) => c.url.endsWith("/ship/generate/"))?.body).toMatchObject({
       destination: { identificationNumber: "1020304050" },
     });
+  });
+
+  it("si la compradora escribió el documento sin ningún número, la guía sale con su celular", async () => {
+    const { brand, order } = await paidOrder();
+    await prisma.storeOrder.update({ where: { id: order.id }, data: { billingIdNumber: "Betty", buyerPhone: "+57 310 555 1234" } });
+    await createOrderLabel(brand.id, order.id, { ...LABEL, carrier: "servientrega", service: "ground" });
+    expect(calls.find((c) => c.url.endsWith("/ship/generate/"))?.body).toMatchObject({
+      destination: { identificationNumber: "3105551234" },
+    });
+    expect((await orderOf(order.id)).trackingNumber).toBe(TRACKING);
   });
 
   it("si la transportadora no da la guía en hoja carta, se crea en 4x6", async () => {
