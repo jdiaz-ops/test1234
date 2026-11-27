@@ -35,6 +35,10 @@ export type EnviaAddress = {
   email?: string;
   phone: string;
   street: string;
+  /// El número de la dirección (o "S/N"), aparte de la calle.
+  number: string;
+  /// El barrio.
+  district: string;
   /// En Colombia, el código DANE de 8 dígitos del municipio.
   city: string;
   state: string;

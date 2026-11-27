@@ -4,11 +4,13 @@ import { PDFDocument } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
 import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
+  districtOf,
   enviaCarrierName,
   enviaPhone,
   enviaPlace,
   enviaStateCode,
   enviaText,
+  splitStreet,
   isDeliveredStatus,
   type EnviaPlace,
 } from "@/lib/envia-address";
@@ -188,13 +190,17 @@ async function buildShipment(conn: EnviaConnection, order: StoreOrder, input: La
   const origin = enviaPlace(conn.originRegion, conn.originCity);
   if (!origin) throw new EnviaServiceError("Revisa la ciudad de despacho en Tienda → Conexiones → Envia.");
   const destination = await destinationPlace(conn, input.destination.region, input.destination.city);
+  const from = splitStreet(enviaText(conn.originStreet));
+  const to = splitStreet(enviaText(input.destination.street));
   return {
     origin: {
       name: enviaText(conn.originName, 60),
       ...(conn.originCompany ? { company: enviaText(conn.originCompany, 60) } : {}),
       ...(conn.originEmail ? { email: conn.originEmail } : {}),
       phone: enviaPhone(conn.originPhone),
-      street: enviaText(conn.originStreet),
+      street: from.street,
+      number: from.number,
+      district: enviaText(districtOf(conn.originStreet, origin.cityName), 60),
       city: origin.city,
       state: origin.state,
       country: "CO",
@@ -205,7 +211,9 @@ async function buildShipment(conn: EnviaConnection, order: StoreOrder, input: La
       name: enviaText(order.buyerName, 60),
       email: order.buyerEmail,
       phone: enviaPhone(order.buyerPhone),
-      street: enviaText(input.destination.street),
+      street: to.street,
+      number: to.number,
+      district: enviaText(districtOf(input.destination.street, destination.cityName), 60),
       city: destination.city,
       state: destination.state,
       country: "CO",

@@ -70,6 +70,27 @@ export function enviaPlace(region: string | null | undefined, city: string | nul
   return { state, city: `${code}000`, cityName: municipalityName(code) ?? city?.trim() ?? "" };
 }
 
+/// Calle y número por separado, como los pide Envia para crear la guía
+/// ("Required property missing: number"). Con "#" ("Calle 16F # 99-59,
+/// apto 301") se parte ahí y Envia los vuelve a juntar en el mismo orden;
+/// sin "#", la dirección completa va como calle y el número "S/N" (sin
+/// número, como lo usa Envia), para no perder ni desordenar nada.
+export function splitStreet(address: string): { street: string; number: string } {
+  const clean = address.replace(/\s+/g, " ").trim();
+  const match = /^(.+?)\s*(?:#|\bno\.|\bn[°º])\s*(.+)$/i.exec(clean);
+  if (match && match[1].trim() && match[2].trim() && match[2].trim().length <= 40) {
+    return { street: match[1].trim(), number: match[2].trim() };
+  }
+  return { street: clean, number: "S/N" };
+}
+
+/// El barrio: el que la persona escribió ("…, barrio El Poblado") o, si
+/// no hay, la ciudad. Envia lo pide para crear la guía.
+export function districtOf(address: string, cityName: string): string {
+  const barrio = /\bbarrio\s+([^,#;]+)/i.exec(address)?.[1]?.trim();
+  return barrio || cityName;
+}
+
 /// Sin tildes ni caracteres especiales, en una línea: con UTF-8 en nombres
 /// y direcciones Envia a veces no devuelve tarifas.
 export function enviaText(text: string | null | undefined, max = 100): string {

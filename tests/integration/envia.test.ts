@@ -84,6 +84,14 @@ function fakeEnvia(requested: string, init?: RequestInit): Response {
         { status: 400 },
       );
     }
+    for (const side of ["origin", "destination"] as const) {
+      const address = body?.[side] as Record<string, string> | undefined;
+      for (const field of ["number", "district"]) {
+        if (!address?.[field]) {
+          return Response.json({ meta: "error", error: { code: 400, message: `Required property missing: ${field}` } }, { status: 400 });
+        }
+      }
+    }
     if (!labelSizes.includes(settings.printSize ?? "")) {
       return Response.json({ meta: "error", error: { code: 400, message: "Invalid printSize for this carrier" } }, { status: 400 });
     }
@@ -204,10 +212,23 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     const rate = calls.find((c) => c.url === "https://api.envia.com/ship/rate/")!;
     expect(rate.auth).toBe("Bearer llave-buena");
     expect(rate.body).toMatchObject({
-      origin: { name: "H la Cosedora", phone: "3001234567", city: "05001000", state: "AN", country: "CO", postalCode: "05001000" },
+      origin: {
+        name: "H la Cosedora",
+        phone: "3001234567",
+        street: "Calle 10",
+        number: "43-12",
+        district: "Medellin",
+        city: "05001000",
+        state: "AN",
+        country: "CO",
+        postalCode: "05001000",
+      },
       destination: {
         name: "Ana Munoz",
-        street: "Carrera 43A # 1-50, apto 301",
+        // "Carrera 43A # 1-50, apto 301": calle y número aparte.
+        street: "Carrera 43A",
+        number: "1-50, apto 301",
+        district: "Envigado",
         city: "05266000",
         state: "AN",
         postalCode: "05266000",
@@ -460,7 +481,7 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     expect(heavy.weightGrams).toBe(1200);
     const rate = calls.find((c) => c.url.endsWith("/ship/rate/"))!;
     expect(rate.body).toMatchObject({
-      destination: { street: "Calle 1 # 2-3", city: "05266000", state: "AN" },
+      destination: { street: "Calle 1", number: "2-3", city: "05266000", state: "AN" },
       packages: [{ weight: 1.2, declaredValue: 45000, dimensions: { length: 20, width: 15, height: 10 } }],
     });
 

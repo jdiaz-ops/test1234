@@ -3,6 +3,8 @@ import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
 import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
   ENVIA_STATE_CODE,
+  districtOf,
+  splitStreet,
   enviaCarrierName,
   enviaPhone,
   enviaPlace,
@@ -30,6 +32,21 @@ describe("direcciones de Colombia para Envia", () => {
     expect(enviaPlace("Bogotá D.C.", "Bogota")).toMatchObject({ state: "DC", city: "11001000" });
     expect(enviaPlace("Antioquia", "Ciudad Inventada")).toBeNull();
     expect(enviaPlace("Otro país", "Medellín")).toBeNull();
+  });
+
+  it("calle y número aparte, sin perder ni desordenar la dirección", () => {
+    expect(splitStreet("Calle 16F # 99-59, apto 301")).toEqual({ street: "Calle 16F", number: "99-59, apto 301" });
+    expect(splitStreet("Carrera 43A No. 1-50")).toEqual({ street: "Carrera 43A", number: "1-50" });
+    // Sin "#": completa como calle y "S/N" (sin número).
+    expect(splitStreet("Calle 16 F 99 59 Parque Central Fontibón 2, Torre 4 Apartamento 1407")).toEqual({
+      street: "Calle 16 F 99 59 Parque Central Fontibón 2, Torre 4 Apartamento 1407",
+      number: "S/N",
+    });
+    // Lo que va después del "#" es demasiado largo para el número: completa.
+    const long = "Calle 1 # 2-3 conjunto residencial los almendros torre 7 apartamento 1203";
+    expect(splitStreet(long)).toEqual({ street: long, number: "S/N" });
+    expect(districtOf("Cra 70 # 1-2, barrio El Poblado, casa 3", "Medellín")).toBe("El Poblado");
+    expect(districtOf("Calle 1 # 2-3", "Bogotá")).toBe("Bogotá");
   });
 
   it("texto sin tildes ni caracteres raros, y celular de 10 dígitos", () => {
