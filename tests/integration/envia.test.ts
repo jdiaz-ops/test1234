@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PDFDocument } from "pdf-lib";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // La marca que entra al portal (las rutas la piden a la sesión).
 const session = vi.hoisted(() => ({ profile: null as null | { id: string; storefrontSlug: string | null } }));
@@ -9,6 +10,9 @@ import {
   EnviaServiceError,
   cancelOrderLabel,
   createOrderLabel,
+  packageWeightGrams,
+  quickCreateOrderLabel,
+  quickQuoteOrder,
   quoteOrderShipping,
   refreshShippedEnviaOrders,
   saveEnviaConnection,
@@ -16,11 +20,22 @@ import {
 } from "@/server/services/envia-service";
 import { POST as webhookRoute } from "@/app/api/webhooks/envia/[secret]/route";
 import { POST as orderEnviaRoute } from "@/app/api/marca/tienda/pedidos/envia/route";
+import { POST as guidesPdfRoute } from "@/app/api/marca/tienda/pedidos/envia/guias/route";
 import { createBrand, createPendingOrder, createProduct, hasDb } from "./helpers";
 
 const TRACKING = "2300123456";
 const LABEL_PDF = "https://s3.envia.com/labels/2300123456.pdf";
 const TRACK_URL = "https://envia.com/rastreo?label=2300123456";
+
+/// PDFs de guías de mentira, de distinto tamaño para comprobar el orden.
+const labelPdfs: Record<string, Uint8Array<ArrayBuffer>> = {};
+beforeAll(async () => {
+  for (const [name, size] of [["a", 100], ["b", 200]] as const) {
+    const doc = await PDFDocument.create();
+    doc.addPage([size, size]);
+    labelPdfs[`https://s3.envia.com/labels/${name}.pdf`] = new Uint8Array(await doc.save());
+  }
+});
 
 type Call = { url: string; method: string; auth: string | null; body: Record<string, unknown> | null };
 let calls: Call[];
@@ -34,6 +49,10 @@ function fakeEnvia(requested: string, init?: RequestInit): Response {
   calls.push({ url: requested, method: init?.method ?? "GET", auth: headers.Authorization ?? null, body });
   // La cuenta de pruebas responde igual, en api-test y queries-test.
   const url = requested.replace("://api-test.", "://api.").replace("://queries-test.", "://queries.");
+  if (url.startsWith("https://s3.envia.com/labels/")) {
+    const pdf = labelPdfs[url];
+    return pdf ? new Response(pdf, { headers: { "content-type": "application/pdf" } }) : new Response("no", { status: 404 });
+  }
   if (headers.Authorization === "Bearer llave-vencida") return Response.json({ message: "Unauthorized" }, { status: 401 });
 
   if (url === "https://queries.envia.com/available-carrier/CO/0") {
@@ -113,18 +132,24 @@ const LABEL: LabelInput = {
   destination: { street: "Carrera 43A # 1-50, apto 301", region: "Antioquia", city: "Envigado", reference: "Portería" },
 };
 
-/// Marca con Envia conectado y un pedido pagado para Envigado.
-async function paidOrder() {
-  const brand = await createBrand();
-  await saveEnviaConnection(brand.id, { ...ORIGIN, apiToken: "llave-buena" });
-  const product = await createProduct(brand.id, { name: "Esmalte", price: 45000, stock: 5 });
-  const pending = await createPendingOrder(brand.id, [{ productId: product.id, quantity: 1, unitPrice: 45000 }]);
+/// Un pedido pagado para Envigado, en una marca.
+async function paidOrderIn(brandId: string) {
+  const product = await createProduct(brandId, { name: "Esmalte", price: 45000, stock: 50 });
+  const pending = await createPendingOrder(brandId, [{ productId: product.id, quantity: 1, unitPrice: 45000 }]);
   const order = await prisma.storeOrder.update({
     where: { id: pending.id },
     data: { status: "PAID", paidAt: new Date(), buyerName: "Ana Muñoz", shippingCity: "Envigado" },
   });
+  return { product, order };
+}
+
+/// Marca con Envia conectado y un pedido pagado para Envigado.
+async function paidOrder() {
+  const brand = await createBrand();
+  await saveEnviaConnection(brand.id, { ...ORIGIN, apiToken: "llave-buena" });
+  const { product, order } = await paidOrderIn(brand.id);
   calls = [];
-  return { brand, order };
+  return { brand, product, order };
 }
 
 const orderOf = (id: string) => prisma.storeOrder.findUniqueOrThrow({ where: { id } });
@@ -344,6 +369,73 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     expect(await orderOf(order.id)).toMatchObject({ carrier: "Interrapidísimo", enviaCarrier: "interrapidisimo", fulfillmentStatus: "SHIPPED" });
   });
 
+  it("el peso del paquete es el de los productos, y nunca menos que el de siempre", () => {
+    expect(packageWeightGrams(500, [{ quantity: 2, weightKg: 0.06 }])).toBe(500);
+    expect(packageWeightGrams(500, [{ quantity: 20, weightKg: 0.06 }, { quantity: 1, weightKg: null }])).toBe(1200);
+    expect(packageWeightGrams(500, [])).toBe(500);
+  });
+
+  it("desde la lista: cotiza con el paquete de siempre y el peso de los productos, y crea la guía", async () => {
+    const { brand, product, order } = await paidOrder();
+    const light = await quickQuoteOrder(brand.id, order.id);
+    expect(light.weightGrams).toBe(500);
+    // La más barata.
+    expect(light.quote).toMatchObject({ carrierName: "Servientrega", serviceName: "Terrestre", priceCents: 1250050 });
+
+    // 20 esmaltes de 60 g: 1,2 kg.
+    await prisma.product.update({ where: { id: product.id }, data: { weight: 0.06 } });
+    await prisma.storeOrderItem.updateMany({ where: { orderId: order.id }, data: { quantity: 20 } });
+    calls = [];
+    const heavy = await quickQuoteOrder(brand.id, order.id);
+    expect(heavy.weightGrams).toBe(1200);
+    const rate = calls.find((c) => c.url.endsWith("/ship/rate/"))!;
+    expect(rate.body).toMatchObject({
+      destination: { street: "Calle 1 # 2-3", city: "05266000", state: "AN" },
+      packages: [{ weight: 1.2, declaredValue: 45000, dimensions: { length: 20, width: 15, height: 10 } }],
+    });
+
+    const { quote } = heavy;
+    const created = await quickCreateOrderLabel(brand.id, order.id, { carrier: quote.carrier, service: quote.service, priceCents: quote.priceCents });
+    expect(created).toMatchObject({ trackingNumber: TRACKING, labelUrl: LABEL_PDF, costCents: 1250050 });
+    expect(calls.find((c) => c.url.endsWith("/ship/generate/"))?.body).toMatchObject({ packages: [{ weight: 1.2 }] });
+    expect((await orderOf(order.id)).fulfillmentStatus).toBe("SHIPPED");
+    await expect(quickQuoteOrder(brand.id, order.id)).rejects.toThrow("ya tiene guía");
+  });
+
+  it("las guías de varios pedidos salen en un solo PDF, en el orden de la lista", async () => {
+    const brand = await createBrand();
+    await saveEnviaConnection(brand.id, { ...ORIGIN, apiToken: "llave-buena" });
+    const [a, b, sinGuia, perdida] = await Promise.all([1, 2, 3, 4].map(() => paidOrderIn(brand.id).then((r) => r.order)));
+    const label = (id: string, name: string) =>
+      prisma.storeOrder.update({
+        where: { id },
+        data: { enviaCarrier: "interrapidisimo", trackingNumber: `T-${name}`, enviaLabelUrl: `https://s3.envia.com/labels/${name}.pdf` },
+      });
+    await Promise.all([label(a.id, "a"), label(b.id, "b"), label(perdida.id, "no-existe")]);
+
+    session.profile = { id: brand.id, storefrontSlug: "hlacosedora" };
+    const res = await guidesPdfRoute(
+      new Request("https://marcolini.lat/api/marca/tienda/pedidos/envia/guias", {
+        method: "POST",
+        body: JSON.stringify({ orderIds: [b.id, sinGuia.id, a.id, perdida.id] }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/pdf");
+    // El que no tiene guía y la que no se pudo bajar.
+    expect(res.headers.get("X-Guias-Faltantes")).toBe("2");
+    const merged = await PDFDocument.load(await res.arrayBuffer());
+    expect(merged.getPages().map((p) => p.getWidth())).toEqual([200, 100]);
+
+    // Otra marca no baja las guías de esta.
+    const other = await createBrand();
+    session.profile = { id: other.id, storefrontSlug: "hlacosedora" };
+    const foreign = await guidesPdfRoute(
+      new Request("https://marcolini.lat/api/marca/tienda/pedidos/envia/guias", { method: "POST", body: JSON.stringify({ orderIds: [a.id] }) }),
+    );
+    expect(foreign.status).toBe(400);
+  });
+
   it("solo las marcas con Envia habilitado pueden usar la ruta del pedido", async () => {
     const { brand, order } = await paidOrder();
     const send = (body: unknown) =>
@@ -356,6 +448,9 @@ describe.skipIf(!hasDb)("guías con Envia desde el pedido", () => {
     const quote = await send({ action: "cotizar", orderId: order.id, ...LABEL });
     expect(quote.status).toBe(200);
     expect((await quote.json()).quotes).toHaveLength(2);
+    const quick = await send({ action: "cotizar-rapido", orderId: order.id });
+    expect(quick.status).toBe(200);
+    expect(await quick.json()).toMatchObject({ weightGrams: 500, quote: { priceCents: 1250050 } });
     // Errores de Envia y del pedido, con un mensaje para la marca.
     const missing = await send({ action: "estado", orderId: order.id });
     expect(missing.status).toBe(400);

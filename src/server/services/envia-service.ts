@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { EnviaConnection, StoreOrder } from "@prisma/client";
+import { PDFDocument } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
 import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
@@ -44,6 +45,8 @@ const MAX_CARRIERS = 12;
 /// proceso se cayó en la mitad) y se puede volver a intentar.
 const CREATING_MS = 2 * 60_000;
 const TRACK_BATCH = 20;
+/// Guías por PDF combinado (Vercel no responde más de ~4,5 MB).
+export const MAX_LABELS_PER_PDF = 30;
 
 const authOf = (conn: Pick<EnviaConnection, "apiToken" | "sandbox">): EnviaAuth => ({
   apiToken: conn.apiToken,
@@ -228,11 +231,68 @@ export type ShippingQuote = {
   priceCents: number;
 };
 
+/// Peso del paquete: lo que pesan los productos del pedido (el peso que
+/// tienen en Productos) y nunca menos que el paquete de siempre. Así un
+/// pedido de 30 esmaltes no se cotiza como medio kilo.
+export function packageWeightGrams(defaultGrams: number, items: { quantity: number; weightKg: number | null }[]) {
+  const products = items.reduce((sum, i) => sum + (i.weightKg ?? 0) * 1000 * i.quantity, 0);
+  return Math.max(defaultGrams, Math.round(products));
+}
+
+export async function orderPackageWeightGrams(conn: Pick<EnviaConnection, "packageWeightGrams">, orderId: string) {
+  const items = await prisma.storeOrderItem.findMany({
+    where: { orderId },
+    select: { quantity: true, product: { select: { weight: true } }, variant: { select: { weight: true } } },
+  });
+  return packageWeightGrams(
+    conn.packageWeightGrams,
+    items.map((i) => {
+      // La variante sin peso propio usa el del producto.
+      const weight = i.variant?.weight ?? i.product?.weight ?? null;
+      return { quantity: i.quantity, weightKg: weight != null ? Number(weight) : null };
+    }),
+  );
+}
+
+/// Lo que se usa al crear la guía desde la lista de pedidos, sin abrir el
+/// pedido: el paquete de siempre (con el peso de los productos), el valor
+/// de la mercancía y la dirección del pedido.
+async function quickLabelInput(conn: EnviaConnection, order: StoreOrder): Promise<LabelInput> {
+  return {
+    packageLengthCm: conn.packageLengthCm,
+    packageWidthCm: conn.packageWidthCm,
+    packageHeightCm: conn.packageHeightCm,
+    packageWeightGrams: await orderPackageWeightGrams(conn, order.id),
+    declaredValue: Math.max(0, Math.round((order.subtotalCents - order.discountCents) / 100)),
+    destination: {
+      street: order.shippingAddress ?? "",
+      region: order.shippingRegion ?? "",
+      city: order.shippingCity ?? "",
+      reference: order.shippingNotes?.slice(0, 120) ?? null,
+    },
+  };
+}
+
 /// Precio de cada transportadora (y servicio) para este pedido, del más
 /// barato al más caro. `failed`: las que no cotizaron.
 export async function quoteOrderShipping(brandId: string, orderId: string, input: LabelInput) {
   const conn = await requireConnection(brandId);
   const order = await loadOrder(brandId, orderId);
+  return quoteWith(conn, order, input);
+}
+
+/// Desde la lista de pedidos: la tarifa más barata con el paquete de
+/// siempre, y el peso con que se cotizó.
+export async function quickQuoteOrder(brandId: string, orderId: string) {
+  const conn = await requireConnection(brandId);
+  const order = await loadOrder(brandId, orderId);
+  if (order.enviaCarrier) throw new EnviaServiceError("Este pedido ya tiene guía de Envia.");
+  const input = await quickLabelInput(conn, order);
+  const { quotes } = await quoteWith(conn, order, input);
+  return { quote: quotes[0], weightGrams: input.packageWeightGrams };
+}
+
+async function quoteWith(conn: EnviaConnection, order: StoreOrder, input: LabelInput) {
   const shipment = await buildShipment(conn, order, input);
   const auth = authOf(conn);
 
@@ -279,15 +339,24 @@ export async function quoteOrderShipping(brandId: string, orderId: string, input
   return { quotes, failed };
 }
 
+type LabelChoice = { carrier: string; service: string; priceCents?: number };
+
 /// Crea la guía con la transportadora y el servicio elegidos y deja el
 /// pedido como enviado con su guía (el comprador recibe el correo).
-export async function createOrderLabel(
-  brandId: string,
-  orderId: string,
-  input: LabelInput & { carrier: string; service: string; priceCents?: number },
-) {
+export async function createOrderLabel(brandId: string, orderId: string, input: LabelInput & LabelChoice) {
   const conn = await requireConnection(brandId);
   const order = await loadOrder(brandId, orderId);
+  return createWith(brandId, conn, order, input);
+}
+
+/// Desde la lista de pedidos, con lo mismo con que se cotizó ahí.
+export async function quickCreateOrderLabel(brandId: string, orderId: string, choice: LabelChoice) {
+  const conn = await requireConnection(brandId);
+  const order = await loadOrder(brandId, orderId);
+  return createWith(brandId, conn, order, { ...(await quickLabelInput(conn, order)), ...choice });
+}
+
+async function createWith(brandId: string, conn: EnviaConnection, order: StoreOrder, input: LabelInput & LabelChoice) {
   if (order.enviaCarrier) throw new EnviaServiceError("Este pedido ya tiene guía de Envia.");
   if (order.fulfillmentStatus === "DELIVERED") throw new EnviaServiceError("Este pedido ya está entregado.");
   if (conn.carrier && input.carrier.trim().toLowerCase() !== conn.carrier) {
@@ -318,6 +387,7 @@ export async function createOrderLabel(
   }
 
   const carrier = enviaCarrierName(label.carrier);
+  const costCents = label.totalPrice != null ? Math.round(label.totalPrice * 100) : (input.priceCents ?? null);
   try {
     await prisma.storeOrder.update({
       where: { id: order.id },
@@ -325,7 +395,7 @@ export async function createOrderLabel(
         enviaCarrier: label.carrier.toLowerCase(),
         enviaService: label.service,
         enviaLabelUrl: label.labelUrl,
-        enviaCostCents: label.totalPrice != null ? Math.round(label.totalPrice * 100) : (input.priceCents ?? null),
+        enviaCostCents: costCents,
         enviaLabelAt: now,
         enviaStatus: "Created",
         trackingUrl: label.trackUrl,
@@ -348,7 +418,58 @@ export async function createOrderLabel(
     );
     throw err;
   }
-  return { carrier, trackingNumber: label.trackingNumber, labelUrl: label.labelUrl, trackUrl: label.trackUrl };
+  return { carrier, trackingNumber: label.trackingNumber, labelUrl: label.labelUrl, trackUrl: label.trackUrl, costCents };
+}
+
+/// Corre `work` sobre cada elemento, de a `limit` a la vez, en orden.
+async function inBatches<T, R>(items: T[], limit: number, work: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += limit) {
+    results.push(...(await Promise.all(items.slice(i, i + limit).map(work))));
+  }
+  return results;
+}
+
+async function downloadPdf(url: string): Promise<Uint8Array | null> {
+  if (!url.startsWith("https://")) return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+    return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+  } catch {
+    return null;
+  }
+}
+
+/// Las guías de varios pedidos en un solo PDF, en el orden pedido, para
+/// imprimirlas de una vez. `missing`: las que no se pudieron incluir.
+export async function mergedOrderLabels(brandId: string, orderIds: string[]) {
+  const ids = orderIds.slice(0, MAX_LABELS_PER_PDF);
+  const orders = await prisma.storeOrder.findMany({
+    where: { brandId, id: { in: ids }, enviaLabelUrl: { not: null } },
+    select: { id: true, enviaLabelUrl: true },
+  });
+  const urlOf = new Map(orders.map((o) => [o.id, o.enviaLabelUrl!]));
+  const urls = ids.flatMap((id) => (urlOf.has(id) ? [urlOf.get(id)!] : []));
+  const files = await inBatches(urls, 5, downloadPdf);
+
+  const merged = await PDFDocument.create();
+  let missing = ids.length - urls.length;
+  for (const bytes of files) {
+    if (!bytes) {
+      missing += 1;
+      continue;
+    }
+    try {
+      const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      for (const page of await merged.copyPages(doc, doc.getPageIndices())) merged.addPage(page);
+    } catch {
+      missing += 1;
+    }
+  }
+  if (merged.getPageCount() === 0) {
+    throw new EnviaServiceError("No se pudo descargar ninguna guía. Descárgalas desde cada pedido o desde tu cuenta de Envia.");
+  }
+  return { pdf: await merged.save(), missing };
 }
 
 type TrackedOrder = Pick<StoreOrder, "id" | "trackingNumber" | "fulfillmentStatus" | "enviaStatus">;

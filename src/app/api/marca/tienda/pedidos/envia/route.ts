@@ -7,6 +7,8 @@ import {
   EnviaServiceError,
   cancelOrderLabel,
   createOrderLabel,
+  quickCreateOrderLabel,
+  quickQuoteOrder,
   quoteOrderShipping,
   refreshOrderTracking,
 } from "@/server/services/envia-service";
@@ -34,21 +36,25 @@ const labelShape = {
   }),
 };
 
+const choiceShape = {
+  carrier: z.string().trim().min(1).max(40),
+  service: z.string().trim().min(1).max(80),
+  priceCents: z.number().int().nonnegative().optional(),
+};
+
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("cotizar"), ...labelShape }),
-  z.object({
-    action: z.literal("crear"),
-    ...labelShape,
-    carrier: z.string().trim().min(1).max(40),
-    service: z.string().trim().min(1).max(80),
-    priceCents: z.number().int().nonnegative().optional(),
-  }),
+  z.object({ action: z.literal("crear"), ...labelShape, ...choiceShape }),
+  // Desde la lista de pedidos: con el paquete de siempre y la dirección del pedido.
+  z.object({ action: z.literal("cotizar-rapido"), orderId }),
+  z.object({ action: z.literal("crear-rapido"), orderId, ...choiceShape }),
   z.object({ action: z.literal("estado"), orderId }),
   z.object({ action: z.literal("anular"), orderId }),
 ]);
 
-/// Guía con Envia desde el detalle del pedido: cotizar, crear, actualizar
-/// el estado o anular. Ver envia-service.ts.
+/// Guía con Envia desde el detalle del pedido (cotizar, crear, actualizar
+/// el estado o anular) o desde la lista de pedidos, de a un pedido por
+/// petición. Ver envia-service.ts.
 export async function POST(req: Request) {
   const profile = await requireBrandProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -64,6 +70,10 @@ export async function POST(req: Request) {
         return NextResponse.json(await quoteOrderShipping(profile.id, body.orderId, body));
       case "crear":
         return NextResponse.json(await createOrderLabel(profile.id, body.orderId, body));
+      case "cotizar-rapido":
+        return NextResponse.json(await quickQuoteOrder(profile.id, body.orderId));
+      case "crear-rapido":
+        return NextResponse.json(await quickCreateOrderLabel(profile.id, body.orderId, body));
       case "estado":
         return NextResponse.json(await refreshOrderTracking(profile.id, body.orderId));
       case "anular":

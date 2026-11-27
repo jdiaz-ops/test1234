@@ -5,7 +5,7 @@ import { canDeleteStoreOrder, getBrandOrderDetail } from "@/server/services/stor
 import { PAYMENT_PROVIDERS, isPaymentProviderId } from "@/lib/payment-providers";
 import { OrderArchiveActions } from "@/components/portal/order-archive-actions";
 import { getDataicoConnection } from "@/server/services/dataico-service";
-import { getEnviaConnection } from "@/server/services/envia-service";
+import { getEnviaConnection, orderPackageWeightGrams } from "@/server/services/envia-service";
 import { dataicoAllowed, enviaAllowed } from "@/lib/features";
 import { enviaStatusLabel } from "@/lib/envia-address";
 import { OrderEnviaPanel } from "@/components/portal/order-envia-panel";
@@ -79,6 +79,8 @@ export default async function TiendaPedidoDetallePage({
     showEnvia ? getEnviaConnection(profile.id) : null,
   ]);
   if (!order) notFound();
+  // El paquete de siempre, con el peso de los productos del pedido.
+  const enviaWeightGrams = envia ? await orderPackageWeightGrams(envia, order.id) : 0;
 
   const isService = order.servicePreferredAt != null;
   // Un pedido digital tampoco tiene fecha de servicio ni dirección — se
@@ -211,7 +213,7 @@ export default async function TiendaPedidoDetallePage({
                       lengthCm: envia.packageLengthCm,
                       widthCm: envia.packageWidthCm,
                       heightCm: envia.packageHeightCm,
-                      weightGrams: envia.packageWeightGrams,
+                      weightGrams: enviaWeightGrams,
                       declaredValue: Math.max(0, Math.round((order.subtotalCents - order.discountCents) / 100)),
                       street: (order.shippingAddress ?? "").slice(0, 200),
                       region: order.shippingRegion ?? "",

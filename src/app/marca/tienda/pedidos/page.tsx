@@ -2,6 +2,9 @@ import { requireBrandProfile } from "@/lib/current-brand";
 import { redirect } from "next/navigation";
 import { StoreOrdersPanel } from "@/components/portal/store-orders-panel";
 import { relativeOrderDate } from "@/lib/relative-date";
+import { enviaAllowed } from "@/lib/features";
+import { enviaCarrierName } from "@/lib/envia-address";
+import { getEnviaConnection } from "@/server/services/envia-service";
 import {
   canDeleteStoreOrder,
   listBrandOrders,
@@ -18,7 +21,11 @@ export default async function TiendaPedidosPage() {
     reconcilePendingOrders(profile.id).catch(() => null),
     new Promise((resolve) => setTimeout(resolve, 6000)),
   ]);
-  const orders = await listBrandOrders(profile.id);
+  const [orders, envia] = await Promise.all([
+    listBrandOrders(profile.id),
+    // Guías de Envia desde la lista: solo las tiendas de ENVIA_STORE_SLUGS.
+    enviaAllowed(profile) ? getEnviaConnection(profile.id) : null,
+  ]);
   const now = new Date();
 
   return (
@@ -39,6 +46,7 @@ export default async function TiendaPedidosPage() {
         </a>
       </div>
       <StoreOrdersPanel
+        envia={envia ? { sandbox: envia.sandbox, carrierName: envia.carrier ? enviaCarrierName(envia.carrier) : null } : null}
         initialOrders={orders.map((o) => ({
           id: o.id,
           kind: o.kind,
@@ -59,6 +67,9 @@ export default async function TiendaPedidosPage() {
           deletable: canDeleteStoreOrder(o),
           unitCount: o.items.reduce((n, i) => n + i.quantity, 0),
           creator: o.transaction ? { name: o.transaction.creator.displayName } : null,
+          envia: o.enviaCarrier
+            ? { trackingNumber: o.trackingNumber, labelUrl: o.enviaLabelUrl, costCents: o.enviaCostCents }
+            : null,
         }))}
       />
     </div>

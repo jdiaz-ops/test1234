@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CARRIERS } from "@/lib/carriers";
+import {
+  EnviaGuideCell,
+  downloadGuides,
+  useEnviaGuides,
+  type EnviaListInfo,
+  type OrderListEnvia,
+} from "@/components/portal/store-orders-envia";
 
 export type StoreOrderRow = {
   id: string;
@@ -31,6 +38,8 @@ export type StoreOrderRow = {
   archived: boolean;
   /// Se puede eliminar: nunca fue una venta real (ver canDeleteStoreOrder).
   deletable: boolean;
+  /// La guía de Envia del pedido, si ya la tiene.
+  envia: OrderListEnvia;
 };
 
 function formatCOP(cents: number) {
@@ -225,13 +234,23 @@ function inView(o: StoreOrderRow, view: View) {
 /// incompletos". Se pueden seleccionar varios para archivar o eliminar
 /// (eliminar solo lo que nunca fue una venta real). Ver conversaciones
 /// del 2026-10-01 y 2026-10-02.
-export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderRow[] }) {
+export function StoreOrdersPanel({
+  initialOrders,
+  envia = null,
+}: {
+  initialOrders: StoreOrderRow[];
+  /// Con Envia conectado: columna «Guía» y crear las guías desde aquí.
+  envia?: EnviaListInfo | null;
+}) {
   const router = useRouter();
   const [view, setView] = useState<View>("all");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const guides = useEnviaGuides();
+  /// Lo que está haciendo con las guías ("Creando 3 de 12…").
+  const [guideBusy, setGuideBusy] = useState<string | null>(null);
   const counts = {
     all: initialOrders.filter((o) => inView(o, "all")).length,
     toShip: initialOrders.filter((o) => inView(o, "toShip")).length,
@@ -258,6 +277,61 @@ export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderR
   const selectedRows = shown.filter((o) => selected.has(o.id));
   const deletableCount = selectedRows.filter((o) => o.deletable).length;
   const allShownSelected = shown.length > 0 && shown.every((o) => selected.has(o.id));
+
+  // Guías de Envia: solo para lo que está por enviar y aún no tiene guía.
+  const guideState = (o: StoreOrderRow) => guides.states[o.id];
+  const canGuide = (o: StoreOrderRow) => envia != null && isToShip(o) && !o.envia && guideState(o)?.kind !== "created";
+  const guidePdf = (o: StoreOrderRow) => {
+    const state = guideState(o);
+    return Boolean(o.envia?.labelUrl || (state?.kind === "created" && state.labelUrl));
+  };
+  const toQuote = selectedRows.filter((o) => canGuide(o) && !["quoting", "quoted", "creating"].includes(guideState(o)?.kind ?? ""));
+  const quoted = selectedRows.flatMap((o) => {
+    const state = guideState(o);
+    return canGuide(o) && state?.kind === "quoted" ? [{ id: o.id, quote: state.quote, weightGrams: state.weightGrams }] : [];
+  });
+  const quotedTotal = quoted.reduce((sum, q) => sum + q.quote.priceCents, 0);
+  const withPdf = selectedRows.filter(guidePdf).map((o) => o.id);
+  const plural = (n: number) => (n === 1 ? "guía" : "guías");
+  const charge = envia?.sandbox
+    ? "Son guías de prueba: no se cobran ni le llega correo a la compradora."
+    : "Se cobran de tu saldo en Envia y a la compradora le llega el correo con su guía.";
+
+  async function quoteSelected() {
+    setMessage(null);
+    setGuideBusy("Cotizando…");
+    await guides.quoteMany(toQuote.map((o) => o.id));
+    setGuideBusy(null);
+  }
+
+  async function createSelected() {
+    if (!window.confirm(`¿Crear ${quoted.length} ${plural(quoted.length)} por ${formatCOP(quotedTotal)} en total? ${charge}`)) return;
+    setMessage(null);
+    setGuideBusy(`Creando 0 de ${quoted.length}…`);
+    const created = await guides.createMany(quoted, (done) => setGuideBusy(`Creando ${done} de ${quoted.length}…`));
+    setGuideBusy(null);
+    setMessage(
+      created === quoted.length
+        ? { ok: true, text: `${created} ${created === 1 ? "guía creada" : "guías creadas"}. Descárgalas en un solo PDF con «Descargar guías».` }
+        : { ok: false, text: `Se crearon ${created} de ${quoted.length}. En la columna Guía dice por qué fallaron las otras.` },
+    );
+    router.refresh();
+  }
+
+  async function createOne(o: StoreOrderRow, quote: { carrierName: string; priceCents: number }, weightGrams: number) {
+    const ref = o.reference.slice(-8).toUpperCase();
+    if (!window.confirm(`¿Crear la guía del pedido #${ref} con ${quote.carrierName} por ${formatCOP(quote.priceCents)}? ${charge}`)) return;
+    const state = guideState(o);
+    if (state?.kind !== "quoted") return;
+    if (await guides.create(o.id, state.quote, weightGrams)) router.refresh();
+  }
+
+  async function downloadSelected() {
+    setMessage(null);
+    setGuideBusy("Preparando el PDF…");
+    setMessage(await downloadGuides(withPdf));
+    setGuideBusy(null);
+  }
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -373,6 +447,41 @@ export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderR
             {deletableCount < selectedRows.length && (
               <span className="text-xs text-brand-ink-soft">Las ventas reales no se eliminan: se archivan.</span>
             )}
+            {envia && (toQuote.length > 0 || quoted.length > 0 || withPdf.length > 0) && (
+              <span className="flex flex-wrap items-center gap-2 border-l border-brand-line pl-3">
+                {toQuote.length > 0 && (
+                  <button
+                    type="button"
+                    disabled={busy || guideBusy != null}
+                    onClick={quoteSelected}
+                    className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
+                  >
+                    Cotizar {toQuote.length} {plural(toQuote.length)}
+                  </button>
+                )}
+                {quoted.length > 0 && (
+                  <button
+                    type="button"
+                    disabled={busy || guideBusy != null}
+                    onClick={createSelected}
+                    className="rounded-md bg-brand-accent px-3 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    Crear {quoted.length} {plural(quoted.length)} · {formatCOP(quotedTotal)}
+                  </button>
+                )}
+                {withPdf.length > 0 && (
+                  <button
+                    type="button"
+                    disabled={busy || guideBusy != null}
+                    onClick={downloadSelected}
+                    className="rounded-md border border-brand-line bg-brand-surface px-3 py-1 text-xs font-medium text-brand-ink hover:bg-brand-bg disabled:opacity-50"
+                  >
+                    Descargar {withPdf.length} {plural(withPdf.length)} (PDF)
+                  </button>
+                )}
+                {guideBusy && <span className="text-xs text-brand-ink-soft">{guideBusy}</span>}
+              </span>
+            )}
             <button type="button" onClick={() => setSelected(new Set())} className="ml-auto text-xs text-brand-ink-soft hover:text-brand-ink">
               Quitar selección
             </button>
@@ -380,6 +489,13 @@ export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderR
         )}
         {message && (
           <p className={`px-4 py-2 text-xs border-b border-brand-line ${message.ok ? "text-emerald-700" : "text-red-600"}`}>{message.text}</p>
+        )}
+
+        {view === "toShip" && envia && shown.length > 0 && (
+          <p className="px-4 py-2 text-xs text-brand-ink-soft border-b border-brand-line bg-brand-bg/50">
+            Selecciona los pedidos y dale «Cotizar» para ver el flete de cada uno con {envia.carrierName ?? "tus transportadoras"}. Después creas
+            todas las guías y las descargas en un solo PDF.
+          </p>
         )}
 
         {view === "incomplete" && shown.length > 0 && (
@@ -421,6 +537,9 @@ export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderR
                   <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Total</th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Estado del pago</th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Estado de preparación</th>
+                  {envia && (
+                    <th className="px-3 py-2.5 font-medium whitespace-nowrap">Guía{envia.sandbox ? " (pruebas)" : ""}</th>
+                  )}
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Artículos</th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Estado de la entrega</th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Forma de entrega</th>
@@ -466,11 +585,23 @@ export function StoreOrdersPanel({ initialOrders }: { initialOrders: StoreOrderR
                       </td>
                       <td className="px-3 py-2.5">
                         {o.status === "PAID" && !isService(o) && !isDigital(o) ? (
-                          <PreparationSelect order={o} onChanged={() => router.refresh()} />
+                          // Se vuelve a armar si el estado cambia por fuera (una guía de Envia).
+                          <PreparationSelect key={o.fulfillmentStatus} order={o} onChanged={() => router.refresh()} />
                         ) : (
                           <PillView pill={preparationPill(o)} />
                         )}
                       </td>
+                      {envia && (
+                        <td className="px-3 py-2.5">
+                          <EnviaGuideCell
+                            existing={o.envia}
+                            eligible={canGuide(o)}
+                            state={guideState(o)}
+                            onQuote={() => void guides.quote(o.id)}
+                            onCreate={(quote, weightGrams) => void createOne(o, quote, weightGrams)}
+                          />
+                        </td>
+                      )}
                       <td className="px-3 py-2.5 text-brand-ink whitespace-nowrap">
                         {o.unitCount} {o.unitCount === 1 ? "artículo" : "artículos"}
                       </td>
