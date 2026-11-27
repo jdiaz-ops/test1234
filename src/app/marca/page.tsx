@@ -111,7 +111,13 @@ export default async function MarcaDashboardPage() {
   // Toda la tarifa del mes: sobre ventas con creadoras y sobre las demás.
   const marcoliniFee = summary.monthPlatformFee + summary.monthStoreFee;
   const roi = totalCost > 0 ? summary.monthSales / totalCost : null;
-  const aov = summary.monthOrders > 0 ? summary.monthSales / summary.monthOrders : null;
+  // Toda la tienda: con creadoras y sin creadoras (antes las tarjetas solo
+  // mostraban lo de creadoras; pedido del 2026-11-27).
+  const monthTotal = summary.monthSales + summary.monthStoreSales;
+  const monthTotalOrders = summary.monthOrders + summary.monthStoreOrders;
+  const aov = monthTotalOrders > 0 ? monthTotal / monthTotalOrders : null;
+  const share = (part: number) => (monthTotal > 0 ? `${Math.round((part / monthTotal) * 100)} %` : "—");
+  const orders = (n: number) => `${n} ${n === 1 ? "pedido" : "pedidos"}`;
 
   return (
     <div>
@@ -221,32 +227,37 @@ export default async function MarcaDashboardPage() {
       </div>
 
       {/* 2 columnas desde el arranque (antes se apilaban una debajo de
-          otra en mobile) — mismo tratamiento que el dashboard de admin. */}
+          otra en mobile) — mismo tratamiento que el dashboard de admin.
+          Primero lo que vendió toda la tienda y cuánto fue con creadoras y
+          sin creadoras; todo del mes en curso y sin el envío. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-4">
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5 sm:col-span-1">
-          <p className="text-xs text-brand-ink-soft mb-1">Ventas con creadoras</p>
-          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">
-            {formatCOP(summary.monthSales)}
-          </p>
-          <p className="text-xs text-brand-ink-soft mt-1">este mes, sin envío</p>
+        <div className="col-span-2 sm:col-span-1 rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
+          <p className="text-xs text-brand-ink-soft mb-1">Ventas del mes</p>
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">{formatCOP(monthTotal)}</p>
+          <p className="text-xs text-brand-ink-soft mt-1">{orders(monthTotalOrders)} · sin envío</p>
         </div>
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
-          <p className="text-xs text-brand-ink-soft mb-1">Pedidos con creadoras</p>
-          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">
-            {summary.monthOrders}
+          <p className="text-xs text-brand-ink-soft mb-1">Con creadoras</p>
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">{formatCOP(summary.monthSales)}</p>
+          <p className="text-xs text-brand-ink-soft mt-1">
+            {orders(summary.monthOrders)} · {share(summary.monthSales)}
           </p>
-          <p className="text-xs text-brand-ink-soft mt-1">este mes</p>
         </div>
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
-          <p className="text-xs text-brand-ink-soft mb-1">Ticket promedio</p>
-          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">
-            {aov ? formatCOP(aov) : "—"}
+          <p className="text-xs text-brand-ink-soft mb-1">Sin creadoras</p>
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">{formatCOP(summary.monthStoreSales)}</p>
+          <p className="text-xs text-brand-ink-soft mt-1">
+            {orders(summary.monthStoreOrders)} · {share(summary.monthStoreSales)}
           </p>
-          <p className="text-xs text-brand-ink-soft mt-1">este mes</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-10">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-10">
+        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
+          <p className="text-xs text-brand-ink-soft mb-1">Ticket promedio</p>
+          <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">{aov ? formatCOP(aov) : "—"}</p>
+          <p className="text-xs text-brand-ink-soft mt-1">de todos los pedidos, este mes</p>
+        </div>
         <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
           <p className="text-xs text-brand-ink-soft mb-1">Nuevas creadoras</p>
           <p className="font-display text-lg sm:text-xl font-semibold text-brand-ink">
@@ -254,35 +265,21 @@ export default async function MarcaDashboardPage() {
           </p>
           <p className="text-xs text-brand-ink-soft mt-1">este mes</p>
         </div>
-        <div className="rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
-          <p className="text-xs text-brand-ink-soft mb-1">Retorno</p>
+        <div className="col-span-2 sm:col-span-1 rounded-2xl border border-brand-line bg-brand-surface p-4 sm:p-5">
+          <p className="text-xs text-brand-ink-soft mb-1">Retorno con creadoras</p>
           <p className="font-display text-lg sm:text-xl font-semibold text-brand-accent">
             {roi ? `${roi.toFixed(1)}x` : "—"}
           </p>
           <p className="text-xs text-brand-ink-soft mt-1">
-            en ventas por cada $1 de comisión + tarifa, este mes
+            en ventas con creadoras por cada $1 de comisión y tarifa, este mes
           </p>
         </div>
       </div>
 
       {/* La tarifa se cobra sobre TODA venta de la tienda, con o sin creadora
-          (2026-10-17): acá se ve el total vendido, cuánto fue con creadoras
-          y qué va a la próxima cuenta de cobro. */}
+          (2026-10-17): lo que va a la próxima cuenta de cobro. Lo vendido
+          ya está en las tarjetas de arriba. */}
       <div className="rounded-2xl border border-brand-line bg-brand-accent-soft/40 p-6 mb-10 space-y-2">
-        <p className="text-sm text-brand-ink">
-          Este mes tu tienda vendió{" "}
-          <span className="font-mono text-brand-accent font-medium">
-            {formatCOP(summary.monthSales + summary.monthStoreSales)}
-          </span>
-          {summary.monthSales > 0 && (
-            <>
-              , de los cuales{" "}
-              <span className="font-mono text-brand-accent font-medium">{formatCOP(summary.monthSales)}</span> con tus
-              creadoras
-            </>
-          )}
-          .
-        </p>
         <p className="text-sm text-brand-ink">
           Va a tu próxima cuenta de cobro:{" "}
           <span className="font-mono text-brand-accent font-medium">{formatCOP(marcoliniFee)}</span> de tarifa
