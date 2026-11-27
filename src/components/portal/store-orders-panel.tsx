@@ -217,17 +217,22 @@ function PillView({ pill }: { pill: Pill | null }) {
 }
 
 const isIncomplete = (o: StoreOrderRow) => o.status === "PENDING" || o.status === "FAILED" || o.status === "EXPIRED";
+/// Pagado, con envío y todavía sin salir: se le puede crear la guía.
 const isToShip = (o: StoreOrderRow) =>
   o.status === "PAID" && o.shippingAddress != null && (o.fulfillmentStatus === "UNFULFILLED" || o.fulfillmentStatus === "PREPARED");
+/// La vista «No preparados»: lo que falta preparar. Un pedido con guía ya
+/// está preparado aunque la transportadora no lo haya recogido (pedido
+/// del 2026-11-27).
+const isUnprepared = (o: StoreOrderRow) => isToShip(o) && o.fulfillmentStatus === "UNFULFILLED";
 
 type View = "all" | "toShip" | "incomplete" | "archived";
 
 function inView(o: StoreOrderRow, view: View) {
   if (view === "archived") return o.archived;
   if (o.archived) return false;
-  return view === "all" ? !isIncomplete(o) : view === "toShip" ? isToShip(o) : isIncomplete(o);
+  return view === "all" ? !isIncomplete(o) : view === "toShip" ? isUnprepared(o) : isIncomplete(o);
 }
-/// Pedidos al estilo de la lista de Shopify: vistas (Todos / Por enviar / Pagos incompletos), buscador y una
+/// Pedidos al estilo de la lista de Shopify: vistas (Todos / No preparados / Pagos incompletos), buscador y una
 /// tabla con número, fecha, cliente, creador, total, estado del pago, de
 /// preparación y de entrega, artículos y forma de entrega. Cada fila abre
 /// el detalle. Los intentos sin pagar quedan aparte, en "Pagos
@@ -269,7 +274,7 @@ export function StoreOrdersPanel({
 
   const views: { key: View; label: string }[] = [
     { key: "all", label: "Todos" },
-    { key: "toShip", label: "Por enviar" },
+    { key: "toShip", label: "No preparados" },
     { key: "incomplete", label: "Pagos incompletos" },
     { key: "archived", label: "Archivados" },
   ];
@@ -582,7 +587,7 @@ export function StoreOrdersPanel({
               : view === "all"
                 ? "Todavía no tienes pedidos. Aparecen acá apenas alguien pague en tu tienda."
                 : view === "toShip"
-                  ? "No hay pedidos por enviar."
+                  ? "No hay pedidos por preparar."
                   : view === "incomplete"
                     ? "No hay pagos incompletos."
                     : "No hay pedidos archivados."}

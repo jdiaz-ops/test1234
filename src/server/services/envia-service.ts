@@ -4,6 +4,7 @@ import { PDFDocument } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
 import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
+  colombiaPostalCode,
   enviaCarrierName,
   enviaIdNumber,
   enviaPhone,
@@ -11,6 +12,7 @@ import {
   enviaStateCode,
   enviaStatusStage,
   enviaText,
+  standardStreet,
   type EnviaPlace,
 } from "@/lib/envia-address";
 import { orderNumber } from "@/lib/order-math";
@@ -27,6 +29,7 @@ import {
   type EnviaLabel,
   type EnviaShipment,
 } from "@/server/integrations/envia-client";
+import { postalCodeFromGoogle } from "@/server/integrations/google-geocoding";
 import { StoreOrderError, updateOrderFulfillment } from "@/server/services/store-order-service";
 import { packingSlipsPdf } from "@/server/services/packing-slip-service";
 
@@ -190,16 +193,37 @@ async function destinationPlace(conn: EnviaConnection, region: string, city: str
   throw new EnviaServiceError(`No encontramos «${city}» en ${region}. Corrige la ciudad del destino.`);
 }
 
+/// El código postal del destino (6 dígitos, de 4-72): Interrapidísimo lo
+/// usa para la zona de reparto; con el de la ciudad pone uno genérico y la
+/// guía sale sin zona (guía del pedido #A32F4E55, 2026-11-27). Primero el
+/// que escribió la compradora en el checkout; si no lo escribió (o se
+/// corrigió la dirección), el de Google Maps; si no, el código DANE de la
+/// ciudad, como en el ejemplo de Envia.
+async function destinationPostalCode(order: StoreOrder, input: LabelInput, place: EnviaPlace, street: string) {
+  const sameAddress =
+    input.destination.street.trim() === (order.shippingAddress ?? "").trim() &&
+    input.destination.city.trim() === (order.shippingCity ?? "").trim();
+  const fromBuyer = sameAddress ? colombiaPostalCode(order.shippingPostalCode, place.city) : null;
+  if (fromBuyer) return fromBuyer;
+  const fromMap = await postalCodeFromGoogle({ street, city: place.cityName, region: input.destination.region });
+  return colombiaPostalCode(fromMap, place.city) ?? place.city;
+}
+
 /// Origen y destino como los pide Envia para Colombia (su ejemplo de
 /// "Generate domestic shipment (Colombia)"): la dirección completa en
 /// `street`, `number` y `district` vacíos, ciudad y código postal con el
-/// código DANE. `filledNumber`: número "S/N" y la ciudad como barrio, para
-/// una transportadora que no los acepte vacíos (ver createWith).
+/// código DANE. El destino, con el código postal real de la compradora
+/// (ver destinationPostalCode) y la dirección con "#" y "-".
+/// Para reintentar si Envia rechaza algo (ver addressFix): `filledNumber`,
+/// número "S/N" y la ciudad como barrio; `danePostalCode`, el código de la
+/// ciudad como código postal.
+type ShipmentOptions = { filledNumber?: boolean; danePostalCode?: boolean };
+
 async function buildShipment(
   conn: EnviaConnection,
   order: StoreOrder,
   input: LabelInput,
-  options: { filledNumber?: boolean } = {},
+  options: ShipmentOptions = {},
 ): Promise<EnviaShipment> {
   const origin = enviaPlace(conn.originRegion, conn.originCity);
   if (!origin) throw new EnviaServiceError("Revisa la ciudad de despacho en Tienda → Conexiones → Envia.");
@@ -216,6 +240,10 @@ async function buildShipment(
     );
   }
   const buyerId = enviaIdNumber(order.billingIdNumber);
+  const destinationStreet = standardStreet(input.destination.street);
+  const postalCode = options.danePostalCode
+    ? destination.city
+    : await destinationPostalCode(order, input, destination, destinationStreet);
   const numberAndDistrict = (place: EnviaPlace) =>
     options.filledNumber ? { number: "S/N", district: enviaText(place.cityName, 60) } : { number: "", district: "" };
   return {
@@ -242,12 +270,12 @@ async function buildShipment(
       phone: enviaPhone(order.buyerPhone),
       // La cédula que dio la compradora en el checkout (es obligatoria).
       ...(buyerId ? { identificationNumber: buyerId } : {}),
-      street: enviaText(input.destination.street, 200),
+      street: enviaText(destinationStreet, 200),
       ...numberAndDistrict(destination),
       city: destination.city,
       state: destination.state,
       country: "CO",
-      postalCode: destination.city,
+      postalCode,
       ...(input.destination.reference?.trim() ? { reference: enviaText(input.destination.reference) } : {}),
     },
     package: {
@@ -345,7 +373,6 @@ export function deliversToOffice(quote: Pick<ShippingQuote, "service" | "service
 }
 
 async function quoteWith(conn: EnviaConnection, order: StoreOrder, input: LabelInput) {
-  const shipment = await buildShipment(conn, order, input);
   const auth = authOf(conn);
 
   // La marca despacha con una sola transportadora: solo esa se cotiza.
@@ -358,7 +385,13 @@ async function quoteWith(conn: EnviaConnection, order: StoreOrder, input: LabelI
   if (carriers.length === 0) carriers = DEFAULT_CARRIERS.map((code) => ({ code, name: null }));
   carriers = carriers.slice(0, MAX_CARRIERS);
 
-  const results = await Promise.allSettled(carriers.map((c) => rateCarrier(auth, shipment, c.code)));
+  const rateAll = (shipment: EnviaShipment) =>
+    Promise.allSettled(carriers.map((c) => rateCarrier(auth, shipment, c.code)));
+  let results = await rateAll(await buildShipment(conn, order, input));
+  // Si Envia no acepta el código postal, se cotiza con el de la ciudad.
+  const nothing = results.every((r) => r.status === "rejected" || r.value.length === 0);
+  const postalRejected = results.some((r) => r.status === "rejected" && addressFix(r.reason)?.danePostalCode);
+  if (nothing && postalRejected) results = await rateAll(await buildShipment(conn, order, input, { danePostalCode: true }));
   const quotes: ShippingQuote[] = [];
   const failed: string[] = [];
   results.forEach((result, i) => {
@@ -405,13 +438,18 @@ async function quoteWith(conn: EnviaConnection, order: StoreOrder, input: LabelI
   return { quotes: home, failed };
 }
 
-/// Envia (o la transportadora) no aceptó el número o el barrio vacíos.
-function rejectsEmptyNumber(err: unknown) {
-  return (
-    err instanceof EnviaError &&
-    /\b(number|district|numero|barrio)\b/i.test(err.message) &&
-    !/identification|phone|tracking|telefono/i.test(err.message)
-  );
+/// Qué cambiar para reintentar cuando Envia (o la transportadora) rechaza
+/// un dato de la dirección: el número o el barrio vacíos → "S/N" y la
+/// ciudad; el código postal → el de la ciudad. null: otro error.
+function addressFix(err: unknown): ShipmentOptions | null {
+  if (!(err instanceof EnviaError)) return null;
+  const message = err.message;
+  const fix: ShipmentOptions = {};
+  if (/\b(number|district|numero|barrio)\b/i.test(message) && !/identification|phone|tracking|telefono/i.test(message)) {
+    fix.filledNumber = true;
+  }
+  if (/postal|zip|c[oó]digo postal/i.test(message)) fix.danePostalCode = true;
+  return fix.filledNumber || fix.danePostalCode ? fix : null;
 }
 
 type LabelChoice = { carrier: string; service: string; priceCents?: number };
@@ -462,11 +500,12 @@ async function createWith(brandId: string, conn: EnviaConnection, order: StoreOr
     generateLabel(auth, s, input.carrier, input.service, { orderReference: orderNumber(order.reference) });
   try {
     label = await generate(shipment).catch(async (err) => {
-      if (!rejectsEmptyNumber(err)) throw err;
+      const fix = addressFix(err);
+      if (!fix) throw err;
       // Envia manda el número y el barrio vacíos en Colombia; si esta
-      // transportadora no los acepta así, se llenan y se intenta otra vez
-      // (un rechazo no crea guía ni cobra).
-      return generate(await buildShipment(conn, order, input, { filledNumber: true }));
+      // transportadora no los acepta así (o no acepta el código postal), se
+      // ajusta y se intenta otra vez (un rechazo no crea guía ni cobra).
+      return generate(await buildShipment(conn, order, input, fix));
     });
   } catch (err) {
     await prisma.storeOrder.update({ where: { id: order.id }, data: { enviaLabelAt: null } });

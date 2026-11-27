@@ -70,6 +70,38 @@ export function enviaPlace(region: string | null | undefined, city: string | nul
   return { state, city: `${code}000`, cityName: municipalityName(code) ?? city?.trim() ?? "" };
 }
 
+/// Código postal de Colombia (4-72) válido para ese municipio: 6 dígitos,
+/// y los 2 primeros son los del departamento en el código DANE (Bogotá 11,
+/// Antioquia 05…). `daneCity`: el código DANE de 8 dígitos. null si no.
+export function colombiaPostalCode(raw: string | null | undefined, daneCity: string): string | null {
+  const digits = (raw ?? "").replace(/\D/g, "");
+  return digits.length === 6 && digits.slice(0, 2) === daneCity.slice(0, 2) ? digits : null;
+}
+
+const VIA = String.raw`(?:av(?:enida)?\.?\s*(?:calle|carrera|cra|kra|kr|cll|cl)|calle|cll|cl|carrera|cra|kra|kr|cr|transversal|trans|tv|diagonal|diag|dg|circular|cir|autopista)\.?`;
+/// "16", "16F", "16 F", "63 Bis A", "45 Sur"…: una letra suelta, no el
+/// comienzo de una palabra ("Parque").
+const STREET_NUMBER = String.raw`\d{1,3}(?:\s*[a-z](?![a-z]))?(?:\s*bis(?![a-z]))?(?:\s*[a-z](?![a-z]))?`;
+const SIDE = String.raw`(?:\s+(?:sur|este)(?![a-z]))?`;
+const PLAIN_ADDRESS = new RegExp(
+  String.raw`^(${VIA})\s*(${STREET_NUMBER}${SIDE})\s+(${STREET_NUMBER})\s+(\d{1,3})(?![\d-])`,
+  "i",
+);
+
+/// La dirección con la nomenclatura de Colombia ("Calle 16 F # 99-59")
+/// cuando se escribió sin "#" ni "-" ("Calle 16 F 99 59, Torre 4…"), para
+/// que la transportadora y el mapa la ubiquen. Lo demás queda igual; si no
+/// es claramente así, no se toca.
+export function standardStreet(address: string): string {
+  const clean = address.replace(/\s+/g, " ").trim();
+  if (/#|\bno\.?\s*\d|n[°º]|\d\s*-\s*\d/i.test(clean)) return clean;
+  const match = PLAIN_ADDRESS.exec(clean);
+  if (!match) return clean;
+  const [whole, via, street, cross, plate] = match;
+  const tidy = (part: string) => part.replace(/\s+/g, " ").trim();
+  return `${tidy(via)} ${tidy(street)} # ${tidy(cross)}-${plate}${clean.slice(whole.length)}`;
+}
+
 /// Sin tildes ni caracteres especiales, en una línea: con UTF-8 en nombres
 /// y direcciones Envia a veces no devuelve tarifas.
 export function enviaText(text: string | null | undefined, max = 100): string {

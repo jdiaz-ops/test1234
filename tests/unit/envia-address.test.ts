@@ -3,6 +3,8 @@ import { COLOMBIA_REGIONS } from "@/lib/colombia-regions";
 import { ENVIA_CO_CARRIERS } from "@/lib/envia-carriers";
 import {
   ENVIA_STATE_CODE,
+  colombiaPostalCode,
+  standardStreet,
   enviaIdNumber,
   enviaCarrierName,
   enviaPhone,
@@ -33,6 +35,30 @@ describe("direcciones de Colombia para Envia", () => {
     expect(enviaPlace("Bogotá D.C.", "Bogota")).toMatchObject({ state: "DC", city: "11001000" });
     expect(enviaPlace("Antioquia", "Ciudad Inventada")).toBeNull();
     expect(enviaPlace("Otro país", "Medellín")).toBeNull();
+  });
+
+  it("la dirección con «#» y «-» cuando se escribió sin ellos, sin tocar lo demás", () => {
+    expect(standardStreet("Calle 16 F 99 59 Parque Central Fontibón 2, Torre 4 Apartamento 1407")).toBe(
+      "Calle 16 F # 99-59 Parque Central Fontibón 2, Torre 4 Apartamento 1407",
+    );
+    expect(standardStreet("Cl. 16F 99 59")).toBe("Cl. 16F # 99-59");
+    expect(standardStreet("Calle 100 8A 55")).toBe("Calle 100 # 8A-55");
+    expect(standardStreet("Calle 63 Bis A 24 15")).toBe("Calle 63 Bis A # 24-15");
+    expect(standardStreet("Diagonal 45 Sur 20 10")).toBe("Diagonal 45 Sur # 20-10");
+    expect(standardStreet("Avenida Calle 26 69 76")).toBe("Avenida Calle 26 # 69-76");
+    expect(standardStreet("Kr 10 20 30")).toBe("Kr 10 # 20-30");
+    // Ya escritas bien, o que no son claramente calle-número-placa: igual.
+    for (const same of ["Carrera 15 # 93-60", "Carrera 15 No. 93-60", "Calle 10 20-30", "Avenida Boyacá 12 30", "Mz 4 Casa 12", "Carrera 8 3 Sur 45"]) {
+      expect(standardStreet(same)).toBe(same);
+    }
+  });
+
+  it("el código postal tiene que ser de 6 dígitos y del mismo departamento", () => {
+    expect(colombiaPostalCode("110931", "11001000")).toBe("110931");
+    expect(colombiaPostalCode("11 09 31", "11001000")).toBe("110931");
+    expect(colombiaPostalCode("050021", "11001000")).toBeNull();
+    expect(colombiaPostalCode("11001000", "11001000")).toBeNull();
+    expect(colombiaPostalCode(null, "05001000")).toBeNull();
   });
 
   it("NIT sin dígito de verificación; cédula y pasaporte sin puntos ni espacios", () => {
